@@ -1,4 +1,4 @@
- if (!require("dplyr")) install.packages("dplyr")
+if (!require("dplyr")) install.packages("dplyr")
 library("dplyr")
 if (!require("DT")) install.packages("DT")
 library("DT")
@@ -36,13 +36,12 @@ if (!require("readxl")) install.packages("readxl")
 library("readxl")
 if (!require("shinybusy")) install.packages("shinybusy")
 library("shinybusy")
-if (!require("shinyToastify")) install.packages("shinyToastify")
-library("shinyToastify")
+if (!require("forstringr")) install.packages("forstringr")
+library("forstringr") 
 
 options(warn = -1)
 
 ui <- shinyUI(fluidPage(
-  useShinyToastify(),
   tags$head(tags$style(
     "
     .grey-out {
@@ -331,21 +330,9 @@ ui <- shinyUI(fluidPage(
                                             style = "jelly", color = "default"
           )),
           hr(),
-          column(
-            12,
-            offset = 0,
-            h5("# repetitions"),
-            numericInput(
-              "repetitions",
-              "",
-              value = 1,
-              min = 1,
-              step = 1
-            )
-          ),
           column(12,
                  offset = 0,
-                 h5("Download unaveraged results as csv-table")
+                 h5("Download results as csv-table")
           ),
           column(12,
                  offset = 0,
@@ -970,6 +957,7 @@ server <- shinyServer(function(input, output, session) {
                         value = shared_input_model
     )
     
+    
     mytable_approx_reactive$value <- (read_excel(input$upload$datapath, 8))
     
     ####
@@ -1295,10 +1283,10 @@ server <- shinyServer(function(input, output, session) {
   #### Function to extract In/equalities from Input ####
   
   extract_info <- function(test = input_relations$rel1, loop_numb_models, func_mytable_input) {
-   
-   
+    
+    
     check_input <- paste(func_mytable_input[, 2], collapse = ";")
-   
+    
     
     max_p <- max(as.numeric(unlist(str_extract_all(check_input, "(?<=p)[0-9]*"))))
     
@@ -1341,7 +1329,10 @@ server <- shinyServer(function(input, output, session) {
     test <- paste0(test, ";", limits, collapse = "")
     
     test <- unlist(str_split(test, ";"))
+    test <- str_replace_all(test, "\u2013", "-")
+    test <- str_replace_all(test, "\u2014", "-")
     test <- str_replace_all(test, " ", "")
+    
     test <- unlist(test)
     
     if (length(which(test %in% "")) > 0) {
@@ -1435,7 +1426,7 @@ server <- shinyServer(function(input, output, session) {
       }
       
     }
-        
+    
     
     ####* extract structure ####
     
@@ -1939,7 +1930,7 @@ server <- shinyServer(function(input, output, session) {
   
   #### Function for Representations ####
   
-  ####* H-representation input models and intersection models ####
+  ####* H-representation input models ####
   
   observeEvent(input$go_v_h, {
     
@@ -1974,7 +1965,7 @@ server <- shinyServer(function(input, output, session) {
     }
     
     colnames(mytable_input) <- c("model name", "input_models")
-    mytable_input[, 2] = str_replace_all( mytable_input[, 2],",",";")
+    #mytable_input[, 2] = str_replace_all( mytable_input[, 2],",",";") # !!!!!!!!
     
     names_models_reactive$value <- mytable_input$`model name`
     
@@ -1995,23 +1986,36 @@ server <- shinyServer(function(input, output, session) {
       for (loop_numb_models in 1:numb_models_to_convert) {
         name_m <- mytable_input[loop_numb_models, 1]
         
+        if(loop_numb_models > 1){
+          
+          shinyalert(
+            
+            title =  paste0("Creating H-representation of model ", name_m, ". Done for model(s): ",paste(feedback_name, collapse = ", "),"."),
+            showConfirmButton = F,
+            type="info",
+            animation=F
+            
+          )
+          
+          
+        }else{
+          
+          shinyalert(
+            
+            title = paste0("Creating H-representation of model ", name_m, "."),
+            showConfirmButton = F,
+            type="info"
+     
+            
+          )
+          
+        }
+        
+
+        
         feedback_name <- c(feedback_name, name_m)
-        
-        showToast(
-          session,
-          input,
-          id = paste0("toast", loop_numb_models, collpase = ""),
-          text = paste0("Creating H-representation of model ", name_m, "."),
-          type = "dark",
-          transition = "flip",
-          position = "bottom-left",
-          autoClose = FALSE,
-          style = list(overflow = "scroll"),
-          hideProgressBar = T,
-          pauseOnHover = F
-        )
-        
-        
+      
+
         extract_info(mytable_input[loop_numb_models, 2], loop_numb_models, mytable_input)
         
         feedback_h_models <- paste(feedback_h_models,
@@ -2101,59 +2105,49 @@ server <- shinyServer(function(input, output, session) {
           }
         }
         
-        toastUpdate(
-          session,
-          toastId = paste0("toast", loop_numb_models, collpase = ""),
-          text = paste0("Creating H-representation of model ", name_m, "."),
-          type = "dark",
-          transition = "flip",
-          position = "bottom-left",
-          autoClose = 200,
-          style = list(overflow = "scroll"),
-          hideProgressBar = F,
-          pauseOnHover = F
-        )
+        Sys.sleep(1)
         
-        Sys.sleep(.4)
+        shinyalert::closeAlert()
         
-        showToast(
-          session,
-          input,
-          id = "toast_h_rep_summary",
-          text = paste0("Finished H-representation(s) for model(s) ", paste(feedback_name, collapse = ", "), "."),
-          type = "dark",
-          transition = "flip",
-          position = "bottom-right",
-          style = list(overflow = "scroll"),
-          autoClose = FALSE,
-          hideProgressBar = T
-        )
+        if(loop_numb_models == numb_models_to_convert){
+          
+          if(is.null(mytable_v_reactive$value) == FALSE){
+            
+            shinyalert(
+              
+              title =  paste0("Created H-representation of model(s): ",paste(feedback_name, collapse = ", "),"."),
+              showConfirmButton = F,
+              type="success",
+              animation=F
+              
+  
+              
+            )
+            
+            Sys.sleep(3)
+            
+            shinyalert::closeAlert()
+            
+          }else{
+            
+            shinyalert(
+              
+              title =  paste0("Created H-representation of model(s): ",paste(feedback_name, collapse = ", "),"."),
+              showConfirmButton = T,
+              type="success",
+              closeOnClickOutside = T,
+              animation=F
+              
+            )
+            
+            
+          }
+
+          
+        }
         
-        
-        toastUpdate(
-          session,
-          toastId = "toast_h_rep_summary",
-          text = paste0("Finished H-representation(s) for model(s) ", paste(feedback_name, collapse = ", "), "."),
-          type = "dark",
-          transition = "flip",
-          position = "bottom-right",
-          style = list(overflow = "scroll"),
-          autoClose = FALSE,
-          hideProgressBar = T
-        )
+
       }
-      
-      toastUpdate(
-        session,
-        toastId = "toast_h_rep_summary",
-        text = paste0("Finished H-representation(s) for model(s) ", paste(feedback_name, collapse = ", "), "."),
-        type = "dark",
-        transition = "flip",
-        position = "bottom-right",
-        style = list(overflow = "scroll"),
-        autoClose = 3000,
-        hideProgressBar = F
-      )
       
       ####* V-representation ####
       
@@ -2178,20 +2172,33 @@ server <- shinyServer(function(input, output, session) {
         invalid_model <- numeric()
         
         for (loop_numb_models in 1:length(models_picked_for_v_representation)) {
-          showToast(
-            session,
-            input,
-            id = paste(loop_numb_models),
-            text = paste0("Creating V-representation of model ", models_picked_for_v_representation[loop_numb_models]),
-            type = "dark",
-            transition = "flip",
-            position = "bottom-left",
-            autoClose = FALSE,
-            style = list(overflow = "scroll"),
-            hideProgressBar = T,
-            pauseOnHover = F
-          )
           
+          if(loop_numb_models > 1){
+            
+            shinyalert(
+              
+              title =  paste0("Creating V-representation of model ", models_picked_for_v_representation[loop_numb_models], ". Done for model(s): ",paste(models_picked_for_v_representation[1:(loop_numb_models-1)], collapse = ", "),"."),
+              showConfirmButton = F,
+              type="info",
+              animation=F
+              
+            )
+            
+          }else{
+            
+            shinyalert(
+              
+              title = paste0("Creating V-representation of model ", models_picked_for_v_representation[loop_numb_models], "."),
+              showConfirmButton = F,
+              type="info",
+              animation=F
+              
+              
+            )
+            
+          }
+          
+
           v_rep_actual <- scdd(eval(parse(text = paste("h_reactive$'", models_picked_for_v_representation[loop_numb_models], "'", sep = ""))))
           colnames(v_rep_actual$output) <- names_p_multi
           
@@ -2201,58 +2208,30 @@ server <- shinyServer(function(input, output, session) {
             v_reactive[[models_picked_for_v_representation[loop_numb_models]]] <- v_rep_actual
           }
           
-          toastUpdate(
-            session,
-            toastId = paste(loop_numb_models),
-            text = paste0("Creating V-representation of model ", models_picked_for_v_representation[loop_numb_models]),
-            type = "dark",
-            transition = "flip",
-            position = "bottom-left",
-            autoClose = 200,
-            style = list(overflow = "scroll"),
-            hideProgressBar = F,
-            pauseOnHover = F
-          )
           
-          Sys.sleep(.4)
+          #####
+        
           
-          showToast(
-            session,
-            input,
-            id = "toast_v_rep_summary",
-            text = paste0("Finished V-representation(s) for model(s) ", paste(models_picked_for_v_representation[1:loop_numb_models], collapse = ", "), "."),
-            type = "dark",
-            transition = "flip",
-            position = "bottom-right",
-            autoClose = FALSE,
-            hideProgressBar = T,
-            style = list(overflow = "scroll")
-          )
+          Sys.sleep(1)
           
-          toastUpdate(
-            session,
-            toastId = "toast_v_rep_summary",
-            text = paste0("Finished V-representation(s) for model(s) ", paste(models_picked_for_v_representation[1:loop_numb_models], collapse = ", "), "."),
-            type = "dark",
-            transition = "flip",
-            position = "bottom-right",
-            autoClose = FALSE,
-            style = list(overflow = "scroll"),
-            hideProgressBar = F
-          )
+          shinyalert::closeAlert()
+          
+          if(loop_numb_models == length(models_picked_for_v_representation)){
+            
+            shinyalert(
+              
+              title =  paste0("Created V-representation of model(s): ",paste(models_picked_for_v_representation, collapse = ", "),"."),
+              showConfirmButton = T,
+              type="success",
+              closeOnClickOutside = T,
+              animation=F
+              
+            )
+            
+          }
+   
         }
         
-        toastUpdate(
-          session,
-          toastId = "toast_v_rep_summary",
-          text = paste0("Finished V-representation(s) for model(s) ", paste(models_picked_for_v_representation[1:loop_numb_models], collapse = ", "), "."),
-          type = "dark",
-          transition = "flip",
-          position = "bottom-right",
-          autoClose = 3000,
-          style = list(overflow = "scroll"),
-          hideProgressBar = F
-        )
       } else {
         hideTab(inputId = "tabs", target = "V-representation")
         hideTab(inputId = "tabs", target = "Plot Polytope(s)")
@@ -2378,267 +2357,260 @@ server <- shinyServer(function(input, output, session) {
       
       names_h_rep <- names_models_reactive$value
       
-      n_rep <- isolate(input$repetitions)
+      n_rep <- 1
       parsim_rep <- numeric()
       
-      withProgress(message = "Repetition", value = 0, {
-        for (loop_repeat_parsimony in 1:n_rep) {
-          incProgress(1 / n_rep,
-                      detail = paste("#", loop_repeat_parsimony, sep = "")
-          )
+      
+      for (loop_repeat_parsimony in 1:n_rep) {
+        
+        parsim <- numeric()
+        act_dim <- numeric()
+        
+        for (loop_parsimony in 1:length(names_h_rep)) {
+          act_pars <- (isolate(h_reactive[[names_h_rep[loop_parsimony]]]))
+          act_pars <- matrix(as.character(act_pars), ncol = ncol(act_pars))
           
           
-          parsim <- numeric()
-          act_dim <- numeric()
+          #  not_full_dim <- ifelse(sum(q2d(act_pars)[, 1]) > 0, 1, 0)
+          not_full_dim <- 0
           
-          for (loop_parsimony in 1:length(names_h_rep)) {
-            act_pars <- (isolate(h_reactive[[names_h_rep[loop_parsimony]]]))
-            act_pars <- matrix(as.character(act_pars), ncol = ncol(act_pars))
+          # summary(prcomp( data.frame(((v_representation_reactive$value)[1]))[,2:4]))$importance[2,]
+          
+          if (not_full_dim == 0) {
+            left_pars <- q2d((act_pars[, 3:ncol(act_pars)]))
+            right_pars <- q2d((act_pars[, 2]))
+            
+            model_s4 <- new("model_s4",
+                            A = -left_pars,
+                            b = right_pars,
+                            type = "Hpolytope"
+            )
             
             
-            #  not_full_dim <- ifelse(sum(q2d(act_pars)[, 1]) > 0, 1, 0)
-            not_full_dim <- 0
+            ####* CB ####
             
-            # summary(prcomp( data.frame(((v_representation_reactive$value)[1]))[,2:4]))$importance[2,]
-            
-            if (not_full_dim == 0) {
-              left_pars <- q2d((act_pars[, 3:ncol(act_pars)]))
-              right_pars <- q2d((act_pars[, 2]))
+            if (isolate(input$CB) == TRUE) {
+              #####* settings strings ####
               
-              model_s4 <- new("model_s4",
-                              A = -left_pars,
-                              b = right_pars,
-                              type = "Hpolytope"
+              
+              settings_string_CB <- rep(NA, 6)
+              
+              settings_string_CB[1] <- ifelse(input_volume$value[1] == "default", "",
+                                              paste("'error' =", input_volume$value[1], sep = "")
               )
               
               
-              ####* CB ####
+              rand_w <- ifelse(input_volume$value[2] == "default", "default", input_volume_reactive$value[2])
+              rand_w <- ifelse(rand_w == "Coordinate Directions Hit-and-Run", "CDHR", rand_w)
+              rand_w <- ifelse(rand_w == "Random Directions Hit-and-Run", "RDHR", rand_w)
+              rand_w <- ifelse(rand_w == "Ball Walk", "BaW", rand_w)
+              rand_w <- ifelse(rand_w == "Billiard Walk", "BiW", rand_w)
               
-              if (isolate(input$CB) == TRUE) {
-                #####* settings strings ####
-                
-                
-                settings_string_CB <- rep(NA, 6)
-                
-                settings_string_CB[1] <- ifelse(input_volume$value[1] == "default", "",
-                                                paste("'error' =", input_volume$value[1], sep = "")
-                )
-                
-                
-                rand_w <- ifelse(input_volume$value[2] == "default", "default", input_volume_reactive$value[2])
-                rand_w <- ifelse(rand_w == "Coordinate Directions Hit-and-Run", "CDHR", rand_w)
-                rand_w <- ifelse(rand_w == "Random Directions Hit-and-Run", "RDHR", rand_w)
-                rand_w <- ifelse(rand_w == "Ball Walk", "BaW", rand_w)
-                rand_w <- ifelse(rand_w == "Billiard Walk", "BiW", rand_w)
-                
-                
-                settings_string_CB[2] <- ifelse(rand_w == "default", "",
-                                                paste("'random_walk' = '", rand_w, "'", sep = "")
-                )
-                
-                settings_string_CB[3] <- ifelse(input_volume$value[3] == "default", "",
-                                                paste("'walk_length' =", input_volume$value[3], sep = "")
-                )
-                
-                settings_string_CB[4] <- ifelse(input_volume$value[4] == "default", "",
-                                                paste("'win_len' =", input_volume$value[4], sep = "")
-                )
-                
-                
-                settings_string_CB[5] <- ifelse(input_volume$value[5] == "default", "",
-                                                paste("'hpoly' =", input_volume$value[5], sep = "")
-                )
-                
-                settings_string_CB[6] <- ifelse(input_volume$value[6] == "none", "",
-                                                paste("'seed' =", input_volume$value[6], sep = "")
-                )
-                
-                settings_string_CB <- settings_string_CB[settings_string_CB != ""]
-                
-                settings_string_CB <- paste(settings_string_CB, collapse = ",")
-                
-                if (settings_string_CB[1] != "") {
-                  settings_string_final_CB <- paste("list('algorithm' = 'CB',", settings_string_CB, ")")
-                } else {
-                  settings_string_final_CB <- "list('algorithm' = 'CB')"
-                }
-                
-                #####* calc volume ####
-                
-                act_vol_CB <- volume(model_s4,
-                                     settings =
-                                       eval(parse(
-                                         text = (settings_string_final_CB)
-                                       ))
-                )
+              
+              settings_string_CB[2] <- ifelse(rand_w == "default", "",
+                                              paste("'random_walk' = '", rand_w, "'", sep = "")
+              )
+              
+              settings_string_CB[3] <- ifelse(input_volume$value[3] == "default", "",
+                                              paste("'walk_length' =", input_volume$value[3], sep = "")
+              )
+              
+              settings_string_CB[4] <- ifelse(input_volume$value[4] == "default", "",
+                                              paste("'win_len' =", input_volume$value[4], sep = "")
+              )
+              
+              
+              settings_string_CB[5] <- ifelse(input_volume$value[5] == "default", "",
+                                              paste("'hpoly' =", input_volume$value[5], sep = "")
+              )
+              
+              settings_string_CB[6] <- ifelse(input_volume$value[6] == "none", "",
+                                              paste("'seed' =", input_volume$value[6], sep = "")
+              )
+              
+              settings_string_CB <- settings_string_CB[settings_string_CB != ""]
+              
+              settings_string_CB <- paste(settings_string_CB, collapse = ",")
+              
+              if (settings_string_CB[1] != "") {
+                settings_string_final_CB <- paste("list('algorithm' = 'CB',", settings_string_CB, ")")
               } else {
-                act_vol_CB <- NA
+                settings_string_final_CB <- "list('algorithm' = 'CB')"
               }
               
+              #####* calc volume ####
               
-              ####* SoB ####
-              
-              if (isolate(input$SoB) == TRUE) {
-                #####* settings strings ####
-                
-                
-                settings_string_SoB <- rep(NA, 4)
-                
-                settings_string_SoB[1] <- ifelse(input_volume$value[7] == "default", "",
-                                                 paste("'error' =", input_volume$value[7], sep = "")
-                )
-                
-                
-                rand_w <- ifelse(input_volume$value[8] == "default", "default", input_volume_reactive$value[8])
-                rand_w <- ifelse(rand_w == "Coordinate Directions Hit-and-Run", "CDHR", rand_w)
-                rand_w <- ifelse(rand_w == "Random Directions Hit-and-Run", "RDHR", rand_w)
-                rand_w <- ifelse(rand_w == "Ball Walk", "BaW", rand_w)
-                rand_w <- ifelse(rand_w == "Billiard Walk", "BiW", rand_w)
-                
-                
-                settings_string_SoB[2] <- ifelse(rand_w == "default", "",
-                                                 paste("'random_walk' = '", rand_w, "'", sep = "")
-                )
-                
-                settings_string_SoB[3] <- ifelse(input_volume$value[9] == "default", "",
-                                                 paste("'walk_length' =", input_volume$value[9], sep = "")
-                )
-                
-                
-                settings_string_SoB[4] <- ifelse(input_volume$value[10] == "none", "",
-                                                 paste("'seed' =", input_volume$value[10], sep = "")
-                )
-                
-                settings_string_SoB <- settings_string_SoB[settings_string_SoB != ""]
-                
-                settings_string_SoB <- paste(settings_string_SoB, collapse = ",")
-                
-                if (settings_string_SoB[1] != "") {
-                  settings_string_final_SoB <- paste("list('algorithm' = 'SOB',", settings_string_SoB, ")")
-                } else {
-                  settings_string_final_SoB <- "list('algorithm' = 'SOB')"
-                }
-                
-                
-                #####* calc volume ####
-                
-                act_vol_SoB <- volume(model_s4,
-                                      settings = eval(parse(
-                                        text = (settings_string_final_SoB)
-                                      ))
-                )
-              } else {
-                act_vol_SoB <- NA
-              }
-              
-              ####* CG ####
-              
-              if (isolate(input$CG) == TRUE) {
-                #####* settings strings ####
-                
-                
-                settings_string_CG <- rep(NA, 5)
-                
-                settings_string_CG[1] <- ifelse(input_volume$value[11] == "default", "",
-                                                paste("'error' =", input_volume$value[11], sep = "")
-                )
-                
-                
-                rand_w <- ifelse(input_volume$value[12] == "default", "default", input_volume_reactive$value[12])
-                rand_w <- ifelse(rand_w == "Coordinate Directions Hit-and-Run", "CDHR", rand_w)
-                rand_w <- ifelse(rand_w == "Random Directions Hit-and-Run", "RDHR", rand_w)
-                rand_w <- ifelse(rand_w == "Ball Walk", "BaW", rand_w)
-                rand_w <- ifelse(rand_w == "Billiard Walk", "BiW", rand_w)
-                
-                
-                settings_string_CG[2] <- ifelse(rand_w == "default", "",
-                                                paste("'random_walk' = '", rand_w, "'", sep = "")
-                )
-                
-                settings_string_CG[3] <- ifelse(input_volume$value[13] == "default", "",
-                                                paste("'walk_length' =", input_volume$value[13], sep = "")
-                )
-                
-                settings_string_CG[4] <- ifelse(input_volume$value[14] == "default", "",
-                                                paste("'win_len' =", input_volume$value[14], sep = "")
-                )
-                
-                
-                settings_string_CG[5] <- ifelse(input_volume$value[15] == "none", "",
-                                                paste("'seed' =", input_volume$value[15], sep = "")
-                )
-                
-                settings_string_CG <- settings_string_CG[settings_string_CG != ""]
-                
-                settings_string_CG <- paste(settings_string_CG, collapse = ",")
-                
-                if (settings_string_CG[1] != "") {
-                  settings_string_final_CG <- paste("list('algorithm' = 'CG',", settings_string_CG, ")")
-                } else {
-                  settings_string_final_CG <- "list('algorithm' = 'CG')"
-                }
-                
-                #####* calc volume ####
-                
-                
-                
-                act_vol_CG <- volume(model_s4,
-                                     settings = eval(parse(
-                                       text = (settings_string_final_CG)
+              act_vol_CB <- volume(model_s4,
+                                   settings =
+                                     eval(parse(
+                                       text = (settings_string_final_CB)
                                      ))
-                )
-              } else {
-                act_vol_CG <- NA
-              }
-              
-              
-              act_dim <- c(act_dim, "Full-dimensional")
+              )
             } else {
-              if (isolate(input$CB) == TRUE) {
-                act_vol_CB <- 0
-              } else {
-                act_vol_CB <- NA
-              }
-              
-              
-              if (isolate(input$SoB) == TRUE) {
-                act_vol_SoB <- 0
-              } else {
-                act_vol_SoB <- NA
-              }
-              
-              
-              if (isolate(input$CG) == TRUE) {
-                act_vol_CG <- 0
-              } else {
-                act_vol_CG <- NA
-              }
-              
-              act_dim <- c(act_dim, "Not full-dimensional")
+              act_vol_CB <- NA
             }
             
-            parsim <- c(parsim, c(act_vol_CB, act_vol_SoB, act_vol_CG))
+            
+            ####* SoB ####
+            
+            if (isolate(input$SoB) == TRUE) {
+              #####* settings strings ####
+              
+              
+              settings_string_SoB <- rep(NA, 4)
+              
+              settings_string_SoB[1] <- ifelse(input_volume$value[7] == "default", "",
+                                               paste("'error' =", input_volume$value[7], sep = "")
+              )
+              
+              
+              rand_w <- ifelse(input_volume$value[8] == "default", "default", input_volume_reactive$value[8])
+              rand_w <- ifelse(rand_w == "Coordinate Directions Hit-and-Run", "CDHR", rand_w)
+              rand_w <- ifelse(rand_w == "Random Directions Hit-and-Run", "RDHR", rand_w)
+              rand_w <- ifelse(rand_w == "Ball Walk", "BaW", rand_w)
+              rand_w <- ifelse(rand_w == "Billiard Walk", "BiW", rand_w)
+              
+              
+              settings_string_SoB[2] <- ifelse(rand_w == "default", "",
+                                               paste("'random_walk' = '", rand_w, "'", sep = "")
+              )
+              
+              settings_string_SoB[3] <- ifelse(input_volume$value[9] == "default", "",
+                                               paste("'walk_length' =", input_volume$value[9], sep = "")
+              )
+              
+              
+              settings_string_SoB[4] <- ifelse(input_volume$value[10] == "none", "",
+                                               paste("'seed' =", input_volume$value[10], sep = "")
+              )
+              
+              settings_string_SoB <- settings_string_SoB[settings_string_SoB != ""]
+              
+              settings_string_SoB <- paste(settings_string_SoB, collapse = ",")
+              
+              if (settings_string_SoB[1] != "") {
+                settings_string_final_SoB <- paste("list('algorithm' = 'SOB',", settings_string_SoB, ")")
+              } else {
+                settings_string_final_SoB <- "list('algorithm' = 'SOB')"
+              }
+              
+              
+              #####* calc volume ####
+              
+              act_vol_SoB <- volume(model_s4,
+                                    settings = eval(parse(
+                                      text = (settings_string_final_SoB)
+                                    ))
+              )
+            } else {
+              act_vol_SoB <- NA
+            }
+            
+            ####* CG ####
+            
+            if (isolate(input$CG) == TRUE) {
+              #####* settings strings ####
+              
+              
+              settings_string_CG <- rep(NA, 5)
+              
+              settings_string_CG[1] <- ifelse(input_volume$value[11] == "default", "",
+                                              paste("'error' =", input_volume$value[11], sep = "")
+              )
+              
+              
+              rand_w <- ifelse(input_volume$value[12] == "default", "default", input_volume_reactive$value[12])
+              rand_w <- ifelse(rand_w == "Coordinate Directions Hit-and-Run", "CDHR", rand_w)
+              rand_w <- ifelse(rand_w == "Random Directions Hit-and-Run", "RDHR", rand_w)
+              rand_w <- ifelse(rand_w == "Ball Walk", "BaW", rand_w)
+              rand_w <- ifelse(rand_w == "Billiard Walk", "BiW", rand_w)
+              
+              
+              settings_string_CG[2] <- ifelse(rand_w == "default", "",
+                                              paste("'random_walk' = '", rand_w, "'", sep = "")
+              )
+              
+              settings_string_CG[3] <- ifelse(input_volume$value[13] == "default", "",
+                                              paste("'walk_length' =", input_volume$value[13], sep = "")
+              )
+              
+              settings_string_CG[4] <- ifelse(input_volume$value[14] == "default", "",
+                                              paste("'win_len' =", input_volume$value[14], sep = "")
+              )
+              
+              
+              settings_string_CG[5] <- ifelse(input_volume$value[15] == "none", "",
+                                              paste("'seed' =", input_volume$value[15], sep = "")
+              )
+              
+              settings_string_CG <- settings_string_CG[settings_string_CG != ""]
+              
+              settings_string_CG <- paste(settings_string_CG, collapse = ",")
+              
+              if (settings_string_CG[1] != "") {
+                settings_string_final_CG <- paste("list('algorithm' = 'CG',", settings_string_CG, ")")
+              } else {
+                settings_string_final_CG <- "list('algorithm' = 'CG')"
+              }
+              
+              #####* calc volume ####
+              
+              act_vol_CG <- volume(model_s4,
+                                   settings = eval(parse(
+                                     text = (settings_string_final_CG)
+                                   ))
+              )
+            } else {
+              act_vol_CG <- NA
+            }
+            
+            
+            act_dim <- c(act_dim, "Full-dimensional")
+          } else {
+            if (isolate(input$CB) == TRUE) {
+              act_vol_CB <- 0
+            } else {
+              act_vol_CB <- NA
+            }
+            
+            
+            if (isolate(input$SoB) == TRUE) {
+              act_vol_SoB <- 0
+            } else {
+              act_vol_SoB <- NA
+            }
+            
+            
+            if (isolate(input$CG) == TRUE) {
+              act_vol_CG <- 0
+            } else {
+              act_vol_CG <- NA
+            }
+            
+            act_dim <- c(act_dim, "Not full-dimensional")
           }
           
-          
-          parsim <- data.frame(
-            "Model" = rep(as.factor(unlist(names_h_rep)), each = 3),
-            "Algorithm" = as.factor(rep(
-              c("Cooling Bodies", "Sequence of Balls", "Cooling Gaussian"), length(names_h_rep)
-            )),
-            "Volume" = parsim,
-            "Dimensionality" = rep(act_dim, each = 3)
-          )
-          
-          
-          parsim <- parsim[complete.cases(parsim) == T, ]
-          
-          parsim_rep <- rbind(parsim_rep, parsim)
+          parsim <- c(parsim, c(act_vol_CB, act_vol_SoB, act_vol_CG))
         }
-      })
+        
+        
+        parsim <- data.frame(
+          "Model" = rep(as.factor(unlist(names_h_rep)), each = 3),
+          "Algorithm" = as.factor(rep(
+            c("Cooling Bodies", "Sequence of Balls", "Cooling Gaussian"), length(names_h_rep)
+          )),
+          "Volume" = parsim,
+          "Dimensionality" = rep(act_dim, each = 3)
+        )
+        
+        
+        parsim <- parsim[complete.cases(parsim) == T, ]
+        
+        parsim_rep <- rbind(parsim_rep, parsim)
+      }
       
       
-      parsim_raw <- data.frame("Repetition" = 1:n_rep, parsim_rep[order(parsim_rep$Model, parsim_rep$Algorithm), ])
+      parsim_raw <- data.frame( parsim_rep[order(parsim_rep$Model, parsim_rep$Algorithm), ])
       
       parsim <- parsim_rep %>%
         group_by(Model, Algorithm, Dimensionality) %>%
@@ -2685,17 +2657,13 @@ server <- shinyServer(function(input, output, session) {
           color = ~Algorithm,
           y = ~Volume,
           type = "bar",
-          colors = c("#009E73", "#E69F00", "#CC79A7"),
-          error_y = ~ list(
-            array = SD,
-            color = "#000000"
-          )
+          colors = c("#009E73", "#E69F00", "#CC79A7")
         )
       
       fig <-
         fig %>% layout(
           yaxis = list(
-            title = "Approximate volume (average over repetitions)"
+            title = "Approximate volume"
           ),
           xaxis = list(title = "Model", tickangle = 45),
           barmode = "group"
@@ -2718,7 +2686,7 @@ server <- shinyServer(function(input, output, session) {
     })
   })
   
-  #####* H-representation ####
+  #####* Download H-representation ####
   
   output$d_h <- downloadHandler(
     filename = function() {
@@ -2773,6 +2741,40 @@ server <- shinyServer(function(input, output, session) {
         
         act_v_eq <- act_v[act_v$`equ/ineq` == 1, ]
         
+        ### 
+        
+        act_v_left = fractions(act_v_left)
+        act_v_right = fractions(unlist(act_v_right))
+        
+        nom_left = str_extract_part(act_v_left, "/", before = TRUE)
+        denom_left = str_extract_part(act_v_left, "/", before = FALSE)
+        
+        nom_right = str_extract_part(act_v_right, "/", before = TRUE)
+        denom_right = str_extract_part(act_v_right, "/", before = FALSE)
+        
+        pos_ratios_left = str_detect(act_v_left, "/")
+        pos_ratios_right = str_detect(act_v_right, "/")
+        
+        nom_left[pos_ratios_left == F] = (c(act_v_left)[pos_ratios_left == F])
+        denom_left = ifelse(is.na(denom_left) == T, "1",denom_left)
+        
+        nom_right[pos_ratios_right == F] = (c(act_v_right)[pos_ratios_right == F])
+        denom_right = ifelse(is.na(denom_right) == T, "1",denom_right)
+        
+        nom_left = as.numeric(nom_left)
+        denom_left = as.numeric(denom_left)
+        
+        nom_right = as.numeric(nom_right)
+        denom_right = as.numeric(denom_right)
+        
+        prod_denom_all = prod(unique(c(denom_left[denom_left!=0],denom_right[denom_right!=0])))
+        
+        act_v_left = act_v_left * prod_denom_all
+        act_v_right = act_v_right * prod_denom_all
+        
+        act_v_left = format(act_v_left,scientific = FALSE)
+        act_v_right = format(act_v_right,scientific = FALSE)
+        ###
         
         total_file <- paste(
           paste(as.character(header_v), collapse = " "),
@@ -2781,45 +2783,20 @@ server <- shinyServer(function(input, output, session) {
           paste(apply((act_v_left), 1, paste, collapse = " "), collapse = "\n"),
           "\n",
           "\n",
-          paste(apply((act_v_right), 1, paste, collapse = " "), collapse = "\n"),
+          paste((act_v_right), collapse = "\n"),
           sep = ""
         )
         
         file_name_addendum <- ""
         
         if (dim(act_v_eq)[1] > 0) {
-          act_v_eq_left <- act_v_eq[, 4:ncol(act_v_eq)]
-          act_v_eq_left <- -matrix(q2d(unlist(act_v_eq_left)), ncol = ncol(act_v_eq_left))
-          
-          act_v_eq_right <- (act_v_eq[, 3])
-          act_v_eq_right <- q2d(unlist(act_v_eq_right))
-          act_v_eq_right <- data.frame(act_v_eq_right)
-          
-          header_eq_v <- dim(act_v_eq_left)
           
           total_file <-
-            paste(
-              total_file,
-              "\n",
-              "\n",
-              "Equalities",
-              "\n",
-              "\n",
-              paste(as.character(header_eq_v), collapse = " "),
-              "\n",
-              "\n",
-              paste(apply(((act_v_eq_left)
-              ), 1, paste, collapse = " "), collapse = "\n"),
-              "\n",
-              "\n",
-              paste(apply((act_v_eq_right), 1, paste, collapse = " "), collapse = "\n"),
-              "\n",
-              "\n",
-              "Needs to be edited here; if you do not know how to edit the file, download the V-representation of the model and let QTEST create the H-representation",
-              sep = ""
+            paste("The model includes equalities. Use V-representation of model for QTest."
+                  
             )
           
-          file_name_addendum <- "_needs_editing_for_qtest"
+          file_name_addendum <- "_no_QTest_file_available"
         }
         
         fileName <-
@@ -2841,7 +2818,6 @@ server <- shinyServer(function(input, output, session) {
       tar(file, files)
     }
   )
-  
   
   #####* V-representation ####
   
@@ -2867,8 +2843,26 @@ server <- shinyServer(function(input, output, session) {
         csv_file <- data.frame(v_reactive[[download_v_names[loop_v_qtest]]])
         
         if (is.null(csv_file) == F) {
-          csv_file <- csv_file[, 2:ncol(csv_file)]
           
+          csv_file_dec = csv_file
+          csv_file_dec = unlist(csv_file_dec)
+          
+          for(loop_eval in 1 : length(csv_file_dec)){
+            
+            right_dec =
+              eval(parse(text=csv_file_dec[loop_eval]))
+            
+            numb_dec = str_count(gsub(".*[.]","",
+                                      format(right_dec,scientific=F)), "0")
+            
+            csv_file_dec[loop_eval] = format(round(right_dec, digits=6),scientific=F)
+          }
+          
+          csv_file = matrix(csv_file_dec,ncol=ncol(csv_file))
+          
+          ####
+          
+          csv_file <- csv_file[, 3:ncol(csv_file)]
           csv_file <- t(csv_file)
           
           header_v <- paste("V", 1:ncol(csv_file), sep = "")
@@ -2984,7 +2978,12 @@ server <- shinyServer(function(input, output, session) {
       )
     }
     
-    matrix_approx[(dont_freeze != 1) & is.na(matrix_approx$`Approximate parameter value`), 2] <- NA
+    if(AllInputs()$textin_relations_1 != ""){
+      matrix_approx[(dont_freeze != 1), 2] <- NA
+      matrix_approx[(dont_freeze == 1), 2] =
+        ifelse(is.na(matrix_approx[(dont_freeze == 1), 2]) == T,0,matrix_approx[(dont_freeze == 1), 2])
+      
+    }
     
     output$mytable_approx <- renderRHandsontable({
       rhandsontable(matrix_approx, rowHeaders = F, height = 200, stretchH = "all") %>%
@@ -3239,7 +3238,6 @@ server <- shinyServer(function(input, output, session) {
     input_volume_reactive$value[15] <- isolate(input$seed_cg)
   })
   
-  
   #### Plot examples ####
   
   observeEvent(input$go_example, {
@@ -3266,7 +3264,7 @@ server <- shinyServer(function(input, output, session) {
       p <- ggplot(v_pl, aes(parameter_names, parameters)) +
         geom_point(aes(frame = vert_no), size = 4) +
         xlab("Parameters") +
-        ylab("Parameter Values") +
+        ylab("Parameter values") +
         scale_y_continuous(breaks = (seq(0, 1, by = 0.1)))
       
       p <- ggplotly(p, height = 600) %>% animation_opts(transition = 0)
