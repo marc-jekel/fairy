@@ -498,7 +498,7 @@ server <- shinyServer(function(input, output, session) {
   
   shinyjs::html(id = "banner", 
                 html = "<SPAN STYLE='color:#FFFFFF'><p><center>🧚 Shiny app is under active development (Beta release 02/18/25), please click <a href='mailto:mjekel@uni-koeln.de?subject=bug-report 🧚' style='color: red;'>here</a> to report bugs. 
-                🧚 We encourage you to download the Shiny app <a target='_blank' href='https://github.com/marc-jekel/fairy' style='color: red;'>here</a> to run it on your machine for more computationally demanding tasks.</center></p></SPAN>", 
+                🧚 We encourage you to download the Shiny app <a target='_blank' href='https://github.com/marc-jekel/fairy/blob/main/app.R' style='color: red;'>here</a> to run it on your machine for more computationally demanding tasks.</center></p></SPAN>", 
                 add = TRUE)
 
   
