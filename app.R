@@ -484,10 +484,24 @@ ui <- shinyUI(fluidPage(
         )
       )))
     )
-  )
+  ),
+  navbarPage(
+    title = "",
+    position = "fixed-bottom",
+    fluid = T,
+    inverse = F,
+    id = 'banner'
+    )
 ))
 
 server <- shinyServer(function(input, output, session) {
+  
+  shinyjs::html(id = "banner", 
+                html = "<SPAN STYLE='color:#FFFFFF'><p><center>🧚 Shiny app is under active development (Beta release 02/18/25), please click <a href='mailto:mjekel@uni-koeln.de?subject=bug-report 🧚' style='color: red;'>here</a> to report bugs. 
+                🧚 We encourage you to download the Shiny app <a target='_blank' href='https://github.com/marc-jekel/fairy' style='color: red;'>here</a> to run it on your machine for more computationally demanding tasks.</center></p></SPAN>", 
+                add = TRUE)
+
+  
   hide("hidden_b")
   hide("open_b")
   
@@ -1971,6 +1985,8 @@ server <- shinyServer(function(input, output, session) {
     
     ####** start conversion ####
     
+    empty_set = numeric()
+    
     if (sum(mytable_input[, 2] == "") == 0) {
       showTab(inputId = "tabs", target = "H-representation")
       showTab(inputId = "tabs", target = "Parsimony")
@@ -2080,29 +2096,19 @@ server <- shinyServer(function(input, output, session) {
         
         
         if (valid_hrep == 0) {
+          
+
           if (loop_numb_models < (nrow(mytable_input) + 1)) {
-            shinyalert("Empty Set", paste("Model ",
-                                          mytable_input[loop_numb_models, 1], " is an empty set. Do not interpret the H-decscription of the model.
+            
+            empty_set = c(empty_set,mytable_input[loop_numb_models, 1])
+            
 
-                                        What does this mean?
-
-                                        For instance, the input 'p1 > .5; p1 < .1' would result in an empty set: p1 cannot be simultaneously greater than or equal to .5 and less than or equal to .1.
-
-                                        You entered a set of in/equalities like in the example, they cannot be simultaneously satisfied.",
-                                          collapse = ""
-            ))
           } else {
-            shinyalert("Empty Set", paste("Model ",
-                                          mytable_inter[loop_numb_models - nrow(mytable_input), 1], " is an empty set. Do not interpret the H-description of the model.
+            
+            empty_set = c(empty_set,mytable_inter[loop_numb_models, 1])
 
-                                        What does this mean?
-
-                                        For instance, the input 'p1 > .5; p1 < .1' would result in an empty set: p1 cannot be simultaneously greater than or equal to .5 and less than or equal to .1.
-
-                                        You entered a set of in/equalities like in the example, they cannot be simultaneously satisfied.",
-                                          collapse = ""
-            ))
           }
+          
         }
         
         Sys.sleep(1)
@@ -2111,16 +2117,41 @@ server <- shinyServer(function(input, output, session) {
         
         if(loop_numb_models == numb_models_to_convert){
           
+          if(length(empty_set) > 0){
+            
+            show_text = paste0("Created H-representation of model(s): ",paste(feedback_name, collapse = ", "),
+                               ". 
+                               
+                               Warning: Do not interpet the H-description of model(s) ",paste0(empty_set, collapse = ", "),". They form an empty set.")
+            
+            add_text =                                
+              "What does this mean?
+              
+              For instance, the input 'p1 > .5; p1 < .1' would result in an empty set: p1 cannot be simultaneously greater than or equal to .5 and less than or equal to .1.
+            
+            You entered a set of in/equalities like in the example, they cannot be simultaneously satisfied."
+            
+          }else{
+            
+            show_text = paste0("Created H-representation of model(s): ",paste(feedback_name, collapse = ", "),".")
+            
+            add_text = ""
+            
+          }
+          
           if(is.null(mytable_v_reactive$value) == FALSE){
+            
+            show_text = paste0("Created H-representation of model(s): ",paste(feedback_name, collapse = ", "),".")
+            add_text = ""
             
             shinyalert(
               
-              title =  paste0("Created H-representation of model(s): ",paste(feedback_name, collapse = ", "),"."),
+              title = show_text,
+              text = add_text,
               showConfirmButton = F,
               type="success",
               animation=F
-              
-  
+
               
             )
             
@@ -2132,7 +2163,8 @@ server <- shinyServer(function(input, output, session) {
             
             shinyalert(
               
-              title =  paste0("Created H-representation of model(s): ",paste(feedback_name, collapse = ", "),"."),
+              title =  show_text,
+              text = add_text,
               showConfirmButton = T,
               type="success",
               closeOnClickOutside = T,
@@ -2218,9 +2250,32 @@ server <- shinyServer(function(input, output, session) {
           
           if(loop_numb_models == length(models_picked_for_v_representation)){
             
+            if(length(empty_set) > 0){
+              
+              show_text = paste0("Created V-representation of model(s): ",paste(models_picked_for_v_representation, collapse = ", "),
+                                 ". 
+                               
+                               Warning: Do not interpet the H and V-descriptions of model(s) ",paste0(empty_set, collapse = ", "),". They form an empty set.")
+              
+              add_text =                                
+                "What does this mean?
+              
+              For instance, the input 'p1 > .5; p1 < .1' would result in an empty set: p1 cannot be simultaneously greater than or equal to .5 and less than or equal to .1.
+            
+            You entered a set of in/equalities like in the example, they cannot be simultaneously satisfied."
+              
+            }else{
+              
+              show_text = paste0("Created V-representation of model(s): ",paste(models_picked_for_v_representation, collapse = ", "),".")
+              
+              add_text = ""
+              
+            }
+            
             shinyalert(
               
-              title =  paste0("Created V-representation of model(s): ",paste(models_picked_for_v_representation, collapse = ", "),"."),
+              title = show_text,
+              text = add_text,
               showConfirmButton = T,
               type="success",
               closeOnClickOutside = T,
