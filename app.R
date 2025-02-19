@@ -497,7 +497,7 @@ ui <- shinyUI(fluidPage(
 server <- shinyServer(function(input, output, session) {
   
   shinyjs::html(id = "banner", 
-                html = "<SPAN STYLE='color:#FFFFFF'><p><center> &#129668; The Shiny app is under active development (Beta release 02/18/25), please click <a href='mailto:mjekel@uni-koeln.de?subject=bug-report 🧚' style='color: red;'>here</a> to report bugs. 
+                html = "<SPAN STYLE='color:#FFFFFF'><p><center> &#129668; The Shiny app is under active development (Beta release 02/18/25), please click <a href='mailto:mjekel@uni-koeln.de?subject=bug-report fairy app' style='color: red;'>here</a> to report bugs. 
                 &#128009; We encourage you to download the Shiny app <a target='_blank' href='https://github.com/marc-jekel/fairy/blob/main/app.R' style='color: red;'>here</a> to run it on your machine for more computationally demanding tasks. &#127984; </center></p></SPAN>", 
                 add = TRUE)
 
