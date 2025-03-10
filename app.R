@@ -1339,7 +1339,7 @@ server <- shinyServer(function(input, output, session) {
     )
     
     
-    test <- str_replace_all(test,"\n","")
+    test <- str_replace_all(test,"\n",";")
     test <- paste0(test, ";", limits, collapse = "")
     
     test <- unlist(str_split(test, ";"))
