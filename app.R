@@ -2426,11 +2426,9 @@ server <- shinyServer(function(input, output, session) {
           act_pars <- matrix(as.character(act_pars), ncol = ncol(act_pars))
           
           
-          #  not_full_dim <- ifelse(sum(q2d(act_pars)[, 1]) > 0, 1, 0)
-          not_full_dim <- 0
-          
-          # summary(prcomp( data.frame(((v_representation_reactive$value)[1]))[,2:4]))$importance[2,]
-          
+          not_full_dim <- ifelse(sum(q2d(act_pars)[, 1]) > 0, 1, 0)
+
+        
           if (not_full_dim == 0) {
             left_pars <- q2d((act_pars[, 3:ncol(act_pars)]))
             right_pars <- q2d((act_pars[, 2]))
