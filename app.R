@@ -1301,7 +1301,6 @@ server <- shinyServer(function(input, output, session) {
     
     check_input <- paste(func_mytable_input[, 2], collapse = ";")
     
-    
     max_p <- max(as.numeric(unlist(str_extract_all(check_input, "(?<=p)[0-9]*"))))
     
     counter$n <- ifelse(counter$n < max_p, max_p, counter$n)
@@ -1340,6 +1339,7 @@ server <- shinyServer(function(input, output, session) {
     )
     
     
+    test <- str_replace_all(test,"\n","")
     test <- paste0(test, ";", limits, collapse = "")
     
     test <- unlist(str_split(test, ";"))
