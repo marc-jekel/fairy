@@ -3230,20 +3230,6 @@ server <- shinyServer(function(input, output, session) {
                 "A fixed seed for the number generator",
                 value = input_volume$value[6]
       ),
-      tags$h3("Settings for 'Sequence of Balls'"),
-      textInput("error_sob", "A numeric value to set the upper bound for the approximation error", value = input_volume$value[7]),
-      pickerInput("random_walk_sob", "Random walk method",
-                  choices = c("default", "Coordinate Directions Hit-and-Run", "Random Directions Hit-and-Run", "Ball Walk", "Billiard Walk"),
-                  selected = input_volume$value[8]
-      ),
-      textInput("walk_length_sob",
-                "An integer to set the number of the steps for the random walk",
-                value = input_volume$value[9]
-      ),
-      textInput("seed_sob",
-                "A fixed seed for the number generator",
-                value = input_volume$value[10]
-      ),
       tags$h3("Settings for 'Cooling Gaussian'"),
       textInput("error_cg", "A numeric value to set the upper bound for the approximation error", value = input_volume$value[11]),
       pickerInput("random_walk_cg", "Random walk method",
@@ -3261,6 +3247,20 @@ server <- shinyServer(function(input, output, session) {
       textInput("seed_cg",
                 "A fixed seed for the number generator",
                 value = input_volume$value[15]
+      ),
+      tags$h3("Settings for 'Sequence of Balls'"),
+      textInput("error_sob", "A numeric value to set the upper bound for the approximation error", value = input_volume$value[7]),
+      pickerInput("random_walk_sob", "Random walk method",
+                  choices = c("default", "Coordinate Directions Hit-and-Run", "Random Directions Hit-and-Run", "Ball Walk", "Billiard Walk"),
+                  selected = input_volume$value[8]
+      ),
+      textInput("walk_length_sob",
+                "An integer to set the number of the steps for the random walk",
+                value = input_volume$value[9]
+      ),
+      textInput("seed_sob",
+                "A fixed seed for the number generator",
+                value = input_volume$value[10]
       ),
       footer = tagList(
         actionBttn("submit", "Submit", style = "material-flat", color = "primary", size = "xs")
