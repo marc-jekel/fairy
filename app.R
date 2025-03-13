@@ -322,8 +322,9 @@ ui <- shinyUI(fluidPage(
             12,
             offset = 0,
             materialSwitch("CB", "Cooling Bodies", value = F, status = "primary", right = T),
-            materialSwitch("SoB", "Sequ. of Balls", value = F, status = "primary", right = T),
-            materialSwitch("CG", "Cooling Gaussian", value = F, status = "primary", right = T)
+            materialSwitch("CG", "Cooling Gaussian", value = F, status = "primary", right = T),
+            materialSwitch("SoB", "Sequ. of Balls", value = F, status = "primary", right = T)
+       
           ),
           column(12, offset = 0, actionBttn("show", "Settings",
                                             size = "xs",
