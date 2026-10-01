@@ -55,12 +55,11 @@ this directory:
 shiny::runApp("app.R")
 ```
 
-Or open `fairy.Rproj` in RStudio and click **Run App**.
-
 ## Project files
 
 - `app.R` — the entire app (UI + server).
-- `fairy.Rproj` — RStudio project file.
+- `fairy.Rproj` — RStudio project file (not tracked in git — generate your
+  own via RStudio's *New Project > Existing Directory* if you want one).
 - `rsconnect/` — local shinyapps.io deployment metadata (created by
   `rsconnect::deployApp()`); not tracked in git, account/machine-specific.
 
