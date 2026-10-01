@@ -8,6 +8,12 @@ used with tools like [QTest](https://www.dwheck.de/software/multinomineq/) and
 **Live app:** https://modeling-for-everyone.eu/posts/fairy/
 (embeds the app directly from https://fairy.decision-research.de/)
 
+**Authors:** Marc Jekel, Michel Regenwetter, Meichai Chen, Emily N. Line
+
+**Accompanying article/tutorial:** the live-app page above is also the full
+write-up — it walks through H-/V-representations, QTest, and how to use the
+app, alongside the embedded app itself.
+
 > 🧚 The app is under active development. Found a bug? [Report it here](mailto:mjekel@uni-koeln.de?subject=bug-report%20fairy%20app).
 > For computationally heavier models, running it locally (see below) is faster
 > than the hosted version.
