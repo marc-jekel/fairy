@@ -61,7 +61,8 @@ Or open `fairy.Rproj` in RStudio and click **Run App**.
 
 - `app.R` — the entire app (UI + server).
 - `fairy.Rproj` — RStudio project file.
-- `rsconnect/` — shinyapps.io deployment metadata (used by `rsconnect::deployApp()`).
+- `rsconnect/` — local shinyapps.io deployment metadata (created by
+  `rsconnect::deployApp()`); not tracked in git, account/machine-specific.
 
 ## Contributing / bugs
 
