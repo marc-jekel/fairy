@@ -1,12 +1,12 @@
-name: fairy
-title: fairy
+name: fairy_26
+title: fairy_26
 username: coherence
 account: coherence
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
-appId: 13652135
-bundleId: 12348862
-url: https://coherence.shinyapps.io/fairy/
+appId: 17657870
+bundleId: 12543248
+url: https://coherence.shinyapps.io/fairy_26/
 version: 1
 asMultiple: FALSE
 asStatic: FALSE
