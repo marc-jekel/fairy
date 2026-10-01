@@ -10,9 +10,16 @@ used with tools like [QTest](https://www.dwheck.de/software/multinomineq/) and
 
 **Authors:** Marc Jekel, Michel Regenwetter, Meichai Chen, Emily N. Line
 
-**Accompanying article/tutorial:** the live-app page above is also the full
-write-up — it walks through H-/V-representations, QTest, and how to use the
-app, alongside the embedded app itself.
+**Accompanying work:**
+- Unpublished working paper: *"Wait, what are you saying, exactly?" A
+  Theoretical Framework for Codifying and Evaluating Verbal Hypotheses about
+  Proportions* — the joke-cringeyness example used throughout the app's
+  tutorial (see below) is this paper's own running example.
+- Tutorial: the [live-app page above](https://modeling-for-everyone.eu/posts/fairy/)
+  is also the full write-up, walking through H-/V-representations, QTest,
+  and how to use the app on that same example, alongside the embedded app
+  itself.
+- Materials (H-/V-representations for all models in the paper): [OSF](https://osf.io/8579g/?view_only=87c168ad76254002b3c9f5804b9aa749)
 
 > 🧚 The app is under active development. Found a bug? [Report it here](mailto:mjekel@uni-koeln.de?subject=bug-report%20fairy%20app).
 > For computationally heavier models, running it locally (see below) is faster
