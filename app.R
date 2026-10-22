@@ -4361,6 +4361,59 @@ ui <- shinyUI(fluidPage(
     ))
   ),
   tags$button(id = "dm-toggle", title = "Toggle dark mode", "\U0001F319"),
+  # Quiet loading screen: the page shell arrives long before the server has
+  # rendered the model rows (cold start, or a busy R process), which left a
+  # half-empty Input tab. Shown from the first paint, removed on the first
+  # idle moment after the initial outputs are in (fallback: 45 s).
+  tags$div(
+    id = "fairy-loader", role = "status", `aria-live` = "polite",
+    tags$div(class = "fairy-loader-inner",
+      tags$div(class = "fairy-loader-sparkles", `aria-hidden` = "true",
+        tags$span("✦"), tags$span("✧"), tags$span("✦")),
+      tags$div(class = "fairy-loader-text", "Waking up the fairy…")
+    )
+  ),
+  tags$style(HTML("
+    #fairy-loader {
+      position: fixed; inset: 0; z-index: 99999;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--fairy-bg); color: var(--fairy-text-muted);
+      transition: opacity 0.4s ease;
+    }
+    #fairy-loader.fairy-loader-done { opacity: 0; pointer-events: none; }
+    .fairy-loader-inner { text-align: center; }
+    .fairy-loader-sparkles { font-size: 22px; letter-spacing: 10px; color: var(--fairy-primary); }
+    .fairy-loader-sparkles span { display: inline-block; animation: fairy-twinkle 1.8s ease-in-out infinite; }
+    .fairy-loader-sparkles span:nth-child(2) { animation-delay: 0.3s; }
+    .fairy-loader-sparkles span:nth-child(3) { animation-delay: 0.6s; }
+    .fairy-loader-text { margin-top: 10px; font-size: 14px; }
+    @keyframes fairy-twinkle {
+      0%, 100% { opacity: 0.25; transform: translateY(0) scale(0.85); }
+      50% { opacity: 1; transform: translateY(-4px) scale(1.1); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .fairy-loader-sparkles span { animation: none; opacity: 0.8; }
+      #fairy-loader { transition: none; }
+    }
+  ")),
+  tags$script(HTML("
+    (function() {
+      var done = false;
+      function hide() {
+        if (done) return;
+        done = true;
+        var el = document.getElementById('fairy-loader');
+        if (!el) return;
+        el.classList.add('fairy-loader-done');
+        setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 500);
+      }
+      $(document).on('shiny:idle', function() {
+        // Wait one tick so outputs flushed with the idle message are painted.
+        setTimeout(hide, 150);
+      });
+      setTimeout(hide, 45000);
+    })();
+  ")),
   # The manual sidebar-collapse toggle button itself is gone (most tabs
   # don't have a sidebar to collapse any more — see the Input/H-rep/
   # V-rep tabPanel's own comments), but the underlying mechanism it used
