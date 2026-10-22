@@ -7578,10 +7578,17 @@ server <- shinyServer(function(input, output, session) {
     if (nzchar(trimws(a)) && nzchar(trimws(b))) paste(a, b, sep = "; ") else paste0(a, b)
   }
 
-  observeEvent(c(counter_input$n, input$add_for_all_models), {
-    for (loop_n in 1:counter_input$n) {
-      full_descri <- paste("observeEvent(input$textin_relations_", loop_n, ", {for(loop_conjung in 1 : counter_input$n){updateTextAreaInput(inputId = paste0('textin_relations_complete_', loop_conjung),value = join_specs(AllInputs()[[paste0('textin_relations_', loop_conjung)]],input$add_for_all_models))}})", sep = "")
-      eval(parse(text = full_descri))
+  # One observer in total (not one per model per model-count change, which
+  # piled up duplicates and made every added model slower than the last).
+  # Re-runs when the model count, the shared spec, or any model's own spec
+  # changes, and refreshes every hidden combined textarea.
+  observe({
+    n <- counter_input$n
+    shared <- input$add_for_all_models
+    specs <- lapply(seq_len(n), function(i) input[[paste0("textin_relations_", i)]])
+    for (i in seq_len(n)) {
+      updateTextAreaInput(session, paste0("textin_relations_complete_", i),
+        value = join_specs(specs[[i]], shared))
     }
   })
 
