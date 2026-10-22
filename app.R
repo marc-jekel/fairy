@@ -78,8 +78,6 @@ dim_picker_row <- function(id, selected) {
 
 ui <- shinyUI(fluidPage(
   tags$head(
-    tags$link(rel = "preconnect", href = "https://fonts.googleapis.com"),
-    tags$link(rel = "stylesheet", href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"),
     tags$style(HTML(
       "
 
@@ -711,7 +709,7 @@ ui <- shinyUI(fluidPage(
         padding-bottom: 32px;
         background-color: var(--fairy-bg);
         color: var(--fairy-text);
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', Arial, sans-serif;
       }
 
       h3, h4, h5 {
@@ -833,7 +831,7 @@ ui <- shinyUI(fluidPage(
       /* Navbar */
       .navbar {
         background-color: var(--fairy-navbar) !important;
-        font-family: 'Inter', sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', Arial, sans-serif;
         font-size: 13.5px;
         border: none;
         box-shadow: 0 2px 8px rgba(0,0,0,0.15);
@@ -859,7 +857,7 @@ ui <- shinyUI(fluidPage(
       }
       .navbar-dropdown {
         background-color: #262c3d;
-        font-family: 'Inter', sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', Arial, sans-serif;
         font-size: 13.5px;
         color: #e6e8ee;
       }
@@ -4881,35 +4879,30 @@ ui <- shinyUI(fluidPage(
         class = "fairy-sidebar",
         style = "position:sticky;top:70px;width:inherit;",
         width = 2,
-        fluidRow(
-          column(12,
-            offset = 0,
-            h5("Remove or add all models")
-          ),
-          column(
-            12,
-            offset = 0,
-            actionBttn("subtr_models", "",
-              icon = icon("minus"), size = "sm",
-              style = "jelly", color = "default"
-            ),
-            actionBttn("add_models", "",
-              icon = icon("plus"), size = "sm",
-              style = "jelly", color = "primary"
-            )
-          )
-        ),
+        # Which models to overlay used to be a free-text box of
+        # semicolon-separated names (m1;m2;m3) plus a minus/plus pair to
+        # empty/fill it with ALL models — reported as clunky: names had to
+        # be typed exactly, and picking a subset meant hand-editing a
+        # delimited string. A multi-select instead: the available models
+        # are listed (filled in by the observer on
+        # names_available_models_reactive), each one a click, and the
+        # built-in All/None buttons replace the old minus/plus pair.
         fluidRow(column(
           12,
           offset = 0,
-          hr(),
-          textAreaInput(
+          pickerInput(
             inputId = "name_model_plot",
-            label = "Input field for model names",
-            value = "",
-            width = "100%",
-            height = "120px",
-            resize = "none"
+            label = "Models to plot",
+            choices = character(0),
+            multiple = TRUE,
+            options = pickerOptions(
+              actionsBox = TRUE,
+              selectAllText = "All",
+              deselectAllText = "None",
+              noneSelectedText = "No models selected",
+              selectedTextFormat = "count > 2",
+              countSelectedText = "{0} of {1} models"
+            )
           )
         )),
         fluidRow(column(
@@ -7457,36 +7450,21 @@ server <- shinyServer(function(input, output, session) {
     removeModal()
   })
 
-  observeEvent(input$add_models, {
-    names_available_models <- isolate(names_available_models_reactive$value)
-
-    models_to_plot <- input$name_model_plot
-    models_to_plot <- unlist(str_split(models_to_plot, ";"))
-    models_to_plot <- trimws(models_to_plot)
-    models_to_plot <- unlist(models_to_plot)
-
-    models_to_plot <- unique(c(models_to_plot, names_available_models))
-    models_to_plot <- models_to_plot[models_to_plot != ""]
-
-    updateTextAreaInput(
-      inputId = "name_model_plot",
-      value = paste(models_to_plot, collapse = ";")
-    )
-  })
-
-  observeEvent(input$subtr_models, {
-    models_to_plot <- input$name_model_plot
-    models_to_plot <- unlist(str_split(models_to_plot, ";"))
-    models_to_plot <- trimws(models_to_plot)
-    models_to_plot <- unlist(models_to_plot)
-
-    models_to_plot <- ""
-
-    updateTextAreaInput(
-      inputId = "name_model_plot",
-      value = paste(models_to_plot, collapse = ";")
-    )
-  })
+  # Keeps the "Models to plot" picker (Plot Polytope(s) tab) in step with
+  # the models the plot can actually draw. A model seen for the FIRST time
+  # is selected automatically (so the plot is not empty until you pick
+  # something, and a freshly added model shows up right away); a model you
+  # deselected stays deselected across recomputations, and models that
+  # no longer exist drop out of the selection.
+  plot_models_known <- reactiveVal(character(0))
+  observeEvent(names_available_models_reactive$value, {
+    nm <- names_available_models_reactive$value
+    nm <- unique(nm[!is.na(nm)])
+    known <- isolate(plot_models_known())
+    selected <- union(intersect(isolate(input$name_model_plot), nm), setdiff(nm, known))
+    plot_models_known(union(known, nm))
+    updatePickerInput(session, "name_model_plot", choices = nm, selected = selected)
+  }, ignoreNULL = FALSE)
 
   observeEvent(input$submit_inter, {
     removeModal()
@@ -8907,10 +8885,10 @@ server <- shinyServer(function(input, output, session) {
     output$plot <- renderPlotly({
       all_v_rep_in_list <- pl_obj
 
-      models_to_plot <- input$name_model_plot
-      models_to_plot <- unlist(str_split(models_to_plot, ";"))
-      models_to_plot <- trimws(models_to_plot)
-      models_to_plot <- unlist(models_to_plot)
+      # name_model_plot is a multi-select picker now (see its own comment
+      # in the UI) — already a vector of exact model names, or NULL when
+      # nothing is selected, so no splitting on ";" any more.
+      models_to_plot <- trimws(as.character(input$name_model_plot))
 
       names_available_models <- rep(NA, n_submodels)
 
@@ -13022,7 +13000,7 @@ server <- shinyServer(function(input, output, session) {
     content = function(file) {
       
       shinyalert(
-        text = "<a href='https://www.modeling-for-everyone.space/analysis_multinomineq.R' target='_blank'>Download</a> R-file for reading the H- or V-representation using <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a>.",
+        text = "<a href='https://modeling-for-everyone.eu/analysis_multinomineq.R' target='_blank'>Download</a> R-file for reading the H- or V-representation using <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a>.",
         html = TRUE
       )
       owd <- setwd(tempdir())
@@ -13201,7 +13179,7 @@ server <- shinyServer(function(input, output, session) {
     content = function(file) {
       
       shinyalert(
-        text = "<a href='https://www.modeling-for-everyone.space/analysis_multinomineq.R' target='_blank'>Download</a> R-file for reading the H- or V-representation using <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a>.",
+        text = "<a href='https://modeling-for-everyone.eu/analysis_multinomineq.R' target='_blank'>Download</a> R-file for reading the H- or V-representation using <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a>.",
         html = TRUE
       )
   
