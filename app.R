@@ -1496,6 +1496,27 @@ ui <- shinyUI(fluidPage(
         letter-spacing: 0.02em;
       }
       .model-card:hover::after { opacity: 1; }
+      /* Re-orderable model cards (drag the title; see the card re-order script) */
+      .fairy-h-cards-wrap .model-card .model-card-title { position: relative; }
+      .model-card .model-card-title[draggable=true] { cursor: grab; }
+      .model-card .model-card-title[draggable=true]:active { cursor: grabbing; }
+      .model-card .model-card-title[draggable=true]::before {
+        content: '\\2807';
+        position: absolute;
+        left: -18px;
+        top: 0;
+        color: var(--fairy-text-muted, #667085);
+        opacity: 0;
+      }
+      .model-card:hover .model-card-title[draggable=true]::before { opacity: 0.6; }
+      .model-card .model-card-title[draggable=true]:focus-visible {
+        outline: 3px solid var(--fairy-primary, #3a6df0);
+        outline-offset: 2px;
+        border-radius: 4px;
+      }
+      .fairy-card-dragging { opacity: 0.45; }
+      .fairy-drop-before { box-shadow: -6px 0 0 0 var(--fairy-primary, #3a6df0) !important; }
+      .fairy-drop-after  { box-shadow:  6px 0 0 0 var(--fairy-primary, #3a6df0) !important; }
       /* Large run window (see #fairy-run-overlay in the UI) */
       #fairy-run-overlay {
         position: fixed;
@@ -4230,6 +4251,124 @@ ui <- shinyUI(fluidPage(
             e.preventDefault(); dismiss();
           }
         });
+      })();
+      "
+    )),
+    tags$script(HTML(
+      "
+      // Model cards (H- and V-representation tabs) can be re-ordered by
+      // dragging their title, e.g. to put two models next to each other for a
+      // direct comparison. One order for both tabs, kept across new Go runs.
+      // Alt + arrow keys on a focused title move a card too (keyboard users).
+      (function() {
+        var order = [];
+        try { order = JSON.parse(sessionStorage.getItem('fairyCardOrder') || '[]'); } catch (e) { order = []; }
+        var dragCard = null, dropTarget = null, dropSide = null, suppressUntil = 0;
+        function titleOf(card) { var t = card.querySelector('.model-card-title'); return t ? t.textContent.trim() : ''; }
+        function wrapCards(wrap) {
+          return Array.prototype.filter.call(wrap.querySelectorAll('.model-card'), function(c) {
+            return c.querySelector('.model-card-title') && c.closest('.fairy-h-cards-wrap') === wrap;
+          });
+        }
+        function save() { try { sessionStorage.setItem('fairyCardOrder', JSON.stringify(order)); } catch (e) {} }
+        function applyOrder() {
+          if (!order.length) return;
+          document.querySelectorAll('.fairy-h-cards-wrap').forEach(function(wrap) {
+            var cards = wrapCards(wrap);
+            if (cards.length < 2) return;
+            function idx(c) { var i = order.indexOf(titleOf(c)); return i < 0 ? 1e6 : i; }
+            var sorted = cards.slice().sort(function(a, b) { return (idx(a) - idx(b)) || (cards.indexOf(a) - cards.indexOf(b)); });
+            if (sorted.every(function(c, i) { return c === cards[i]; })) return;
+            var parent = cards[0].parentNode, ref = cards[cards.length - 1].nextSibling;
+            sorted.forEach(function(c) { parent.insertBefore(c, ref); });
+          });
+        }
+        function setOrderFrom(wrap) {
+          var names = wrapCards(wrap).map(titleOf);
+          order = names.concat(order.filter(function(n) { return names.indexOf(n) < 0; }));
+          save(); applyOrder();
+        }
+        function live() {
+          var l = document.getElementById('fairy-card-live');
+          if (!l) { l = document.createElement('div'); l.id = 'fairy-card-live'; l.className = 'sr-only'; l.setAttribute('aria-live', 'polite'); document.body.appendChild(l); }
+          return l;
+        }
+        function decorate() {
+          document.querySelectorAll('.fairy-h-cards-wrap .model-card').forEach(function(card) {
+            var t = card.querySelector('.model-card-title');
+            if (!t || t.getAttribute('draggable') === 'true') return;
+            t.setAttribute('draggable', 'true'); t.setAttribute('tabindex', '0'); t.setAttribute('role', 'button');
+            t.setAttribute('aria-label', titleOf(card) + ': drag to reorder, or press Alt and an arrow key');
+            t.setAttribute('title', 'Drag to reorder');
+          });
+          applyOrder();
+        }
+        function clearMarks() {
+          document.querySelectorAll('.fairy-drop-before, .fairy-drop-after').forEach(function(c) { c.classList.remove('fairy-drop-before', 'fairy-drop-after'); });
+          dropTarget = null; dropSide = null;
+        }
+        document.addEventListener('dragstart', function(e) {
+          var t = e.target.closest && e.target.closest('.model-card-title[draggable=true]');
+          if (!t) return;
+          var card = t.closest('.model-card');
+          if (!card || !card.closest('.fairy-h-cards-wrap')) { e.preventDefault(); return; }
+          dragCard = card; card.classList.add('fairy-card-dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          try { e.dataTransfer.setData('text/plain', titleOf(card)); } catch (err) {}
+          try { e.dataTransfer.setDragImage(card, 24, 24); } catch (err) {}
+        });
+        document.addEventListener('dragover', function(e) {
+          if (!dragCard) return;
+          var wrap = dragCard.closest('.fairy-h-cards-wrap');
+          if (!wrap || !wrap.contains(e.target)) return;
+          var over = e.target.closest('.model-card');
+          if (!over || over === dragCard || over.closest('.fairy-h-cards-wrap') !== wrap) { clearMarks(); return; }
+          e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+          var r = over.getBoundingClientRect();
+          var side = (e.clientX < r.left + r.width / 2) ? 'before' : 'after';
+          if (dropTarget !== over || dropSide !== side) {
+            clearMarks(); over.classList.add(side === 'before' ? 'fairy-drop-before' : 'fairy-drop-after');
+            dropTarget = over; dropSide = side;
+          }
+        });
+        document.addEventListener('drop', function(e) {
+          if (!dragCard || !dropTarget) return;
+          e.preventDefault();
+          var wrap = dragCard.closest('.fairy-h-cards-wrap');
+          if (dropSide === 'before') dropTarget.parentNode.insertBefore(dragCard, dropTarget);
+          else dropTarget.parentNode.insertBefore(dragCard, dropTarget.nextSibling);
+          setOrderFrom(wrap);
+          live().textContent = titleOf(dragCard) + ' moved';
+        });
+        document.addEventListener('dragend', function() {
+          if (dragCard) dragCard.classList.remove('fairy-card-dragging');
+          dragCard = null; clearMarks(); suppressUntil = Date.now() + 300;
+        });
+        // a drag must not also count as a click that expands the card
+        document.addEventListener('click', function(e) {
+          if (Date.now() < suppressUntil && e.target.closest && e.target.closest('.model-card')) { e.stopImmediatePropagation(); e.preventDefault(); }
+        }, true);
+        document.addEventListener('keydown', function(e) {
+          if (!e.altKey || e.metaKey || e.ctrlKey) return;
+          var t = e.target.closest && e.target.closest('.model-card-title[draggable=true]');
+          if (!t) return;
+          var dir = (e.key === 'ArrowLeft' || e.key === 'ArrowUp') ? -1 : ((e.key === 'ArrowRight' || e.key === 'ArrowDown') ? 1 : 0);
+          if (!dir) return;
+          var card = t.closest('.model-card'), wrap = card && card.closest('.fairy-h-cards-wrap');
+          if (!wrap) return;
+          var cards = wrapCards(wrap), i = cards.indexOf(card), j = i + dir;
+          if (j < 0 || j >= cards.length) return;
+          e.preventDefault();
+          var other = cards[j];
+          if (dir < 0) other.parentNode.insertBefore(card, other); else other.parentNode.insertBefore(card, other.nextSibling);
+          setOrderFrom(wrap); t.focus();
+          live().textContent = titleOf(card) + ' moved to position ' + (j + 1) + ' of ' + cards.length;
+        });
+        function later() { setTimeout(decorate, 40); }
+        if (window.jQuery) {
+          jQuery(document).on('shiny:recalculated shiny:value shown.bs.tab', later);
+        }
+        document.addEventListener('DOMContentLoaded', later);
       })();
       "
     )),
