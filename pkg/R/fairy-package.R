@@ -6,7 +6,7 @@
 #' mathematics fairy in Jekel, Regenwetter, Chen, and Line (in preparation).
 #'
 #' @section Main functions:
-#' * [fairy_h()], [fairy_v()], [fairy_vertices()], [fairy_words()]: the
+#' * [fairy_h()], [fairy_v()], [fairy_from_vertices()], [fairy_vertices()], [fairy_words()]: the
 #'   constraints (H-representation) and extreme cases (V-representation) of a model.
 #' * [fairy_volume()], [fairy_max_bf()], [fairy_info()]: parsimony, the largest
 #'   possible Bayes factor, and the numbers reported in the paper's tables.
@@ -17,7 +17,7 @@
 #'
 #' @section Vignettes:
 #' `vignette("fairy")` gives an overview of all functions with examples;
-#' `vignette("cringe", package = "fairy")` reproduces the paper's examples step by step; the models
+#' `vignette("paper-examples", package = "fairy")` reproduces the paper's examples step by step; the models
 #' are entered as constraint strings in the vignette, the package does not store them.
 #'
 #' @keywords internal

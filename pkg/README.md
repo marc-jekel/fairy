@@ -31,7 +31,7 @@ A verbal hypothesis about proportions, "category A is more common than B, which 
 ## Documentation
 
 - **Overview of all functions:** `vignette("fairy")` ([HTML](doc/fairy.html), [PDF](doc/fairy.pdf)), with the idea behind the package, the constraint syntax and every function with a short example.
-- **Reproducing the papers:** `vignette("cringe")` ([HTML](doc/cringe.html), [PDF](doc/cringe.pdf)).
+- **Reproducing the papers:** `vignette("paper-examples")` ([HTML](doc/paper-examples.html), [PDF](doc/paper-examples.pdf)).
 - **Help pages:** `help(package = "fairy")`, or `?fairy_volume` for a single function.
 
 ## Functions
@@ -41,6 +41,7 @@ A verbal hypothesis about proportions, "category A is more common than B, which 
 | `fairy()` | constraints, extreme cases, volume and max. Bayes factor for one or several models |
 | `fairy_h()` | non-redundant H-representation of a model string |
 | `fairy_v()` | V-representation in rcdd format |
+| `fairy_from_vertices()` | H-representation from a table of vertices (V to H) |
 | `fairy_constraints()` | H-representation as readable text lines |
 | `fairy_vertices()` | extreme cases as a numeric matrix |
 | `fairy_words()` | extreme cases in words ("all" / "none" / fractions) |
@@ -102,7 +103,7 @@ fairy_info(fairy_replicate(m$M4, 3, "joint"))
 
 ## Reproducing the papers
 
-`vignette("cringe", package = "fairy")` reproduces, step by step, the tables and numbers of the main text (Tables 1-4, Figures 2 and 3) and of the online supplement on the Heuristic-Systematic Model (Tables A1-A4, the replication bounds and the mixture model). The models are entered as constraint strings in the vignette; the package stores none of them. The tests in `tests/testthat/test-paper-*.R` check every reproduced number.
+`vignette("paper-examples", package = "fairy")` reproduces, step by step, the tables and numbers of the main text (Tables 1-4, Figures 2 and 3) and of the online supplement on the Heuristic-Systematic Model (Tables A1-A4, the replication bounds and the mixture model). The models are entered as constraint strings in the vignette; the package stores none of them. The tests in `tests/testthat/test-paper-*.R` check every reproduced number.
 
 ## Parsimony is a volume
 

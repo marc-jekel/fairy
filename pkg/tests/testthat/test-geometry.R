@@ -84,3 +84,21 @@ test_that("fairy() reports volume and the maximal Bayes factor", {
   expect_equal(res$max_bf, 24)
   expect_output(print(res), "Max. BF")
 })
+
+test_that("a V-representation can be passed to every function", {
+  h <- fairy_h("p1 > p2 > p3", n_p = 3)
+  v_rcdd <- fairy_v(h)                            # V-representation in rcdd format
+  expect_equal(fairy_volume(v_rcdd)$volume, 1/6)
+  expect_equal(fairy_max_bf(v_rcdd), 6)
+  expect_equal(fairy_info(v_rcdd)$vertices, 4)
+  expect_true(fairy_nested(v_rcdd, "p1 > p2", n_p = 3))
+  expect_equal(fairy_dim(v_rcdd), 3)
+  # plain matrix of vertices -> H-representation
+  h2 <- fairy_from_vertices(fairy_vertices(h))
+  expect_equal(fairy_info(h2)$inequalities, fairy_info(h)$inequalities)
+  expect_equal(fairy_volume(h2)$volume, 1/6)
+  # exact fractions
+  h3 <- fairy_from_vertices(rbind(c("0", "0"), c("1/3", "0"), c("1/3", "1/3")))
+  expect_equal(fairy_volume(h3)$volume, 1/18)
+  expect_equal(fairy_info(h3)$vertices, 3)
+})

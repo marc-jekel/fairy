@@ -19,7 +19,7 @@ options(width = 90)
 questions the paper "Wait, what are you saying, exactly?" asks of them: What exactly does the
 hypothesis say (constraints)? Which extreme cases does it allow? How parsimonious is it? How does it
 relate to other models? This page introduces the idea and lists every function. The vignette
-`vignette("cringe")` then reproduces the paper's examples.
+`vignette("paper-examples")` then reproduces the paper's examples.
 
 # The idea
 
@@ -62,6 +62,27 @@ Models with an equality have a dimension below `n` and volume zero:
 
 ```{r dim}
 c(fairy_dim("p1 > p2 > p3"), fairy_dim("p1 = p2; p2 > p3"))
+```
+
+# Starting from a model you already have
+
+You never need to recompute a model. Every function accepts a model string, an H-representation from
+`fairy_h()`, **or** a V-representation (the vertices): pass `h` or `v` straight to `fairy_volume()`,
+`fairy_max_bf()`, `fairy_info()`, `fairy_nested()`, `fairy_compare()`, `fairy_replicate()` and so on.
+
+```{r reuse}
+v <- fairy_v(h)                  # V-representation in rcdd format
+fairy_max_bf(v)                  # the same as fairy_max_bf(h)
+```
+
+If you only have your own table of vertices (one row per extreme case, probabilities as numbers or exact
+fractions such as `"1/3"`), `fairy_from_vertices()` turns it into the H-representation:
+
+```{r from-vertices}
+corners <- rbind(c(0, 0), c(1, 0), c(1, 1))      # a triangle
+h_tri <- fairy_from_vertices(corners)
+fairy_constraints(h_tri)
+fairy_volume(h_tri)$volume
 ```
 
 # Parsimony
@@ -122,6 +143,7 @@ multinomineq (one `.tar` archive with one file per model).
 | `fairy()` | constraints, extreme cases, volume and max. Bayes factor for one or several models |
 | `fairy_h()` | non-redundant H-representation of a model string |
 | `fairy_v()` | V-representation in rcdd format |
+| `fairy_from_vertices()` | H-representation from a table of vertices (V to H) |
 | `fairy_constraints()` | H-representation as readable text lines |
 | `fairy_vertices()` | extreme cases as a numeric matrix |
 | `fairy_words()` | extreme cases in words ("all" / "none" / fractions) |

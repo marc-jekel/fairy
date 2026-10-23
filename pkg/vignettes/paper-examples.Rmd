@@ -1,10 +1,10 @@
 ---
-title: "Reproducing the examples of 'Wait, what are you saying, exactly?'"
+title: "Reproducing the paper and its online supplement"
 author: "Marc Jekel"
 date: "`r format(Sys.Date(), '%Y-%m-%d')`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Reproducing the examples of 'Wait, what are you saying, exactly?'}
+  %\VignetteIndexEntry{Reproducing the paper and its online supplement}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

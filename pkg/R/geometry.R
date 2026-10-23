@@ -4,8 +4,46 @@
 # Coerce an H-representation (rcdd character or numeric matrix) to rcdd's
 # rational character format.
 as_h <- function(h) {
+  if (!is.matrix(h)) stop("A model must be a model string or a matrix as returned by fairy_h() or fairy_v().")
+  # a V-representation (as returned by fairy_v()) is converted to the H-representation first
+  if (identical(attr(h, "representation"), "V")) {
+    cn <- colnames(h)
+    out <- redundant(scdd(h)$output)$output
+    colnames(out) <- if (!is.null(cn)) cn else c("", "", paste0("p", seq_len(ncol(out) - 2L)))
+    return(out)
+  }
   if (is.numeric(h)) return(d2q(h))
-  if (!is.matrix(h)) stop("An H-representation must be a matrix as returned by fairy_h().")
+  h
+}
+
+#' H-representation from the extreme cases of a model
+#'
+#' If a model is given by its V-representation, that is its vertices (extreme
+#' cases), this converts it to the H-representation. All other functions of
+#' the package (`fairy_volume()`, `fairy_info()`, `fairy_nested()`, ...)
+#' accept either representation directly, so this function is only needed to
+#' look at the constraints, e.g. with [fairy_constraints()].
+#'
+#' @param vertices A matrix with one vertex per row and one column per
+#'   probability. Numbers or exact fractions as strings (`"1/3"`) are
+#'   accepted. A V-representation in rcdd format (from [fairy_v()]) also works.
+#' @param labels Optional column names for the probabilities.
+#'
+#' @return An H-representation (see [fairy_h()]).
+#' @examples
+#' v <- rbind(c(0, 0), c(1, 0), c(1, 1))
+#' h <- fairy_from_vertices(v)
+#' fairy_constraints(h)
+#' fairy_volume(h)$volume   # 1/2
+#' @importFrom rcdd makeV scdd redundant
+#' @export
+fairy_from_vertices <- function(vertices, labels = NULL) {
+  if (identical(attr(vertices, "representation"), "V")) return(as_h(vertices))
+  v <- as.matrix(vertices)
+  dimnames(v) <- NULL
+  if (is.numeric(v)) v <- d2q(v)
+  h <- redundant(scdd(makeV(points = v))$output)$output
+  colnames(h) <- c("", "", if (is.null(labels)) paste0("p_{", seq_len(ncol(v)), "}") else labels)
   h
 }
 

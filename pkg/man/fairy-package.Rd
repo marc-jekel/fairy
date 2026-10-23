@@ -13,7 +13,7 @@ mathematics fairy in Jekel, Regenwetter, Chen, and Line (in preparation).
 \section{Main functions}{
 
 \itemize{
-\item \code{\link[=fairy_h]{fairy_h()}}, \code{\link[=fairy_v]{fairy_v()}}, \code{\link[=fairy_vertices]{fairy_vertices()}}, \code{\link[=fairy_words]{fairy_words()}}: the
+\item \code{\link[=fairy_h]{fairy_h()}}, \code{\link[=fairy_v]{fairy_v()}}, \code{\link[=fairy_from_vertices]{fairy_from_vertices()}}, \code{\link[=fairy_vertices]{fairy_vertices()}}, \code{\link[=fairy_words]{fairy_words()}}: the
 constraints (H-representation) and extreme cases (V-representation) of a model.
 \item \code{\link[=fairy_volume]{fairy_volume()}}, \code{\link[=fairy_max_bf]{fairy_max_bf()}}, \code{\link[=fairy_info]{fairy_info()}}: parsimony, the largest
 possible Bayes factor, and the numbers reported in the paper's tables.
@@ -27,7 +27,7 @@ overlap, mixtures and model relationships.
 \section{Vignettes}{
 
 \code{vignette("fairy")} gives an overview of all functions with examples;
-\code{vignette("cringe", package = "fairy")} reproduces the paper's examples step by step; the models
+\code{vignette("paper-examples", package = "fairy")} reproduces the paper's examples step by step; the models
 are entered as constraint strings in the vignette, the package does not store them.
 }
 

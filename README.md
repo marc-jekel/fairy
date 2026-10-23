@@ -69,7 +69,7 @@ Documentation, openable without R:
   [HTML](pkg/doc/fairy.html) / [PDF](pkg/doc/fairy.pdf), or `vignette("fairy")` after installing.
 - **Reproducing the paper and its supplement** (the cringeyness study, Tables 1-4, and the
   Heuristic-Systematic Model case study), entering each model as a constraint string:
-  [HTML](pkg/doc/cringe.html) / [PDF](pkg/doc/cringe.pdf), or `vignette("cringe")`.
+  [HTML](pkg/doc/paper-examples.html) / [PDF](pkg/doc/paper-examples.pdf), or `vignette("paper-examples")`.
 - [`pkg/README.md`](pkg/README.md): the list of all functions.
 
 ## Running locally
