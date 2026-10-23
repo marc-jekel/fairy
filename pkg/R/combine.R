@@ -60,9 +60,11 @@ fairy_mixture <- function(..., n_p = NULL) {
   if (is.null(n_p)) n_p <- infer_n_p(ms)
   hs <- lapply(ms, resolve_h, n_p = n_p)
   cn <- colnames(hs[[1]])
-  v <- unique(round(do.call(rbind, lapply(hs, fairy_vertices)), 12))
-  colnames(v) <- NULL
-  h <- scdd(makeV(points = d2q(v)))$output
+  # exact rational vertices, so that decimals such as .8 stay 4/5
+  vq <- function(h) { o <- scdd(h)$output; o[o[, 1] == "0" & o[, 2] == "1", -(1:2), drop = FALSE] }
+  v <- unique(do.call(rbind, lapply(hs, vq)))
+  dimnames(v) <- NULL
+  h <- scdd(makeV(points = v))$output
   h <- redundant(h)$output
   colnames(h) <- cn
   h

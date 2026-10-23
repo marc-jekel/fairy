@@ -15,7 +15,8 @@
 #' * [fairy_replicate()]: identical, joint, and substitutable replication models.
 #' * [fairy_write_qtest()], [fairy_write_multinomineq()]: export for QTest and multinomineq.
 #'
-#' @section Vignette:
+#' @section Vignettes:
+#' `vignette("fairy")` gives an overview of all functions with examples;
 #' `vignette("cringe", package = "fairy")` reproduces the paper's examples step by step; the models
 #' are entered as constraint strings in the vignette, the package does not store them.
 #'

@@ -15,7 +15,7 @@ and it reproduces the examples of that paper and of its online supplement (see t
 remotes::install_github("marc-jekel/fairy", subdir = "pkg", build_vignettes = TRUE)
 ```
 
-The package lives in the folder `pkg` of this repository, next to the Shiny app. Building the vignette on install takes about a minute; rendered copies are in [`pkg/doc/cringe.html`](doc/cringe.html) and [`pkg/doc/cringe.pdf`](doc/cringe.pdf), no R required. Or from a local copy: `R CMD INSTALL pkg`. **Dependencies:** `rcdd`, `geometry`, `stringr`, `MASS`; `volesti` is optional (volume estimates in very high dimensions).
+The package lives in the folder `pkg` of this repository, next to the Shiny app. Building the vignettes on install takes about a minute; rendered copies are in `pkg/doc/` (HTML and PDF), no R required. Or from a local copy: `R CMD INSTALL pkg`. **Dependencies:** `rcdd`, `geometry`, `stringr`, `MASS`; `volesti` is optional (volume estimates in very high dimensions).
 
 ## What the package does
 
@@ -27,6 +27,34 @@ A verbal hypothesis about proportions, "category A is more common than B, which 
 4. **combines models**: intersections, mixtures, nesting, and a comparison table,
 5. **builds replication models** for several labs (identical, joint, substitutable parameters),
 6. **exports** input files for QTest and multinomineq.
+
+## Documentation
+
+- **Overview of all functions:** `vignette("fairy")` ([HTML](doc/fairy.html), [PDF](doc/fairy.pdf)), with the idea behind the package, the constraint syntax and every function with a short example.
+- **Reproducing the papers:** `vignette("cringe")` ([HTML](doc/cringe.html), [PDF](doc/cringe.pdf)).
+- **Help pages:** `help(package = "fairy")`, or `?fairy_volume` for a single function.
+
+## Functions
+
+| Function | What it does |
+|:--|:--|
+| `fairy()` | constraints, extreme cases, volume and max. Bayes factor for one or several models |
+| `fairy_h()` | non-redundant H-representation of a model string |
+| `fairy_v()` | V-representation in rcdd format |
+| `fairy_constraints()` | H-representation as readable text lines |
+| `fairy_vertices()` | extreme cases as a numeric matrix |
+| `fairy_words()` | extreme cases in words ("all" / "none" / fractions) |
+| `fairy_dim()` | dimension of a model |
+| `fairy_volume()` | parsimony: volume in the unit cube (exact, volesti, or Monte Carlo) |
+| `fairy_max_bf()` | largest possible Bayes factor against the unconstrained model (1 / volume) |
+| `fairy_info()` | dimension, vertices, constraints, volume, max. Bayes factor in one row |
+| `fairy_parsimony()` | older interface to the volume |
+| `fairy_intersect()` | intersection of models |
+| `fairy_mixture()` | mixture model (convex hull of the components) |
+| `fairy_nested()` | is one model nested in another? |
+| `fairy_compare()` | comparison table of a set of models |
+| `fairy_replicate()` | replication across labs: identical, joint, substitutable |
+| `fairy_write_qtest()`, `fairy_write_multinomineq()` | write input files for QTest and multinomineq |
 
 ## Quick start
 

@@ -24,8 +24,9 @@ overlap, mixtures and model relationships.
 }
 }
 
-\section{Vignette}{
+\section{Vignettes}{
 
+\code{vignette("fairy")} gives an overview of all functions with examples;
 \code{vignette("cringe", package = "fairy")} reproduces the paper's examples step by step; the models
 are entered as constraint strings in the vignette, the package does not store them.
 }

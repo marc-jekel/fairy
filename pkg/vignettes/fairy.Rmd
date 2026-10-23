@@ -1,0 +1,141 @@
+---
+title: "fairy: an overview of all functions"
+author: "Marc Jekel"
+date: "`r format(Sys.Date(), '%Y-%m-%d')`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{fairy: an overview of all functions}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(fairy)
+options(width = 90)
+```
+
+**fairy** turns verbal hypotheses about proportions into order-constrained models and answers the
+questions the paper "Wait, what are you saying, exactly?" asks of them: What exactly does the
+hypothesis say (constraints)? Which extreme cases does it allow? How parsimonious is it? How does it
+relate to other models? This page introduces the idea and lists every function. The vignette
+`vignette("cringe")` then reproduces the paper's examples.
+
+# The idea
+
+A hypothesis about `n` proportions `p1, ..., pn` is a set of linear (in)equalities. Together they
+describe a convex polytope inside the unit cube `[0, 1]^n`. The package describes that polytope in two
+equivalent ways:
+
+* the **H-representation**: the shortest list of constraints (equalities and facet-defining inequalities);
+* the **V-representation**: the extreme cases (vertices) of the model.
+
+Its **volume** is the share of all conceivable proportions the model allows; its inverse is the
+largest Bayes factor the model can reach against the unconstrained model.
+
+# Writing a model
+
+A model is one character string. Constraints are separated by `;`.
+
+| Write | Meaning |
+|:--|:--|
+| `p1 > p2` | `p1` at least `p2` (`>=` and the unicode symbol mean the same: models are closed sets) |
+| `p1 > p2 > p3` | chain: `p1 > p2` and `p2 > p3` |
+| `p1 = p2` | equality (the model then has volume zero) |
+| `p1 > .3; p1 < .7` | bounds |
+| `{p1, p2} > {p3, p4}` | every `p` on the left above every `p` on the right |
+| `(p1 + p2)/2 > p3` | averages and other linear expressions |
+
+`approx_tol = 0.05` (in `fairy_h()`) turns every equality into "within 0.05".
+
+# Constraints and extreme cases
+
+```{r hv}
+h <- fairy_h("p1 > p2 > p3", n_p = 3)     # H-representation (rcdd format)
+fairy_constraints(h)                       # the same, as readable text
+fairy_vertices(h)                          # extreme cases, numbers
+fairy_words(h, labels = c("A", "B", "C"))  # extreme cases in words: "all" / "none"
+```
+
+`fairy_v(h)` returns the vertices in rcdd's own format. `fairy_dim()` gives the dimension of the model.
+Models with an equality have a dimension below `n` and volume zero:
+
+```{r dim}
+c(fairy_dim("p1 > p2 > p3"), fairy_dim("p1 = p2; p2 > p3"))
+```
+
+# Parsimony
+
+```{r parsimony}
+fairy_volume("p1 > p2 > p3")$volume          # 1/6
+fairy_max_bf("p1 > p2 > p3")                 # 6
+fairy_info("p1 > p2 > p3")                   # dimension, vertices, constraints, volume, max. BF in one row
+```
+
+The volume is exact up to about nine dimensions. Above, `fairy_volume()` uses the volesti package
+(random-walk estimate) if installed and otherwise Monte Carlo (`method = "mc"`). `fairy_parsimony()` is the older
+name of the same computation.
+
+# Several models at once
+
+`fairy()` computes constraints, extreme cases, volume and maximal Bayes factor for a named set of models:
+
+```{r fairy}
+fairy(c(H1 = "p1 > p2 > p3", H2 = "p1 > p2; p3 > p4"), n_p = 4)
+```
+
+# Overlap, nesting, mixtures, comparison
+
+```{r combine}
+a <- "p1 > p2 > p3"; b <- "p1 > p2"
+fairy_nested(a, b, n_p = 3)                  # is a nested in b?  TRUE
+ab <- fairy_intersect(a, b, n_p = 3)         # constraints of both hold
+mx <- fairy_mixture("p1 > .8; p2 < .2", "p1 < .2; p2 > .8", n_p = 2)   # convex hull of two models
+fairy_constraints(mx)
+fairy_compare(list(A = a, B = b, C = "p3 > p1"), n_p = 3)        # volumes, overlaps, nesting, max. BF
+```
+
+`fairy_compare()` returns the table layout of the paper: volumes on the diagonal, overlap volumes above it,
+below it "subset" / "superset" (printed as the set symbols) or the dimension of the overlap, and the largest
+Bayes factors in the last row.
+
+# Replication across labs
+
+```{r replicate}
+h2 <- fairy_h("p1 > p2", n_p = 2)
+fairy_info(fairy_replicate(h2, r = 3, type = "joint"))
+```
+
+`type = "identical"` forces all labs to have the same probabilities, `"joint"` lets each lab satisfy the
+model independently, `"substitutable"` requires every constraint to hold whichever lab's probability is plugged in for each
+term.
+
+# Export
+
+`fairy_write_qtest()` and `fairy_write_multinomineq()` write the models as input files for QTest and for the R package
+multinomineq (one `.tar` archive with one file per model).
+
+# All functions
+
+| Function | What it does |
+|:--|:--|
+| `fairy()` | constraints, extreme cases, volume and max. Bayes factor for one or several models |
+| `fairy_h()` | non-redundant H-representation of a model string |
+| `fairy_v()` | V-representation in rcdd format |
+| `fairy_constraints()` | H-representation as readable text lines |
+| `fairy_vertices()` | extreme cases as a numeric matrix |
+| `fairy_words()` | extreme cases in words ("all" / "none" / fractions) |
+| `fairy_dim()` | dimension of a model |
+| `fairy_volume()` | parsimony: volume in the unit cube (exact, volesti, or Monte Carlo) |
+| `fairy_max_bf()` | largest possible Bayes factor against the unconstrained model (1 / volume) |
+| `fairy_info()` | dimension, vertices, constraints, volume, max. Bayes factor in one row |
+| `fairy_parsimony()` | older interface to the volume |
+| `fairy_intersect()` | intersection of models |
+| `fairy_mixture()` | mixture model (convex hull of the components) |
+| `fairy_nested()` | is one model nested in another? |
+| `fairy_compare()` | comparison table of a set of models (Table 3 of the paper) |
+| `fairy_replicate()` | replication across labs: identical, joint, substitutable |
+| `fairy_write_qtest()` | write input files for QTest |
+| `fairy_write_multinomineq()` | write input files for multinomineq |
+
+Help for any function: `?fairy_volume`; all of them: `help(package = "fairy")`.

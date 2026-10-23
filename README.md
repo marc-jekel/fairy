@@ -63,12 +63,14 @@ fairy_max_bf("p1 > p2 > p3")        # parsimony: largest possible Bayes factor (
 It also builds intersections, mixtures, and replication models (identical, joint,
 substitutable), compares sets of models, and writes QTest / multinomineq files.
 
-The vignette reproduces the examples of the paper and of its online supplement
-(the cringeyness study, Tables 1-4, and the Heuristic-Systematic Model case study),
-entering each model as a constraint string. Open it without R as
-[HTML](pkg/doc/cringe.html) or [PDF](pkg/doc/cringe.pdf), or after installing with
-`vignette("cringe", package = "fairy")`. See [`pkg/README.md`](pkg/README.md) for the
-functions and the constraint syntax.
+Documentation, openable without R:
+
+- **Overview of all functions** with the constraint syntax and an example for each:
+  [HTML](pkg/doc/fairy.html) / [PDF](pkg/doc/fairy.pdf), or `vignette("fairy")` after installing.
+- **Reproducing the paper and its supplement** (the cringeyness study, Tables 1-4, and the
+  Heuristic-Systematic Model case study), entering each model as a constraint string:
+  [HTML](pkg/doc/cringe.html) / [PDF](pkg/doc/cringe.pdf), or `vignette("cringe")`.
+- [`pkg/README.md`](pkg/README.md): the list of all functions.
 
 ## Running locally
 
