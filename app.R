@@ -2551,6 +2551,8 @@ ui <- shinyUI(fluidPage(
         white-space: nowrap;
         box-shadow: 0 0 0 2px var(--fairy-panel, #fff);
       }
+      /* room for the label that hangs below each of these buttons */
+      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq { margin-bottom: 14px !important; }
       #d_h_multinomineq::after, #d_v_multinomineq::after {
         content: 'multinom';
         background: #8a5cf6;
