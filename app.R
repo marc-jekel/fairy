@@ -9427,7 +9427,8 @@ server <- shinyServer(function(input, output, session) {
   # Share link: the whole input travels in the URL hash (#s=...), so nothing is stored on the server.
   observeEvent(input$share_request, {
     tok <- tryCatch({
-      js <- toJSON(isolate(build_user_input()), dataframe = "columns", na = "null", digits = NA)
+      sheets_out <- lapply(isolate(build_user_input()), function(d) { d <- as.data.frame(d); rownames(d) <- NULL; d })
+      js <- toJSON(sheets_out, dataframe = "columns", na = "null", digits = NA)
       raw <- memCompress(charToRaw(as.character(js)), type = "gzip")
       chartr("+/", "-_", gsub("=+$", "", gsub("\\s", "", jsonlite::base64_enc(raw))))
     }, error = function(e) NULL)
@@ -9447,7 +9448,8 @@ server <- shinyServer(function(input, output, session) {
       txt <- rawToChar(memDecompress(jsonlite::base64_dec(tok), type = "gzip"))
       sheets <- fromJSON(txt, simplifyVector = TRUE)
       stopifnot(is.list(sheets), length(sheets) == 14)
-      sheets <- lapply(sheets, function(x) as.data.frame(x, stringsAsFactors = FALSE, check.names = FALSE))
+      # some jsonlite versions add a "_row" column from row names: it is not part of the data
+      sheets <- lapply(sheets, function(x) { x[["_row"]] <- NULL; as.data.frame(x, stringsAsFactors = FALSE, check.names = FALSE) })
       write_xlsx(sheets, tmp)
       TRUE
     }, error = function(e) FALSE)
