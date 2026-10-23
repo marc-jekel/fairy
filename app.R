@@ -11040,7 +11040,12 @@ server <- shinyServer(function(input, output, session) {
       cache <- isolate(model_snap_cache())
       recomputed_models <- character()
       fairy_run_begin()
-      for (nm_run in mytable_input[seq_len(numb_models_to_convert), 1]) fairy_run_row(nm_run, "model", h = "wait")
+      # kind label in the run window: intersection / mixture rows come from the
+      # Input tab buttons (see derived_model_sources), everything else is a model
+      dms_run <- isolate(derived_model_sources$value)
+      for (i_run in seq_len(numb_models_to_convert)) {
+        fairy_run_row(mytable_input[i_run, 1], dms_run[[as.character(i_run)]]$type %||% "model", h = "wait")
+      }
 
       for (loop_numb_models in 1:numb_models_to_convert) {
         name_m <- mytable_input[loop_numb_models, 1]
