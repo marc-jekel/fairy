@@ -1096,6 +1096,22 @@ ui <- shinyUI(fluidPage(
       }
       .fairy-row-even { background-color: var(--ct-default); }
       .fairy-row-hover { background-color: var(--ct-diag) !important; }
+      /* Rows 2 and up carry their label only as screen reader text (a
+         sr-only span inside the label). The label element itself is still an
+         inline-block, so it opened an empty text line of about 20px above
+         each box and pushed the left columns 20px per row out of line with
+         the Model Specification column on the right (which has no label
+         there). Take such labels out of the text flow completely. */
+      .fairy-model-row label.control-label:has(> .sr-only) {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+      }
       /* Compact mode: toggled by #compact-toggle, shrinks the model-row
          boxes so more models fit on screen at once. Inline heights from
          textAreaInput() need !important to be overridden here; the
@@ -1254,7 +1270,7 @@ ui <- shinyUI(fluidPage(
         max-width: 480px;
         width: calc(100% - 48px);
         max-height: 80vh;
-        min-height: 230px;
+        min-height: 300px;
         overflow-y: auto;
         overflow-x: hidden;
         box-sizing: border-box;
@@ -3926,12 +3942,16 @@ ui <- shinyUI(fluidPage(
         var t  = document.getElementById('fairy-progress-overlay-title');
         var b  = document.getElementById('fairy-progress-overlay-body');
         if (!ov) return;
+        // A close that is immediately followed by an open (the next phase of
+        // the same Go click) must not flash: cancel the pending close and just
+        // swap the content of the dialog that is already on screen.
+        if (fpCloseTimer) { clearTimeout(fpCloseTimer); fpCloseTimer = null; }
         t.innerHTML = msg.title || '';
         b.innerHTML = msg.text || '';
         fpPending = null; fpLast = Date.now();
         ov.classList.add('active');
       });
-      var fpPending = null, fpTimer = null, fpLast = 0;
+      var fpPending = null, fpTimer = null, fpLast = 0, fpCloseTimer = null;
       function fpApply(msg) {
         var t = document.getElementById('fairy-progress-overlay-title');
         var b = document.getElementById('fairy-progress-overlay-body');
@@ -3942,20 +3962,40 @@ ui <- shinyUI(fluidPage(
       Shiny.addCustomMessageHandler('fairy_progress_update', function(msg) {
         // Large batches send an update per model; redrawing the card that
         // often reads as flicker. Keep only the latest message and apply it
-        // at most every 250 ms.
+        // at most every 500 ms.
         fpPending = msg;
         if (fpTimer) return;
         fpTimer = setTimeout(function() {
           fpTimer = null;
           if (fpPending) { fpApply(fpPending); fpPending = null; }
-        }, Math.max(0, 250 - (Date.now() - fpLast)));
+        }, Math.max(0, 500 - (Date.now() - fpLast)));
       });
-      Shiny.addCustomMessageHandler('fairy_progress_close', function(msg) {
+      function fpHideNow() {
         var ov = document.getElementById('fairy-progress-overlay');
+        if (fpCloseTimer) { clearTimeout(fpCloseTimer); fpCloseTimer = null; }
+        if (ov) ov.classList.remove('active');
+      }
+      Shiny.addCustomMessageHandler('fairy_progress_close', function(msg) {
         if (fpTimer) { clearTimeout(fpTimer); fpTimer = null; }
         fpPending = null;
-        if (ov) ov.classList.remove('active');
+        // Hide only after a short grace period: the next phase of the same Go
+        // click usually re-opens the dialog right away.
+        if (fpCloseTimer) clearTimeout(fpCloseTimer);
+        fpCloseTimer = setTimeout(fpHideNow, 450);
       });
+      // A shinyalert popup (success / error) right after a close: hide the
+      // progress dialog immediately instead of letting two layers overlap.
+      new MutationObserver(function(muts) {
+        if (!fpCloseTimer) return;
+        for (var i = 0; i < muts.length; i++) {
+          var added = muts[i].addedNodes;
+          for (var j = 0; j < added.length; j++) {
+            var n = added[j];
+            if (n.nodeType === 1 && (n.classList.contains('swal2-container') ||
+                (n.querySelector && n.querySelector('.swal2-popup, .sweet-alert')))) { fpHideNow(); return; }
+          }
+        }
+      }).observe(document.body, { childList: true });
       "
     )),
     tags$script(HTML(
