@@ -437,7 +437,7 @@ ui <- shinyUI(fluidPage(
            depends on what else is visible. */
         padding: 6px 10px 50px 10px;
         min-width: 90px;
-        max-width: 210px;
+        max-width: 250px;
         display: block;
         transition: min-width 0.12s ease;
       }
@@ -452,7 +452,7 @@ ui <- shinyUI(fluidPage(
          a 6px gap) + 10px right padding, rounded up a little. */
       #sidebar-fab-panel:hover,
       #sidebar-fab-panel:focus-within {
-        min-width: 188px;
+        min-width: 234px;   /* 92 + three 36px icons + two 6px gaps + padding (Download, Share link, Upload) */
       }
       #sidebar-fab-panel .fairy-primary-action {
         position: absolute !important;
@@ -1534,6 +1534,12 @@ ui <- shinyUI(fluidPage(
       body.dark-mode .model-card .fairy-kind-items { color: #fcd34d; }
       .model-card .fairy-handle:focus-visible { outline: 3px solid var(--fairy-primary, #3a6df0); outline-offset: -3px; }
       .model-card .fairy-handle { touch-action: none; }
+      .fairy-conflict-host { position: relative; }
+      .fairy-conflict-hint {
+        position: absolute; left: 10px; right: 28px; bottom: 6px; padding: 2px 6px; border-radius: 6px;
+        background: rgba(255, 244, 214, 0.96); color: #8a5a00; font-size: 11px; line-height: 1.3; pointer-events: none; z-index: 5;
+      }
+      body.dark-mode .fairy-conflict-hint { background: rgba(70, 52, 12, 0.96); color: #f5d27a; }
       .fairy-toast {
         position: fixed; left: 50%; bottom: 52px; transform: translateX(-50%);
         z-index: 3000; padding: 8px 16px; border-radius: 999px;
@@ -4460,7 +4466,7 @@ ui <- shinyUI(fluidPage(
             card.insertBefore(h, card.firstChild);
             card.classList.add('fairy-has-handle');
           }
-          h.setAttribute('aria-label', titleOf(card) + ': drag to move, or press Alt and an arrow key');
+          h.setAttribute('aria-label', titleOf(card) + ': drag to move, or press Option/Alt and an arrow key');
           var kind = kindOf(titleOf(card)), kl = h.querySelector('.fairy-handle-kind');
           kl.textContent = kind === 'model' ? '' : kind;
           kl.className = 'fairy-handle-kind fairy-kind-' + kind;
@@ -4640,14 +4646,71 @@ ui <- shinyUI(fluidPage(
         });
       })();
 
+      // ---- Live check while typing: bounds on one probability that contradict each other ----
+      (function() {
+        function num(x) {
+          x = x.trim();
+          if (/^[0-9]*\\.?[0-9]+$/.test(x)) return parseFloat(x);
+          var m = /^([0-9.]+)\\/([0-9.]+)$/.exec(x);
+          return m ? parseFloat(m[1]) / parseFloat(m[2]) : NaN;
+        }
+        function conflicts(spec) {
+          spec = spec.replace(/\\u2264/g, '<=').replace(/\\u2265/g, '>=');
+          var lo = {}, hi = {};
+          function upLo(k, v, st) { var c = lo[k]; if (!c || v > c.v || (v === c.v && st)) lo[k] = { v: v, st: st }; }
+          function upHi(k, v, st) { var c = hi[k]; if (!c || v < c.v || (v === c.v && st)) hi[k] = { v: v, st: st }; }
+          spec.split(';').forEach(function(cl) {
+            var ops = cl.match(/[<>]=?|=/g), opd = cl.split(/[<>]=?|=/);
+            if (!ops || opd.length !== ops.length + 1) return;
+            ops.forEach(function(op, i) {
+              if (op === '=') return;
+              var a = opd[i].trim(), b = opd[i + 1].trim(), k, v, less;
+              if (/^p[0-9]+$/.test(a) && !isNaN(num(b))) { k = a; v = num(b); less = op.charAt(0) === '<'; }
+              else if (/^p[0-9]+$/.test(b) && !isNaN(num(a))) { k = b; v = num(a); less = op.charAt(0) === '>'; }
+              else return;
+              var st = op.indexOf('=') < 0;
+              if (less) upHi(k, v, st); else upLo(k, v, st);
+            });
+          });
+          var out = [];
+          Object.keys(lo).concat(Object.keys(hi)).filter(function(k, i, a) { return a.indexOf(k) === i; }).forEach(function(k) {
+            var l = lo[k] || { v: 0, st: false }, h = hi[k] || { v: 1, st: false };
+            if (l.v > h.v || (l.v === h.v && (l.st || h.st)))
+              out.push(k + ' would have to be ' + (l.st ? 'above ' : 'at least ') + l.v + ' and ' + (h.st ? 'below ' : 'at most ') + h.v + ' at once (empty set)');
+          });
+          return out;
+        }
+        var timer = null;
+        function hint(box) {
+          var host = box.parentNode, el = host.querySelector(':scope > .fairy-conflict-hint');
+          var shared = document.getElementById('add_for_all_models');
+          var msgs = conflicts((box.value || '') + ';' + (shared ? shared.value : ''));
+          if (!msgs.length) { if (el) el.remove(); return; }
+          if (!el) {
+            el = document.createElement('div'); el.className = 'fairy-conflict-hint'; el.setAttribute('role', 'status');
+            host.classList.add('fairy-conflict-host'); host.appendChild(el);
+          }
+          el.textContent = '\\u26A0 ' + msgs.join('; ');
+        }
+        function scan() {
+          document.querySelectorAll(\"textarea[id^='textin_relations_']:not([id^='textin_relations_name']):not([id^='textin_relations_complete_'])\").forEach(hint);
+        }
+        document.addEventListener('input', function(e) {
+          var t = e.target;
+          if (!t || t.tagName !== 'TEXTAREA' || !/^(textin_relations_\\d+|add_for_all_models)$/.test(t.id)) return;
+          clearTimeout(timer); timer = setTimeout(scan, 350);
+        });
+        $(document).on('shiny:value shiny:idle', function() { clearTimeout(timer); timer = setTimeout(scan, 500); });
+      })();
+
       // ---- Keyboard shortcut help (press ? or use the link in the bottom bar) ----
       (function() {
         var rows = [
           ['\\u2318/Ctrl + Enter', 'Go: recalculate'],
           ['\\u2318/Ctrl + Shift + +  /  \\u2212', 'Add / remove a model'],
-          ['\\u2325 + Enter', 'Add a model and jump into its specification'],
-          ['\\u2318/Ctrl + Alt + +  /  \\u2212', 'Add / remove a probability'],
-          ['Alt + arrow keys', 'Move a model tile (focus its top bar first)'],
+          ['\\u2325/Alt + Enter', 'Add a model and jump into its specification'],
+          ['\\u2318/Ctrl + \\u2325/Alt + +  /  \\u2212', 'Add / remove a probability'],
+          ['\\u2325/Alt + arrow keys', 'Move a model tile (focus its top bar first)'],
           ['Esc', 'Close a full-screen tile or dialog'],
           ['?', 'Show this list']
         ];
@@ -5416,9 +5479,9 @@ ui <- shinyUI(fluidPage(
               # fairy-tooltip-down: this row sits right under the fixed
               # navbar (see set_prob_count's own tooltip a few lines
               # down for the same fix/reasoning).
-              tags$span(class = "fairy-tooltip fairy-tooltip-down", `data-tooltip` = "Remove a probability (⌘/Ctrl+Alt+-)",
+              tags$span(class = "fairy-tooltip fairy-tooltip-down", `data-tooltip` = "Remove a probability (⌘/Ctrl+⌥/Alt+-)",
                 actionBttn("rm_prob", "", icon = icon("minus"), size = "xs", style = "jelly", color = "default")),
-              tags$span(class = "fairy-tooltip fairy-tooltip-down", `data-tooltip` = "Add a probability (⌘/Ctrl+Alt++)",
+              tags$span(class = "fairy-tooltip fairy-tooltip-down", `data-tooltip` = "Add a probability (⌘/Ctrl+⌥/Alt++)",
                 actionBttn("add_prob", "", icon = icon("plus"), size = "xs", style = "jelly", color = "primary")),
               # Typing an exact count directly, rather than only being
               # able to step it one at a time with +/- — reported
@@ -5448,7 +5511,7 @@ ui <- shinyUI(fluidPage(
               tags$h2("Model(s)", style = "display:inline; margin:0; font-size:inherit; font-weight:bold; color: var(--fairy-text-muted);"),
               tags$span(class = "fairy-tooltip", `data-tooltip` = "Remove a model (⌘/Ctrl+Shift+-)",
                 actionBttn("rm_ie", "", icon = icon("minus"), size = "xs", style = "jelly", color = "default")),
-              tags$span(class = "fairy-tooltip", `data-tooltip` = "Add a model (⌘/Ctrl+Shift++ or ⌥+Enter)",
+              tags$span(class = "fairy-tooltip", `data-tooltip` = "Add a model (⌘/Ctrl+Shift++ or ⌥/Alt+Enter)",
                 actionBttn("add_ie", "", icon = icon("plus"), size = "xs", style = "jelly", color = "primary")),
               # Both buttons only make sense with 2+ models (an
               # intersection/mixture of one model is that model) — see
