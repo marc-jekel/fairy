@@ -3323,6 +3323,8 @@ ui <- shinyUI(fluidPage(
           sync();
           ta.addEventListener('input', sync);
           ta.addEventListener('scroll', sync);
+          // browser zoom / text-size changes fire resize: take the font metrics over again
+          window.addEventListener('resize', function() { matchStyle(); sync(); });
           wiredBoxes.push({ ta: ta, sync: sync });
         }
 
