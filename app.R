@@ -1515,6 +1515,23 @@ ui <- shinyUI(fluidPage(
         border-radius: 4px;
       }
       .fairy-card-dragging { opacity: 0.45; }
+      /* Small ribbon on derived models: intersection / mixture / items */
+      .model-card .fairy-ribbon {
+        position: absolute;
+        top: 16px;
+        right: 0;
+        padding: 3px 12px 3px 14px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: #fff;
+        background: #0f766e;
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 7px 50%);
+        pointer-events: none;
+      }
+      .model-card .fairy-ribbon-mixture { background: #7c3aed; }
+      .model-card .fairy-ribbon-items { background: #b45309; }
       .fairy-drop-before { box-shadow: -6px 0 0 0 var(--fairy-primary, #3a6df0) !important; }
       .fairy-drop-after  { box-shadow:  6px 0 0 0 var(--fairy-primary, #3a6df0) !important; }
       /* Large run window (see #fairy-run-overlay in the UI) */
@@ -4293,8 +4310,25 @@ ui <- shinyUI(fluidPage(
           if (!l) { l = document.createElement('div'); l.id = 'fairy-card-live'; l.className = 'sr-only'; l.setAttribute('aria-live', 'polite'); document.body.appendChild(l); }
           return l;
         }
+        function kindOf(title) {
+          var k = (window.fairyKinds || {})[title];
+          if (k) return k;
+          if (/ AND /.test(title) || /^\\[.* \\u2229 .*\\]$/.test(title)) return 'intersection';   // auto-detected overlaps
+          return 'model';
+        }
+        function ribbon(card) {
+          var k = kindOf(titleOf(card)), cur = card.querySelector(':scope > .fairy-ribbon');
+          if (k === 'model') { if (cur) cur.remove(); return; }
+          if (cur && cur.getAttribute('data-kind') === k) return;
+          if (cur) cur.remove();
+          var r = document.createElement('div');
+          r.className = 'fairy-ribbon fairy-ribbon-' + k; r.setAttribute('data-kind', k); r.textContent = k;
+          r.setAttribute('aria-hidden', 'true');
+          card.appendChild(r);
+        }
         function decorate() {
           document.querySelectorAll('.fairy-h-cards-wrap .model-card').forEach(function(card) {
+            if (card.querySelector('.model-card-title')) ribbon(card);
             var t = card.querySelector('.model-card-title');
             if (!t || t.getAttribute('draggable') === 'true') return;
             t.setAttribute('draggable', 'true'); t.setAttribute('tabindex', '0'); t.setAttribute('role', 'button');
@@ -4365,6 +4399,7 @@ ui <- shinyUI(fluidPage(
           live().textContent = titleOf(card) + ' moved to position ' + (j + 1) + ' of ' + cards.length;
         });
         function later() { setTimeout(decorate, 40); }
+        Shiny.addCustomMessageHandler('fairy_kinds', function(m) { window.fairyKinds = m || {}; later(); });
         if (window.jQuery) {
           jQuery(document).on('shiny:recalculated shiny:value shown.bs.tab', later);
         }
@@ -11182,8 +11217,15 @@ server <- shinyServer(function(input, output, session) {
       # kind label in the run window: intersection / mixture rows come from the
       # Input tab buttons (see derived_model_sources), everything else is a model
       dms_run <- isolate(derived_model_sources$value)
+      kinds_run <- vapply(seq_len(numb_models_to_convert), function(i) {
+        t <- dms_run[[as.character(i)]]$type
+        if (!is.null(t)) t
+        else if (!is.null(isolate(item_model_spec_idx$value[[as.character(i)]]))) "items"
+        else "model"
+      }, character(1))
+      session$sendCustomMessage("fairy_kinds", setNames(as.list(kinds_run), as.character(mytable_input[seq_len(numb_models_to_convert), 1])))
       for (i_run in seq_len(numb_models_to_convert)) {
-        fairy_run_row(mytable_input[i_run, 1], dms_run[[as.character(i_run)]]$type %||% "model", h = "wait")
+        fairy_run_row(mytable_input[i_run, 1], kinds_run[i_run], h = "wait")
       }
 
       for (loop_numb_models in 1:numb_models_to_convert) {
