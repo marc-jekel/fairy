@@ -11444,7 +11444,7 @@ server <- shinyServer(function(input, output, session) {
 
           if (length(selected_mix) < 2) next
 
-          fairy_run_row(mix_name, "mixture", h = "run")
+          fairy_run_row(mix_name, "mixture", h = "run", v = "run")   # a mixture always gets H and V in this one step
 
           # The model H-reps do not include simplex constraints, so their raw
           # V-reps contain only rays/lines (no finite vertices).  To compute a
@@ -11473,7 +11473,7 @@ server <- shinyServer(function(input, output, session) {
           })
           V_sel <- Filter(function(v) !is.null(v) && nrow(v) > 0, V_sel)
           if (length(V_sel) == 0) {
-            fairy_run_row(mix_name, h = "fail")
+            fairy_run_row(mix_name, h = "fail", v = "fail")
             next
           }
 
@@ -11484,7 +11484,7 @@ server <- shinyServer(function(input, output, session) {
           if (length(unique(na.omit(mix_ncols))) > 1) {
             ref_ncols <- mix_ncols[1]
             bad_models <- selected_mix[!is.na(mix_ncols) & mix_ncols != ref_ncols]
-            fairy_run_row(mix_name, h = "fail")
+            fairy_run_row(mix_name, h = "fail", v = "fail")
             shinyalert(
               title = "Incompatible parameter spaces",
               text  = paste0(
@@ -11520,7 +11520,7 @@ server <- shinyServer(function(input, output, session) {
             mixture_names <- c(mixture_names, mix_name)
           }
           mix_feedback <- c(mix_feedback, mix_name)
-          fairy_run_row(mix_name, h = if (!is.null(mix_result)) "done" else "fail")
+          fairy_run_row(mix_name, h = if (!is.null(mix_result)) "done" else "fail", v = if (!is.null(mix_result)) "done" else "fail")
         }
       }
 
