@@ -3999,6 +3999,20 @@ ui <- shinyUI(fluidPage(
       "
     )),
     tags$script(HTML(
+      "
+      // When this app is embedded in another page (modeling-for-everyone.eu)
+      // and the server connection is lost (crash, restart, timeout), tell the
+      // embedding page so it can unload the frame and offer a Load app button
+      // instead of leaving a greyed-out dead app on screen. Only a bare
+      // signal is sent, no data.
+      $(document).on('shiny:disconnected', function() {
+        if (window.parent && window.parent !== window) {
+          try { window.parent.postMessage({ type: 'fairy-app-disconnected' }, '*'); } catch (e) {}
+        }
+      });
+      "
+    )),
+    tags$script(HTML(
       "(function() {
          function fitContentToWidth() {
            var inner   = document.getElementById('fairy-card-overlay-inner');
