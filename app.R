@@ -3627,6 +3627,28 @@ ui <- shinyUI(fluidPage(
           btn.click();
         });
 
+        // Option/Alt+Enter: add a model (same as the + button next to Model(s)).
+        // Cmd/Ctrl+Enter is Go, Alt alone is not used for Enter, so no clash.
+        // The new Unique Model Specification box gets the focus, so the
+        // specification can be typed right away.
+        document.addEventListener('keydown', function(e) {
+          if (e.key !== 'Enter' || !e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return;
+          var btn = document.getElementById('add_ie');
+          if (!btn || btn.disabled || btn.classList.contains('disabled') || btn.offsetParent === null) return;
+          e.preventDefault();
+          var sel = \"textarea[id^='textin_relations_']:not([id^='textin_relations_name']):not([id^='textin_relations_complete_'])\";
+          var n = document.querySelectorAll(sel).length;
+          btn.classList.add('fairy-kbd-press');
+          setTimeout(function() { btn.classList.remove('fairy-kbd-press'); }, 150);
+          btn.click();
+          var tries = 0;
+          var wait = setInterval(function() {
+            var box = document.getElementById('textin_relations_' + (n + 1));
+            if (box && !box.disabled) { clearInterval(wait); box.focus(); }
+            else if (++tries > 40) clearInterval(wait);
+          }, 50);
+        });
+
         // Each tab remembers its own dragged panel position (see the
         // pointerup handler below) so moving the panel on, say, the
         // Model Properties tab doesn't also relocate it on the Input
@@ -3996,12 +4018,20 @@ ui <- shinyUI(fluidPage(
           if (fpPending) { fpApply(fpPending); fpPending = null; }
         }, Math.max(0, 800 - (Date.now() - fpLast)));
       });
-      function fpHideNow() {
+      function fpHideNow(instant) {
         var ov = document.getElementById('fairy-progress-overlay');
         if (fpCloseTimer) { clearTimeout(fpCloseTimer); fpCloseTimer = null; }
         if (fpShowTimer) { clearTimeout(fpShowTimer); fpShowTimer = null; }
         fpDone = false;
-        if (ov) ov.classList.remove('active');
+        if (!ov) return;
+        if (instant) {
+          // no fade: a popup that takes over must not be cross-faded with this text
+          ov.style.transition = 'none';
+          ov.classList.remove('active');
+          requestAnimationFrame(function() { requestAnimationFrame(function() { ov.style.transition = ''; }); });
+        } else {
+          ov.classList.remove('active');
+        }
       }
       // Success / finished state, shown in the same window.
       Shiny.addCustomMessageHandler('fairy_progress_done', function(msg) {
@@ -4041,13 +4071,12 @@ ui <- shinyUI(fluidPage(
       // A shinyalert popup (success / error) right after a close: hide the
       // progress dialog immediately instead of letting two layers overlap.
       new MutationObserver(function(muts) {
-        if (!fpCloseTimer) return;
         for (var i = 0; i < muts.length; i++) {
           var added = muts[i].addedNodes;
           for (var j = 0; j < added.length; j++) {
             var n = added[j];
             if (n.nodeType === 1 && (n.classList.contains('swal2-container') ||
-                (n.querySelector && n.querySelector('.swal2-popup, .sweet-alert')))) { fpHideNow(); return; }
+                (n.querySelector && n.querySelector('.swal2-popup, .sweet-alert')))) { fpHideNow(true); return; }
           }
         }
       }).observe(document.body, { childList: true });
@@ -4727,7 +4756,7 @@ ui <- shinyUI(fluidPage(
               tags$h2("Model(s)", style = "display:inline; margin:0; font-size:inherit; font-weight:bold; color: var(--fairy-text-muted);"),
               tags$span(class = "fairy-tooltip", `data-tooltip` = "Remove a model (⌘/Ctrl+Shift+-)",
                 actionBttn("rm_ie", "", icon = icon("minus"), size = "xs", style = "jelly", color = "default")),
-              tags$span(class = "fairy-tooltip", `data-tooltip` = "Add a model (⌘/Ctrl+Shift++)",
+              tags$span(class = "fairy-tooltip", `data-tooltip` = "Add a model (⌘/Ctrl+Shift++ or ⌥+Enter)",
                 actionBttn("add_ie", "", icon = icon("plus"), size = "xs", style = "jelly", color = "primary")),
               # Both buttons only make sense with 2+ models (an
               # intersection/mixture of one model is that model) — see
