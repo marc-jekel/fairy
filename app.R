@@ -1470,6 +1470,11 @@ ui <- shinyUI(fluidPage(
         text-overflow: ellipsis;
       }
       .fairy-progress-now-more { font-weight: 400; color: var(--fairy-text-muted, #667085); }
+      .fairy-progress-sub {
+        font-size: 14px;
+        color: var(--fairy-text-muted, #667085);
+        min-height: 20px;
+      }
       .fairy-progress-count {
         font-variant-numeric: tabular-nums;
         font-size: 12.5px;
@@ -5400,10 +5405,10 @@ server <- shinyServer(function(input, output, session) {
   # the parallel-computation switch — surfaces that mode and the core count
   # instead of leaving it invisible to the user.
   fairy_progress_text <- function(items = NULL, done = NULL, total = NULL, parallel = FALSE, n_jobs = NULL) {
-    # Quiet, fixed layout: while computing, only three things change (the name
-    # of the current model, the counter and the bar). The finished models are
-    # NOT listed here (a growing chip list moved the whole window on every
-    # step); they appear once, in the success state at the end.
+    # Quiet, fixed layout: while computing, only the counter and the bar
+    # change. Neither the current model nor the finished ones are listed here
+    # (a sequence of per-model screens and a growing chip list read as
+    # flicker); the models appear once, in the success state at the end.
     cores_html <- if (isTRUE(parallel)) {
       # mclapply/parLapply never spawn more workers than there are jobs, so
       # showing the machine's full core budget when there are fewer jobs
@@ -5412,14 +5417,12 @@ server <- shinyServer(function(input, output, session) {
       paste0("<div class='fairy-progress-cores'>&#9889; Parallel &middot; ", cores_used, " core",
         if (cores_used == 1) "" else "s", "</div>")
     } else ""
-    now_name <- if (isTRUE(parallel) && !is.null(n_jobs) && n_jobs > 1) {
-      paste0(n_jobs, " models at once")
-    } else if (!is.null(items) && length(items) > 0) {
-      paste0(htmltools::htmlEscape(items[1]), if (length(items) > 1) paste0(" <span class='fairy-progress-now-more'>+", length(items) - 1, " more</span>") else "")
-    } else ""
-    now_html <- if (nzchar(now_name)) paste0(
-      "<div class='fairy-progress-now'><span class='fairy-progress-now-label'>Now</span>",
-      "<span class='fairy-progress-now-name'>", now_name, "</span></div>") else ""
+    # One fixed line with the TOTAL (it never changes during the run). The
+    # individual models are deliberately not shown one after another while
+    # computing: a sequence of per-model screens read as flicker.
+    n_all <- if (!is.null(total) && total > 0) total else if (!is.null(items)) length(items) else n_jobs
+    now_html <- if (!is.null(n_all) && n_all > 0) paste0(
+      "<div class='fairy-progress-sub'>", n_all, " model", if (n_all == 1) "" else "s", "</div>") else ""
     if (!is.null(total) && total > 0) {
       pct <- round(100 * length(done) / total)
       bar_html <- paste0(
@@ -11206,6 +11209,17 @@ server <- shinyServer(function(input, output, session) {
         }
 
         if (loop_numb_models == numb_models_to_convert) {
+          # When the V-representation step follows in this same Go, its final
+          # success state lists everything once; a separate "H-representation
+          # created" screen right before it would just be one more screen in
+          # the sequence. The window then simply continues with the next phase.
+          v_follows <- tryCatch(
+            !is.null(mytable_v_reactive$value) && sum(mytable_v_reactive$value[, 2]) > 0,
+            error = function(e) FALSE)
+        }
+        if (loop_numb_models == numb_models_to_convert && isTRUE(v_follows)) {
+          fairy_progress_close()
+        } else if (loop_numb_models == numb_models_to_convert) {
           show_title <- "H-representation created"
           add_text <- fairy_success_chips(feedback_name)
           if (length(empty_set) > 0) {
