@@ -4407,6 +4407,7 @@ ui <- shinyUI(fluidPage(
         window.addEventListener('resize', packLater);
         function enterFree(wrap) {
           if (wrap.classList.contains('fairy-free') || !isVisible(wrap)) return;
+          refit();   // let the tables size their columns first, otherwise the cards are measured collapsed
           var cards = wrapCards(wrap), wr = wrap.getBoundingClientRect();
           var m = cards.map(function(c) { var r = c.getBoundingClientRect(); return { x: r.left - wr.left, y: r.top - wr.top, w: r.width }; });
           wrap.classList.add('fairy-free'); wrap.classList.remove('fairy-packed');
@@ -4580,7 +4581,17 @@ ui <- shinyUI(fluidPage(
         function refit() {
           try { if (window.jQuery && jQuery.fn.dataTable) jQuery(jQuery.fn.dataTable.tables({ visible: true })).DataTable().columns.adjust(); } catch (e) {}
         }
-        function later() { setTimeout(decorate, 40); setTimeout(refit, 120); setTimeout(refit, 600); }
+        // free mode: cards were frozen at their measured width; measure again once the tables are laid out
+        function refreeWidths() {
+          document.querySelectorAll('.fairy-h-cards-wrap.fairy-free').forEach(function(wrap) {
+            if (!isVisible(wrap)) return;
+            refit();
+            wrapCards(wrap).forEach(function(c) { c.style.width = ''; });
+            wrapCards(wrap).forEach(function(c) { c.style.width = c.offsetWidth + 'px'; });
+            fitWrap(wrap);
+          });
+        }
+        function later() { setTimeout(decorate, 40); setTimeout(refit, 120); setTimeout(refit, 600); setTimeout(refreeWidths, 750); }
         Shiny.addCustomMessageHandler('fairy_kinds', function(m) { window.fairyKinds = m || {}; later(); });
         if (window.jQuery) {
           jQuery(document).on('shiny:recalculated shiny:value shown.bs.tab', later);
@@ -6041,6 +6052,47 @@ server <- shinyServer(function(input, output, session) {
       showNotification(paste0("Something went wrong (", msg, "). Please check your input and try again."),
         type = "error", duration = 12)
     }
+  }
+  # Cheap pre-check: bounds on a single probability that contradict each other
+  # (e.g. "p1 < .3; p1 > .5"). Returns one message per conflicting probability.
+  fairy_bound_conflicts <- function(spec) {
+    spec <- enc2utf8(spec)
+    spec <- gsub("\u2264", "<=", gsub("\u2265", ">=", spec, fixed = TRUE, useBytes = TRUE), fixed = TRUE, useBytes = TRUE)
+    num <- function(x) {
+      x <- trimws(x)
+      if (grepl("^[0-9]*\\.?[0-9]+$", x)) return(as.numeric(x))
+      if (grepl("^[0-9.]+/[0-9.]+$", x)) { a <- as.numeric(strsplit(x, "/")[[1]]); return(a[1] / a[2]) }
+      NA_real_
+    }
+    isvar <- function(x) grepl("^p[0-9]+$", trimws(x))
+    lo <- list(); hi <- list()   # per probability: list(v = value, strict = TRUE/FALSE)
+    upd_lo <- function(k, v, st) { cur <- lo[[k]]; if (is.null(cur) || v > cur$v || (v == cur$v && st)) lo[[k]] <<- list(v = v, strict = st) }
+    upd_hi <- function(k, v, st) { cur <- hi[[k]]; if (is.null(cur) || v < cur$v || (v == cur$v && st)) hi[[k]] <<- list(v = v, strict = st) }
+    for (cl in strsplit(spec, ";", fixed = TRUE)[[1]]) {
+      ops <- regmatches(cl, gregexpr("[<>]=?|=", cl))[[1]]
+      opd <- strsplit(cl, "[<>]=?|=")[[1]]
+      if (length(ops) == 0 || length(opd) != length(ops) + 1) next
+      for (i in seq_along(ops)) {
+        op <- ops[i]; a <- opd[i]; b <- opd[i + 1]
+        if (op == "=") next
+        if (isvar(a) && !is.na(num(b))) { k <- trimws(a); v <- num(b); less <- grepl("^<", op) }
+        else if (isvar(b) && !is.na(num(a))) { k <- trimws(b); v <- num(a); less <- grepl("^>", op) }  # 5 < p1 means p1 > 5
+        else next
+        st <- !grepl("=", op)
+        if (less) upd_hi(k, v, st) else upd_lo(k, v, st)
+      }
+    }
+    msgs <- character()
+    for (k in union(names(lo), names(hi))) {
+      l <- lo[[k]]; h <- hi[[k]]
+      if (is.null(l)) l <- list(v = 0, strict = FALSE)
+      if (is.null(h)) h <- list(v = 1, strict = FALSE)
+      if (l$v > h$v || (l$v == h$v && (l$strict || h$strict))) {
+        msgs <- c(msgs, paste0(k, " would have to be ", if (l$strict) "above " else "at least ", format(l$v),
+          " and ", if (h$strict) "below " else "at most ", format(h$v), " at the same time"))
+      }
+    }
+    msgs
   }
   observe_guarded <- function(event, handler, where = "go") {
     ev <- substitute(event); hd <- substitute(handler); env <- parent.frame()
@@ -11600,6 +11652,21 @@ server <- shinyServer(function(input, output, session) {
         precheck_msgs <- c(precheck_msgs, paste0("<b>", htmltools::htmlEscape(label_chk), "</b> has no specification yet."))
         next
       }
+    }
+    conflict_msgs <- character()
+    for (i_chk in seq_len(counter_input$n)) {
+      spec_c <- paste(AllInputs()[[paste0("textin_relations_complete_", i_chk)]], collapse = " ")
+      if (!nzchar(trimws(spec_c))) next
+      cf <- fairy_bound_conflicts(spec_c)
+      if (length(cf) > 0) {
+        nm_c <- unlist(AllInputs()[[paste0("textin_relations_name", i_chk)]])
+        conflict_msgs <- c(conflict_msgs, paste0("<b>", htmltools::htmlEscape(if (length(nm_c) && nzchar(nm_c[1])) nm_c[1] else paste("model", i_chk)),
+          "</b>: ", htmltools::htmlEscape(paste(cf, collapse = "; ")), " (empty set)."))
+      }
+    }
+    if (length(conflict_msgs) > 0) {
+      showNotification(HTML(paste0("Contradicting bounds, found before calculating:<br>", paste(conflict_msgs, collapse = "<br>"))),
+        type = "warning", duration = 15)
     }
     if (length(precheck_msgs) > 0) {
       shinyalert("Please check your input", html = TRUE,
