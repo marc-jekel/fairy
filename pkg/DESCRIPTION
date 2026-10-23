@@ -1,0 +1,42 @@
+Package: fairy
+Title: Formalize and Analyze Order-Constrained Hypotheses About Proportions
+Version: 0.2.0
+Authors@R: c(
+    person("Marc", "Jekel", email = "mjekel@uni-koeln.de", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-9146-0306")),
+    person("Michel", "Regenwetter", email = "regenwet@illinois.edu", role = "aut",
+           comment = c(ORCID = "0000-0002-5607-9016")),
+    person("Meichai", "Chen", email = "meichai2@illinois.edu", role = "aut",
+           comment = c(ORCID = "0000-0001-6435-9109")),
+    person("Emily N.", "Line", email = "neuline2@illinois.edu", role = "aut",
+           comment = c(ORCID = "0000-0003-2844-807X"))
+  )
+Description: Provides tools to formalize verbal hypotheses about proportions
+    as order-constrained models, compute their H-representation (half-space)
+    and V-representation (extreme cases), and derive parsimony (the volume of
+    a model) and the largest possible Bayes factor against the unconstrained
+    model. Also builds intersections and mixtures of models, three kinds of
+    replication models, and compares sets of models. Reproduces the examples
+    of Jekel, Regenwetter, Chen, and Line (in preparation), "Wait, what are
+    you saying, exactly?", and of its online supplement.
+License: GPL (>= 3)
+Encoding: UTF-8
+URL: https://github.com/marc-jekel/fairy/tree/main/pkg
+BugReports: https://github.com/marc-jekel/fairy/issues
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Depends: R (>= 4.1.0)
+Imports:
+    geometry,
+    MASS,
+    rcdd,
+    stats,
+    stringr,
+    utils
+Suggests:
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0),
+    volesti
+VignetteBuilder: knitr
+Config/testthat/edition: 3

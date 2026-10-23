@@ -1,0 +1,383 @@
+---
+title: "Reproducing the examples of 'Wait, what are you saying, exactly?'"
+author: "Marc Jekel"
+date: "`r format(Sys.Date(), '%Y-%m-%d')`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Reproducing the examples of 'Wait, what are you saying, exactly?'}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 5.5, fig.height = 4.5)
+library(fairy)
+options(width = 90)
+```
+
+This vignette walks through the examples of Jekel, Regenwetter, Chen, and Line
+(in preparation), *"Wait, what are you saying, exactly?" A theoretical framework
+for codifying and evaluating verbal hypotheses about proportions*, and of its
+online supplement, one step at a time, with the code that produces each table
+and number. Every number quoted from the paper is also checked by the
+package's tests (`tests/testthat/test-paper-*.R`).
+
+The package does what "the mathematics fairy" does in the paper
+(<https://modeling-for-everyone.eu/posts/fairy/>):
+
+| In the paper | In the package |
+|:--|:--|
+| minimal description via order constraints (H-representation) | `fairy_h()`, `fairy_constraints()` |
+| minimal description via extreme cases (V-representation) | `fairy_vertices()`, `fairy_words()` |
+| parsimony (volume) and the largest possible Bayes factor | `fairy_volume()`, `fairy_max_bf()`, `fairy_info()` |
+| overlap, nesting, mixture models | `fairy_intersect()`, `fairy_nested()`, `fairy_mixture()`, `fairy_compare()` |
+| replication models (identical, joint, substitutable) | `fairy_replicate()` |
+| input files for QTest and multinomineq | `fairy_write_qtest()`, `fairy_write_multinomineq()` |
+
+# Part 1: The cringyness study
+
+## Verbal hypotheses become order constraints
+
+Six probabilities describe the study. The probability that a randomly drawn
+child, teen, or adult cringes at an illogical joke or at a pun gives the order
+`p1, ..., p6`:
+
+```{r labels}
+data.frame(parameter = paste0("p", 1:6), meaning = cringe_labels())
+```
+
+A model is a character string. Constraints are separated by `;`, chains such as
+`p1 > p2 > p3` are allowed, and `<` and `<=` mean the same thing (as in the paper,
+models are closed sets, so no software can tell `<` from `<=`). Here are
+Models 1 to 9, exactly as the package stores them:
+
+```{r model-strings}
+as.data.frame(unlist(cringe_models(as = "string")))
+```
+
+* Model 1 is the average of the two joke types per age group, increasing with age.
+* Models 7 and 8 use *approximate* equality: `approx_tol = 0.05` turns every equality into
+  "within five percentage points". `cringe_models()` applies that tolerance for you.
+* Model 10, the mixture of Models 4 and 9, is not a string: it is built with
+  `fairy_mixture()` below.
+
+```{r models}
+m <- cringe_models()          # H-representations of Models 1 to 10
+names(m)
+```
+
+## Minimal descriptions via order constraints (Figure 2)
+
+`fairy_h()` returns the non-redundant H-representation. For Model 4 the paper
+reports five inequalities among pairs of parameters and two range constraints,
+`0 <= p3 <= p2 <= p1 <= p4 <= p5 <= p6 <= 1`:
+
+```{r model4-h}
+fairy_constraints(m$M4)
+```
+
+The first line is the paper's `-1 x p1 + 1 x p2 <= 0`. The same constraints in the
+machine-readable format of QTest are written by `fairy_write_qtest()`
+(and for the R package multinomineq by `fairy_write_multinomineq()`):
+
+```{r qtest, eval = FALSE}
+fairy_write_qtest(c(M4 = cringe_models(as = "string")$M4), n_p = 6, file = "model4.tar")
+```
+
+The no-effect model (Model 5) is two inequalities and five equalities:
+
+```{r model5}
+fairy_info(m$M5)[, c("dim", "inequalities", "equalities", "vertices")]
+```
+
+## The mixture model (Model 10) and its 64 constraints
+
+The mixture of Models 4 and 9 says: each person follows either Model 4 or Model 9,
+with an unknown weight. Geometrically, that is the convex
+hull of the two models, and `fairy_mixture()` computes its H-representation:
+
+```{r mixture}
+mix <- fairy_mixture(fairy_h(cringe_models(as = "string")$M4, n_p = 6),
+                     fairy_h(cringe_models(as = "string")$M9, n_p = 6))
+fairy_info(mix, volume = FALSE)
+```
+
+There are 12 vertices and 64 non-redundant constraints. Twelve of them are the range constraints
+`0 <= p_i <= 1`, which leaves the paper's 52 order constraints:
+
+```{r mixture-count}
+hn <- rcdd::q2d(mix)
+single <- rowSums(hn[, -(1:2)] != 0) == 1
+c(range = sum(single), other = sum(!single))
+```
+
+The first row of the paper's list of 52 constraints reads
+`p2 <= p1 + p3 <= 1 + p2`. The package lists them too:
+
+```{r mixture-constraints}
+head(fairy_constraints(mix)[!single], 6)
+```
+
+The paper counts the "edge cases" of the vertex V1 of Table 1
+(`p1 = p4 = p5 = p6 = 1`, `p2 = p3 = 0`): it satisfies 26 of the 52 order constraints with equality,
+and 6 range constraints, 32 in all:
+
+```{r edge-cases}
+v1 <- c(1, 0, 0, 1, 1, 1)
+slack <- hn[, 2] + as.vector(hn[, -(1:2)] %*% v1)
+c(order_constraints = sum(abs(slack[!single]) < 1e-9),
+  range_constraints = sum(abs(slack[single]) < 1e-9),
+  total = sum(abs(slack) < 1e-9))
+```
+
+## Minimal descriptions via extreme cases (Tables 1 and 2)
+
+`fairy_words()` lists the vertices, writing a probability of 0 as "none" and of 1 as "all"
+(valid for a finite population). The row order of the underlying algorithm is arbitrary,
+so the rows are sorted. The labels are the six columns of the paper's tables:
+
+```{r table1}
+lab <- cringe_labels()
+fairy_words(m$M4, labels = lab)       # Table 1, Model 4
+```
+
+Model 9 is the mirror image, `all` and `none` swapped:
+
+```{r table1b}
+fairy_words(m$M9, labels = lab)
+```
+
+Table 2, the 12 vertices of Model 6 (equal marginal means), contains fractions:
+
+```{r table2}
+fairy_words(m$M6, labels = lab)
+```
+
+The mixture model has the 12 vertices that are the union of those of Models 4 and 9 (the two
+share the vertices "all, all, all, all, all, all" and "none, ..., none"):
+
+```{r mixture-vertices}
+nrow(fairy_vertices(m$M10))
+```
+
+Out of the 2^6 = 64 corners of the unit cube, only 12 are allowed, so the mixture model is falsifiable.
+
+## Parsimony (Figure 3)
+
+The parsimony of a model is its volume inside the unit cube of all conceivable families
+of Binomial parameters. The inverse of the volume is the largest Bayes factor
+the model can reach against the unconstrained model (uniform prior). Figure 3 of the paper
+has two rectangles, their overlap and a line segment:
+
+```{r figure3}
+I   <- fairy_h("p1 < .5; p2 > .25; p2 < .75", n_p = 2)
+II  <- fairy_h("p1 > .3; p1 < .7; p2 > .5", n_p = 2)
+III <- fairy_intersect(I, II)
+IV  <- fairy_h("p1 = .5; p2 > .25; p2 < .75", n_p = 2)
+
+rbind(I = fairy_info(I), II = fairy_info(II), III = fairy_info(III), IV = fairy_info(IV))
+```
+
+Model I has area 0.25 (maximal Bayes factor 4), Model II 0.2 (5), their overlap
+Model III 0.05 (20). Model IV contains an equality, so it is a line segment with
+volume zero and **no** upper bound on the Bayes factor. The vertices of the overlap
+include two new ones that are not vertices of either rectangle:
+
+```{r figure3-vertices}
+fairy_vertices(III)
+```
+
+## Model relationships (Table 3)
+
+`fairy_compare()` returns the layout of Table 3: the diagonal gives each model's volume, entries
+above the diagonal the volume of the overlap of two models, entries below the diagonal tell whether the
+row model is nested in (subset sign) or contains (superset sign) the column model, and otherwise the
+dimension of their overlap. The last row is the largest possible Bayes factor against the
+unconstrained model.
+
+```{r table3}
+cmp <- fairy_compare(m)
+cmp
+```
+
+Individual entries are available as numbers, for example the largest Bayes factor of each model
+and the volume of the mixture model:
+
+```{r table3-numbers}
+round(cmp$max_bf, 1)
+cmp$volume["M10", "M10"]
+```
+
+The paper reports 6, 36, 72, 720, infinity, infinity, about 200, about 10^6, 720, and about 23.
+The values for Models 7 and 8 depend on the approximate-equality tolerance; with a tolerance of 0.05
+the exact volumes give about 220 and 560,000, which the paper rounds to 200 and 10^6.
+
+### Where Table 3 of the manuscript and the package differ
+
+A few entries of the printed table do not agree with the exact computation. We list them so
+that the table can be checked against the package output (all other entries, including the diagonal, the
+`maxBF` row, and the nesting and dimension entries, agree):
+
+* The overlaps of Model 10 with Models 2, 3, and 4 are printed as `.01`. Model 4 is nested in Model 10
+  (the table itself says so in the lower triangle), so their overlap is Model 4 itself, with
+  volume 1/720 = `r signif(1/720, 2)`. The overlaps with Models 2 and 3 are `r signif(cmp$volume["M2", "M10"], 2)`
+  and `r signif(cmp$volume["M3", "M10"], 2)`.
+* Row 6 (Model 6), column 1 (Model 1) is printed as "nested in", but Model 6 is not a subset of Model 1; their overlap
+  is 5-dimensional.
+* Row 7 (Model 7), column 6 (Model 6): the package finds that Model 7 contains Model 6 (relaxing an equality can only add
+  points), the printed table shows a 5-dimensional overlap. Row 10, column 3 is printed as
+  5-dimensional, but the overlap of Models 3 and 10 has positive volume, so it is 6-dimensional.
+
+```{r table3-checks}
+c(M6_in_M1 = fairy_nested(m$M6, m$M1), M6_in_M7 = fairy_nested(m$M6, m$M7),
+  M3_M10_dim = fairy_dim(fairy_intersect(m$M3, m$M10)))
+```
+
+## Replication models (Table 4)
+
+With r = 3 labs, each with six probabilities, replication models live in 18 dimensions.
+`fairy_replicate()` builds the three versions of the paper:
+
+* **identical**: every probability is the same in all labs, 12 equalities, dimension 6, volume zero.
+* **joint**: each lab satisfies the model, labs are unrelated; the volume is the cube of the single-lab volume.
+* **substitutable**: each constraint holds whichever lab's parameter is plugged in, for every term.
+
+The columns of Table 4 are dimension, number of vertices, non-redundant inequalities, equalities,
+and the upper bound on the Bayes factor:
+
+```{r table4-m4}
+rep_table <- function(h, r = 3, bf_substitutable = NULL) {
+  ident <- fairy_info(fairy_replicate(h, r, "identical"))
+  joint <- fairy_info(fairy_replicate(h, r, "joint"))
+  subst <- fairy_info(fairy_replicate(h, r, "substitutable"), volume = FALSE)
+  subst$max_bf <- if (is.null(bf_substitutable)) NA_real_ else bf_substitutable
+  out <- rbind(identical = ident, joint = joint, substitutable = subst)
+  out[, c("dim", "vertices", "inequalities", "equalities", "max_bf")]
+}
+```
+
+For Model 4 the substitutable bound has a closed form: the 18 values fall into
+six ordered groups of three, which happens with probability 3!^6 / 18!, so the bound is
+`18! / 3!^6`. (For high-dimensional polytopes of this kind `fairy_volume(method = "volesti")` gives a stochastic estimate
+if the volesti package is installed.)
+
+```{r table4-m4-run}
+exact_sub <- factorial(18) / factorial(3)^6
+rep_table(m$M4, bf_substitutable = exact_sub)
+format(exact_sub, scientific = TRUE, digits = 3)      # 1.37e11 in the paper
+format(720^3, scientific = TRUE, digits = 3)          # "720^3 = 4e8" in the paper
+```
+
+Model 9 gives the same numbers:
+
+```{r table4-m9}
+rep_table(m$M9, bf_substitutable = exact_sub)
+```
+
+For the mixture model (Model 10) the joint model has 1,728 = 12^3 vertices and 3 x 64 = 192 inequalities,
+and a bound of about 23^3 = 10^4:
+
+```{r table4-m10}
+joint10 <- fairy_info(fairy_replicate(m$M10, 3, "joint"))
+joint10[, c("dim", "vertices", "inequalities", "equalities", "max_bf")]
+fairy_info(fairy_replicate(m$M10, 3, "identical"), volume = FALSE)[, 1:4]
+```
+
+The substitutable version of Model 10 has 4,032 constraints. Removing redundant constraints in 18 dimensions takes
+several minutes, so the vignette shows the constraint count before that step (`reduce = FALSE`),
+which already equals the paper's number of non-redundant inequalities:
+
+```{r table4-m10-sub}
+nrow(fairy_replicate(m$M10, 3, "substitutable", reduce = FALSE))
+```
+
+To get the full row, including the 46,739 vertices, call
+`fairy_info(fairy_replicate(m$M10, 3, "substitutable"), volume = FALSE)`; this takes a long time.
+
+# Part 2: The Heuristic-Systematic Model (online supplement)
+
+`hsm_models()` contains the theoretical predictions of the supplement. In the 2 x 2 design the four
+probabilities are `PbW, PbS, PsW, PsS`: big or small gap, weak or strong argument.
+
+```{r hsm}
+hsm <- hsm_models()
+lab4 <- c("big, weak", "big, strong", "small, weak", "small, strong")
+```
+
+Prediction 1 says stronger arguments never reduce the share who act; prediction 2 says a smaller
+gap never does. Each has nine extreme cases (Tables A1 and A2) and takes up a quarter of the
+cube:
+
+```{r hsm-a1}
+fairy_words(hsm$pred1, labels = lab4)    # Table A1
+fairy_words(hsm$pred2, labels = lab4)    # Table A2
+sapply(hsm[c("pred1", "pred2")], fairy_max_bf)
+```
+
+Their combination, Prediction 3, has six extreme cases (Table A3), a volume of 1/12 and a largest Bayes factor of 12:
+
+```{r hsm-a3}
+fairy_words(hsm$pred3, labels = lab4)    # Table A3
+fairy_info(hsm$pred3)
+```
+
+All six are vertices of both predictions, so intersecting the predictions adds no new extreme case:
+
+```{r hsm-intersect}
+fairy_nested(hsm$pred3, hsm$pred1) && fairy_nested(hsm$pred3, hsm$pred2)
+```
+
+## Two populations
+
+If Prediction 3 must hold jointly in two populations, the bound is `12^2 = 144`. If it holds with
+substitutable parameters, it is 420:
+
+```{r hsm-replicate}
+c(joint = fairy_max_bf(fairy_replicate(hsm$pred3, 2, "joint")),
+  substitutable = fairy_max_bf(fairy_replicate(hsm$pred3, 2, "substitutable")))
+```
+
+## A 3-by-3 design
+
+Three gap sizes and three argument strengths give nine probabilities. The twelve non-redundant order
+constraints of equation (6) plus two range constraints give a bound of about 8,600 (8,640), about
+60 times the bound 144 of the two-population replication:
+
+```{r hsm-3x3}
+fairy_info(hsm$pred6)
+fairy_max_bf(hsm$pred6) / 144
+```
+
+## Cue congruence: Override, Trade-off, and take-the-best
+
+The six probabilities are `PiW, PnW, PcW, PiS, PnS, PcS` (incongruent, no, or congruent cues; weak or strong
+arguments). The Override Model (equation 7) contains two equalities and so has volume zero. Table A4 (top) lists its six extreme cases;
+take-the-best (bottom) is a single point:
+
+```{r hsm-a4}
+lab6 <- c("inc, weak", "no, weak", "con, weak", "inc, strong", "no, strong", "con, strong")
+fairy_words(hsm$override, labels = lab6)       # Table A4, top
+fairy_words(hsm$ttb, labels = lab6)            # Table A4, bottom
+fairy_info(hsm$override)[, c("dim", "vertices", "volume", "max_bf")]
+```
+
+The Trade-off Model (equation 8) has 10 vertices and a bound of 144. The Override Model is nested in it, but take-the-best
+violates the Override Model:
+
+```{r hsm-tradeoff}
+fairy_info(hsm$tradeoff)[, c("dim", "vertices", "max_bf")]
+c(override_in_tradeoff = fairy_nested(hsm$override, hsm$tradeoff),
+  tradeoff_in_override = fairy_nested(hsm$tradeoff, hsm$override),
+  ttb_in_override = fairy_nested(hsm$ttb, hsm$override))
+```
+
+Finally, the mixture of the Override Model and take-the-best adds the one vertex "none, all, all, none, all, all". It
+keeps one equality (`PnW + PiS = PiW + PnS`), so its volume is zero and there is no upper bound on the Bayes factor. Both
+components are nested in it (equation 10):
+
+```{r hsm-mixture}
+mixture <- hsm$override_ttb_mixture
+fairy_constraints(mixture, labels = c("PiW", "PnW", "PcW", "PiS", "PnS", "PcS"))
+c(override_nested = fairy_nested(hsm$override, mixture), ttb_nested = fairy_nested(hsm$ttb, mixture))
+fairy_info(mixture)[, c("dim", "vertices", "inequalities", "equalities", "max_bf")]
+```

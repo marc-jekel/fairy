@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Marc Jekel" />
+
+<meta name="date" content="2026-10-24" />
+
+<title>Reproducing the examples of ‘Wait, what are you saying, exactly?’</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Reproducing the examples of ‘Wait, what are
+you saying, exactly?’</h1>
+<h4 class="author">Marc Jekel</h4>
+<h4 class="date">2026-10-24</h4>
+
+
+
+<p>This vignette walks through the examples of Jekel, Regenwetter, Chen,
+and Line (in preparation), <em>“Wait, what are you saying, exactly?” A
+theoretical framework for codifying and evaluating verbal hypotheses
+about proportions</em>, and of its online supplement, one step at a
+time, with the code that produces each table and number. Every number
+quoted from the paper is also checked by the package’s tests
+(<code>tests/testthat/test-paper-*.R</code>).</p>
+<p>The package does what “the mathematics fairy” does in the paper (<a href="https://modeling-for-everyone.eu/posts/fairy/" class="uri">https://modeling-for-everyone.eu/posts/fairy/</a>):</p>
+<table>
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">In the paper</th>
+<th align="left">In the package</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">minimal description via order constraints
+(H-representation)</td>
+<td align="left"><code>fairy_h()</code>,
+<code>fairy_constraints()</code></td>
+</tr>
+<tr class="even">
+<td align="left">minimal description via extreme cases
+(V-representation)</td>
+<td align="left"><code>fairy_vertices()</code>,
+<code>fairy_words()</code></td>
+</tr>
+<tr class="odd">
+<td align="left">parsimony (volume) and the largest possible Bayes
+factor</td>
+<td align="left"><code>fairy_volume()</code>,
+<code>fairy_max_bf()</code>, <code>fairy_info()</code></td>
+</tr>
+<tr class="even">
+<td align="left">overlap, nesting, mixture models</td>
+<td align="left"><code>fairy_intersect()</code>,
+<code>fairy_nested()</code>, <code>fairy_mixture()</code>,
+<code>fairy_compare()</code></td>
+</tr>
+<tr class="odd">
+<td align="left">replication models (identical, joint,
+substitutable)</td>
+<td align="left"><code>fairy_replicate()</code></td>
+</tr>
+<tr class="even">
+<td align="left">input files for QTest and multinomineq</td>
+<td align="left"><code>fairy_write_qtest()</code>,
+<code>fairy_write_multinomineq()</code></td>
+</tr>
+</tbody>
+</table>
+<div id="part-1-the-cringyness-study" class="section level1">
+<h1>Part 1: The cringyness study</h1>
+<div id="verbal-hypotheses-become-order-constraints" class="section level2">
+<h2>Verbal hypotheses become order constraints</h2>
+<p>Six probabilities describe the study. The probability that a randomly
+drawn child, teen, or adult cringes at an illogical joke or at a pun
+gives the order <code>p1, ..., p6</code>:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">parameter =</span> <span class="fu">paste0</span>(<span class="st">&quot;p&quot;</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">6</span>), <span class="at">meaning =</span> <span class="fu">cringe_labels</span>())</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="co">#&gt;   parameter             meaning</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="co">#&gt; 1        p1 illogical: children</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="co">#&gt; 2        p2    illogical: teens</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="co">#&gt; 3        p3   illogical: adults</span></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="co">#&gt; 4        p4       pun: children</span></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="co">#&gt; 5        p5          pun: teens</span></span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a><span class="co">#&gt; 6        p6         pun: adults</span></span></code></pre></div>
+<p>A model is a character string. Constraints are separated by
+<code>;</code>, chains such as <code>p1 &gt; p2 &gt; p3</code> are
+allowed, and <code>&lt;</code> and <code>&lt;=</code> mean the same
+thing (as in the paper, models are closed sets, so no software can tell
+<code>&lt;</code> from <code>&lt;=</code>). Here are Models 1 to 9,
+exactly as the package stores them:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">as.data.frame</span>(<span class="fu">unlist</span>(<span class="fu">cringe_models</span>(<span class="at">as =</span> <span class="st">&quot;string&quot;</span>)))</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="co">#&gt;                       unlist(cringe_models(as = &quot;string&quot;))</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co">#&gt; M1                       (p1+p4)/2 &lt; (p2+p5)/2 &lt; (p3+p6)/2</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co">#&gt; M2                              p1 &lt; p2 &lt; p3; p4 &lt; p5 &lt; p6</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="co">#&gt; M3         p1 &gt; p2 &gt; p3; p4 &lt; p5 &lt; p6; p1+p2+p3 &lt; p4+p5+p6</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="co">#&gt; M4   p1 &gt; p2 &gt; p3; p4 &lt; p5 &lt; p6; p1 &lt; p4; p2 &lt; p5; p3 &lt; p6</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="co">#&gt; M5                             p1 = p2 = p3 = p4 = p5 = p6</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="co">#&gt; M6         p1 &gt; p2 &gt; p3; p4 &lt; p5 &lt; p6; p1+p2+p3 = p4+p5+p6</span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="co">#&gt; M7 p1 &gt; p2 &gt; p3; p4 &lt; p5 &lt; p6; (p1+p2+p3)/3 = (p4+p5+p6)/3</span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="co">#&gt; M8               {p1,p2,p3,p4,p5,p6} = {p1,p2,p3,p4,p5,p6}</span></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="co">#&gt; M9   p1 &lt; p2 &lt; p3; p4 &gt; p5 &gt; p6; p1 &gt; p4; p2 &gt; p5; p3 &gt; p6</span></span></code></pre></div>
+<ul>
+<li>Model 1 is the average of the two joke types per age group,
+increasing with age.</li>
+<li>Models 7 and 8 use <em>approximate</em> equality:
+<code>approx_tol = 0.05</code> turns every equality into “within five
+percentage points”. <code>cringe_models()</code> applies that tolerance
+for you.</li>
+<li>Model 10, the mixture of Models 4 and 9, is not a string: it is
+built with <code>fairy_mixture()</code> below.</li>
+</ul>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>m <span class="ot">&lt;-</span> <span class="fu">cringe_models</span>()          <span class="co"># H-representations of Models 1 to 10</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">names</span>(m)</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">#&gt;  [1] &quot;M1&quot;  &quot;M2&quot;  &quot;M3&quot;  &quot;M4&quot;  &quot;M5&quot;  &quot;M6&quot;  &quot;M7&quot;  &quot;M8&quot;  &quot;M9&quot;  &quot;M10&quot;</span></span></code></pre></div>
+</div>
+<div id="minimal-descriptions-via-order-constraints-figure-2" class="section level2">
+<h2>Minimal descriptions via order constraints (Figure 2)</h2>
+<p><code>fairy_h()</code> returns the non-redundant H-representation.
+For Model 4 the paper reports five inequalities among pairs of
+parameters and two range constraints,
+<code>0 &lt;= p3 &lt;= p2 &lt;= p1 &lt;= p4 &lt;= p5 &lt;= p6 &lt;= 1</code>:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">fairy_constraints</span>(m<span class="sc">$</span>M4)</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;- p1 + p2 &lt;= 0&quot; &quot;- p2 + p3 &lt;= 0&quot; &quot;p4 - p5 &lt;= 0&quot;   &quot;p5 - p6 &lt;= 0&quot;   &quot;p1 - p4 &lt;= 0&quot;  </span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="co">#&gt; [6] &quot;p6 &lt;= 1&quot;        &quot;- p3 &lt;= 0&quot;</span></span></code></pre></div>
+<p>The first line is the paper’s <code>-1 x p1 + 1 x p2 &lt;= 0</code>.
+The same constraints in the machine-readable format of QTest are written
+by <code>fairy_write_qtest()</code> (and for the R package multinomineq
+by <code>fairy_write_multinomineq()</code>):</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">fairy_write_qtest</span>(<span class="fu">c</span>(<span class="at">M4 =</span> <span class="fu">cringe_models</span>(<span class="at">as =</span> <span class="st">&quot;string&quot;</span>)<span class="sc">$</span>M4), <span class="at">n_p =</span> <span class="dv">6</span>, <span class="at">file =</span> <span class="st">&quot;model4.tar&quot;</span>)</span></code></pre></div>
+<p>The no-effect model (Model 5) is two inequalities and five
+equalities:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">fairy_info</span>(m<span class="sc">$</span>M5)[, <span class="fu">c</span>(<span class="st">&quot;dim&quot;</span>, <span class="st">&quot;inequalities&quot;</span>, <span class="st">&quot;equalities&quot;</span>, <span class="st">&quot;vertices&quot;</span>)]</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co">#&gt;   dim inequalities equalities vertices</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#&gt; 1   1            2          5        2</span></span></code></pre></div>
+</div>
+<div id="the-mixture-model-model-10-and-its-64-constraints" class="section level2">
+<h2>The mixture model (Model 10) and its 64 constraints</h2>
+<p>The mixture of Models 4 and 9 says: each person follows either Model
+4 or Model 9, with an unknown weight. Geometrically, that is the convex
+hull of the two models, and <code>fairy_mixture()</code> computes its
+H-representation:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>mix <span class="ot">&lt;-</span> <span class="fu">fairy_mixture</span>(<span class="fu">fairy_h</span>(<span class="fu">cringe_models</span>(<span class="at">as =</span> <span class="st">&quot;string&quot;</span>)<span class="sc">$</span>M4, <span class="at">n_p =</span> <span class="dv">6</span>),</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>                     <span class="fu">fairy_h</span>(<span class="fu">cringe_models</span>(<span class="at">as =</span> <span class="st">&quot;string&quot;</span>)<span class="sc">$</span>M9, <span class="at">n_p =</span> <span class="dv">6</span>))</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="fu">fairy_info</span>(mix, <span class="at">volume =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co">#&gt;   dim vertices inequalities equalities volume max_bf</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="co">#&gt; 1   6       12           64          0     NA     NA</span></span></code></pre></div>
+<p>There are 12 vertices and 64 non-redundant constraints. Twelve of
+them are the range constraints <code>0 &lt;= p_i &lt;= 1</code>, which
+leaves the paper’s 52 order constraints:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>hn <span class="ot">&lt;-</span> rcdd<span class="sc">::</span><span class="fu">q2d</span>(mix)</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>single <span class="ot">&lt;-</span> <span class="fu">rowSums</span>(hn[, <span class="sc">-</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>)] <span class="sc">!=</span> <span class="dv">0</span>) <span class="sc">==</span> <span class="dv">1</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="fu">c</span>(<span class="at">range =</span> <span class="fu">sum</span>(single), <span class="at">other =</span> <span class="fu">sum</span>(<span class="sc">!</span>single))</span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="co">#&gt; range other </span></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="co">#&gt;    12    52</span></span></code></pre></div>
+<p>The first row of the paper’s list of 52 constraints reads
+<code>p2 &lt;= p1 + p3 &lt;= 1 + p2</code>. The package lists them
+too:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">fairy_constraints</span>(mix)[<span class="sc">!</span>single], <span class="dv">6</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;p1 - p3 - p6 &lt;= 0&quot;             &quot;p2 - p3 - p6 &lt;= 0&quot;            </span></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="co">#&gt; [3] &quot;p1 - p2 - p6 &lt;= 0&quot;             &quot;- p3 + p4 - p6 &lt;= 0&quot;          </span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="co">#&gt; [5] &quot;- p1 + p2 - p3 + p4 - p6 &lt;= 0&quot; &quot;- p2 + p4 - p6 &lt;= 0&quot;</span></span></code></pre></div>
+<p>The paper counts the “edge cases” of the vertex V1 of Table 1
+(<code>p1 = p4 = p5 = p6 = 1</code>, <code>p2 = p3 = 0</code>): it
+satisfies 26 of the 52 order constraints with equality, and 6 range
+constraints, 32 in all:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>v1 <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>slack <span class="ot">&lt;-</span> hn[, <span class="dv">2</span>] <span class="sc">+</span> <span class="fu">as.vector</span>(hn[, <span class="sc">-</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>)] <span class="sc">%*%</span> v1)</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="fu">c</span>(<span class="at">order_constraints =</span> <span class="fu">sum</span>(<span class="fu">abs</span>(slack[<span class="sc">!</span>single]) <span class="sc">&lt;</span> <span class="fl">1e-9</span>),</span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>  <span class="at">range_constraints =</span> <span class="fu">sum</span>(<span class="fu">abs</span>(slack[single]) <span class="sc">&lt;</span> <span class="fl">1e-9</span>),</span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>  <span class="at">total =</span> <span class="fu">sum</span>(<span class="fu">abs</span>(slack) <span class="sc">&lt;</span> <span class="fl">1e-9</span>))</span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a><span class="co">#&gt; order_constraints range_constraints             total </span></span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="co">#&gt;                26                 6                32</span></span></code></pre></div>
+</div>
+<div id="minimal-descriptions-via-extreme-cases-tables-1-and-2" class="section level2">
+<h2>Minimal descriptions via extreme cases (Tables 1 and 2)</h2>
+<p><code>fairy_words()</code> lists the vertices, writing a probability
+of 0 as “none” and of 1 as “all” (valid for a finite population). The
+row order of the underlying algorithm is arbitrary, so the rows are
+sorted. The labels are the six columns of the paper’s tables:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>lab <span class="ot">&lt;-</span> <span class="fu">cringe_labels</span>()</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="fu">fairy_words</span>(m<span class="sc">$</span>M4, <span class="at">labels =</span> lab)       <span class="co"># Table 1, Model 4</span></span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="co">#&gt;    illogical: children illogical: teens illogical: adults pun: children pun: teens</span></span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a><span class="co">#&gt; V1                none             none              none          none       none</span></span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a><span class="co">#&gt; V2                none             none              none          none       none</span></span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a><span class="co">#&gt; V3                none             none              none          none        all</span></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a><span class="co">#&gt; V4                none             none              none           all        all</span></span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a><span class="co">#&gt; V5                 all             none              none           all        all</span></span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a><span class="co">#&gt; V6                 all              all              none           all        all</span></span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a><span class="co">#&gt; V7                 all              all               all           all        all</span></span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a><span class="co">#&gt;    pun: adults</span></span>
+<span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a><span class="co">#&gt; V1        none</span></span>
+<span id="cb11-13"><a href="#cb11-13" tabindex="-1"></a><span class="co">#&gt; V2         all</span></span>
+<span id="cb11-14"><a href="#cb11-14" tabindex="-1"></a><span class="co">#&gt; V3         all</span></span>
+<span id="cb11-15"><a href="#cb11-15" tabindex="-1"></a><span class="co">#&gt; V4         all</span></span>
+<span id="cb11-16"><a href="#cb11-16" tabindex="-1"></a><span class="co">#&gt; V5         all</span></span>
+<span id="cb11-17"><a href="#cb11-17" tabindex="-1"></a><span class="co">#&gt; V6         all</span></span>
+<span id="cb11-18"><a href="#cb11-18" tabindex="-1"></a><span class="co">#&gt; V7         all</span></span></code></pre></div>
+<p>Model 9 is the mirror image, <code>all</code> and <code>none</code>
+swapped:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="fu">fairy_words</span>(m<span class="sc">$</span>M9, <span class="at">labels =</span> lab)</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a><span class="co">#&gt;    illogical: children illogical: teens illogical: adults pun: children pun: teens</span></span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a><span class="co">#&gt; V1                none             none              none          none       none</span></span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a><span class="co">#&gt; V2                none             none               all          none       none</span></span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a><span class="co">#&gt; V3                none              all               all          none       none</span></span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a><span class="co">#&gt; V4                 all              all               all          none       none</span></span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a><span class="co">#&gt; V5                 all              all               all           all       none</span></span>
+<span id="cb12-8"><a href="#cb12-8" tabindex="-1"></a><span class="co">#&gt; V6                 all              all               all           all        all</span></span>
+<span id="cb12-9"><a href="#cb12-9" tabindex="-1"></a><span class="co">#&gt; V7                 all              all               all           all        all</span></span>
+<span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a><span class="co">#&gt;    pun: adults</span></span>
+<span id="cb12-11"><a href="#cb12-11" tabindex="-1"></a><span class="co">#&gt; V1        none</span></span>
+<span id="cb12-12"><a href="#cb12-12" tabindex="-1"></a><span class="co">#&gt; V2        none</span></span>
+<span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a><span class="co">#&gt; V3        none</span></span>
+<span id="cb12-14"><a href="#cb12-14" tabindex="-1"></a><span class="co">#&gt; V4        none</span></span>
+<span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a><span class="co">#&gt; V5        none</span></span>
+<span id="cb12-16"><a href="#cb12-16" tabindex="-1"></a><span class="co">#&gt; V6        none</span></span>
+<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a><span class="co">#&gt; V7         all</span></span></code></pre></div>
+<p>Table 2, the 12 vertices of Model 6 (equal marginal means), contains
+fractions:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">fairy_words</span>(m<span class="sc">$</span>M6, <span class="at">labels =</span> lab)</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="co">#&gt;     illogical: children illogical: teens illogical: adults pun: children pun: teens</span></span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="co">#&gt; V1                 none             none              none          none       none</span></span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="co">#&gt; V2                  1/3              1/3               1/3          none       none</span></span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a><span class="co">#&gt; V3                  1/2              1/2              none          none       none</span></span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a><span class="co">#&gt; V4                  2/3              2/3               2/3          none        all</span></span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a><span class="co">#&gt; V5                  all             none              none          none       none</span></span>
+<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a><span class="co">#&gt; V6                  all             none              none          none        1/2</span></span>
+<span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a><span class="co">#&gt; V7                  all             none              none           1/3        1/3</span></span>
+<span id="cb13-10"><a href="#cb13-10" tabindex="-1"></a><span class="co">#&gt; V8                  all              1/2               1/2          none        all</span></span>
+<span id="cb13-11"><a href="#cb13-11" tabindex="-1"></a><span class="co">#&gt; V9                  all              all              none          none        all</span></span>
+<span id="cb13-12"><a href="#cb13-12" tabindex="-1"></a><span class="co">#&gt; V10                 all              all              none           1/2        1/2</span></span>
+<span id="cb13-13"><a href="#cb13-13" tabindex="-1"></a><span class="co">#&gt; V11                 all              all              none           2/3        2/3</span></span>
+<span id="cb13-14"><a href="#cb13-14" tabindex="-1"></a><span class="co">#&gt; V12                 all              all               all           all        all</span></span>
+<span id="cb13-15"><a href="#cb13-15" tabindex="-1"></a><span class="co">#&gt;     pun: adults</span></span>
+<span id="cb13-16"><a href="#cb13-16" tabindex="-1"></a><span class="co">#&gt; V1         none</span></span>
+<span id="cb13-17"><a href="#cb13-17" tabindex="-1"></a><span class="co">#&gt; V2          all</span></span>
+<span id="cb13-18"><a href="#cb13-18" tabindex="-1"></a><span class="co">#&gt; V3          all</span></span>
+<span id="cb13-19"><a href="#cb13-19" tabindex="-1"></a><span class="co">#&gt; V4          all</span></span>
+<span id="cb13-20"><a href="#cb13-20" tabindex="-1"></a><span class="co">#&gt; V5          all</span></span>
+<span id="cb13-21"><a href="#cb13-21" tabindex="-1"></a><span class="co">#&gt; V6          1/2</span></span>
+<span id="cb13-22"><a href="#cb13-22" tabindex="-1"></a><span class="co">#&gt; V7          1/3</span></span>
+<span id="cb13-23"><a href="#cb13-23" tabindex="-1"></a><span class="co">#&gt; V8          all</span></span>
+<span id="cb13-24"><a href="#cb13-24" tabindex="-1"></a><span class="co">#&gt; V9          all</span></span>
+<span id="cb13-25"><a href="#cb13-25" tabindex="-1"></a><span class="co">#&gt; V10         all</span></span>
+<span id="cb13-26"><a href="#cb13-26" tabindex="-1"></a><span class="co">#&gt; V11         2/3</span></span>
+<span id="cb13-27"><a href="#cb13-27" tabindex="-1"></a><span class="co">#&gt; V12         all</span></span></code></pre></div>
+<p>The mixture model has the 12 vertices that are the union of those of
+Models 4 and 9 (the two share the vertices “all, all, all, all, all,
+all” and “none, …, none”):</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="fu">nrow</span>(<span class="fu">fairy_vertices</span>(m<span class="sc">$</span>M10))</span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a><span class="co">#&gt; [1] 12</span></span></code></pre></div>
+<p>Out of the 2^6 = 64 corners of the unit cube, only 12 are allowed, so
+the mixture model is falsifiable.</p>
+</div>
+<div id="parsimony-figure-3" class="section level2">
+<h2>Parsimony (Figure 3)</h2>
+<p>The parsimony of a model is its volume inside the unit cube of all
+conceivable families of Binomial parameters. The inverse of the volume
+is the largest Bayes factor the model can reach against the
+unconstrained model (uniform prior). Figure 3 of the paper has two
+rectangles, their overlap and a line segment:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a>I   <span class="ot">&lt;-</span> <span class="fu">fairy_h</span>(<span class="st">&quot;p1 &lt; .5; p2 &gt; .25; p2 &lt; .75&quot;</span>, <span class="at">n_p =</span> <span class="dv">2</span>)</span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a>II  <span class="ot">&lt;-</span> <span class="fu">fairy_h</span>(<span class="st">&quot;p1 &gt; .3; p1 &lt; .7; p2 &gt; .5&quot;</span>, <span class="at">n_p =</span> <span class="dv">2</span>)</span>
+<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a>III <span class="ot">&lt;-</span> <span class="fu">fairy_intersect</span>(I, II)</span>
+<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a>IV  <span class="ot">&lt;-</span> <span class="fu">fairy_h</span>(<span class="st">&quot;p1 = .5; p2 &gt; .25; p2 &lt; .75&quot;</span>, <span class="at">n_p =</span> <span class="dv">2</span>)</span>
+<span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a></span>
+<span id="cb15-6"><a href="#cb15-6" tabindex="-1"></a><span class="fu">rbind</span>(<span class="at">I =</span> <span class="fu">fairy_info</span>(I), <span class="at">II =</span> <span class="fu">fairy_info</span>(II), <span class="at">III =</span> <span class="fu">fairy_info</span>(III), <span class="at">IV =</span> <span class="fu">fairy_info</span>(IV))</span>
+<span id="cb15-7"><a href="#cb15-7" tabindex="-1"></a><span class="co">#&gt;     dim vertices inequalities equalities volume max_bf</span></span>
+<span id="cb15-8"><a href="#cb15-8" tabindex="-1"></a><span class="co">#&gt; I     2        4            4          0   0.25      4</span></span>
+<span id="cb15-9"><a href="#cb15-9" tabindex="-1"></a><span class="co">#&gt; II    2        4            4          0   0.20      5</span></span>
+<span id="cb15-10"><a href="#cb15-10" tabindex="-1"></a><span class="co">#&gt; III   2        4            4          0   0.05     20</span></span>
+<span id="cb15-11"><a href="#cb15-11" tabindex="-1"></a><span class="co">#&gt; IV    1        2            2          1   0.00    Inf</span></span></code></pre></div>
+<p>Model I has area 0.25 (maximal Bayes factor 4), Model II 0.2 (5),
+their overlap Model III 0.05 (20). Model IV contains an equality, so it
+is a line segment with volume zero and <strong>no</strong> upper bound
+on the Bayes factor. The vertices of the overlap include two new ones
+that are not vertices of either rectangle:</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="fu">fairy_vertices</span>(III)</span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a><span class="co">#&gt;      p_{1} p_{2}</span></span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a><span class="co">#&gt; [1,]   0.3  0.50</span></span>
+<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a><span class="co">#&gt; [2,]   0.5  0.50</span></span>
+<span id="cb16-5"><a href="#cb16-5" tabindex="-1"></a><span class="co">#&gt; [3,]   0.5  0.75</span></span>
+<span id="cb16-6"><a href="#cb16-6" tabindex="-1"></a><span class="co">#&gt; [4,]   0.3  0.75</span></span></code></pre></div>
+</div>
+<div id="model-relationships-table-3" class="section level2">
+<h2>Model relationships (Table 3)</h2>
+<p><code>fairy_compare()</code> returns the layout of Table 3: the
+diagonal gives each model’s volume, entries above the diagonal the
+volume of the overlap of two models, entries below the diagonal tell
+whether the row model is nested in (subset sign) or contains (superset
+sign) the column model, and otherwise the dimension of their overlap.
+The last row is the largest possible Bayes factor against the
+unconstrained model.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a>cmp <span class="ot">&lt;-</span> <span class="fu">fairy_compare</span>(m)</span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a>cmp</span>
+<span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a><span class="co">#&gt;       M1     M2     M3     M4       M5       M6       M7       M8       M9       M10     </span></span>
+<span id="cb17-4"><a href="#cb17-4" tabindex="-1"></a><span class="co">#&gt; M1    0.17   0.028  0.0028 3.47e-04 0        0        7.96e-04 2.99e-07 3.47e-04 0.011   </span></span>
+<span id="cb17-5"><a href="#cb17-5" tabindex="-1"></a><span class="co">#&gt; M2    subset 0.028  0      0        0        0        0        4.99e-08 0        0.0028  </span></span>
+<span id="cb17-6"><a href="#cb17-6" tabindex="-1"></a><span class="co">#&gt; M3    6D     4D     0.014  0.0014   0        0        0.0023   2.50e-08 0        0.0025  </span></span>
+<span id="cb17-7"><a href="#cb17-7" tabindex="-1"></a><span class="co">#&gt; M4    6D     4D     subset 0.0014   0        0        4.83e-08 2.50e-09 0        0.0014  </span></span>
+<span id="cb17-8"><a href="#cb17-8" tabindex="-1"></a><span class="co">#&gt; M5    subset subset subset subset   0        0        0        0        0        0       </span></span>
+<span id="cb17-9"><a href="#cb17-9" tabindex="-1"></a><span class="co">#&gt; M6    5D     3D     subset 1D       superset 0        0        0        0        0       </span></span>
+<span id="cb17-10"><a href="#cb17-10" tabindex="-1"></a><span class="co">#&gt; M7    6D     4D     6D     6D       superset superset 0.0046   4.99e-08 0        1.70e-04</span></span>
+<span id="cb17-11"><a href="#cb17-11" tabindex="-1"></a><span class="co">#&gt; M8    6D     6D     6D     6D       superset 5D       6D       1.80e-06 2.50e-09 1.69e-06</span></span>
+<span id="cb17-12"><a href="#cb17-12" tabindex="-1"></a><span class="co">#&gt; M9    6D     4D     1D     1D       superset 1D       2D       6D       0.0014   0.0014  </span></span>
+<span id="cb17-13"><a href="#cb17-13" tabindex="-1"></a><span class="co">#&gt; M10   6D     6D     6D     superset superset 5D       6D       6D       superset 0.044   </span></span>
+<span id="cb17-14"><a href="#cb17-14" tabindex="-1"></a><span class="co">#&gt; maxBF    6     36     72    720     Inf      Inf       220     556522    720     22.5</span></span></code></pre></div>
+<p>Individual entries are available as numbers, for example the largest
+Bayes factor of each model and the volume of the mixture model:</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a><span class="fu">round</span>(cmp<span class="sc">$</span>max_bf, <span class="dv">1</span>)</span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a><span class="co">#&gt;       M1       M2       M3       M4       M5       M6       M7       M8       M9      M10 </span></span>
+<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a><span class="co">#&gt;      6.0     36.0     72.0    720.0      Inf      Inf    219.7 556521.7    720.0     22.5</span></span>
+<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a>cmp<span class="sc">$</span>volume[<span class="st">&quot;M10&quot;</span>, <span class="st">&quot;M10&quot;</span>]</span>
+<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a><span class="co">#&gt; [1] 0.04444444</span></span></code></pre></div>
+<p>The paper reports 6, 36, 72, 720, infinity, infinity, about 200,
+about 10^6, 720, and about 23. The values for Models 7 and 8 depend on
+the approximate-equality tolerance; with a tolerance of 0.05 the exact
+volumes give about 220 and 560,000, which the paper rounds to 200 and
+10^6.</p>
+<div id="where-table-3-of-the-manuscript-and-the-package-differ" class="section level3">
+<h3>Where Table 3 of the manuscript and the package differ</h3>
+<p>A few entries of the printed table do not agree with the exact
+computation. We list them so that the table can be checked against the
+package output (all other entries, including the diagonal, the
+<code>maxBF</code> row, and the nesting and dimension entries,
+agree):</p>
+<ul>
+<li>The overlaps of Model 10 with Models 2, 3, and 4 are printed as
+<code>.01</code>. Model 4 is nested in Model 10 (the table itself says
+so in the lower triangle), so their overlap is Model 4 itself, with
+volume 1/720 = 0.0014. The overlaps with Models 2 and 3 are 0.0028 and
+0.0025.</li>
+<li>Row 6 (Model 6), column 1 (Model 1) is printed as “nested in”, but
+Model 6 is not a subset of Model 1; their overlap is 5-dimensional.</li>
+<li>Row 7 (Model 7), column 6 (Model 6): the package finds that Model 7
+contains Model 6 (relaxing an equality can only add points), the printed
+table shows a 5-dimensional overlap. Row 10, column 3 is printed as
+5-dimensional, but the overlap of Models 3 and 10 has positive volume,
+so it is 6-dimensional.</li>
+</ul>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="fu">c</span>(<span class="at">M6_in_M1 =</span> <span class="fu">fairy_nested</span>(m<span class="sc">$</span>M6, m<span class="sc">$</span>M1), <span class="at">M6_in_M7 =</span> <span class="fu">fairy_nested</span>(m<span class="sc">$</span>M6, m<span class="sc">$</span>M7),</span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a>  <span class="at">M3_M10_dim =</span> <span class="fu">fairy_dim</span>(<span class="fu">fairy_intersect</span>(m<span class="sc">$</span>M3, m<span class="sc">$</span>M10)))</span>
+<span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a><span class="co">#&gt;   M6_in_M1   M6_in_M7 M3_M10_dim </span></span>
+<span id="cb19-4"><a href="#cb19-4" tabindex="-1"></a><span class="co">#&gt;          0          1          6</span></span></code></pre></div>
+</div>
+</div>
+<div id="replication-models-table-4" class="section level2">
+<h2>Replication models (Table 4)</h2>
+<p>With r = 3 labs, each with six probabilities, replication models live
+in 18 dimensions. <code>fairy_replicate()</code> builds the three
+versions of the paper:</p>
+<ul>
+<li><strong>identical</strong>: every probability is the same in all
+labs, 12 equalities, dimension 6, volume zero.</li>
+<li><strong>joint</strong>: each lab satisfies the model, labs are
+unrelated; the volume is the cube of the single-lab volume.</li>
+<li><strong>substitutable</strong>: each constraint holds whichever
+lab’s parameter is plugged in, for every term.</li>
+</ul>
+<p>The columns of Table 4 are dimension, number of vertices,
+non-redundant inequalities, equalities, and the upper bound on the Bayes
+factor:</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a>rep_table <span class="ot">&lt;-</span> <span class="cf">function</span>(h, <span class="at">r =</span> <span class="dv">3</span>, <span class="at">bf_substitutable =</span> <span class="cn">NULL</span>) {</span>
+<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a>  ident <span class="ot">&lt;-</span> <span class="fu">fairy_info</span>(<span class="fu">fairy_replicate</span>(h, r, <span class="st">&quot;identical&quot;</span>))</span>
+<span id="cb20-3"><a href="#cb20-3" tabindex="-1"></a>  joint <span class="ot">&lt;-</span> <span class="fu">fairy_info</span>(<span class="fu">fairy_replicate</span>(h, r, <span class="st">&quot;joint&quot;</span>))</span>
+<span id="cb20-4"><a href="#cb20-4" tabindex="-1"></a>  subst <span class="ot">&lt;-</span> <span class="fu">fairy_info</span>(<span class="fu">fairy_replicate</span>(h, r, <span class="st">&quot;substitutable&quot;</span>), <span class="at">volume =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb20-5"><a href="#cb20-5" tabindex="-1"></a>  subst<span class="sc">$</span>max_bf <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="fu">is.null</span>(bf_substitutable)) <span class="cn">NA_real_</span> <span class="cf">else</span> bf_substitutable</span>
+<span id="cb20-6"><a href="#cb20-6" tabindex="-1"></a>  out <span class="ot">&lt;-</span> <span class="fu">rbind</span>(<span class="at">identical =</span> ident, <span class="at">joint =</span> joint, <span class="at">substitutable =</span> subst)</span>
+<span id="cb20-7"><a href="#cb20-7" tabindex="-1"></a>  out[, <span class="fu">c</span>(<span class="st">&quot;dim&quot;</span>, <span class="st">&quot;vertices&quot;</span>, <span class="st">&quot;inequalities&quot;</span>, <span class="st">&quot;equalities&quot;</span>, <span class="st">&quot;max_bf&quot;</span>)]</span>
+<span id="cb20-8"><a href="#cb20-8" tabindex="-1"></a>}</span></code></pre></div>
+<p>For Model 4 the substitutable bound has a closed form: the 18 values
+fall into six ordered groups of three, which happens with probability
+3!^6 / 18!, so the bound is <code>18! / 3!^6</code>. (For
+high-dimensional polytopes of this kind
+<code>fairy_volume(method = &quot;volesti&quot;)</code> gives a stochastic
+estimate if the volesti package is installed.)</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a>exact_sub <span class="ot">&lt;-</span> <span class="fu">factorial</span>(<span class="dv">18</span>) <span class="sc">/</span> <span class="fu">factorial</span>(<span class="dv">3</span>)<span class="sc">^</span><span class="dv">6</span></span>
+<span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a><span class="fu">rep_table</span>(m<span class="sc">$</span>M4, <span class="at">bf_substitutable =</span> exact_sub)</span>
+<span id="cb21-3"><a href="#cb21-3" tabindex="-1"></a><span class="co">#&gt;               dim vertices inequalities equalities       max_bf</span></span>
+<span id="cb21-4"><a href="#cb21-4" tabindex="-1"></a><span class="co">#&gt; identical       6        7            7         12          Inf</span></span>
+<span id="cb21-5"><a href="#cb21-5" tabindex="-1"></a><span class="co">#&gt; joint          18      343           21          0    373248000</span></span>
+<span id="cb21-6"><a href="#cb21-6" tabindex="-1"></a><span class="co">#&gt; substitutable  18       43           51          0 137225088000</span></span>
+<span id="cb21-7"><a href="#cb21-7" tabindex="-1"></a><span class="fu">format</span>(exact_sub, <span class="at">scientific =</span> <span class="cn">TRUE</span>, <span class="at">digits =</span> <span class="dv">3</span>)      <span class="co"># 1.37e11 in the paper</span></span>
+<span id="cb21-8"><a href="#cb21-8" tabindex="-1"></a><span class="co">#&gt; [1] &quot;1.37e+11&quot;</span></span>
+<span id="cb21-9"><a href="#cb21-9" tabindex="-1"></a><span class="fu">format</span>(<span class="dv">720</span><span class="sc">^</span><span class="dv">3</span>, <span class="at">scientific =</span> <span class="cn">TRUE</span>, <span class="at">digits =</span> <span class="dv">3</span>)          <span class="co"># &quot;720^3 = 4e8&quot; in the paper</span></span>
+<span id="cb21-10"><a href="#cb21-10" tabindex="-1"></a><span class="co">#&gt; [1] &quot;3.73e+08&quot;</span></span></code></pre></div>
+<p>Model 9 gives the same numbers:</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a><span class="fu">rep_table</span>(m<span class="sc">$</span>M9, <span class="at">bf_substitutable =</span> exact_sub)</span>
+<span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a><span class="co">#&gt;               dim vertices inequalities equalities       max_bf</span></span>
+<span id="cb22-3"><a href="#cb22-3" tabindex="-1"></a><span class="co">#&gt; identical       6        7            7         12          Inf</span></span>
+<span id="cb22-4"><a href="#cb22-4" tabindex="-1"></a><span class="co">#&gt; joint          18      343           21          0    373248000</span></span>
+<span id="cb22-5"><a href="#cb22-5" tabindex="-1"></a><span class="co">#&gt; substitutable  18       43           51          0 137225088000</span></span></code></pre></div>
+<p>For the mixture model (Model 10) the joint model has 1,728 = 12^3
+vertices and 3 x 64 = 192 inequalities, and a bound of about 23^3 =
+10^4:</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" tabindex="-1"></a>joint10 <span class="ot">&lt;-</span> <span class="fu">fairy_info</span>(<span class="fu">fairy_replicate</span>(m<span class="sc">$</span>M10, <span class="dv">3</span>, <span class="st">&quot;joint&quot;</span>))</span>
+<span id="cb23-2"><a href="#cb23-2" tabindex="-1"></a>joint10[, <span class="fu">c</span>(<span class="st">&quot;dim&quot;</span>, <span class="st">&quot;vertices&quot;</span>, <span class="st">&quot;inequalities&quot;</span>, <span class="st">&quot;equalities&quot;</span>, <span class="st">&quot;max_bf&quot;</span>)]</span>
+<span id="cb23-3"><a href="#cb23-3" tabindex="-1"></a><span class="co">#&gt;   dim vertices inequalities equalities   max_bf</span></span>
+<span id="cb23-4"><a href="#cb23-4" tabindex="-1"></a><span class="co">#&gt; 1  18     1728          192          0 11390.62</span></span>
+<span id="cb23-5"><a href="#cb23-5" tabindex="-1"></a><span class="fu">fairy_info</span>(<span class="fu">fairy_replicate</span>(m<span class="sc">$</span>M10, <span class="dv">3</span>, <span class="st">&quot;identical&quot;</span>), <span class="at">volume =</span> <span class="cn">FALSE</span>)[, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>]</span>
+<span id="cb23-6"><a href="#cb23-6" tabindex="-1"></a><span class="co">#&gt;   dim vertices inequalities equalities</span></span>
+<span id="cb23-7"><a href="#cb23-7" tabindex="-1"></a><span class="co">#&gt; 1   6       12           64         12</span></span></code></pre></div>
+<p>The substitutable version of Model 10 has 4,032 constraints. Removing
+redundant constraints in 18 dimensions takes several minutes, so the
+vignette shows the constraint count before that step
+(<code>reduce = FALSE</code>), which already equals the paper’s number
+of non-redundant inequalities:</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a><span class="fu">nrow</span>(<span class="fu">fairy_replicate</span>(m<span class="sc">$</span>M10, <span class="dv">3</span>, <span class="st">&quot;substitutable&quot;</span>, <span class="at">reduce =</span> <span class="cn">FALSE</span>))</span>
+<span id="cb24-2"><a href="#cb24-2" tabindex="-1"></a><span class="co">#&gt; [1] 4032</span></span></code></pre></div>
+<p>To get the full row, including the 46,739 vertices, call
+<code>fairy_info(fairy_replicate(m$M10, 3, &quot;substitutable&quot;), volume = FALSE)</code>;
+this takes a long time.</p>
+</div>
+</div>
+<div id="part-2-the-heuristic-systematic-model-online-supplement" class="section level1">
+<h1>Part 2: The Heuristic-Systematic Model (online supplement)</h1>
+<p><code>hsm_models()</code> contains the theoretical predictions of the
+supplement. In the 2 x 2 design the four probabilities are
+<code>PbW, PbS, PsW, PsS</code>: big or small gap, weak or strong
+argument.</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a>hsm <span class="ot">&lt;-</span> <span class="fu">hsm_models</span>()</span>
+<span id="cb25-2"><a href="#cb25-2" tabindex="-1"></a>lab4 <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;big, weak&quot;</span>, <span class="st">&quot;big, strong&quot;</span>, <span class="st">&quot;small, weak&quot;</span>, <span class="st">&quot;small, strong&quot;</span>)</span></code></pre></div>
+<p>Prediction 1 says stronger arguments never reduce the share who act;
+prediction 2 says a smaller gap never does. Each has nine extreme cases
+(Tables A1 and A2) and takes up a quarter of the cube:</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" tabindex="-1"></a><span class="fu">fairy_words</span>(hsm<span class="sc">$</span>pred1, <span class="at">labels =</span> lab4)    <span class="co"># Table A1</span></span>
+<span id="cb26-2"><a href="#cb26-2" tabindex="-1"></a><span class="co">#&gt;    big, weak big, strong small, weak small, strong</span></span>
+<span id="cb26-3"><a href="#cb26-3" tabindex="-1"></a><span class="co">#&gt; V1      none        none        none          none</span></span>
+<span id="cb26-4"><a href="#cb26-4" tabindex="-1"></a><span class="co">#&gt; V2      none        none        none           all</span></span>
+<span id="cb26-5"><a href="#cb26-5" tabindex="-1"></a><span class="co">#&gt; V3      none        none         all           all</span></span>
+<span id="cb26-6"><a href="#cb26-6" tabindex="-1"></a><span class="co">#&gt; V4      none         all        none          none</span></span>
+<span id="cb26-7"><a href="#cb26-7" tabindex="-1"></a><span class="co">#&gt; V5      none         all        none           all</span></span>
+<span id="cb26-8"><a href="#cb26-8" tabindex="-1"></a><span class="co">#&gt; V6      none         all         all           all</span></span>
+<span id="cb26-9"><a href="#cb26-9" tabindex="-1"></a><span class="co">#&gt; V7       all         all        none          none</span></span>
+<span id="cb26-10"><a href="#cb26-10" tabindex="-1"></a><span class="co">#&gt; V8       all         all        none           all</span></span>
+<span id="cb26-11"><a href="#cb26-11" tabindex="-1"></a><span class="co">#&gt; V9       all         all         all           all</span></span>
+<span id="cb26-12"><a href="#cb26-12" tabindex="-1"></a><span class="fu">fairy_words</span>(hsm<span class="sc">$</span>pred2, <span class="at">labels =</span> lab4)    <span class="co"># Table A2</span></span>
+<span id="cb26-13"><a href="#cb26-13" tabindex="-1"></a><span class="co">#&gt;    big, weak big, strong small, weak small, strong</span></span>
+<span id="cb26-14"><a href="#cb26-14" tabindex="-1"></a><span class="co">#&gt; V1      none        none        none          none</span></span>
+<span id="cb26-15"><a href="#cb26-15" tabindex="-1"></a><span class="co">#&gt; V2      none        none        none           all</span></span>
+<span id="cb26-16"><a href="#cb26-16" tabindex="-1"></a><span class="co">#&gt; V3      none        none         all          none</span></span>
+<span id="cb26-17"><a href="#cb26-17" tabindex="-1"></a><span class="co">#&gt; V4      none        none         all           all</span></span>
+<span id="cb26-18"><a href="#cb26-18" tabindex="-1"></a><span class="co">#&gt; V5      none         all        none           all</span></span>
+<span id="cb26-19"><a href="#cb26-19" tabindex="-1"></a><span class="co">#&gt; V6      none         all         all           all</span></span>
+<span id="cb26-20"><a href="#cb26-20" tabindex="-1"></a><span class="co">#&gt; V7       all        none         all          none</span></span>
+<span id="cb26-21"><a href="#cb26-21" tabindex="-1"></a><span class="co">#&gt; V8       all        none         all           all</span></span>
+<span id="cb26-22"><a href="#cb26-22" tabindex="-1"></a><span class="co">#&gt; V9       all         all         all           all</span></span>
+<span id="cb26-23"><a href="#cb26-23" tabindex="-1"></a><span class="fu">sapply</span>(hsm[<span class="fu">c</span>(<span class="st">&quot;pred1&quot;</span>, <span class="st">&quot;pred2&quot;</span>)], fairy_max_bf)</span>
+<span id="cb26-24"><a href="#cb26-24" tabindex="-1"></a><span class="co">#&gt; pred1 pred2 </span></span>
+<span id="cb26-25"><a href="#cb26-25" tabindex="-1"></a><span class="co">#&gt;     4     4</span></span></code></pre></div>
+<p>Their combination, Prediction 3, has six extreme cases (Table A3), a
+volume of 1/12 and a largest Bayes factor of 12:</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" tabindex="-1"></a><span class="fu">fairy_words</span>(hsm<span class="sc">$</span>pred3, <span class="at">labels =</span> lab4)    <span class="co"># Table A3</span></span>
+<span id="cb27-2"><a href="#cb27-2" tabindex="-1"></a><span class="co">#&gt;    big, weak big, strong small, weak small, strong</span></span>
+<span id="cb27-3"><a href="#cb27-3" tabindex="-1"></a><span class="co">#&gt; V1      none        none        none          none</span></span>
+<span id="cb27-4"><a href="#cb27-4" tabindex="-1"></a><span class="co">#&gt; V2      none        none        none           all</span></span>
+<span id="cb27-5"><a href="#cb27-5" tabindex="-1"></a><span class="co">#&gt; V3      none        none         all           all</span></span>
+<span id="cb27-6"><a href="#cb27-6" tabindex="-1"></a><span class="co">#&gt; V4      none         all        none           all</span></span>
+<span id="cb27-7"><a href="#cb27-7" tabindex="-1"></a><span class="co">#&gt; V5      none         all         all           all</span></span>
+<span id="cb27-8"><a href="#cb27-8" tabindex="-1"></a><span class="co">#&gt; V6       all         all         all           all</span></span>
+<span id="cb27-9"><a href="#cb27-9" tabindex="-1"></a><span class="fu">fairy_info</span>(hsm<span class="sc">$</span>pred3)</span>
+<span id="cb27-10"><a href="#cb27-10" tabindex="-1"></a><span class="co">#&gt;   dim vertices inequalities equalities     volume max_bf</span></span>
+<span id="cb27-11"><a href="#cb27-11" tabindex="-1"></a><span class="co">#&gt; 1   4        6            6          0 0.08333333     12</span></span></code></pre></div>
+<p>All six are vertices of both predictions, so intersecting the
+predictions adds no new extreme case:</p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" tabindex="-1"></a><span class="fu">fairy_nested</span>(hsm<span class="sc">$</span>pred3, hsm<span class="sc">$</span>pred1) <span class="sc">&amp;&amp;</span> <span class="fu">fairy_nested</span>(hsm<span class="sc">$</span>pred3, hsm<span class="sc">$</span>pred2)</span>
+<span id="cb28-2"><a href="#cb28-2" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+<div id="two-populations" class="section level2">
+<h2>Two populations</h2>
+<p>If Prediction 3 must hold jointly in two populations, the bound is
+<code>12^2 = 144</code>. If it holds with substitutable parameters, it
+is 420:</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" tabindex="-1"></a><span class="fu">c</span>(<span class="at">joint =</span> <span class="fu">fairy_max_bf</span>(<span class="fu">fairy_replicate</span>(hsm<span class="sc">$</span>pred3, <span class="dv">2</span>, <span class="st">&quot;joint&quot;</span>)),</span>
+<span id="cb29-2"><a href="#cb29-2" tabindex="-1"></a>  <span class="at">substitutable =</span> <span class="fu">fairy_max_bf</span>(<span class="fu">fairy_replicate</span>(hsm<span class="sc">$</span>pred3, <span class="dv">2</span>, <span class="st">&quot;substitutable&quot;</span>)))</span>
+<span id="cb29-3"><a href="#cb29-3" tabindex="-1"></a><span class="co">#&gt;         joint substitutable </span></span>
+<span id="cb29-4"><a href="#cb29-4" tabindex="-1"></a><span class="co">#&gt;           144           420</span></span></code></pre></div>
+</div>
+<div id="a-3-by-3-design" class="section level2">
+<h2>A 3-by-3 design</h2>
+<p>Three gap sizes and three argument strengths give nine probabilities.
+The twelve non-redundant order constraints of equation (6) plus two
+range constraints give a bound of about 8,600 (8,640), about 60 times
+the bound 144 of the two-population replication:</p>
+<div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a><span class="fu">fairy_info</span>(hsm<span class="sc">$</span>pred6)</span>
+<span id="cb30-2"><a href="#cb30-2" tabindex="-1"></a><span class="co">#&gt;   dim vertices inequalities equalities       volume max_bf</span></span>
+<span id="cb30-3"><a href="#cb30-3" tabindex="-1"></a><span class="co">#&gt; 1   9       20           14          0 0.0001157407   8640</span></span>
+<span id="cb30-4"><a href="#cb30-4" tabindex="-1"></a><span class="fu">fairy_max_bf</span>(hsm<span class="sc">$</span>pred6) <span class="sc">/</span> <span class="dv">144</span></span>
+<span id="cb30-5"><a href="#cb30-5" tabindex="-1"></a><span class="co">#&gt; [1] 60</span></span></code></pre></div>
+</div>
+<div id="cue-congruence-override-trade-off-and-take-the-best" class="section level2">
+<h2>Cue congruence: Override, Trade-off, and take-the-best</h2>
+<p>The six probabilities are <code>PiW, PnW, PcW, PiS, PnS, PcS</code>
+(incongruent, no, or congruent cues; weak or strong arguments). The
+Override Model (equation 7) contains two equalities and so has volume
+zero. Table A4 (top) lists its six extreme cases; take-the-best (bottom)
+is a single point:</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a>lab6 <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;inc, weak&quot;</span>, <span class="st">&quot;no, weak&quot;</span>, <span class="st">&quot;con, weak&quot;</span>, <span class="st">&quot;inc, strong&quot;</span>, <span class="st">&quot;no, strong&quot;</span>, <span class="st">&quot;con, strong&quot;</span>)</span>
+<span id="cb31-2"><a href="#cb31-2" tabindex="-1"></a><span class="fu">fairy_words</span>(hsm<span class="sc">$</span>override, <span class="at">labels =</span> lab6)       <span class="co"># Table A4, top</span></span>
+<span id="cb31-3"><a href="#cb31-3" tabindex="-1"></a><span class="co">#&gt;    inc, weak no, weak con, weak inc, strong no, strong con, strong</span></span>
+<span id="cb31-4"><a href="#cb31-4" tabindex="-1"></a><span class="co">#&gt; V1      none     none      none        none       none        none</span></span>
+<span id="cb31-5"><a href="#cb31-5" tabindex="-1"></a><span class="co">#&gt; V2      none     none      none        none       none         all</span></span>
+<span id="cb31-6"><a href="#cb31-6" tabindex="-1"></a><span class="co">#&gt; V3      none     none      none         all        all         all</span></span>
+<span id="cb31-7"><a href="#cb31-7" tabindex="-1"></a><span class="co">#&gt; V4      none     none       all        none       none         all</span></span>
+<span id="cb31-8"><a href="#cb31-8" tabindex="-1"></a><span class="co">#&gt; V5      none     none       all         all        all         all</span></span>
+<span id="cb31-9"><a href="#cb31-9" tabindex="-1"></a><span class="co">#&gt; V6       all      all       all         all        all         all</span></span>
+<span id="cb31-10"><a href="#cb31-10" tabindex="-1"></a><span class="fu">fairy_words</span>(hsm<span class="sc">$</span>ttb, <span class="at">labels =</span> lab6)            <span class="co"># Table A4, bottom</span></span>
+<span id="cb31-11"><a href="#cb31-11" tabindex="-1"></a><span class="co">#&gt;    inc, weak no, weak con, weak inc, strong no, strong con, strong</span></span>
+<span id="cb31-12"><a href="#cb31-12" tabindex="-1"></a><span class="co">#&gt; V1      none      all       all        none        all         all</span></span>
+<span id="cb31-13"><a href="#cb31-13" tabindex="-1"></a><span class="fu">fairy_info</span>(hsm<span class="sc">$</span>override)[, <span class="fu">c</span>(<span class="st">&quot;dim&quot;</span>, <span class="st">&quot;vertices&quot;</span>, <span class="st">&quot;volume&quot;</span>, <span class="st">&quot;max_bf&quot;</span>)]</span>
+<span id="cb31-14"><a href="#cb31-14" tabindex="-1"></a><span class="co">#&gt;   dim vertices volume max_bf</span></span>
+<span id="cb31-15"><a href="#cb31-15" tabindex="-1"></a><span class="co">#&gt; 1   4        6      0    Inf</span></span></code></pre></div>
+<p>The Trade-off Model (equation 8) has 10 vertices and a bound of 144.
+The Override Model is nested in it, but take-the-best violates the
+Override Model:</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" tabindex="-1"></a><span class="fu">fairy_info</span>(hsm<span class="sc">$</span>tradeoff)[, <span class="fu">c</span>(<span class="st">&quot;dim&quot;</span>, <span class="st">&quot;vertices&quot;</span>, <span class="st">&quot;max_bf&quot;</span>)]</span>
+<span id="cb32-2"><a href="#cb32-2" tabindex="-1"></a><span class="co">#&gt;   dim vertices max_bf</span></span>
+<span id="cb32-3"><a href="#cb32-3" tabindex="-1"></a><span class="co">#&gt; 1   6       10    144</span></span>
+<span id="cb32-4"><a href="#cb32-4" tabindex="-1"></a><span class="fu">c</span>(<span class="at">override_in_tradeoff =</span> <span class="fu">fairy_nested</span>(hsm<span class="sc">$</span>override, hsm<span class="sc">$</span>tradeoff),</span>
+<span id="cb32-5"><a href="#cb32-5" tabindex="-1"></a>  <span class="at">tradeoff_in_override =</span> <span class="fu">fairy_nested</span>(hsm<span class="sc">$</span>tradeoff, hsm<span class="sc">$</span>override),</span>
+<span id="cb32-6"><a href="#cb32-6" tabindex="-1"></a>  <span class="at">ttb_in_override =</span> <span class="fu">fairy_nested</span>(hsm<span class="sc">$</span>ttb, hsm<span class="sc">$</span>override))</span>
+<span id="cb32-7"><a href="#cb32-7" tabindex="-1"></a><span class="co">#&gt; override_in_tradeoff tradeoff_in_override      ttb_in_override </span></span>
+<span id="cb32-8"><a href="#cb32-8" tabindex="-1"></a><span class="co">#&gt;                 TRUE                FALSE                FALSE</span></span></code></pre></div>
+<p>Finally, the mixture of the Override Model and take-the-best adds the
+one vertex “none, all, all, none, all, all”. It keeps one equality
+(<code>PnW + PiS = PiW + PnS</code>), so its volume is zero and there is
+no upper bound on the Bayes factor. Both components are nested in it
+(equation 10):</p>
+<div class="sourceCode" id="cb33"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" tabindex="-1"></a>mixture <span class="ot">&lt;-</span> hsm<span class="sc">$</span>override_ttb_mixture</span>
+<span id="cb33-2"><a href="#cb33-2" tabindex="-1"></a><span class="fu">fairy_constraints</span>(mixture, <span class="at">labels =</span> <span class="fu">c</span>(<span class="st">&quot;PiW&quot;</span>, <span class="st">&quot;PnW&quot;</span>, <span class="st">&quot;PcW&quot;</span>, <span class="st">&quot;PiS&quot;</span>, <span class="st">&quot;PnS&quot;</span>, <span class="st">&quot;PcS&quot;</span>))</span>
+<span id="cb33-3"><a href="#cb33-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;- PiW + PnW + PiS - PnS = 0&quot;  &quot;PiW - PiS &lt;= 0&quot;              </span></span>
+<span id="cb33-4"><a href="#cb33-4" tabindex="-1"></a><span class="co">#&gt; [3] &quot;PnW - PcW &lt;= 0&quot;               &quot;- PiW + PnW + PiS - PcS &lt;= 0&quot;</span></span>
+<span id="cb33-5"><a href="#cb33-5" tabindex="-1"></a><span class="co">#&gt; [5] &quot;PcW - PcS &lt;= 0&quot;               &quot;PcS &lt;= 1&quot;                    </span></span>
+<span id="cb33-6"><a href="#cb33-6" tabindex="-1"></a><span class="co">#&gt; [7] &quot;- PiW &lt;= 0&quot;                   &quot;PiW - PnW &lt;= 0&quot;</span></span>
+<span id="cb33-7"><a href="#cb33-7" tabindex="-1"></a><span class="fu">c</span>(<span class="at">override_nested =</span> <span class="fu">fairy_nested</span>(hsm<span class="sc">$</span>override, mixture), <span class="at">ttb_nested =</span> <span class="fu">fairy_nested</span>(hsm<span class="sc">$</span>ttb, mixture))</span>
+<span id="cb33-8"><a href="#cb33-8" tabindex="-1"></a><span class="co">#&gt; override_nested      ttb_nested </span></span>
+<span id="cb33-9"><a href="#cb33-9" tabindex="-1"></a><span class="co">#&gt;            TRUE            TRUE</span></span>
+<span id="cb33-10"><a href="#cb33-10" tabindex="-1"></a><span class="fu">fairy_info</span>(mixture)[, <span class="fu">c</span>(<span class="st">&quot;dim&quot;</span>, <span class="st">&quot;vertices&quot;</span>, <span class="st">&quot;inequalities&quot;</span>, <span class="st">&quot;equalities&quot;</span>, <span class="st">&quot;max_bf&quot;</span>)]</span>
+<span id="cb33-11"><a href="#cb33-11" tabindex="-1"></a><span class="co">#&gt;   dim vertices inequalities equalities max_bf</span></span>
+<span id="cb33-12"><a href="#cb33-12" tabindex="-1"></a><span class="co">#&gt; 1   5        7            7          1    Inf</span></span></code></pre></div>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
