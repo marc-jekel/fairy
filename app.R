@@ -1435,18 +1435,15 @@ ui <- shinyUI(fluidPage(
       }
       .fairy-progress-bar-indeterminate {
         height: 100%;
-        width: 30%;
+        width: 100%;
         border-radius: 999px;
         background: var(--fairy-primary, #3a6df0);
-        animation: fairy-bar-slide 2.4s ease-in-out infinite;
-      }
-      @keyframes fairy-bar-slide {
-        0%   { transform: translateX(-100%); }
-        100% { transform: translateX(340%); }
+        opacity: 0.45;
+        animation: fairy-soft-fade 2.8s ease-in-out infinite;
       }
       @media (prefers-reduced-motion: reduce) {
         .fairy-progress-dots { animation: none; opacity: 0.55; }
-        .fairy-progress-bar-indeterminate { animation: none; margin-left: 35%; }
+        .fairy-progress-bar-indeterminate { animation: none; }
         #fairy-progress-overlay { transition: none; }
       }
       .fairy-progress-count {
@@ -3949,9 +3946,13 @@ ui <- shinyUI(fluidPage(
         t.innerHTML = msg.title || '';
         b.innerHTML = msg.text || '';
         fpPending = null; fpLast = Date.now();
-        ov.classList.add('active');
+        // Show only if the work takes a moment: instant jobs must not flash a
+        // window (the success state below still appears, in the same window).
+        if (!ov.classList.contains('active') && !fpShowTimer) {
+          fpShowTimer = setTimeout(function() { fpShowTimer = null; ov.classList.add('active'); }, 300);
+        }
       });
-      var fpPending = null, fpTimer = null, fpLast = 0, fpCloseTimer = null;
+      var fpPending = null, fpTimer = null, fpLast = 0, fpCloseTimer = null, fpShowTimer = null;
       function fpApply(msg) {
         var t = document.getElementById('fairy-progress-overlay-title');
         var b = document.getElementById('fairy-progress-overlay-body');
@@ -3973,15 +3974,34 @@ ui <- shinyUI(fluidPage(
       function fpHideNow() {
         var ov = document.getElementById('fairy-progress-overlay');
         if (fpCloseTimer) { clearTimeout(fpCloseTimer); fpCloseTimer = null; }
+        if (fpShowTimer) { clearTimeout(fpShowTimer); fpShowTimer = null; }
         if (ov) ov.classList.remove('active');
       }
+      // Success / finished state, shown in the same window.
+      Shiny.addCustomMessageHandler('fairy_progress_done', function(msg) {
+        var ov = document.getElementById('fairy-progress-overlay');
+        var t = document.getElementById('fairy-progress-overlay-title');
+        var b = document.getElementById('fairy-progress-overlay-body');
+        if (!ov) return;
+        if (fpTimer) { clearTimeout(fpTimer); fpTimer = null; }
+        fpPending = null;
+        if (fpCloseTimer) { clearTimeout(fpCloseTimer); fpCloseTimer = null; }
+        if (fpShowTimer) { clearTimeout(fpShowTimer); fpShowTimer = null; }
+        t.innerHTML = msg.title || '';
+        b.innerHTML = msg.text || '';
+        fpLast = Date.now();
+        ov.classList.add('active');
+      });
       Shiny.addCustomMessageHandler('fairy_progress_close', function(msg) {
         if (fpTimer) { clearTimeout(fpTimer); fpTimer = null; }
         fpPending = null;
-        // Hide only after a short grace period: the next phase of the same Go
-        // click usually re-opens the dialog right away.
+        // Not on screen yet (the work was quick): just cancel the delayed show.
+        var ovc = document.getElementById('fairy-progress-overlay');
+        if (ovc && !ovc.classList.contains('active')) { fpHideNow(); return; }
+        // Hide only after a grace period: the next phase of the same Go click
+        // re-opens the dialog and simply continues in the same window.
         if (fpCloseTimer) clearTimeout(fpCloseTimer);
-        fpCloseTimer = setTimeout(fpHideNow, 450);
+        fpCloseTimer = setTimeout(fpHideNow, 1200);
       });
       // A shinyalert popup (success / error) right after a close: hide the
       // progress dialog immediately instead of letting two layers overlap.
@@ -5263,6 +5283,11 @@ server <- shinyServer(function(input, output, session) {
   fairy_progress_close <- function() {
     session$sendCustomMessage("fairy_progress_close", list())
   }
+  # Success state inside the same window (instead of a separate shinyalert
+  # popup that opened and closed again between the phases of one Go click).
+  fairy_progress_done <- function(title, text) {
+    session$sendCustomMessage("fairy_progress_done", list(title = title, text = text))
+  }
 
   # How long to hold each "Computing X" progress-dialog frame on screen
   # before moving to the next model. A flat delay either flickers by too
@@ -5275,7 +5300,7 @@ server <- shinyServer(function(input, output, session) {
   # genuinely large) preserved.
   fairy_progress_hold <- function(total) {
     if (is.null(total) || total < 1) total <- 1
-    min(1, max(0.2, 3 / total))
+    0.05
   }
 
   # Show whole chips only, never a row sliced off mid-chip by a
@@ -11125,7 +11150,6 @@ server <- shinyServer(function(input, output, session) {
         }
 
         if (loop_numb_models == numb_models_to_convert) {
-          fairy_progress_close()
           show_title <- "H-representation created"
           add_text <- fairy_success_chips(feedback_name)
           if (length(empty_set) > 0) {
@@ -11134,34 +11158,12 @@ server <- shinyServer(function(input, output, session) {
               "H-description of model(s) ", paste0(empty_set, collapse = ", "), " — they form an empty set. ",
               "For instance, the input 'p1 > .5; p1 < .1' cannot be simultaneously satisfied.</p>")
           }
-
-          if (is.null(mytable_v_reactive$value) == FALSE) {
-            shinyalert(
-              title = show_title,
-              text = add_text,
-              html = TRUE,
-              showConfirmButton = F,
-              type = "success",
-              animation = F
-            )
-            # Long enough to actually register as a distinct "H-rep done"
-            # beat even when the computation itself was near-instant (fast
-            # models otherwise flash this success message for well under a
-            # second before the V-representation step's popup replaces it).
-            Sys.sleep(0.8)
-            shinyalert::closeAlert()
-          } else {
-            shinyalert(
-              title = show_title,
-              text = add_text,
-              html = TRUE,
-              showConfirmButton = F,
-              type = "success",
-              animation = F
-            )
-            Sys.sleep(0.8)
-            shinyalert::closeAlert()
-          }
+          # Same window as the progress display: it switches to the success
+          # state, stays for a moment, and the next phase simply continues in
+          # it (or it closes when nothing follows).
+          fairy_progress_done(show_title, add_text)
+          Sys.sleep(0.8)
+          fairy_progress_close()
         }
       }
 
@@ -11533,7 +11535,7 @@ server <- shinyServer(function(input, output, session) {
               } else {
                 fairy_progress_update(title = items_prog_title, text = items_prog_text)
               }
-              Sys.sleep(0.7)
+              Sys.sleep(0.05)
 
               h_it <- tryCatch({
                 # build_items_h_mixed honors each factor's own type
@@ -11738,7 +11740,6 @@ server <- shinyServer(function(input, output, session) {
             }
             v_done <- c(v_done, m)
           }
-          if (v_dialog_open) fairy_progress_close()
         }
 
         v_add_text <- fairy_success_chips(models_picked_for_v_representation)
@@ -11748,10 +11749,9 @@ server <- shinyServer(function(input, output, session) {
             "and V-descriptions of model(s) ", paste0(empty_set, collapse = ", "), " — they form an empty set. ",
             "For instance, the input 'p1 > .5; p1 < .1' cannot be simultaneously satisfied.</p>")
         }
-        shinyalert(title = "V-representation created", text = v_add_text, html = TRUE,
-          showConfirmButton = FALSE, type = "success", animation = FALSE)
+        fairy_progress_done("V-representation created", v_add_text)
         Sys.sleep(0.8)
-        shinyalert::closeAlert()
+        fairy_progress_close()
       } else {
         hideTab(inputId = "tabs", target = "V-representation")
         hideTab(inputId = "tabs", target = "Plot Polytope(s)")
