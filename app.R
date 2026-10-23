@@ -1535,8 +1535,8 @@ ui <- shinyUI(fluidPage(
       .model-card .fairy-handle:focus-visible { outline: 3px solid var(--fairy-primary, #3a6df0); outline-offset: -3px; }
       .fairy-card-dragging { opacity: 0.45; }
       /* Free layout: cards positioned anywhere inside the wrap */
-      .fairy-h-cards-wrap.fairy-free { position: relative; display: block !important; }
-      .fairy-h-cards-wrap.fairy-free .model-card { position: absolute; margin: 0 !important; box-sizing: border-box; }
+      .fairy-h-cards-wrap.fairy-free, .fairy-h-cards-wrap.fairy-packed { position: relative; display: block !important; }
+      .fairy-h-cards-wrap.fairy-packed .model-card, .fairy-h-cards-wrap.fairy-free .model-card { position: absolute; margin: 0 !important; box-sizing: border-box; }
       .fairy-h-cards-wrap.fairy-free .model-card .fairy-handle { cursor: move; touch-action: none; }
       .fairy-drop-before { box-shadow: -6px 0 0 0 var(--fairy-primary, #3a6df0) !important; }
       .fairy-drop-after  { box-shadow:  6px 0 0 0 var(--fairy-primary, #3a6df0) !important; }
@@ -2490,30 +2490,32 @@ ui <- shinyUI(fluidPage(
       /* d_h/d_v (QTEST) and d_h_multinomineq/d_v_multinomineq
          (multinomineq) share the same plain download icon, with the
          format named only in the hover tooltip — easy to grab the wrong
-         one without hovering first. A small corner letter badge (Q/M)
+         one without hovering first. A small corner label badge (QTest / multinom)
          makes the format visible at a glance instead. */
       #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq {
         position: relative !important;
       }
       #d_h::after, #d_v::after,
       #d_h_multinomineq::after, #d_v_multinomineq::after {
-        content: 'Q';
+        content: 'QTest';
         position: absolute;
-        bottom: -4px;
-        right: -4px;
-        width: 15px;
-        height: 15px;
+        bottom: -6px;
+        right: -6px;
+        height: 14px;
+        padding: 0 5px;
         border-radius: 999px;
         background: var(--fairy-primary, #3a6df0);
         color: #fff;
-        font-size: 9.5px;
+        font-size: 8.5px;
         font-weight: 700;
-        line-height: 15px;
+        letter-spacing: 0.02em;
+        line-height: 14px;
         text-align: center;
+        white-space: nowrap;
         box-shadow: 0 0 0 2px var(--fairy-panel, #fff);
       }
       #d_h_multinomineq::after, #d_v_multinomineq::after {
-        content: 'M';
+        content: 'multinom';
         background: #8a5cf6;
       }
       /* Stale results: Go/Compute itself blinks instead of a separate
@@ -4309,7 +4311,7 @@ ui <- shinyUI(fluidPage(
         function setOrderFrom(wrap) {
           var names = wrapCards(wrap).map(titleOf);
           order = names.concat(order.filter(function(n) { return names.indexOf(n) < 0; }));
-          save(); applyOrder();
+          save(); applyOrder(); packLater();
         }
         function live() {
           var l = document.getElementById('fairy-card-live');
@@ -4328,11 +4330,55 @@ ui <- shinyUI(fluidPage(
           wrapCards(wrap).forEach(function(c) { b = Math.max(b, c.offsetTop + c.offsetHeight); });
           wrap.style.height = (b + 24) + 'px';
         }
+        // Flow layout without gaps: cards keep their natural size and DOM order, but each one
+        // is placed at the highest free spot (skyline packing) instead of in flex rows.
+        var packing = false, packTimer = null, ro = null;
+        function pack(wrap) {
+          if (packing || wrap.classList.contains('fairy-free') || !isVisible(wrap)) return;
+          var cards = wrapCards(wrap);
+          if (!cards.length) return;
+          packing = true;
+          wrap.classList.remove('fairy-packed'); wrap.style.height = '';
+          cards.forEach(function(c) { c.style.left = c.style.top = c.style.width = ''; });
+          var W = wrap.clientWidth, G = 16, Q = 4, n = Math.ceil(W / Q), sky = [], i;
+          for (i = 0; i < n; i++) sky.push(0);
+          var sizes = cards.map(function(c) { return { w: Math.min(c.offsetWidth, W), h: c.offsetHeight }; });
+          wrap.classList.add('fairy-packed');
+          cards.forEach(function(c, k) { c.style.left = '0px'; c.style.top = '0px'; c.style.width = sizes[k].w + 'px'; });
+          sizes.forEach(function(z, k) { z.h = cards[k].offsetHeight; });   // heights as they are once absolutely placed
+          cards.forEach(function(c, k) {
+            var w = sizes[k].w, h = sizes[k].h, bx = 0, by = Infinity, x, j, y;
+            for (x = 0; x + w <= W + 0.5; x += Q) {
+              y = 0;
+              for (j = Math.floor(x / Q); j < Math.min(n, Math.ceil((x + w + G) / Q)); j++) if (sky[j] > y) y = sky[j];
+              if (y < by) { by = y; bx = x; }
+            }
+            if (by === Infinity) { bx = 0; by = Math.max.apply(null, sky); }
+            for (j = Math.floor(bx / Q); j < Math.min(n, Math.ceil((bx + w + G) / Q)); j++) sky[j] = by + h + G;
+            c.style.left = bx + 'px'; c.style.top = by + 'px'; c.style.width = w + 'px';
+          });
+          wrap.style.height = Math.max(0, Math.max.apply(null, sky) - G) + 'px';
+          setTimeout(function() {
+            packing = false;
+            // a card that changed size while packing (e.g. DT refit) needs another pass
+            if (cards.some(function(c, k) { return Math.abs(c.offsetHeight - sizes[k].h) > 1; })) packLater();
+          }, 90);
+        }
+        function packAll() { document.querySelectorAll('.fairy-h-cards-wrap').forEach(pack); }
+        function packLater() { clearTimeout(packTimer); packTimer = setTimeout(packAll, 80); }
+        function watchCards() {
+          if (!window.ResizeObserver) return;
+          if (!ro) ro = new ResizeObserver(function() { if (!packing) packLater(); });
+          document.querySelectorAll('.fairy-h-cards-wrap .model-card').forEach(function(c) {
+            if (!c.__fairyWatched) { c.__fairyWatched = true; ro.observe(c); }
+          });
+        }
+        window.addEventListener('resize', packLater);
         function enterFree(wrap) {
           if (wrap.classList.contains('fairy-free') || !isVisible(wrap)) return;
           var cards = wrapCards(wrap), wr = wrap.getBoundingClientRect();
           var m = cards.map(function(c) { var r = c.getBoundingClientRect(); return { x: r.left - wr.left, y: r.top - wr.top, w: r.width }; });
-          wrap.classList.add('fairy-free');
+          wrap.classList.add('fairy-free'); wrap.classList.remove('fairy-packed');
           cards.forEach(function(c, i) {
             var p = pos[titleOf(c)] || { x: Math.max(0, m[i].x), y: Math.max(0, m[i].y) };
             c.style.left = p.x + 'px'; c.style.top = p.y + 'px'; c.style.width = m[i].w + 'px';
@@ -4348,6 +4394,7 @@ ui <- shinyUI(fluidPage(
           wrap.classList.remove('fairy-free'); wrap.style.height = '';
           cards.forEach(function(c) { c.style.left = c.style.top = c.style.width = c.style.zIndex = ''; if (parent) parent.insertBefore(c, ref); });
           if (cards.length) setOrderFrom(wrap);
+          packLater();
         }
         function syncButtons() {
           document.querySelectorAll('.fairy-card-layout-group button').forEach(function(b) {
@@ -4392,6 +4439,7 @@ ui <- shinyUI(fluidPage(
           });
           applyOrder();
           syncButtons();
+          watchCards(); packLater();
           if (freeMode) document.querySelectorAll('.fairy-h-cards-wrap').forEach(enterFree);
         }
         function clearMarks() {
@@ -6453,6 +6501,10 @@ server <- shinyServer(function(input, output, session) {
       p(style = "margin:10px 0 0 0; font-size:13.5px;",
         "No results yet. Hover the floating panel — Cooling Bodies is preselected — and click ",
         strong("Go"), " (or press ⌘/Ctrl+Enter) to see volumes here."
+      ),
+      p(style = "margin:6px 0 0 0; font-size:12.5px;",
+        "In the same panel you can also switch on Cooling Gaussian or Sequence of Balls, ",
+        "and adjust the algorithm settings (gear icon) before you start."
       )
     )
   })
