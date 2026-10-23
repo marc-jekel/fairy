@@ -3822,7 +3822,10 @@ ui <- shinyUI(fluidPage(
           '-':  { alt: 'rm_prob',   shift: 'rm_ie' }
         };
         document.addEventListener('keydown', function(e) {
-          var pair = fairyCounterKeys[e.key];
+          // physical key first: with Option held, a Mac reports e.key as a different character (not '=' / '-'),
+          // and the numpad keys have their own codes
+          var kk = (e.code === 'Equal' || e.code === 'NumpadAdd') ? '=' : ((e.code === 'Minus' || e.code === 'NumpadSubtract') ? '-' : e.key);
+          var pair = fairyCounterKeys[kk];
           if (!pair) return;
           if (!(e.metaKey || e.ctrlKey)) return;
           var id = e.altKey && !e.shiftKey ? pair.alt : (e.shiftKey && !e.altKey ? pair.shift : null);
@@ -4707,9 +4710,9 @@ ui <- shinyUI(fluidPage(
       (function() {
         var rows = [
           ['\\u2318/Ctrl + Enter', 'Go: recalculate'],
-          ['\\u2318/Ctrl + Shift + +  /  \\u2212', 'Add / remove a model'],
+          ['Ctrl + Shift + +  /  \\u2212', 'Add / remove a model (on a Mac: the Control key, Safari keeps \\u2318)'],
           ['\\u2325/Alt + Enter', 'Add a model and jump into its specification'],
-          ['\\u2318/Ctrl + \\u2325/Alt + +  /  \\u2212', 'Add / remove a probability'],
+          ['Ctrl + \\u2325/Alt + +  /  \\u2212', 'Add / remove a probability'],
           ['\\u2325/Alt + arrow keys', 'Move a model tile (focus its top bar first)'],
           ['Esc', 'Close a full-screen tile or dialog'],
           ['?', 'Show this list']
@@ -5479,9 +5482,9 @@ ui <- shinyUI(fluidPage(
               # fairy-tooltip-down: this row sits right under the fixed
               # navbar (see set_prob_count's own tooltip a few lines
               # down for the same fix/reasoning).
-              tags$span(class = "fairy-tooltip fairy-tooltip-down", `data-tooltip` = "Remove a probability (⌘/Ctrl+⌥/Alt+-)",
+              tags$span(class = "fairy-tooltip fairy-tooltip-down", `data-tooltip` = "Remove a probability (Ctrl+⌥/Alt+-)",
                 actionBttn("rm_prob", "", icon = icon("minus"), size = "xs", style = "jelly", color = "default")),
-              tags$span(class = "fairy-tooltip fairy-tooltip-down", `data-tooltip` = "Add a probability (⌘/Ctrl+⌥/Alt++)",
+              tags$span(class = "fairy-tooltip fairy-tooltip-down", `data-tooltip` = "Add a probability (Ctrl+⌥/Alt++)",
                 actionBttn("add_prob", "", icon = icon("plus"), size = "xs", style = "jelly", color = "primary")),
               # Typing an exact count directly, rather than only being
               # able to step it one at a time with +/- — reported
@@ -5509,9 +5512,9 @@ ui <- shinyUI(fluidPage(
               # Same heading-structure fix as "Probabilities" above —
               # see its own comment.
               tags$h2("Model(s)", style = "display:inline; margin:0; font-size:inherit; font-weight:bold; color: var(--fairy-text-muted);"),
-              tags$span(class = "fairy-tooltip", `data-tooltip` = "Remove a model (⌘/Ctrl+Shift+-)",
+              tags$span(class = "fairy-tooltip", `data-tooltip` = "Remove a model (Ctrl+Shift+-)",
                 actionBttn("rm_ie", "", icon = icon("minus"), size = "xs", style = "jelly", color = "default")),
-              tags$span(class = "fairy-tooltip", `data-tooltip` = "Add a model (⌘/Ctrl+Shift++ or ⌥/Alt+Enter)",
+              tags$span(class = "fairy-tooltip", `data-tooltip` = "Add a model (Ctrl+Shift++ or ⌥/Alt+Enter)",
                 actionBttn("add_ie", "", icon = icon("plus"), size = "xs", style = "jelly", color = "primary")),
               # Both buttons only make sense with 2+ models (an
               # intersection/mixture of one model is that model) — see
