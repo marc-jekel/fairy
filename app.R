@@ -1270,7 +1270,7 @@ ui <- shinyUI(fluidPage(
         max-width: 480px;
         width: calc(100% - 48px);
         max-height: 80vh;
-        min-height: 300px;
+        min-height: 190px;
         overflow-y: auto;
         overflow-x: hidden;
         box-sizing: border-box;
@@ -1446,7 +1446,32 @@ ui <- shinyUI(fluidPage(
         .fairy-progress-bar-indeterminate { animation: none; }
         #fairy-progress-overlay { transition: none; }
       }
+      .fairy-progress-now {
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        max-width: 340px;
+        min-height: 22px;
+        font-size: 15px;
+      }
+      .fairy-progress-now-label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--fairy-text-muted, #667085);
+      }
+      .fairy-progress-now-name {
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .fairy-progress-now-more { font-weight: 400; color: var(--fairy-text-muted, #667085); }
       .fairy-progress-count {
+        font-variant-numeric: tabular-nums;
         font-size: 12.5px;
         font-weight: 500;
         color: var(--fairy-text-muted, #667085);
@@ -3945,14 +3970,14 @@ ui <- shinyUI(fluidPage(
         if (fpCloseTimer) { clearTimeout(fpCloseTimer); fpCloseTimer = null; }
         t.innerHTML = msg.title || '';
         b.innerHTML = msg.text || '';
-        fpPending = null; fpLast = Date.now();
+        fpPending = null; fpLast = Date.now(); fpDone = false;
         // Show only if the work takes a moment: instant jobs must not flash a
         // window (the success state below still appears, in the same window).
         if (!ov.classList.contains('active') && !fpShowTimer) {
           fpShowTimer = setTimeout(function() { fpShowTimer = null; ov.classList.add('active'); }, 300);
         }
       });
-      var fpPending = null, fpTimer = null, fpLast = 0, fpCloseTimer = null, fpShowTimer = null;
+      var fpPending = null, fpTimer = null, fpLast = 0, fpCloseTimer = null, fpShowTimer = null, fpDone = false;
       function fpApply(msg) {
         var t = document.getElementById('fairy-progress-overlay-title');
         var b = document.getElementById('fairy-progress-overlay-body');
@@ -3963,18 +3988,19 @@ ui <- shinyUI(fluidPage(
       Shiny.addCustomMessageHandler('fairy_progress_update', function(msg) {
         // Large batches send an update per model; redrawing the card that
         // often reads as flicker. Keep only the latest message and apply it
-        // at most every 500 ms.
+        // at most every 800 ms, so every text stays readable.
         fpPending = msg;
         if (fpTimer) return;
         fpTimer = setTimeout(function() {
           fpTimer = null;
           if (fpPending) { fpApply(fpPending); fpPending = null; }
-        }, Math.max(0, 500 - (Date.now() - fpLast)));
+        }, Math.max(0, 800 - (Date.now() - fpLast)));
       });
       function fpHideNow() {
         var ov = document.getElementById('fairy-progress-overlay');
         if (fpCloseTimer) { clearTimeout(fpCloseTimer); fpCloseTimer = null; }
         if (fpShowTimer) { clearTimeout(fpShowTimer); fpShowTimer = null; }
+        fpDone = false;
         if (ov) ov.classList.remove('active');
       }
       // Success / finished state, shown in the same window.
@@ -3990,7 +4016,16 @@ ui <- shinyUI(fluidPage(
         t.innerHTML = msg.title || '';
         b.innerHTML = msg.text || '';
         fpLast = Date.now();
+        fpDone = true;
         ov.classList.add('active');
+      });
+      // The finished state can be dismissed at once with a click or Escape.
+      document.addEventListener('click', function(e) {
+        var ov = document.getElementById('fairy-progress-overlay');
+        if (fpDone && ov && ov.classList.contains('active') && ov.contains(e.target)) fpHideNow();
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && fpDone) fpHideNow();
       });
       Shiny.addCustomMessageHandler('fairy_progress_close', function(msg) {
         if (fpTimer) { clearTimeout(fpTimer); fpTimer = null; }
@@ -4001,7 +4036,7 @@ ui <- shinyUI(fluidPage(
         // Hide only after a grace period: the next phase of the same Go click
         // re-opens the dialog and simply continues in the same window.
         if (fpCloseTimer) clearTimeout(fpCloseTimer);
-        fpCloseTimer = setTimeout(fpHideNow, 1200);
+        fpCloseTimer = setTimeout(fpHideNow, 1500);
       });
       // A shinyalert popup (success / error) right after a close: hide the
       // progress dialog immediately instead of letting two layers overlap.
@@ -5336,8 +5371,10 @@ server <- shinyServer(function(input, output, session) {
   # the parallel-computation switch — surfaces that mode and the core count
   # instead of leaving it invisible to the user.
   fairy_progress_text <- function(items = NULL, done = NULL, total = NULL, parallel = FALSE, n_jobs = NULL) {
-    svg <- "<div class='fairy-progress-figure'><svg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'><g fill='none' stroke-linecap='round' stroke-linejoin='round'><path d='M31 34 C16 20, 6 24, 10 34 C6 44, 18 44, 31 34 Z' fill='#8fb3ff' stroke='#5b7fd6' stroke-width='1.5' opacity='0.85'/><path d='M33 34 C48 20, 58 24, 54 34 C58 44, 46 44, 33 34 Z' fill='#a9c4ff' stroke='#5b7fd6' stroke-width='1.5' opacity='0.85'/><circle cx='32' cy='20' r='5' fill='#ffd98a' stroke='#e0a94a' stroke-width='1.4'/><path d='M32 25 L32 44 M32 30 L26 38 M32 30 L38 38 M32 44 L27 52 M32 44 L37 52' stroke='#f2b84b' stroke-width='2.4'/><path d='M50 12 l1.6 3.4 3.4 1.6 -3.4 1.6 -1.6 3.4 -1.6 -3.4 -3.4 -1.6 3.4 -1.6 Z' fill='#ffe08a'/></g></svg></div>"
-    dots <- "<div class='fairy-progress-dots'>&#x22EF;</div>"
+    # Quiet, fixed layout: while computing, only three things change (the name
+    # of the current model, the counter and the bar). The finished models are
+    # NOT listed here (a growing chip list moved the whole window on every
+    # step); they appear once, in the success state at the end.
     cores_html <- if (isTRUE(parallel)) {
       # mclapply/parLapply never spawn more workers than there are jobs, so
       # showing the machine's full core budget when there are fewer jobs
@@ -5346,34 +5383,24 @@ server <- shinyServer(function(input, output, session) {
       paste0("<div class='fairy-progress-cores'>&#9889; Parallel &middot; ", cores_used, " core",
         if (cores_used == 1) "" else "s", "</div>")
     } else ""
+    now_name <- if (isTRUE(parallel) && !is.null(n_jobs) && n_jobs > 1) {
+      paste0(n_jobs, " models at once")
+    } else if (!is.null(items) && length(items) > 0) {
+      paste0(htmltools::htmlEscape(items[1]), if (length(items) > 1) paste0(" <span class='fairy-progress-now-more'>+", length(items) - 1, " more</span>") else "")
+    } else ""
+    now_html <- if (nzchar(now_name)) paste0(
+      "<div class='fairy-progress-now'><span class='fairy-progress-now-label'>Now</span>",
+      "<span class='fairy-progress-now-name'>", now_name, "</span></div>") else ""
     if (!is.null(total) && total > 0) {
       pct <- round(100 * length(done) / total)
-      remaining <- total - length(done)
       bar_html <- paste0(
         "<div class='fairy-progress-bar-track'><div class='fairy-progress-bar-fill' style='width:", pct, "%;'></div></div>",
-        "<div class='fairy-progress-count'>", length(done), " / ", total, " done &middot; ",
-        remaining, " remaining</div>"
+        "<div class='fairy-progress-count'>", length(done), " / ", total, "</div>"
       )
-    } else if (isTRUE(parallel)) {
-      bar_html <- "<div class='fairy-progress-bar-track'><div class='fairy-progress-bar-indeterminate'></div></div>"
     } else {
-      bar_html <- ""
+      bar_html <- "<div class='fairy-progress-bar-track'><div class='fairy-progress-bar-indeterminate'></div></div>"
     }
-    items_html <- if (!is.null(items) && length(items) > 0) paste0(
-      "<div class='fairy-progress-items'>",
-      fairy_chip_row("<div class='fairy-progress-items-label'>Computing</div>", items, "fairy-progress-items-chip"),
-      "</div>"
-    ) else ""
-    # Chronological order: a newly finished model is appended at the end, so
-    # every chip that is already there stays exactly where it was (the old
-    # newest-first order pushed all chips one slot to the right on every
-    # update, which looked restless).
-    done_html <- if (!is.null(done) && length(done) > 0) paste0(
-      "<div class='fairy-progress-done'>",
-      fairy_chip_row("<div class='fairy-progress-done-label'>&#10003; Done</div>", done, "fairy-progress-done-chip", latest = TRUE),
-      "</div>"
-    ) else ""
-    paste0("<div class='fairy-progress-wrap'>", items_html, svg, cores_html, bar_html, dots, done_html, "</div>")
+    paste0("<div class='fairy-progress-wrap'>", cores_html, now_html, bar_html, "</div>")
   }
 
   # Companion to fairy_progress_text() for the final success dialog after a
@@ -10964,7 +10991,7 @@ server <- shinyServer(function(input, output, session) {
         recomputed_models <- c(recomputed_models, name_m)
 
         all_h_names <- mytable_input[seq_len(numb_models_to_convert), 1]
-        h_prog_title <- paste0("Computing H-representation: ", name_m)
+        h_prog_title <- "Computing H-representation"
         h_prog_text <- fairy_progress_text(
           items = setdiff(all_h_names, feedback_name),
           done = feedback_name, total = numb_models_to_convert)
@@ -11162,7 +11189,7 @@ server <- shinyServer(function(input, output, session) {
           # state, stays for a moment, and the next phase simply continues in
           # it (or it closes when nothing follows).
           fairy_progress_done(show_title, add_text)
-          Sys.sleep(0.8)
+          Sys.sleep(1.8)
           fairy_progress_close()
         }
       }
@@ -11369,7 +11396,7 @@ server <- shinyServer(function(input, output, session) {
 
           if (length(selected_mix) < 2) next
 
-          mix_prog_title <- paste0("Computing mixture: ", mix_name)
+          mix_prog_title <- "Computing mixture model(s)"
           mix_prog_text <- fairy_progress_text(
             items = setdiff(all_mix_names, mix_feedback),
             done = mix_feedback, total = length(mixture_specs),
@@ -11526,7 +11553,7 @@ server <- shinyServer(function(input, output, session) {
                 identical(attr(cached_h, "type_assignment"), cur_assignment)) {
               items_names <- c(items_names, items_name)
             } else {
-              items_prog_title <- paste0("Computing items model: ", items_name)
+              items_prog_title <- "Computing items model(s)"
               items_prog_text <- fairy_progress_text(
                 items = items_name, done = items_names)
               if (!items_dialog_open) {
@@ -11717,7 +11744,7 @@ server <- shinyServer(function(input, output, session) {
           v_done <- character()
           v_dialog_open <- FALSE
           for (m in models_to_compute_v) {
-            v_prog_title <- paste0("Computing V-representation: ", m)
+            v_prog_title <- "Computing V-representation(s)"
             v_prog_text <- fairy_progress_text(
               items = setdiff(models_to_compute_v, v_done),
               done = v_done, total = length(models_to_compute_v))
@@ -11750,7 +11777,7 @@ server <- shinyServer(function(input, output, session) {
             "For instance, the input 'p1 > .5; p1 < .1' cannot be simultaneously satisfied.</p>")
         }
         fairy_progress_done("V-representation created", v_add_text)
-        Sys.sleep(0.8)
+        Sys.sleep(2.4)
         fairy_progress_close()
       } else {
         hideTab(inputId = "tabs", target = "V-representation")
