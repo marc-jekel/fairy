@@ -12088,6 +12088,10 @@ server <- shinyServer(function(input, output, session) {
         models_picked_for_v_representation <- mytable_v[which(mytable_v[, 2]), 1]
         models_picked_for_v_representation <-
           models_picked_for_v_representation[!is.na(models_picked_for_v_representation)]
+        # a stale row of the V-selection table (a model that was renamed or removed
+        # since) has no H-representation and must not show up as a failed model
+        models_picked_for_v_representation <-
+          models_picked_for_v_representation[models_picked_for_v_representation %in% isolate(names(h_reactive))]
 
         invalid_model <- character()
 
