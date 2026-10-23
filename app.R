@@ -3847,7 +3847,16 @@ ui <- shinyUI(fluidPage(
         // The new Unique Model Specification box gets the focus, so the
         // specification can be typed right away.
         document.addEventListener('keydown', function(e) {
-          if (e.key !== 'Enter' || !e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return;
+          if (e.key !== 'Enter' || !e.altKey || e.metaKey || e.ctrlKey) return;
+          if (e.shiftKey) {                                   // Option/Alt+Shift+Enter: remove the last model
+            var rm = document.getElementById('rm_ie');
+            if (!rm || rm.disabled || rm.classList.contains('disabled') || rm.offsetParent === null) return;
+            e.preventDefault();
+            rm.classList.add('fairy-kbd-press');
+            setTimeout(function() { rm.classList.remove('fairy-kbd-press'); }, 150);
+            rm.click();
+            return;
+          }
           var btn = document.getElementById('add_ie');
           if (!btn || btn.disabled || btn.classList.contains('disabled') || btn.offsetParent === null) return;
           e.preventDefault();
@@ -4679,13 +4688,45 @@ ui <- shinyUI(fluidPage(
               if (less) upHi(k, v, st); else upLo(k, v, st);
             });
           });
+          // comparisons between probabilities plus the bounds, as difference constraints (Floyd-Warshall)
+          var edges = [], vars = [];
+          function addV(v) { if (vars.indexOf(v) < 0) vars.push(v); }
+          function edge(f, t, w, st) { edges.push([f, t, w, st]); }
+          spec.split(';').forEach(function(cl) {
+            var ops = cl.match(/[<>]=?|=/g), opd = cl.split(/[<>]=?|=/).map(function(x) { return x.trim(); });
+            if (!ops || opd.length !== ops.length + 1) return;
+            ops.forEach(function(op, i) {
+              if (op === '=') return;
+              var a = opd[i], b = opd[i + 1], st = op.indexOf('=') < 0, lt = op.charAt(0) === '<';
+              var va = /^p[0-9]+$/.test(a), vb = /^p[0-9]+$/.test(b);
+              if (va && vb) { addV(a); addV(b); if (lt) edge(b, a, 0, st); else edge(a, b, 0, st); }
+              else if (va && !isNaN(num(b))) { addV(a); if (lt) edge('Z', a, num(b), st); else edge(a, 'Z', -num(b), st); }
+              else if (vb && !isNaN(num(a))) { addV(b); if (lt) edge(b, 'Z', -num(a), st); else edge('Z', b, num(a), st); }
+            });
+          });
+          var graphMsg = [];
+          if (vars.length && edges.length) {
+            vars.forEach(function(v) { edge(v, 'Z', 0, false); edge('Z', v, 1, false); });
+            var nodes = ['Z'].concat(vars), n = nodes.length, D = [], S = [], i, j, k;
+            for (i = 0; i < n; i++) { D.push([]); S.push([]); for (j = 0; j < n; j++) { D[i].push(i === j ? 0 : Infinity); S[i].push(false); } }
+            edges.forEach(function(e) {
+              var f = nodes.indexOf(e[0]), t = nodes.indexOf(e[1]);
+              if (e[2] < D[f][t] || (e[2] === D[f][t] && e[3] && !S[f][t])) { D[f][t] = e[2]; S[f][t] = e[3]; }
+            });
+            for (k = 0; k < n; k++) for (i = 0; i < n; i++) for (j = 0; j < n; j++) {
+              var nd = D[i][k] + D[k][j], ns = S[i][k] || S[k][j];
+              if (nd < D[i][j] - 1e-12 || (Math.abs(nd - D[i][j]) <= 1e-12 && ns && !S[i][j])) { D[i][j] = nd; S[i][j] = ns; }
+            }
+            var bad = vars.filter(function(v) { var x = nodes.indexOf(v); return D[x][x] < -1e-12 || (Math.abs(D[x][x]) <= 1e-12 && S[x][x]); });
+            if (bad.length) graphMsg.push(bad.join(', ') + ' cannot satisfy all comparisons at once (empty set)');
+          }
           var out = [];
           Object.keys(lo).concat(Object.keys(hi)).filter(function(k, i, a) { return a.indexOf(k) === i; }).forEach(function(k) {
             var l = lo[k] || { v: 0, st: false }, h = hi[k] || { v: 1, st: false };
             if (l.v > h.v || (l.v === h.v && (l.st || h.st)))
               out.push(k + ' would have to be ' + (l.st ? 'above ' : 'at least ') + l.v + ' and ' + (h.st ? 'below ' : 'at most ') + h.v + ' at once (empty set)');
           });
-          return out;
+          return out.length ? out : graphMsg;
         }
         var timer = null;
         function hint(box) {
@@ -4715,7 +4756,7 @@ ui <- shinyUI(fluidPage(
         var rows = [
           ['\\u2318/Ctrl + Enter', 'Go: recalculate'],
           ['Ctrl + Shift + +  /  \\u2212', 'Add / remove a model (on a Mac: the Control key, Safari keeps \\u2318)'],
-          ['\\u2325/Alt + Enter', 'Add a model and jump into its specification'],
+          ['\\u2325/Alt + Enter  /  \\u2325/Alt + Shift + Enter', 'Add a model and jump into its specification / remove the last model'],
           ['Ctrl + \\u2325/Alt + +  /  \\u2212', 'Add / remove a probability'],
           ['\\u2325/Alt + arrow keys', 'Move a model tile (focus its top bar first)'],
           ['Esc', 'Close a full-screen tile or dialog'],
@@ -5516,7 +5557,7 @@ ui <- shinyUI(fluidPage(
               # Same heading-structure fix as "Probabilities" above —
               # see its own comment.
               tags$h2("Model(s)", style = "display:inline; margin:0; font-size:inherit; font-weight:bold; color: var(--fairy-text-muted);"),
-              tags$span(class = "fairy-tooltip", `data-tooltip` = "Remove a model (Ctrl+Shift+-)",
+              tags$span(class = "fairy-tooltip", `data-tooltip` = "Remove a model (Ctrl+Shift+- or ⌥/Alt+Shift+Enter)",
                 actionBttn("rm_ie", "", icon = icon("minus"), size = "xs", style = "jelly", color = "default")),
               tags$span(class = "fairy-tooltip", `data-tooltip` = "Add a model (Ctrl+Shift++ or ⌥/Alt+Enter)",
                 actionBttn("add_ie", "", icon = icon("plus"), size = "xs", style = "jelly", color = "primary")),
@@ -6152,6 +6193,53 @@ server <- shinyServer(function(input, output, session) {
         if (less) upd_hi(k, v, st) else upd_lo(k, v, st)
       }
     }
+    # Comparisons between probabilities (p1 > p2; p2 > p3; p3 > p1 ...) together with the bounds:
+    # difference constraints x - y <= w, solved with Floyd-Warshall; a negative cycle (or a zero
+    # cycle through a strict step) means no probability vector satisfies everything.
+    graph_msg <- character()
+    {
+      edges <- list()
+      add_edge <- function(from, to, w, st) edges[[length(edges) + 1]] <<- list(from, to, w, st)
+      vars <- character()
+      for (cl in strsplit(spec, ";", fixed = TRUE)[[1]]) {
+        ops <- regmatches(cl, gregexpr("[<>]=?|=", cl))[[1]]
+        opd <- trimws(strsplit(cl, "[<>]=?|=")[[1]])
+        if (length(ops) == 0 || length(opd) != length(ops) + 1) next
+        for (i in seq_along(ops)) {
+          op <- ops[i]; a <- opd[i]; b <- opd[i + 1]
+          if (op == "=") next
+          st <- !grepl("=", op)
+          if (isvar(a) && isvar(b)) {
+            vars <- c(vars, a, b)
+            if (grepl("^<", op)) add_edge(b, a, 0, st) else add_edge(a, b, 0, st)     # a - b <= 0  /  b - a <= 0
+          } else if (isvar(a) && !is.na(num(b))) {
+            vars <- c(vars, a)
+            if (grepl("^<", op)) add_edge("Z", a, num(b), st) else add_edge(a, "Z", -num(b), st)
+          } else if (isvar(b) && !is.na(num(a))) {
+            vars <- c(vars, b)
+            if (grepl("^<", op)) add_edge(b, "Z", -num(a), st) else add_edge("Z", b, num(a), st)
+          }
+        }
+      }
+      vars <- unique(vars)
+      if (length(vars) > 0 && length(edges) > 0) {
+        for (v in vars) { add_edge(v, "Z", 0, FALSE); add_edge("Z", v, 1, FALSE) }   # 0 <= p <= 1
+        nodes <- c("Z", vars); n <- length(nodes)
+        D <- matrix(Inf, n, n, dimnames = list(nodes, nodes)); S <- matrix(FALSE, n, n, dimnames = list(nodes, nodes))
+        diag(D) <- 0
+        for (e in edges) {
+          if (e[[3]] < D[e[[1]], e[[2]]] || (e[[3]] == D[e[[1]], e[[2]]] && e[[4]] && !S[e[[1]], e[[2]]])) {
+            D[e[[1]], e[[2]]] <- e[[3]]; S[e[[1]], e[[2]]] <- e[[4]]
+          }
+        }
+        for (k in seq_len(n)) for (i in seq_len(n)) for (j in seq_len(n)) {
+          nd <- D[i, k] + D[k, j]; ns <- S[i, k] || S[k, j]
+          if (nd < D[i, j] - 1e-12 || (abs(nd - D[i, j]) <= 1e-12 && ns && !S[i, j])) { D[i, j] <- nd; S[i, j] <- ns }
+        }
+        bad <- vars[vapply(vars, function(v) D[v, v] < -1e-12 || (abs(D[v, v]) <= 1e-12 && S[v, v]), logical(1))]
+        if (length(bad) > 0) graph_msg <- paste0(paste(bad, collapse = ", "), " cannot satisfy all comparisons at once")
+      }
+    }
     msgs <- character()
     for (k in union(names(lo), names(hi))) {
       l <- lo[[k]]; h <- hi[[k]]
@@ -6162,6 +6250,7 @@ server <- shinyServer(function(input, output, session) {
           " and ", if (h$strict) "below " else "at most ", format(h$v), " at the same time"))
       }
     }
+    if (length(msgs) == 0) msgs <- graph_msg
     msgs
   }
   observe_guarded <- function(event, handler, where = "go") {
