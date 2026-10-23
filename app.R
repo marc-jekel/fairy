@@ -787,8 +787,11 @@ ui <- shinyUI(fluidPage(
         border-radius: 10px;
         border: 1px solid var(--fairy-border);
         background: var(--ct-default);
-        overflow: hidden;
+        /* overflow stays visible so the per-button tooltips are not clipped;
+           the outer buttons round their own outer corners instead */
       }
+      .fairy-segmented button:first-child { border-radius: 9px 0 0 9px; }
+      .fairy-segmented button:last-child { border-radius: 0 9px 9px 0; }
       .fairy-segmented button {
         box-sizing: border-box;
         width: 26px;
@@ -1493,6 +1496,123 @@ ui <- shinyUI(fluidPage(
         letter-spacing: 0.02em;
       }
       .model-card:hover::after { opacity: 1; }
+      /* Large run window (see #fairy-run-overlay in the UI) */
+      #fairy-run-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 1050;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        box-sizing: border-box;
+        padding-top: 8vh;
+        background: rgba(20, 20, 30, 0.45);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+      }
+      #fairy-run-overlay.active { opacity: 1; pointer-events: all; }
+      #fairy-run-card {
+        background: var(--fairy-panel, #fff);
+        color: var(--fairy-text, #222);
+        border-radius: 14px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+        padding: 22px 26px 18px;
+        width: min(760px, calc(100% - 40px));
+        min-height: 380px;
+        max-height: 84vh;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+      }
+      #fairy-run-title { font-size: 18px; font-weight: 650; text-align: center; }
+      #fairy-run-sub {
+        text-align: center;
+        color: var(--fairy-text-muted, #667085);
+        font-size: 13px;
+        font-variant-numeric: tabular-nums;
+        margin: 4px 0 10px;
+        min-height: 18px;
+      }
+      .fairy-run-bar-track {
+        height: 6px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 12%, transparent);
+        overflow: hidden;
+        width: 100%;
+        max-width: 420px;
+        margin: 0 auto 14px;
+      }
+      #fairy-run-bar-fill {
+        height: 100%;
+        width: 0;
+        border-radius: 999px;
+        background: var(--fairy-primary, #3a6df0);
+        transition: width 0.3s ease;
+      }
+      #fairy-run-table-wrap {
+        flex: 1 1 auto;
+        min-height: 170px;
+        overflow: auto;
+        border: 1px solid var(--fairy-border, #e5e5e5);
+        border-radius: 10px;
+      }
+      .fairy-run-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      .fairy-run-table th {
+        position: sticky;
+        top: 0;
+        background: var(--fairy-panel, #fff);
+        text-align: left;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--fairy-text-muted, #667085);
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--fairy-border, #e5e5e5);
+      }
+      .fairy-run-table td {
+        padding: 7px 12px;
+        border-bottom: 1px solid color-mix(in srgb, var(--fairy-border, #e5e5e5) 60%, transparent);
+      }
+      .fairy-run-name { font-weight: 600; }
+      .fairy-run-kind {
+        margin-left: 8px;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--fairy-text-muted, #667085);
+        border: 1px solid var(--fairy-border, #e5e5e5);
+        border-radius: 999px;
+        padding: 1px 7px;
+      }
+      .fairy-run-cell { white-space: nowrap; }
+      .fairy-run-ico { display: inline-block; width: 1.4em; }
+      .fairy-run-cell.st-wait, .fairy-run-cell.st-none { color: var(--fairy-text-muted, #667085); }
+      .fairy-run-cell.st-run { color: var(--fairy-primary, #3a6df0); font-weight: 600; }
+      .fairy-run-cell.st-run .fairy-run-ico { animation: fairy-soft-fade 2.8s ease-in-out infinite; }
+      .fairy-run-cell.st-done, .fairy-run-cell.st-cached { color: #2e7d32; }
+      .fairy-run-cell.st-warn { color: #b05000; font-weight: 600; }
+      .fairy-run-cell.st-fail { color: #c62828; font-weight: 600; }
+      #fairy-run-note { font-size: 13px; color: #b05000; margin-top: 10px; }
+      #fairy-run-note:empty { display: none; }
+      #fairy-run-actions { display: flex; justify-content: center; margin-top: 14px; }
+      #fairy-run-close {
+        visibility: hidden;
+        padding: 8px 26px;
+        font-size: 14px;
+        font-weight: 600;
+        border: none;
+        border-radius: 8px;
+        background: var(--fairy-primary-contrast-bg, #3a6df0);
+        color: #fff;
+        cursor: pointer;
+      }
+      #fairy-run-close.visible { visibility: visible; }
+      #fairy-run-close:focus-visible { outline: 3px solid var(--fairy-primary, #3a6df0); outline-offset: 2px; }
+      @media (prefers-reduced-motion: reduce) {
+        #fairy-run-overlay, #fairy-run-bar-fill { transition: none; }
+        .fairy-run-cell.st-run .fairy-run-ico { animation: none; }
+      }
 
       /* Fullscreen overlay for double-clicked cards */
       #fairy-card-overlay {
@@ -3976,115 +4096,141 @@ ui <- shinyUI(fluidPage(
       })();
       "
     )),
+    # One large window for a whole Go click: all models in one table (H and V
+    # state per model), updated in place, closed only by the user.
     tags$div(
-      id = "fairy-progress-overlay",
+      id = "fairy-run-overlay", role = "dialog", `aria-modal` = "true", `aria-labelledby` = "fairy-run-title",
       tags$div(
-        id = "fairy-progress-overlay-card",
-        tags$div(id = "fairy-progress-overlay-title"),
-        tags$div(id = "fairy-progress-overlay-body")
+        id = "fairy-run-card",
+        tags$div(id = "fairy-run-title", "Calculating"),
+        tags$div(id = "fairy-run-sub", `aria-live` = "polite"),
+        tags$div(class = "fairy-run-bar-track", tags$div(id = "fairy-run-bar-fill")),
+        tags$div(
+          id = "fairy-run-table-wrap",
+          tags$table(
+            class = "fairy-run-table",
+            tags$thead(tags$tr(tags$th("Model"), tags$th("H-representation"), tags$th("V-representation"))),
+            tags$tbody(id = "fairy-run-body")
+          )
+        ),
+        tags$div(id = "fairy-run-note"),
+        tags$div(id = "fairy-run-actions", tags$button(id = "fairy-run-close", type = "button", "Close"))
       )
     ),
     tags$script(HTML(
       "
-      Shiny.addCustomMessageHandler('fairy_progress_open', function(msg) {
-        var ov = document.getElementById('fairy-progress-overlay');
-        var t  = document.getElementById('fairy-progress-overlay-title');
-        var b  = document.getElementById('fairy-progress-overlay-body');
-        if (!ov) return;
-        // A close that is immediately followed by an open (the next phase of
-        // the same Go click) must not flash: cancel the pending close and just
-        // swap the content of the dialog that is already on screen.
-        if (fpCloseTimer) { clearTimeout(fpCloseTimer); fpCloseTimer = null; }
-        t.innerHTML = msg.title || '';
-        b.innerHTML = msg.text || '';
-        fpPending = null; fpLast = Date.now(); fpDone = false;
-        // Show only if the work takes a moment: instant jobs must not flash a
-        // window (the success state below still appears, in the same window).
-        if (!ov.classList.contains('active') && !fpShowTimer) {
-          fpShowTimer = setTimeout(function() { fpShowTimer = null; ov.classList.add('active'); }, 300);
+      // Large run window: a table of all models with an H and a V state each,
+      // updated in place. Opens once per Go click, stays until closed.
+      (function() {
+        var LABEL = { wait: 'waiting', run: 'computing', done: 'done', cached: 'unchanged', warn: 'empty set', fail: 'failed' };
+        var ICON  = { wait: '\\u25CB', run: '\\u25D0', done: '\\u2713', cached: '\\u2713', warn: '\\u26A0', fail: '\\u2715' };
+        var rows = {}, showTimer = null, idleTimer = null, shown = false, dismissed = false, everRan = false, running = false;
+        // Safety net: if the run dies without a final message (an R error in
+        // the middle of a Go), offer the Close button after 45 s of silence.
+        function armIdle() {
+          if (idleTimer) clearTimeout(idleTimer);
+          idleTimer = setTimeout(function() {
+            if (running) $id('fairy-run-close').classList.add('visible');
+          }, 45000);
         }
-      });
-      var fpPending = null, fpTimer = null, fpLast = 0, fpCloseTimer = null, fpShowTimer = null, fpDone = false;
-      function fpApply(msg) {
-        var t = document.getElementById('fairy-progress-overlay-title');
-        var b = document.getElementById('fairy-progress-overlay-body');
-        if (msg.title !== null && t) t.innerHTML = msg.title;
-        if (msg.text  !== null && b) b.innerHTML  = msg.text;
-        fpLast = Date.now();
-      }
-      Shiny.addCustomMessageHandler('fairy_progress_update', function(msg) {
-        // Large batches send an update per model; redrawing the card that
-        // often reads as flicker. Keep only the latest message and apply it
-        // at most every 800 ms, so every text stays readable.
-        fpPending = msg;
-        if (fpTimer) return;
-        fpTimer = setTimeout(function() {
-          fpTimer = null;
-          if (fpPending) { fpApply(fpPending); fpPending = null; }
-        }, Math.max(0, 800 - (Date.now() - fpLast)));
-      });
-      function fpHideNow(instant) {
-        var ov = document.getElementById('fairy-progress-overlay');
-        if (fpCloseTimer) { clearTimeout(fpCloseTimer); fpCloseTimer = null; }
-        if (fpShowTimer) { clearTimeout(fpShowTimer); fpShowTimer = null; }
-        fpDone = false;
-        if (!ov) return;
-        if (instant) {
-          // no fade: a popup that takes over must not be cross-faded with this text
-          ov.style.transition = 'none';
-          ov.classList.remove('active');
-          requestAnimationFrame(function() { requestAnimationFrame(function() { ov.style.transition = ''; }); });
-        } else {
-          ov.classList.remove('active');
+        function $id(i) { return document.getElementById(i); }
+        function setCell(td, st) {
+          td.className = 'fairy-run-cell st-' + st;
+          td.setAttribute('data-state', st);
+          while (td.firstChild) td.removeChild(td.firstChild);
+          var ic = document.createElement('span'); ic.className = 'fairy-run-ico'; ic.setAttribute('aria-hidden', 'true'); ic.textContent = ICON[st];
+          var lb = document.createElement('span'); lb.className = 'fairy-run-lbl'; lb.textContent = LABEL[st];
+          td.appendChild(ic); td.appendChild(lb);
         }
-      }
-      // Success / finished state, shown in the same window.
-      Shiny.addCustomMessageHandler('fairy_progress_done', function(msg) {
-        var ov = document.getElementById('fairy-progress-overlay');
-        var t = document.getElementById('fairy-progress-overlay-title');
-        var b = document.getElementById('fairy-progress-overlay-body');
-        if (!ov) return;
-        if (fpTimer) { clearTimeout(fpTimer); fpTimer = null; }
-        fpPending = null;
-        if (fpCloseTimer) { clearTimeout(fpCloseTimer); fpCloseTimer = null; }
-        if (fpShowTimer) { clearTimeout(fpShowTimer); fpShowTimer = null; }
-        t.innerHTML = msg.title || '';
-        b.innerHTML = msg.text || '';
-        fpLast = Date.now();
-        fpDone = true;
-        ov.classList.add('active');
-      });
-      // The finished state can be dismissed at once with a click or Escape.
-      document.addEventListener('click', function(e) {
-        var ov = document.getElementById('fairy-progress-overlay');
-        if (fpDone && ov && ov.classList.contains('active') && ov.contains(e.target)) fpHideNow();
-      });
-      document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && fpDone) fpHideNow();
-      });
-      Shiny.addCustomMessageHandler('fairy_progress_close', function(msg) {
-        if (fpTimer) { clearTimeout(fpTimer); fpTimer = null; }
-        fpPending = null;
-        // Not on screen yet (the work was quick): just cancel the delayed show.
-        var ovc = document.getElementById('fairy-progress-overlay');
-        if (ovc && !ovc.classList.contains('active')) { fpHideNow(); return; }
-        // Hide only after a grace period: the next phase of the same Go click
-        // re-opens the dialog and simply continues in the same window.
-        if (fpCloseTimer) clearTimeout(fpCloseTimer);
-        fpCloseTimer = setTimeout(fpHideNow, 1500);
-      });
-      // A shinyalert popup (success / error) right after a close: hide the
-      // progress dialog immediately instead of letting two layers overlap.
-      new MutationObserver(function(muts) {
-        for (var i = 0; i < muts.length; i++) {
-          var added = muts[i].addedNodes;
-          for (var j = 0; j < added.length; j++) {
-            var n = added[j];
-            if (n.nodeType === 1 && (n.classList.contains('swal2-container') ||
-                (n.querySelector && n.querySelector('.swal2-popup, .sweet-alert')))) { fpHideNow(true); return; }
+        function noneCell(td) {
+          td.className = 'fairy-run-cell st-none'; td.setAttribute('data-state', 'none'); td.textContent = '\\u2013';
+        }
+        function ensureRow(name, kind) {
+          var r = rows[name];
+          if (!r) {
+            var tr = document.createElement('tr');
+            var tn = document.createElement('td'); tn.className = 'fairy-run-name'; tn.textContent = name;
+            var th = document.createElement('td'); noneCell(th);
+            var tv = document.createElement('td'); noneCell(tv);
+            tr.appendChild(tn); tr.appendChild(th); tr.appendChild(tv);
+            $id('fairy-run-body').appendChild(tr);
+            r = rows[name] = { tr: tr, name: tn, h: th, v: tv, kind: null };
           }
+          if (kind && kind !== 'model' && !r.kind) {
+            r.kind = kind;
+            var k = document.createElement('span'); k.className = 'fairy-run-kind'; k.textContent = kind;
+            r.name.appendChild(k);
+          }
+          return r;
         }
-      }).observe(document.body, { childList: true });
+        function refresh() {
+          var total = 0, done = 0, bad = 0;
+          Object.keys(rows).forEach(function(n) {
+            ['h', 'v'].forEach(function(c) {
+              var st = rows[n][c].getAttribute('data-state');
+              if (st === 'none') return;
+              total++;
+              if (st === 'done' || st === 'cached' || st === 'warn' || st === 'fail') done++;
+              if (st === 'warn' || st === 'fail') bad++;
+            });
+          });
+          $id('fairy-run-sub').textContent = total ? (done + ' of ' + total + ' steps done') : '';
+          $id('fairy-run-bar-fill').style.width = (total ? Math.round(100 * done / total) : 0) + '%';
+          return { total: total, done: done, bad: bad };
+        }
+        function show() { if (dismissed) return; shown = true; $id('fairy-run-overlay').classList.add('active'); }
+        function hide() {
+          if (showTimer) { clearTimeout(showTimer); showTimer = null; }
+          shown = false; $id('fairy-run-overlay').classList.remove('active');
+        }
+        Shiny.addCustomMessageHandler('fairy_run_begin', function(msg) {
+          rows = {}; $id('fairy-run-body').innerHTML = '';
+          $id('fairy-run-title').textContent = 'Calculating';
+          $id('fairy-run-note').innerHTML = '';
+          $id('fairy-run-close').classList.remove('visible');
+          $id('fairy-run-table-wrap').scrollTop = 0;
+          dismissed = false; everRan = false; running = true; refresh(); armIdle();
+          if (showTimer) clearTimeout(showTimer);
+          // only show it if the work takes a moment (instant runs need no window)
+          showTimer = setTimeout(function() { showTimer = null; if (running) show(); }, 300);
+        });
+        Shiny.addCustomMessageHandler('fairy_run_row', function(msg) {
+          var r = ensureRow(msg.name, msg.kind);
+          if (msg.h) { setCell(r.h, msg.h); if (msg.h === 'run') everRan = true; }
+          if (msg.v) { setCell(r.v, msg.v); if (msg.v === 'run') everRan = true; }
+          refresh(); armIdle();
+          if ((msg.h === 'run' || msg.v === 'run') && shown) r.tr.scrollIntoView({ block: 'nearest' });
+        });
+        Shiny.addCustomMessageHandler('fairy_run_end', function(msg) {
+          running = false;
+          if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+          if (showTimer) { clearTimeout(showTimer); showTimer = null; }
+          var c = refresh();
+          if (!everRan && !shown) { hide(); return; }
+          $id('fairy-run-title').textContent = c.bad > 0 ? 'Done, with warnings' : 'Done';
+          if (msg && msg.note) $id('fairy-run-note').innerHTML = msg.note;
+          $id('fairy-run-close').classList.add('visible');
+          show();
+          if (shown) $id('fairy-run-close').focus();
+        });
+        Shiny.addCustomMessageHandler('fairy_run_hide', function(msg) {
+          running = false;
+          if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+          hide();
+        });
+        function dismiss() { dismissed = true; hide(); }
+        document.addEventListener('DOMContentLoaded', function() {
+          $id('fairy-run-close').addEventListener('click', dismiss);
+          $id('fairy-run-overlay').addEventListener('click', function(e) {
+            if (!running && e.target === this) dismiss();
+          });
+        });
+        document.addEventListener('keydown', function(e) {
+          if (shown && (e.key === 'Escape' || (!running && e.key === 'Enter' && document.activeElement === $id('fairy-run-close')))) {
+            e.preventDefault(); dismiss();
+          }
+        });
+      })();
       "
     )),
     tags$script(HTML(
@@ -4869,9 +5015,9 @@ ui <- shinyUI(fluidPage(
           # (trivial-gray/trivial-hide) as before, just set directly by
           # each button instead of advanced by one shared cycling button.
           tags$div(class = "fairy-segmented", id = "trivial_ineq_toggle_group",
-            tags$button(type = "button", class = "active", `data-state` = "shown", icon("eye")),
-            tags$button(type = "button", `data-state` = "gray", icon("circle-half-stroke")),
-            tags$button(type = "button", `data-state` = "hide", icon("eye-slash"))
+            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Show trivial bounds", `data-state` = "shown", icon("eye")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Gray out trivial bounds", `data-state` = "gray", icon("circle-half-stroke")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Hide trivial bounds", `data-state` = "hide", icon("eye-slash"))
           ),
           # Two ways to lay out each H-rep table (all four Layout x
           # Color variants rendered server-side up front, see
@@ -4889,8 +5035,8 @@ ui <- shinyUI(fluidPage(
           # reason a single Aligned/Compact/Compact+color button used to
           # have.
           tags$div(class = "fairy-segmented", id = "h_layout_toggle_group",
-            tags$button(type = "button", class = "active", `data-state` = "aligned", icon("table-cells")),
-            tags$button(type = "button", `data-state` = "compact", icon("bars"))
+            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Aligned layout: one column per parameter", `data-state` = "aligned", icon("table-cells")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Compact layout: terms packed per row", `data-state` = "compact", icon("bars"))
           ),
           # Color (by parameter, see param_color_map) used to be
           # available ONLY under Compact, bundled into the same 3-way
@@ -4903,8 +5049,8 @@ ui <- shinyUI(fluidPage(
           # a hidden boolean on click still doesn't SHOW which state is
           # active without reading its own color/tooltip.
           tags$div(class = "fairy-segmented", id = "h_color_toggle_group",
-            tags$button(type = "button", class = "active", `data-state` = "off", icon("droplet-slash")),
-            tags$button(type = "button", `data-state` = "on", icon("droplet"))
+            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "No color", `data-state` = "off", icon("droplet-slash")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Color terms by parameter", `data-state` = "on", icon("droplet"))
           ),
           # Separates the display toggles above (Trivial bounds, Layout,
           # Color — all affect how the SAME data looks) from the
@@ -5331,124 +5477,24 @@ server <- shinyServer(function(input, output, session) {
 
   par_lapply_cores <- function() max(1L, parallel::detectCores(logical = FALSE) - 1L)
 
-  # Own-built "Computing X" progress overlay (#fairy-progress-overlay in
-  # the UI) — see that div's own comment for why this replaced repeated
-  # shinyalert() calls entirely instead of patching around them. Three
-  # calls cover the whole lifecycle of one batch:
-  #   fairy_progress_open(title, text)   — once, at the start of a batch
-  #   fairy_progress_update(title, text) — once per later model in that
-  #                                        batch (either arg may be
-  #                                        omitted/NULL to leave it as-is)
-  #   fairy_progress_close()             — once, when the batch is done
-  #                                        (or on error, before showing
-  #                                        the error shinyalert)
-  fairy_progress_open <- function(title, text) {
-    session$sendCustomMessage("fairy_progress_open", list(title = title, text = text))
+  # ---- One large, persistent run window (replaces the small progress popups) ----
+  # A Go click opens it once; every model is a table row with an H and a V
+  # column whose state changes in place (wait / run / done / cached / warn /
+  # fail). It stays on screen until the user closes it. Rows are created on
+  # first use, so intersections, mixtures and items models simply appear when
+  # their phase starts.
+  fairy_run_begin <- function() session$sendCustomMessage("fairy_run_begin", list())
+  fairy_run_row <- function(name, kind = NULL, h = NULL, v = NULL) {
+    msg <- Filter(Negate(is.null), list(name = as.character(name), kind = kind, h = h, v = v))
+    session$sendCustomMessage("fairy_run_row", msg)
   }
-  fairy_progress_update <- function(title = NULL, text = NULL) {
-    session$sendCustomMessage("fairy_progress_update",
-      list(title = title %||% NA, text = text %||% NA))
-  }
-  fairy_progress_close <- function() {
-    session$sendCustomMessage("fairy_progress_close", list())
-  }
-  # Success state inside the same window (instead of a separate shinyalert
-  # popup that opened and closed again between the phases of one Go click).
-  fairy_progress_done <- function(title, text) {
-    session$sendCustomMessage("fairy_progress_done", list(title = title, text = text))
-  }
-
-  # How long to hold each "Computing X" progress-dialog frame on screen
-  # before moving to the next model. A flat delay either flickers by too
-  # fast to read (a handful of models that each compute in a few ms) or
-  # adds seconds of pointless waiting (a long batch of many small models)
-  # — this scales the per-frame hold down as the batch grows, capped at
-  # both ends. Halved from an earlier 0.4s-2s range (direct user
-  # feedback: the feedback screens sat too long) — still readable, just
-  # snappier, with the same shape (tapering down once a batch is
-  # genuinely large) preserved.
-  fairy_progress_hold <- function(total) {
-    if (is.null(total) || total < 1) total <- 1
-    0.05
-  }
-
-  # Show whole chips only, never a row sliced off mid-chip by a
-  # max-height/overflow clip (which, seen in a static popup that isn't
-  # actively being scrolled, just reads as broken/overlapping content).
-  # A capped chip count plus a "+N more" chip guarantees every visible
-  # row is complete, regardless of how many models are in the batch.
-  # Shared by fairy_progress_text() and fairy_success_chips() below.
-  fairy_chip_row <- function(label_html, chips, chip_class, max_n = 12, latest = FALSE) {
-    if (is.null(chips) || length(chips) == 0) return("")
-    # latest = TRUE (the Done list): chronological order, and when capped the
-    # NEWEST chips stay visible with the overflow marker in front. Earlier
-    # chips then keep their position as new ones are appended at the end.
-    shown <- if (length(chips) > max_n) {
-      if (latest) utils::tail(chips, max_n) else chips[seq_len(max_n)]
-    } else chips
-    more_n <- length(chips) - length(shown)
-    more_html <- if (more_n > 0)
-      paste0("<span class='", chip_class, " fairy-progress-chip-more'>+", more_n, if (latest) " earlier" else " more", "</span>") else ""
-    chips_html <- paste0("<span class='", chip_class, "'>", shown, "</span>", collapse = "")
-    paste0(
-      label_html,
-      "<div class='", chip_class, "s'>",
-      if (latest) paste0(more_html, chips_html) else paste0(chips_html, more_html),
-      "</div>"
-    )
-  }
-
-  # Builds the shinyalert progress-dialog body used while H-representations,
-  # V-representations, intersections, and mixtures are computed. Keeps
-  # "already done" (a faded list below a divider) visually separate from
-  # "currently running" (the spinner/bar above it), and — when running under
-  # the parallel-computation switch — surfaces that mode and the core count
-  # instead of leaving it invisible to the user.
-  fairy_progress_text <- function(items = NULL, done = NULL, total = NULL, parallel = FALSE, n_jobs = NULL) {
-    # Quiet, fixed layout: while computing, only the counter and the bar
-    # change. Neither the current model nor the finished ones are listed here
-    # (a sequence of per-model screens and a growing chip list read as
-    # flicker); the models appear once, in the success state at the end.
-    cores_html <- if (isTRUE(parallel)) {
-      # mclapply/parLapply never spawn more workers than there are jobs, so
-      # showing the machine's full core budget when there are fewer jobs
-      # than that would overstate how many cores are actually in use.
-      cores_used <- if (!is.null(n_jobs)) min(par_lapply_cores(), max(1L, n_jobs)) else par_lapply_cores()
-      paste0("<div class='fairy-progress-cores'>&#9889; Parallel &middot; ", cores_used, " core",
-        if (cores_used == 1) "" else "s", "</div>")
-    } else ""
-    # One fixed line with the TOTAL (it never changes during the run). The
-    # individual models are deliberately not shown one after another while
-    # computing: a sequence of per-model screens read as flicker.
-    n_all <- if (!is.null(total) && total > 0) total else if (!is.null(items)) length(items) else n_jobs
-    now_html <- if (!is.null(n_all) && n_all > 0) paste0(
-      "<div class='fairy-progress-sub'>", n_all, " model", if (n_all == 1) "" else "s", "</div>") else ""
-    if (!is.null(total) && total > 0) {
-      pct <- round(100 * length(done) / total)
-      bar_html <- paste0(
-        "<div class='fairy-progress-bar-track'><div class='fairy-progress-bar-fill' style='width:", pct, "%;'></div></div>",
-        "<div class='fairy-progress-count'>", length(done), " / ", total, "</div>"
-      )
-    } else {
-      bar_html <- "<div class='fairy-progress-bar-track'><div class='fairy-progress-bar-indeterminate'></div></div>"
-    }
-    paste0("<div class='fairy-progress-wrap'>", cores_html, now_html, bar_html, "</div>")
-  }
-
-  # Companion to fairy_progress_text() for the final success dialog after a
-  # batch finishes: same chip-list treatment as the "Done" section above,
-  # without the spinner/bar — keeps the shinyalert title short (a long
-  # semicolon-separated model list as an h2 title wraps badly) while still
-  # naming every model that was built.
-  fairy_success_chips <- function(items) {
-    if (is.null(items) || length(items) == 0) return("")
-    paste0(
-      "<div class='fairy-progress-wrap'><div class='fairy-progress-done' style='margin-top:0;padding-top:0;border-top:none;'>",
-      # Same chronological ordering as the Done list of fairy_progress_text()
-      # (see its comment), since this is exactly that list's final state.
-      fairy_chip_row("", items, "fairy-progress-done-chip", latest = TRUE),
-      "</div></div>"
-    )
+  fairy_run_end <- function(note = "") session$sendCustomMessage("fairy_run_end", list(note = note))
+  fairy_run_hide <- function() session$sendCustomMessage("fairy_run_hide", list())
+  fairy_empty_set_note <- function(empty_set) {
+    if (length(empty_set) == 0) return("")
+    paste0("<b>Warning:</b> do not interpret the H- and V-descriptions of model(s) ",
+      paste0(htmltools::htmlEscape(empty_set), collapse = ", "),
+      " — they form an empty set. For instance, the input 'p1 > .5; p1 < .1' cannot be simultaneously satisfied.")
   }
 
   shinyjs::html(
@@ -10993,7 +11039,8 @@ server <- shinyServer(function(input, output, session) {
 
       cache <- isolate(model_snap_cache())
       recomputed_models <- character()
-      h_dialog_open <- FALSE
+      fairy_run_begin()
+      for (nm_run in mytable_input[seq_len(numb_models_to_convert), 1]) fairy_run_row(nm_run, "model", h = "wait")
 
       for (loop_numb_models in 1:numb_models_to_convert) {
         name_m <- mytable_input[loop_numb_models, 1]
@@ -11018,24 +11065,12 @@ server <- shinyServer(function(input, output, session) {
             identical(cache[[name_m]], model_snap) &&
             !is.null(isolate(h_reactive[[name_m]]))) {
           feedback_name <- c(feedback_name, name_m)
+          fairy_run_row(name_m, h = "cached")
           next
         }
         recomputed_models <- c(recomputed_models, name_m)
 
-        all_h_names <- mytable_input[seq_len(numb_models_to_convert), 1]
-        h_prog_title <- "Computing H-representation"
-        h_prog_text <- fairy_progress_text(
-          items = setdiff(all_h_names, feedback_name),
-          done = feedback_name, total = numb_models_to_convert)
-        if (!h_dialog_open) {
-          fairy_progress_open(h_prog_title, h_prog_text)
-          h_dialog_open <- TRUE
-        } else {
-          fairy_progress_update(title = h_prog_title, text = h_prog_text)
-        }
-        Sys.sleep(fairy_progress_hold(numb_models_to_convert))
-
-
+        fairy_run_row(name_m, h = "run")
 
         feedback_name <- c(feedback_name, name_m)
 
@@ -11093,7 +11128,8 @@ server <- shinyServer(function(input, output, session) {
             )
           }
 
-          fairy_progress_close()
+          fairy_run_row(name_m, h = "fail")
+          fairy_run_hide()
           shinyalert(
             title = paste0("Could not read the specification of model ", name_m, "."),
             text = msg,
@@ -11208,33 +11244,7 @@ server <- shinyServer(function(input, output, session) {
           empty_set <- c(empty_set, mytable_input[loop_numb_models, 1])
         }
 
-        if (loop_numb_models == numb_models_to_convert) {
-          # When the V-representation step follows in this same Go, its final
-          # success state lists everything once; a separate "H-representation
-          # created" screen right before it would just be one more screen in
-          # the sequence. The window then simply continues with the next phase.
-          v_follows <- tryCatch(
-            !is.null(mytable_v_reactive$value) && sum(mytable_v_reactive$value[, 2]) > 0,
-            error = function(e) FALSE)
-        }
-        if (loop_numb_models == numb_models_to_convert && isTRUE(v_follows)) {
-          fairy_progress_close()
-        } else if (loop_numb_models == numb_models_to_convert) {
-          show_title <- "H-representation created"
-          add_text <- fairy_success_chips(feedback_name)
-          if (length(empty_set) > 0) {
-            add_text <- paste0(add_text,
-              "<p style='margin-top:12px;color:#b05000;font-size:13px;'><b>Warning:</b> do not interpret the ",
-              "H-description of model(s) ", paste0(empty_set, collapse = ", "), " — they form an empty set. ",
-              "For instance, the input 'p1 > .5; p1 < .1' cannot be simultaneously satisfied.</p>")
-          }
-          # Same window as the progress display: it switches to the success
-          # state, stays for a moment, and the next phase simply continues in
-          # it (or it closes when nothing follows).
-          fairy_progress_done(show_title, add_text)
-          Sys.sleep(1.8)
-          fairy_progress_close()
-        }
+        fairy_run_row(name_m, h = if (valid_hrep == 0) "warn" else "done")
       }
 
       model_snap_cache(cache)
@@ -11331,12 +11341,7 @@ server <- shinyServer(function(input, output, session) {
       }
 
       if (length(int_jobs) > 0) {
-        fairy_progress_open(
-          "Computing model intersection(s)",
-          fairy_progress_text(items = names(int_jobs),
-            parallel = isTRUE(isolate(input$use_parallel)), n_jobs = length(int_jobs))
-        )
-        Sys.sleep(fairy_progress_hold(length(int_jobs)))
+        for (nm_run in names(int_jobs)) fairy_run_row(nm_run, "intersection", h = "run")
 
         h_snapshot <- setNames(
           lapply(names(h_reactive), function(m) isolate(h_reactive[[m]])),
@@ -11369,9 +11374,12 @@ server <- shinyServer(function(input, output, session) {
           res <- int_results[[int_name]]
           if (res$status == "incompatible") {
             incompatible_ints <- c(incompatible_ints, int_name)
+            fairy_run_row(int_name, h = "fail")
           } else if (res$status == "disjoint") {
             disjoint_pairs <- c(disjoint_pairs, int_name)
+            fairy_run_row(int_name, h = "warn")
           } else if (res$status == "ok" && !is.null(res$h)) {
+            fairy_run_row(int_name, h = "done")
             h_reactive[[int_name]] <- res$h
             intersection_names <- c(intersection_names, int_name)
             # Without this, the later V-representation recompute check
@@ -11389,8 +11397,6 @@ server <- shinyServer(function(input, output, session) {
             type = "warning", closeOnClickOutside = TRUE
           )
         }
-
-        fairy_progress_close()
       }
 
       intersections_reactive$names <- intersection_names
@@ -11418,7 +11424,6 @@ server <- shinyServer(function(input, output, session) {
 
       if (length(mixture_specs) > 0) {
         mix_feedback <- character()
-        mix_dialog_open <- FALSE
         all_mix_names <- vapply(names(mixture_specs), function(mix_key) {
           mix_row_idx <- suppressWarnings(as.integer(mix_key))
           if (is.na(mix_row_idx) || mix_row_idx > nrow(mytable_input)) return(NA_character_)
@@ -11439,18 +11444,7 @@ server <- shinyServer(function(input, output, session) {
 
           if (length(selected_mix) < 2) next
 
-          mix_prog_title <- "Computing mixture model(s)"
-          mix_prog_text <- fairy_progress_text(
-            items = setdiff(all_mix_names, mix_feedback),
-            done = mix_feedback, total = length(mixture_specs),
-            parallel = isTRUE(isolate(input$use_parallel)), n_jobs = length(selected_mix))
-          if (!mix_dialog_open) {
-            fairy_progress_open(mix_prog_title, mix_prog_text)
-            mix_dialog_open <- TRUE
-          } else {
-            fairy_progress_update(title = mix_prog_title, text = mix_prog_text)
-          }
-          Sys.sleep(fairy_progress_hold(length(mixture_specs)))
+          fairy_run_row(mix_name, "mixture", h = "run")
 
           # The model H-reps do not include simplex constraints, so their raw
           # V-reps contain only rays/lines (no finite vertices).  To compute a
@@ -11479,8 +11473,7 @@ server <- shinyServer(function(input, output, session) {
           })
           V_sel <- Filter(function(v) !is.null(v) && nrow(v) > 0, V_sel)
           if (length(V_sel) == 0) {
-            fairy_progress_close()
-            mix_dialog_open <- FALSE
+            fairy_run_row(mix_name, h = "fail")
             next
           }
 
@@ -11491,8 +11484,7 @@ server <- shinyServer(function(input, output, session) {
           if (length(unique(na.omit(mix_ncols))) > 1) {
             ref_ncols <- mix_ncols[1]
             bad_models <- selected_mix[!is.na(mix_ncols) & mix_ncols != ref_ncols]
-            fairy_progress_close()
-            mix_dialog_open <- FALSE
+            fairy_run_row(mix_name, h = "fail")
             shinyalert(
               title = "Incompatible parameter spaces",
               text  = paste0(
@@ -11528,8 +11520,8 @@ server <- shinyServer(function(input, output, session) {
             mixture_names <- c(mixture_names, mix_name)
           }
           mix_feedback <- c(mix_feedback, mix_name)
+          fairy_run_row(mix_name, h = if (!is.null(mix_result)) "done" else "fail")
         }
-        if (mix_dialog_open) fairy_progress_close()
       }
 
       mixtures_reactive$names <- mixture_names
@@ -11539,7 +11531,6 @@ server <- shinyServer(function(input, output, session) {
 
       items_names  <- character()
       items_specs  <- isolate(mytable_items_reactive$value)
-      items_dialog_open <- FALSE
       # Parallel to items_specs — records the computed items_name actually
       # used for h_reactive under THIS spec's position, filled in below
       # regardless of whether it was freshly computed or reused from
@@ -11595,17 +11586,9 @@ server <- shinyServer(function(input, output, session) {
             if (!is.null(cached_h) && !base_m %in% recomputed_models &&
                 identical(attr(cached_h, "type_assignment"), cur_assignment)) {
               items_names <- c(items_names, items_name)
+              fairy_run_row(items_name, "items", h = "cached")
             } else {
-              items_prog_title <- "Computing items model(s)"
-              items_prog_text <- fairy_progress_text(
-                items = items_name, done = items_names)
-              if (!items_dialog_open) {
-                fairy_progress_open(items_prog_title, items_prog_text)
-                items_dialog_open <- TRUE
-              } else {
-                fairy_progress_update(title = items_prog_title, text = items_prog_text)
-              }
-              Sys.sleep(0.05)
+              fairy_run_row(items_name, "items", h = "run")
 
               h_it <- tryCatch({
                 # build_items_h_mixed honors each factor's own type
@@ -11628,9 +11611,9 @@ server <- shinyServer(function(input, output, session) {
                 h_reactive[[items_name]] <- h_it
                 items_names <- c(items_names, items_name)
                 recomputed_models <- c(recomputed_models, items_name)
+                fairy_run_row(items_name, h = "done")
               } else {
-                fairy_progress_close()
-                items_dialog_open <- FALSE
+                fairy_run_row(items_name, h = "fail")
                 shinyalert(title = paste0("Failed: ", items_name),
                   text = "Check the R console for details.",
                   type = "error", closeOnClickOutside = TRUE)
@@ -11638,7 +11621,6 @@ server <- shinyServer(function(input, output, session) {
             }
           }
         }
-        if (items_dialog_open) fairy_progress_close()
       }
 
       # An items row's REAL data always lives in h_reactive under its
@@ -11737,6 +11719,9 @@ server <- shinyServer(function(input, output, session) {
           logical(1)
         )]
 
+        for (m_run in models_picked_for_v_representation)
+          fairy_run_row(m_run, v = if (m_run %in% models_to_compute_v) "wait" else "cached")
+
         if (length(models_to_compute_v) > 0 && isTRUE(isolate(input$use_parallel))) {
           # Each model's V-representation (vertex enumeration via scdd()) is
           # independent of the others, so this is the actual heavy lifting
@@ -11744,10 +11729,7 @@ server <- shinyServer(function(input, output, session) {
           # meaningful "currently computing" single model to name — the
           # popup instead acknowledges parallel mode and the core count.
           n_v_jobs <- length(models_to_compute_v)
-          fairy_progress_open("Computing V-representation(s)",
-            fairy_progress_text(items = models_to_compute_v, parallel = TRUE, n_jobs = n_v_jobs))
-          v_batch_start <- Sys.time()
-          Sys.sleep(fairy_progress_hold(n_v_jobs))
+          for (m_run in models_to_compute_v) fairy_run_row(m_run, v = "run")
 
           h_v_snapshot <- setNames(
             lapply(models_to_compute_v, function(m) isolate(h_reactive[[m]])),
@@ -11764,68 +11746,39 @@ server <- shinyServer(function(input, output, session) {
             h_cn_m <- v_results[[m]]$h_cn_m
             if (is.null(res) || nrow(data.frame(res)) == 0) {
               invalid_model <- c(invalid_model, m)
+              fairy_run_row(m, v = "fail")
             } else {
               colnames(res$output) <- if (!is.null(h_cn_m) && length(h_cn_m) == ncol(res$output)) h_cn_m else names_p_multi
               v_reactive[[m]] <- res
+              fairy_run_row(m, v = "done")
             }
           }
-          # Parallel mode computes every model in ONE batch (a single
-          # dialog frame), so it can otherwise finish and vanish before
-          # the dialog even registers, unlike the sequential H-rep loop
-          # which naturally holds once per model. An earlier attempt at
-          # this scaled the pad by job count and badly overshot for small
-          # batches (multi-second freezes reported as "much slower" than
-          # H-rep) — capped at a single fairy_progress_hold() worth here
-          # instead, same as one extra "frame", regardless of batch size.
-          v_elapsed <- as.numeric(difftime(Sys.time(), v_batch_start, units = "secs"))
-          v_target_total <- fairy_progress_hold(n_v_jobs)
-          if (v_elapsed < v_target_total) Sys.sleep(v_target_total - v_elapsed)
-          fairy_progress_close()
         } else if (length(models_to_compute_v) > 0) {
           # Not in parallel mode: compute one model at a time, same
           # current-vs-done popup style as the H-representation loop above.
-          v_done <- character()
-          v_dialog_open <- FALSE
           for (m in models_to_compute_v) {
-            v_prog_title <- "Computing V-representation(s)"
-            v_prog_text <- fairy_progress_text(
-              items = setdiff(models_to_compute_v, v_done),
-              done = v_done, total = length(models_to_compute_v))
-            if (!v_dialog_open) {
-              fairy_progress_open(v_prog_title, v_prog_text)
-              v_dialog_open <- TRUE
-            } else {
-              fairy_progress_update(title = v_prog_title, text = v_prog_text)
-            }
-            Sys.sleep(fairy_progress_hold(length(models_to_compute_v)))
+            fairy_run_row(m, v = "run")
 
             h_m <- isolate(h_reactive[[m]])
             res <- tryCatch(scdd(h_m), error = function(e) NULL)
             if (is.null(res) || nrow(data.frame(res)) == 0) {
               invalid_model <- c(invalid_model, m)
+              fairy_run_row(m, v = "fail")
             } else {
               h_cn_m <- colnames(h_m)
               colnames(res$output) <- if (!is.null(h_cn_m) && length(h_cn_m) == ncol(res$output)) h_cn_m else names_p_multi
               v_reactive[[m]] <- res
+              fairy_run_row(m, v = "done")
             }
-            v_done <- c(v_done, m)
           }
         }
 
-        v_add_text <- fairy_success_chips(models_picked_for_v_representation)
-        if (length(empty_set) > 0) {
-          v_add_text <- paste0(v_add_text,
-            "<p style='margin-top:12px;color:#b05000;font-size:13px;'><b>Warning:</b> do not interpret the H ",
-            "and V-descriptions of model(s) ", paste0(empty_set, collapse = ", "), " — they form an empty set. ",
-            "For instance, the input 'p1 > .5; p1 < .1' cannot be simultaneously satisfied.</p>")
-        }
-        fairy_progress_done("V-representation created", v_add_text)
-        Sys.sleep(2.4)
-        fairy_progress_close()
+        fairy_run_end(fairy_empty_set_note(empty_set))
       } else {
         hideTab(inputId = "tabs", target = "V-representation")
         hideTab(inputId = "tabs", target = "Plot Polytope(s)")
         hideTab(inputId = "tabs", target = "Plot Edge Cases")
+        fairy_run_end(fairy_empty_set_note(empty_set))
       }
 
       ####* Display Formula H-Representation ####
