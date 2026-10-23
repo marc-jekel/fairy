@@ -1950,6 +1950,8 @@ ui <- shinyUI(fluidPage(
         line-height: 1.2;
         font-size: 10.5px;
       }
+      /* Bootstrap floats the nav list left from 768px up, which shrank the text box to the left */
+      #banner { float: none !important; width: 100% !important; margin: 0 !important; }
       #banner p.fairy-banner-text { text-align: center; color: rgba(255, 255, 255, 0.62); letter-spacing: 0.01em; }
       #banner p.fairy-banner-text a { color: rgba(255, 255, 255, 0.9); text-decoration: underline; text-underline-offset: 2px; }
       #banner p.fairy-banner-text a:hover { color: #fff; }
