@@ -1533,6 +1533,31 @@ ui <- shinyUI(fluidPage(
       body.dark-mode .model-card .fairy-kind-mixture { color: #c4b5fd; }
       body.dark-mode .model-card .fairy-kind-items { color: #fcd34d; }
       .model-card .fairy-handle:focus-visible { outline: 3px solid var(--fairy-primary, #3a6df0); outline-offset: -3px; }
+      .model-card .fairy-handle { touch-action: none; }
+      .fairy-toast {
+        position: fixed; left: 50%; bottom: 52px; transform: translateX(-50%);
+        z-index: 3000; padding: 8px 16px; border-radius: 999px;
+        background: rgba(30, 36, 52, 0.94); color: #fff; font-size: 12.5px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); transition: opacity 0.4s ease;
+      }
+      .fairy-toast-out { opacity: 0; }
+      #fairy-kbd-help {
+        position: fixed; inset: 0; z-index: 3100; display: flex; align-items: center; justify-content: center;
+        background: rgba(15, 20, 34, 0.45);
+      }
+      .fairy-kbd-card {
+        background: var(--fairy-panel, #fff); color: var(--fairy-text, #222); border: 1px solid var(--fairy-border, #e3e6ee);
+        border-radius: 14px; padding: 20px 24px; min-width: 320px; max-width: 92vw;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25); font-size: 13px;
+      }
+      .fairy-kbd-title { font-weight: 700; font-size: 15px; margin-bottom: 12px; }
+      .fairy-kbd-row { display: flex; gap: 18px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--fairy-border, #e3e6ee); }
+      .fairy-kbd-keys { flex: 0 0 210px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--fairy-primary, #3a6df0); }
+      .fairy-kbd-close {
+        margin-top: 14px; border: 1px solid var(--fairy-border, #e3e6ee); background: transparent; color: inherit;
+        border-radius: 8px; padding: 5px 14px; font-size: 12.5px; cursor: pointer;
+      }
+      .fairy-kbd-close:focus-visible { outline: 3px solid var(--fairy-primary, #3a6df0); outline-offset: 2px; }
       .fairy-card-dragging { opacity: 0.45; }
       /* Free layout: cards positioned anywhere inside the wrap */
       .fairy-h-cards-wrap.fairy-free, .fairy-h-cards-wrap.fairy-packed { position: relative; display: block !important; }
@@ -4566,6 +4591,149 @@ ui <- shinyUI(fluidPage(
     )),
     tags$script(HTML(
       "
+      // ---- Share link: the whole input lives in the URL hash (#s=...) ----
+      (function() {
+        function toast(msg) {
+          var t = document.createElement('div');
+          t.className = 'fairy-toast'; t.setAttribute('role', 'status'); t.textContent = msg;
+          document.body.appendChild(t);
+          setTimeout(function() { t.classList.add('fairy-toast-out'); }, 2200);
+          setTimeout(function() { t.remove(); }, 2700);
+        }
+        function copyText(text) {
+          if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+          return new Promise(function(res, rej) {
+            var ta = document.createElement('textarea');
+            ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.select();
+            var ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+            ta.remove(); ok ? res() : rej();
+          });
+        }
+        Shiny.addCustomMessageHandler('fairy_share', function(m) {
+          var base = location.origin + location.pathname + location.search;
+          var url = base + '#s=' + m.token;
+          copyText(url).then(function() { toast('Link copied to the clipboard'); })
+            .catch(function() { window.prompt('Copy this link:', url); });
+        });
+        // opening a link with #s=... restores that input once the app is up
+        $(document).one('shiny:connected', function() {
+          var m = /^#s=([A-Za-z0-9_-]+)$/.exec(location.hash || '');
+          if (!m) return;
+          $(document).one('shiny:idle', function() {
+            setTimeout(function() {
+              Shiny.setInputValue('share_payload', m[1], { priority: 'event' });
+              try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+            }, 300);
+          });
+        });
+      })();
+
+      // ---- Keyboard shortcut help (press ? or use the link in the bottom bar) ----
+      (function() {
+        var rows = [
+          ['\\u2318/Ctrl + Enter', 'Go: recalculate'],
+          ['\\u2318/Ctrl + Shift + +  /  \\u2212', 'Add / remove a model'],
+          ['\\u2325 + Enter', 'Add a model and jump into its specification'],
+          ['\\u2318/Ctrl + Alt + +  /  \\u2212', 'Add / remove a probability'],
+          ['Alt + arrow keys', 'Move a model tile (focus its top bar first)'],
+          ['Esc', 'Close a full-screen tile or dialog'],
+          ['?', 'Show this list']
+        ];
+        var box = null, opener = null;
+        function close() { if (box) { box.remove(); box = null; if (opener && opener.focus) opener.focus(); } }
+        function open() {
+          if (box) return;
+          opener = document.activeElement;
+          box = document.createElement('div');
+          box.id = 'fairy-kbd-help'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', 'Keyboard shortcuts');
+          var card = document.createElement('div'); card.className = 'fairy-kbd-card';
+          var h = document.createElement('div'); h.className = 'fairy-kbd-title'; h.textContent = 'Keyboard shortcuts';
+          card.appendChild(h);
+          rows.forEach(function(r) {
+            var row = document.createElement('div'); row.className = 'fairy-kbd-row';
+            var k = document.createElement('span'); k.className = 'fairy-kbd-keys'; k.textContent = r[0];
+            var d = document.createElement('span'); d.textContent = r[1];
+            row.appendChild(k); row.appendChild(d); card.appendChild(row);
+          });
+          var b = document.createElement('button'); b.type = 'button'; b.className = 'fairy-kbd-close'; b.textContent = 'Close';
+          b.addEventListener('click', close); card.appendChild(b);
+          box.appendChild(card);
+          box.addEventListener('click', function(e) { if (e.target === box) close(); });
+          document.body.appendChild(box); b.focus();
+        }
+        document.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape' && box) { e.preventDefault(); close(); return; }
+          if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+            var t = e.target, tag = t && t.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+            e.preventDefault(); box ? close() : open();
+          }
+        });
+        document.addEventListener('click', function(e) {
+          var a = e.target.closest && e.target.closest('#fairy-kbd-open');
+          if (a) { e.preventDefault(); open(); }
+        });
+      })();
+
+      // ---- Touch / pen: move a tile in the packed layout by its top bar ----
+      (function() {
+        var d = null;
+        function names(wrap) {
+          return Array.prototype.filter.call(wrap.querySelectorAll('.model-card'), function(c) {
+            return c.closest('.fairy-h-cards-wrap') === wrap && c.querySelector('.model-card-title');
+          }).map(function(c) { return c.querySelector('.model-card-title').textContent.trim(); });
+        }
+        function clear() {
+          document.querySelectorAll('.fairy-drop-before, .fairy-drop-after').forEach(function(c) { c.classList.remove('fairy-drop-before', 'fairy-drop-after'); });
+        }
+        document.addEventListener('dragstart', function(e) {
+          if (d && e.target.closest && e.target.closest('.fairy-handle')) e.preventDefault();
+        }, true);
+        document.addEventListener('pointerdown', function(e) {
+          if (e.pointerType === 'mouse' || e.button > 0) return;
+          var h = e.target.closest && e.target.closest('.fairy-handle');
+          if (!h || h.closest('.fairy-free')) return;
+          var card = h.closest('.model-card'), wrap = card && card.closest('.fairy-h-cards-wrap');
+          if (!wrap) return;
+          d = { card: card, wrap: wrap, x: e.clientX, y: e.clientY, over: null, side: null, id: e.pointerId, h: h };
+          try { h.setPointerCapture(e.pointerId); } catch (err) {}
+          card.style.zIndex = '50'; card.style.opacity = '0.85'; card.style.pointerEvents = 'none';
+          e.preventDefault();
+        });
+        document.addEventListener('pointermove', function(e) {
+          if (!d || e.pointerId !== d.id) return;
+          d.card.style.transform = 'translate(' + (e.clientX - d.x) + 'px,' + (e.clientY - d.y) + 'px)';
+          var el = document.elementFromPoint(e.clientX, e.clientY), over = el && el.closest && el.closest('.model-card');
+          clear(); d.over = null;
+          if (over && over !== d.card && over.closest('.fairy-h-cards-wrap') === d.wrap) {
+            var r = over.getBoundingClientRect();
+            d.side = e.clientX < r.left + r.width / 2 ? 'before' : 'after';
+            over.classList.add(d.side === 'before' ? 'fairy-drop-before' : 'fairy-drop-after'); d.over = over;
+          }
+        });
+        function finish(e) {
+          if (!d || e.pointerId !== d.id) return;
+          var c = d.card;
+          c.style.transform = ''; c.style.zIndex = ''; c.style.opacity = ''; c.style.pointerEvents = '';
+          clear();
+          if (d.over) {
+            d.over.parentNode.insertBefore(c, d.side === 'before' ? d.over : d.over.nextSibling);
+            try {
+              var cur = JSON.parse(sessionStorage.getItem('fairyCardOrder') || '[]'), n = names(d.wrap);
+              sessionStorage.setItem('fairyCardOrder', JSON.stringify(n.concat(cur.filter(function(x) { return n.indexOf(x) < 0; }))));
+            } catch (err) {}
+            window.dispatchEvent(new Event('resize'));
+          }
+          d = null;
+        }
+        document.addEventListener('pointerup', finish);
+        document.addEventListener('pointercancel', finish);
+      })();
+      "
+    )),
+    tags$script(HTML(
+      "
       // When this app is embedded in another page (modeling-for-everyone.eu)
       // and the server connection is lost (crash, restart, timeout), tell the
       // embedding page so it can unload the frame and offer a Load app button
@@ -5177,6 +5345,9 @@ ui <- shinyUI(fluidPage(
             # there's no separate copy of "what counts as filled in" to
             # keep in sync and no polling-interval timing to get wrong.
             downloadButton("download", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn fairy-btn-muted")
+          ),
+          tags$span(class = "fairy-tooltip", `data-tooltip` = "Copy a link to this input",
+            actionButton("share_request", NULL, icon = icon("link"), class = "fairy-toolbar-iconbtn")
           ),
           # A hand-rolled <input type=file> here would NOT get Shiny's
           # real upload wiring (the multipart POST + progress bar live in
@@ -5857,6 +6028,28 @@ server <- shinyServer(function(input, output, session) {
     session$sendCustomMessage("fairy_run_row", msg)
   }
   fairy_run_end <- function(note = "") session$sendCustomMessage("fairy_run_end", list(note = note))
+
+  # An unexpected R error inside a big computation block used to end the session (greyed-out
+  # app). Report it in the run window / as a notification instead and keep the session alive.
+  fairy_report_error <- function(e, where) {
+    msg <- conditionMessage(e)
+    message("[fairy] error in ", where, ": ", msg)
+    if (identical(where, "go_v_h")) {
+      fairy_run_end(paste0("<b>Error:</b> the calculation stopped (", htmltools::htmlEscape(msg),
+        "). Your input is unchanged; please check the models and try again."))
+    } else {
+      showNotification(paste0("Something went wrong (", msg, "). Please check your input and try again."),
+        type = "error", duration = 12)
+    }
+  }
+  observe_guarded <- function(event, handler, where = "go") {
+    ev <- substitute(event); hd <- substitute(handler); env <- parent.frame()
+    observeEvent(
+      eventExpr = ev,
+      handlerExpr = bquote(tryCatch(.(hd), error = function(e) fairy_report_error(e, .(where)))),
+      event.quoted = TRUE, handler.quoted = TRUE, event.env = env, handler.env = env
+    )
+  }
   fairy_run_hide <- function() session$sendCustomMessage("fairy_run_hide", list())
   fairy_empty_set_note <- function(empty_set) {
     if (length(empty_set) == 0) return("")
@@ -5867,7 +6060,7 @@ server <- shinyServer(function(input, output, session) {
 
   shinyjs::html(
     id = "banner",
-    html = "<p class='fairy-banner-text'>Beta release 07/28/26 &middot; under active development &middot; <a href='mailto:mjekel@uni-koeln.de?subject=bug-report fairy app'>report a bug</a></p>",
+    html = "<p class='fairy-banner-text'>Beta release 07/28/26 &middot; under active development &middot; <a href='mailto:mjekel@uni-koeln.de?subject=bug-report fairy app'>report a bug</a> &middot; <a href='#' id='fairy-kbd-open'>keyboard shortcuts (?)</a></p>",
     add = TRUE
   )
 
@@ -8914,11 +9107,10 @@ server <- shinyServer(function(input, output, session) {
 
   #### Download ####
 
-  output$download <- downloadHandler(
-    filename = function() {
-      paste0("user_input_", Sys.Date(), ".xlsx", sep = "")
-    },
-    content = function(file) {
+  # Writes the complete app input (names, specifications, intersections, mixtures,
+  # items, tolerances, V selection) to an .xlsx file. Used by the Download button and
+  # by the share link, so both carry exactly the same information.
+  build_user_input <- function() {
       missing_table <- data.frame("none")
       colnames(missing_table) <- ""
 
@@ -9011,8 +9203,14 @@ server <- shinyServer(function(input, output, session) {
         "Item model spec idx" = data.frame(json = as.character(item_spec_idx_json))
       )
 
-      write_xlsx(out, file)
-    }
+      out
+  }
+  write_user_input <- function(file) write_xlsx(build_user_input(), file)
+  output$download <- downloadHandler(
+    filename = function() {
+      paste0("user_input_", Sys.Date(), ".xlsx", sep = "")
+    },
+    content = function(file) write_user_input(file)
   )
   # Without this, Shiny SUSPENDS this output (default suspendWhenHidden
   # = TRUE, checked per DOM element) rather than ever sending it a real
@@ -9096,7 +9294,51 @@ server <- shinyServer(function(input, output, session) {
     lapply(raw, function(s) as.integer(unlist(s)))
   }
 
+  # The restore below reads from upload_file(): an uploaded .xlsx or one decoded from a share link.
+  upload_file <- reactiveVal(NULL)
+  upload_trigger <- reactiveVal(0)
   observeEvent(input$upload, {
+    upload_file(input$upload$datapath)
+    upload_trigger(isolate(upload_trigger()) + 1)
+  })
+
+  # Share link: the whole input travels in the URL hash (#s=...), so nothing is stored on the server.
+  observeEvent(input$share_request, {
+    tok <- tryCatch({
+      js <- toJSON(isolate(build_user_input()), dataframe = "columns", na = "null", digits = NA)
+      raw <- memCompress(charToRaw(as.character(js)), type = "gzip")
+      chartr("+/", "-_", gsub("=+$", "", gsub("\\s", "", jsonlite::base64_enc(raw))))
+    }, error = function(e) NULL)
+    if (is.null(tok)) {
+      showNotification("The share link could not be created.", type = "error")
+      return()
+    }
+    session$sendCustomMessage("fairy_share", list(token = tok))
+  })
+  observeEvent(input$share_payload, {
+    tok <- as.character(input$share_payload)
+    if (length(tok) != 1 || is.na(tok) || nchar(tok) > 1e6 || !grepl("^[A-Za-z0-9_-]+$", tok)) return()
+    tok <- chartr("-_", "+/", tok)
+    tok <- paste0(tok, strrep("=", (4 - nchar(tok) %% 4) %% 4))
+    tmp <- tempfile(fileext = ".xlsx")
+    ok <- tryCatch({
+      txt <- rawToChar(memDecompress(jsonlite::base64_dec(tok), type = "gzip"))
+      sheets <- fromJSON(txt, simplifyVector = TRUE)
+      stopifnot(is.list(sheets), length(sheets) == 14)
+      sheets <- lapply(sheets, function(x) as.data.frame(x, stringsAsFactors = FALSE, check.names = FALSE))
+      write_xlsx(sheets, tmp)
+      TRUE
+    }, error = function(e) FALSE)
+    if (!isTRUE(ok)) {
+      showNotification("This share link is not valid (or was cut off).", type = "error", duration = 10)
+      return()
+    }
+    upload_file(tmp)
+    upload_trigger(isolate(upload_trigger()) + 1)
+  })
+
+  observeEvent(upload_trigger(), {
+    req(upload_file())
     # Block the auto-detect observer (app.R ~2771) from fighting with this
     # restore for the whole restore window — see restoring_upload's own
     # comment for why. Cleared further down once the delayed restore of the
@@ -9108,15 +9350,15 @@ server <- shinyServer(function(input, output, session) {
     # 2])`, `sum(tab[, 2])`) expects mytable_v_reactive$value to behave like
     # a normal data.frame column access. Coerce immediately, same fix as for
     # mytable_int_reactive/mytable_mix_reactive below.
-    mytable_v_reactive$value <- as.data.frame(read_excel(input$upload$datapath, 1))
+    mytable_v_reactive$value <- as.data.frame(read_excel(upload_file(), 1))
 
     if (length(mytable_v_reactive$value) == 1) {
       mytable_v_reactive$value <- NULL
     }
 
     # Read everything before touching counters
-    new_counter_input_n <- unlist(read_excel(input$upload$datapath, 2))
-    new_counter_n       <- unlist(read_excel(input$upload$datapath, 3))
+    new_counter_input_n <- unlist(read_excel(upload_file(), 2))
+    new_counter_n       <- unlist(read_excel(upload_file(), 3))
 
     # write_xlsx/read_excel does NOT round-trip an empty string as an
     # empty string — it comes back as NA (confirmed directly: writing
@@ -9131,16 +9373,16 @@ server <- shinyServer(function(input, output, session) {
     # download/upload round-trip.
     blank_na <- function(x) { x[is.na(x)] <- ""; x }
 
-    name_probs <- blank_na(unlist(read_excel(input$upload$datapath, 4)))
+    name_probs <- blank_na(unlist(read_excel(upload_file(), 4)))
     names(name_probs) <- NULL
 
-    name_models <- blank_na(unlist(read_excel(input$upload$datapath, 5)))
+    name_models <- blank_na(unlist(read_excel(upload_file(), 5)))
     names(name_models) <- NULL
 
-    input_models <- blank_na(unlist(read_excel(input$upload$datapath, 6)))
+    input_models <- blank_na(unlist(read_excel(upload_file(), 6)))
     names(input_models) <- NULL
 
-    shared_input_model <- blank_na(unlist(read_excel(input$upload$datapath, 7)))
+    shared_input_model <- blank_na(unlist(read_excel(upload_file(), 7)))
     names(shared_input_model) <- NULL
 
     # Sheet 8 used to be a flat "one tolerance per model" table (the old
@@ -9153,7 +9395,7 @@ server <- shinyServer(function(input, output, session) {
     # older files still load, just without their approx settings, same
     # graceful-degradation as the sheets-9-12-missing case below.
     equality_tolerances_reactive$value <- tryCatch({
-      raw <- fromJSON(read_excel(input$upload$datapath, 8)$json[1], simplifyVector = FALSE)
+      raw <- fromJSON(read_excel(upload_file(), 8)$json[1], simplifyVector = FALSE)
       lapply(raw, function(x) as.numeric(unlist(x)))
     }, error = function(e) list())
 
@@ -9169,17 +9411,17 @@ server <- shinyServer(function(input, output, session) {
       # every restored checkbox selection. Coerce to a plain data.frame so
       # it behaves exactly like the in-session (non-upload) code path that
       # builds this table via observeEvent(input$submit_int, ...).
-      tab <- as.data.frame(read_excel(input$upload$datapath, 9))
+      tab <- as.data.frame(read_excel(upload_file(), 9))
       if (length(tab) == 1) NULL else tab
     }, error = function(e) NULL)
 
     mytable_mix_reactive$value <- tryCatch({
-      tab <- as.data.frame(read_excel(input$upload$datapath, 10))
+      tab <- as.data.frame(read_excel(upload_file(), 10))
       if (length(tab) == 1) NULL else tab
     }, error = function(e) NULL)
 
     mytable_items_reactive$value <- tryCatch({
-      items_specs_from_json(read_excel(input$upload$datapath, 11)$json[1])
+      items_specs_from_json(read_excel(upload_file(), 11)$json[1])
     }, error = function(e) NULL)
 
     # Sheets 12-14 (added after sheets 9-11) — same tryCatch/graceful-
@@ -9189,15 +9431,15 @@ server <- shinyServer(function(input, output, session) {
     # comment); intersection-model rows lose their live-source-sync;
     # multi-item rows lose their "reopen settings" edit button.
     derived_model_sources$value <- tryCatch({
-      derived_sources_from_json(read_excel(input$upload$datapath, 12)$json[1])
+      derived_sources_from_json(read_excel(upload_file(), 12)$json[1])
     }, error = function(e) list())
 
     mixture_model_flags$value <- tryCatch({
-      mixture_flags_from_json(read_excel(input$upload$datapath, 13)$json[1])
+      mixture_flags_from_json(read_excel(upload_file(), 13)$json[1])
     }, error = function(e) list())
 
     item_model_spec_idx$value <- tryCatch({
-      item_spec_idx_from_json(read_excel(input$upload$datapath, 14)$json[1])
+      item_spec_idx_from_json(read_excel(upload_file(), 14)$json[1])
     }, error = function(e) list())
 
     # Each modal's row count is a SEPARATE counter (counter_int$n,
@@ -11337,13 +11579,35 @@ server <- shinyServer(function(input, output, session) {
   #   7. Compute replication models (####* Replication models)
   #   8. Compute V-representations for everything selected (####* V-representation)
   #   9. Build the H-representation formula/LaTeX display and V-rep tables
-  observeEvent(input$go_v_h, {
+  observe_guarded(input$go_v_h, {
     # Skip if inputs are identical to the last recomputation.
     current_snap <- make_snapshot()
     if (!is.null(isolate(last_recomputed_snapshot())) &&
         identical(isolate(last_recomputed_snapshot()), current_snap)) {
       return()
     }
+    # Check the input before computing anything and say precisely what is wrong.
+    precheck_msgs <- character()
+    for (i_chk in seq_len(counter_input$n)) {
+      nm_chk <- unlist(AllInputs()[[paste0("textin_relations_name", i_chk)]])
+      label_chk <- if (length(nm_chk) && nzchar(nm_chk[1])) nm_chk[1] else paste("model", i_chk)
+      key_chk <- as.character(i_chk)
+      if (!is.null(isolate(derived_model_sources$value)[[key_chk]]) ||
+          !is.null(isolate(mixture_model_flags$value)[[key_chk]]) ||
+          !is.null(isolate(item_model_spec_idx$value)[[key_chk]])) next
+      spec_chk <- paste(AllInputs()[[paste0("textin_relations_complete_", i_chk)]], collapse = " ")
+      if (!nzchar(trimws(spec_chk))) {
+        precheck_msgs <- c(precheck_msgs, paste0("<b>", htmltools::htmlEscape(label_chk), "</b> has no specification yet."))
+        next
+      }
+    }
+    if (length(precheck_msgs) > 0) {
+      shinyalert("Please check your input", html = TRUE,
+        text = paste0(paste(precheck_msgs, collapse = "<br><br>")),
+        type = "error", closeOnClickOutside = TRUE)
+      return()
+    }
+
     last_recomputed_snapshot(current_snap)
 
     n_input_models <- counter_input$n
@@ -12664,11 +12928,11 @@ server <- shinyServer(function(input, output, session) {
         type = "error", closeOnClickOutside = T
       )
     }
-  })
+  }, "go_v_h")
 
   #### Parsimony ####
 
-  observeEvent(input$go, {
+  observe_guarded(input$go, {
     last_parsimony_snapshot(make_parsimony_snapshot())
     input_volume <- isolate(input_volume_reactive)
 
