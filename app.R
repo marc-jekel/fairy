@@ -4497,7 +4497,11 @@ ui <- shinyUI(fluidPage(
           var b = e.target.closest && e.target.closest('.fairy-card-layout-group button');
           if (b) setMode(b.getAttribute('data-state') === 'free');
         });
-        function later() { setTimeout(decorate, 40); }
+        // DT measures column widths while its tab is still hidden, so V tables came out collapsed
+        function refit() {
+          try { if (window.jQuery && jQuery.fn.dataTable) jQuery(jQuery.fn.dataTable.tables({ visible: true })).DataTable().columns.adjust(); } catch (e) {}
+        }
+        function later() { setTimeout(decorate, 40); setTimeout(refit, 120); setTimeout(refit, 600); }
         Shiny.addCustomMessageHandler('fairy_kinds', function(m) { window.fairyKinds = m || {}; later(); });
         if (window.jQuery) {
           jQuery(document).on('shiny:recalculated shiny:value shown.bs.tab', later);
