@@ -1496,42 +1496,48 @@ ui <- shinyUI(fluidPage(
         letter-spacing: 0.02em;
       }
       .model-card:hover::after { opacity: 1; }
-      /* Re-orderable model cards (drag the title; see the card re-order script) */
-      .fairy-h-cards-wrap .model-card .model-card-title { position: relative; }
-      .model-card .model-card-title[draggable=true] { cursor: grab; }
-      .model-card .model-card-title[draggable=true]:active { cursor: grabbing; }
-      .model-card .model-card-title[draggable=true]::before {
-        content: '\\2807';
+      /* Re-orderable model cards: a slim handle bar on top of each card is the
+         place to grab it (see the card re-order script) */
+      .model-card.fairy-has-handle { padding-top: 38px; }
+      .model-card .fairy-handle {
         position: absolute;
-        left: -18px;
         top: 0;
-        color: var(--fairy-text-muted, #667085);
-        opacity: 0;
-      }
-      .model-card:hover .model-card-title[draggable=true]::before { opacity: 0.6; }
-      .model-card .model-card-title[draggable=true]:focus-visible {
-        outline: 3px solid var(--fairy-primary, #3a6df0);
-        outline-offset: 2px;
-        border-radius: 4px;
-      }
-      .fairy-card-dragging { opacity: 0.45; }
-      /* Small ribbon on derived models: intersection / mixture / items */
-      .model-card .fairy-ribbon {
-        position: absolute;
-        top: 16px;
+        left: 0;
         right: 0;
-        padding: 3px 12px 3px 14px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 11px 11px 0 0;
+        background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 9%, transparent);
+        border-bottom: 1px solid color-mix(in srgb, var(--fairy-primary, #3a6df0) 16%, transparent);
+        cursor: grab;
+        user-select: none;
+      }
+      .model-card .fairy-handle:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 16%, transparent); }
+      .model-card .fairy-handle:active { cursor: grabbing; }
+      .model-card .fairy-handle-grip { color: var(--fairy-text-muted, #667085); font-size: 13px; letter-spacing: 2px; line-height: 1; }
+      .model-card .fairy-handle-kind {
+        position: absolute;
+        right: 12px;
         font-size: 10px;
         font-weight: 700;
         letter-spacing: 0.07em;
         text-transform: uppercase;
-        color: #fff;
-        background: #0f766e;
-        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 7px 50%);
-        pointer-events: none;
       }
-      .model-card .fairy-ribbon-mixture { background: #7c3aed; }
-      .model-card .fairy-ribbon-items { background: #b45309; }
+      .model-card .fairy-handle-kind:empty { display: none; }
+      .model-card .fairy-kind-intersection { color: #0f766e; }
+      .model-card .fairy-kind-mixture { color: #7c3aed; }
+      .model-card .fairy-kind-items { color: #b45309; }
+      body.dark-mode .model-card .fairy-kind-intersection { color: #5eead4; }
+      body.dark-mode .model-card .fairy-kind-mixture { color: #c4b5fd; }
+      body.dark-mode .model-card .fairy-kind-items { color: #fcd34d; }
+      .model-card .fairy-handle:focus-visible { outline: 3px solid var(--fairy-primary, #3a6df0); outline-offset: -3px; }
+      .fairy-card-dragging { opacity: 0.45; }
+      /* Free layout: cards positioned anywhere inside the wrap */
+      .fairy-h-cards-wrap.fairy-free { position: relative; display: block !important; }
+      .fairy-h-cards-wrap.fairy-free .model-card { position: absolute; margin: 0 !important; box-sizing: border-box; }
+      .fairy-h-cards-wrap.fairy-free .model-card .fairy-handle { cursor: move; touch-action: none; }
       .fairy-drop-before { box-shadow: -6px 0 0 0 var(--fairy-primary, #3a6df0) !important; }
       .fairy-drop-after  { box-shadow:  6px 0 0 0 var(--fairy-primary, #3a6df0) !important; }
       /* Large run window (see #fairy-run-overlay in the UI) */
@@ -4310,40 +4316,92 @@ ui <- shinyUI(fluidPage(
           if (!l) { l = document.createElement('div'); l.id = 'fairy-card-live'; l.className = 'sr-only'; l.setAttribute('aria-live', 'polite'); document.body.appendChild(l); }
           return l;
         }
+        // ---- free layout: cards can be placed anywhere (absolute), also overlapping ----
+        var freeMode = false, pos = {}, zTop = 10, freeDrag = null;
+        try { freeMode = sessionStorage.getItem('fairyCardFree') === '1'; pos = JSON.parse(sessionStorage.getItem('fairyCardPos') || '{}'); } catch (e) {}
+        function savePos() {
+          try { sessionStorage.setItem('fairyCardPos', JSON.stringify(pos)); sessionStorage.setItem('fairyCardFree', freeMode ? '1' : '0'); } catch (e) {}
+        }
+        function isVisible(el) { return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length); }
+        function fitWrap(wrap) {
+          var b = 0;
+          wrapCards(wrap).forEach(function(c) { b = Math.max(b, c.offsetTop + c.offsetHeight); });
+          wrap.style.height = (b + 24) + 'px';
+        }
+        function enterFree(wrap) {
+          if (wrap.classList.contains('fairy-free') || !isVisible(wrap)) return;
+          var cards = wrapCards(wrap), wr = wrap.getBoundingClientRect();
+          var m = cards.map(function(c) { var r = c.getBoundingClientRect(); return { x: r.left - wr.left, y: r.top - wr.top, w: r.width }; });
+          wrap.classList.add('fairy-free');
+          cards.forEach(function(c, i) {
+            var p = pos[titleOf(c)] || { x: Math.max(0, m[i].x), y: Math.max(0, m[i].y) };
+            c.style.left = p.x + 'px'; c.style.top = p.y + 'px'; c.style.width = m[i].w + 'px';
+          });
+          fitWrap(wrap);
+        }
+        function leaveFree(wrap) {
+          if (!wrap.classList.contains('fairy-free')) return;
+          var orig = wrapCards(wrap), ref = orig.length ? orig[orig.length - 1].nextSibling : null, parent = orig.length ? orig[0].parentNode : null;
+          var cards = orig.slice().sort(function(a, b) {
+            return (Math.round(a.offsetTop / 40) - Math.round(b.offsetTop / 40)) || (a.offsetLeft - b.offsetLeft);
+          });
+          wrap.classList.remove('fairy-free'); wrap.style.height = '';
+          cards.forEach(function(c) { c.style.left = c.style.top = c.style.width = c.style.zIndex = ''; if (parent) parent.insertBefore(c, ref); });
+          if (cards.length) setOrderFrom(wrap);
+        }
+        function syncButtons() {
+          document.querySelectorAll('.fairy-card-layout-group button').forEach(function(b) {
+            b.classList.toggle('active', (b.getAttribute('data-state') === 'free') === freeMode);
+          });
+        }
+        function setMode(on) {
+          freeMode = on;
+          if (!on) pos = {};
+          savePos(); syncButtons();
+          document.querySelectorAll('.fairy-h-cards-wrap').forEach(function(w) { if (on) enterFree(w); else leaveFree(w); });
+        }
         function kindOf(title) {
           var k = (window.fairyKinds || {})[title];
           if (k) return k;
           if (/ AND /.test(title) || /^\\[.* \\u2229 .*\\]$/.test(title)) return 'intersection';   // auto-detected overlaps
           return 'model';
         }
-        function ribbon(card) {
-          var k = kindOf(titleOf(card)), cur = card.querySelector(':scope > .fairy-ribbon');
-          if (k === 'model') { if (cur) cur.remove(); return; }
-          if (cur && cur.getAttribute('data-kind') === k) return;
-          if (cur) cur.remove();
-          var r = document.createElement('div');
-          r.className = 'fairy-ribbon fairy-ribbon-' + k; r.setAttribute('data-kind', k); r.textContent = k;
-          r.setAttribute('aria-hidden', 'true');
-          card.appendChild(r);
+        // Handle bar on top of every card: the place to grab it. Shows the kind of
+        // derived models (intersection / mixture / items) on its right.
+        function handleBar(card) {
+          var h = card.querySelector(':scope > .fairy-handle');
+          if (!h) {
+            h = document.createElement('div');
+            h.className = 'fairy-handle';
+            h.setAttribute('draggable', 'true'); h.setAttribute('tabindex', '0'); h.setAttribute('role', 'button');
+            h.setAttribute('title', 'Drag to move');
+            var g = document.createElement('span'); g.className = 'fairy-handle-grip'; g.setAttribute('aria-hidden', 'true'); g.textContent = '\\u2847\\u2847\\u2847';
+            var k = document.createElement('span'); k.className = 'fairy-handle-kind';
+            h.appendChild(g); h.appendChild(k);
+            card.insertBefore(h, card.firstChild);
+            card.classList.add('fairy-has-handle');
+          }
+          h.setAttribute('aria-label', titleOf(card) + ': drag to move, or press Alt and an arrow key');
+          var kind = kindOf(titleOf(card)), kl = h.querySelector('.fairy-handle-kind');
+          kl.textContent = kind === 'model' ? '' : kind;
+          kl.className = 'fairy-handle-kind fairy-kind-' + kind;
         }
         function decorate() {
           document.querySelectorAll('.fairy-h-cards-wrap .model-card').forEach(function(card) {
-            if (card.querySelector('.model-card-title')) ribbon(card);
-            var t = card.querySelector('.model-card-title');
-            if (!t || t.getAttribute('draggable') === 'true') return;
-            t.setAttribute('draggable', 'true'); t.setAttribute('tabindex', '0'); t.setAttribute('role', 'button');
-            t.setAttribute('aria-label', titleOf(card) + ': drag to reorder, or press Alt and an arrow key');
-            t.setAttribute('title', 'Drag to reorder');
+            if (card.querySelector('.model-card-title')) handleBar(card);
           });
           applyOrder();
+          syncButtons();
+          if (freeMode) document.querySelectorAll('.fairy-h-cards-wrap').forEach(enterFree);
         }
         function clearMarks() {
           document.querySelectorAll('.fairy-drop-before, .fairy-drop-after').forEach(function(c) { c.classList.remove('fairy-drop-before', 'fairy-drop-after'); });
           dropTarget = null; dropSide = null;
         }
         document.addEventListener('dragstart', function(e) {
-          var t = e.target.closest && e.target.closest('.model-card-title[draggable=true]');
+          var t = e.target.closest && e.target.closest('.fairy-handle');
           if (!t) return;
+          if (freeMode) { e.preventDefault(); return; }   // free mode uses its own pointer dragging
           var card = t.closest('.model-card');
           if (!card || !card.closest('.fairy-h-cards-wrap')) { e.preventDefault(); return; }
           dragCard = card; card.classList.add('fairy-card-dragging');
@@ -4384,8 +4442,19 @@ ui <- shinyUI(fluidPage(
         }, true);
         document.addEventListener('keydown', function(e) {
           if (!e.altKey || e.metaKey || e.ctrlKey) return;
-          var t = e.target.closest && e.target.closest('.model-card-title[draggable=true]');
+          var t = e.target.closest && e.target.closest('.fairy-handle');
           if (!t) return;
+          var fwrap = t.closest('.fairy-h-cards-wrap.fairy-free');
+          if (fwrap) {                                   // free mode: arrows nudge the card by 24 px
+            var dx = e.key === 'ArrowLeft' ? -24 : (e.key === 'ArrowRight' ? 24 : 0);
+            var dy = e.key === 'ArrowUp' ? -24 : (e.key === 'ArrowDown' ? 24 : 0);
+            if (!dx && !dy) return;
+            e.preventDefault();
+            var fc = t.closest('.model-card');
+            fc.style.left = Math.max(0, fc.offsetLeft + dx) + 'px'; fc.style.top = Math.max(0, fc.offsetTop + dy) + 'px';
+            pos[titleOf(fc)] = { x: fc.offsetLeft, y: fc.offsetTop }; savePos(); fitWrap(fwrap);
+            return;
+          }
           var dir = (e.key === 'ArrowLeft' || e.key === 'ArrowUp') ? -1 : ((e.key === 'ArrowRight' || e.key === 'ArrowDown') ? 1 : 0);
           if (!dir) return;
           var card = t.closest('.model-card'), wrap = card && card.closest('.fairy-h-cards-wrap');
@@ -4397,6 +4466,36 @@ ui <- shinyUI(fluidPage(
           if (dir < 0) other.parentNode.insertBefore(card, other); else other.parentNode.insertBefore(card, other.nextSibling);
           setOrderFrom(wrap); t.focus();
           live().textContent = titleOf(card) + ' moved to position ' + (j + 1) + ' of ' + cards.length;
+        });
+        document.addEventListener('pointerdown', function(e) {
+          var card = e.target.closest && e.target.closest('.fairy-h-cards-wrap.fairy-free .model-card');
+          if (!card) return;
+          zTop += 1; card.style.zIndex = zTop;          // clicked card comes to the front
+          var t = e.target.closest('.fairy-handle');
+          if (!t || e.button > 0) return;
+          e.preventDefault();
+          freeDrag = { card: card, sx: e.clientX, sy: e.clientY, x: card.offsetLeft, y: card.offsetTop, wrap: card.closest('.fairy-h-cards-wrap') };
+          card.classList.add('fairy-card-dragging');
+        });
+        document.addEventListener('pointermove', function(e) {
+          if (!freeDrag) return;
+          var d = freeDrag;
+          d.card.style.left = Math.max(0, d.x + e.clientX - d.sx) + 'px';
+          d.card.style.top = Math.max(0, d.y + e.clientY - d.sy) + 'px';
+          fitWrap(d.wrap);
+        });
+        function endFree() {
+          if (!freeDrag) return;
+          var d = freeDrag; freeDrag = null;
+          d.card.classList.remove('fairy-card-dragging');
+          pos[titleOf(d.card)] = { x: d.card.offsetLeft, y: d.card.offsetTop }; savePos();
+          suppressUntil = Date.now() + 300;
+        }
+        document.addEventListener('pointerup', endFree);
+        document.addEventListener('pointercancel', endFree);
+        document.addEventListener('click', function(e) {
+          var b = e.target.closest && e.target.closest('.fairy-card-layout-group button');
+          if (b) setMode(b.getAttribute('data-state') === 'free');
         });
         function later() { setTimeout(decorate, 40); }
         Shiny.addCustomMessageHandler('fairy_kinds', function(m) { window.fairyKinds = m || {}; later(); });
@@ -5226,6 +5325,10 @@ ui <- shinyUI(fluidPage(
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "No color", `data-state` = "off", icon("droplet-slash")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Color terms by parameter", `data-state` = "on", icon("droplet"))
           ),
+          tags$div(class = "fairy-segmented fairy-card-layout-group",
+            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", icon("table-cells-large")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Free layout: drag the cards anywhere", `data-state` = "free", icon("up-down-left-right"))
+          ),
           # Separates the display toggles above (Trivial bounds, Layout,
           # Color — all affect how the SAME data looks) from the
           # downloads below (each produces a separate file) — reported
@@ -5341,6 +5444,11 @@ ui <- shinyUI(fluidPage(
         div(
           class = "fairy-input-toolbar",
           style = "display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding:4px; flex:0 0 auto;",
+          tags$div(class = "fairy-segmented fairy-card-layout-group",
+            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", icon("table-cells-large")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Free layout: drag the cards anywhere", `data-state` = "free", icon("up-down-left-right"))
+          ),
+          tags$hr(class = "fairy-toolbar-divider"),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "V-representation for QTEST",
             downloadButton("d_v", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "V-representation for multinomineq",
