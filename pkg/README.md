@@ -61,8 +61,9 @@ Constraints use `p1`, `p2`, ... for the probabilities. `<` and `<=` (and `>`/`>=
 ## Combining and comparing models
 
 ```r
-m <- cringe_models()                    # the ten models of the paper's running example
-fairy_compare(m)                        # volumes, overlaps, nesting, max. Bayes factors (Table 3)
+m <- list(M4 = fairy_h("p1 > p2 > p3; p4 < p5 < p6; p1 < p4; p2 < p5; p3 < p6", n_p = 6),
+          M9 = fairy_h("p1 < p2 < p3; p4 > p5 > p6; p1 > p4; p2 > p5; p3 > p6", n_p = 6))
+fairy_compare(m)                        # volumes, overlaps, nesting, max. Bayes factors
 fairy_mixture(m$M4, m$M9)               # mixture model: 12 vertices, 64 constraints
 fairy_intersect("p1 > p2", "p2 > p3", n_p = 3)
 fairy_nested(m$M4, m$M3)                # TRUE
@@ -73,7 +74,7 @@ fairy_info(fairy_replicate(m$M4, 3, "joint"))
 
 ## Reproducing the papers
 
-`vignette("cringe", package = "fairy")` reproduces, step by step, the tables and numbers of the main text (Tables 1-4, Figures 2 and 3) and of the online supplement on the Heuristic-Systematic Model (Tables A1-A4, the replication bounds and the mixture model). `cringe_models()` and `hsm_models()` contain the models. The tests in `tests/testthat/test-paper-*.R` check every reproduced number.
+`vignette("cringe", package = "fairy")` reproduces, step by step, the tables and numbers of the main text (Tables 1-4, Figures 2 and 3) and of the online supplement on the Heuristic-Systematic Model (Tables A1-A4, the replication bounds and the mixture model). The models are entered as constraint strings in the vignette; the package stores none of them. The tests in `tests/testthat/test-paper-*.R` check every reproduced number.
 
 ## Parsimony is a volume
 

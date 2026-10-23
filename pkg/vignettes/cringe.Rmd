@@ -22,7 +22,7 @@ online supplement, one step at a time, with the code that produces each table
 and number. Every number quoted from the paper is also checked by the
 package's tests (`tests/testthat/test-paper-*.R`).
 
-The package does what "the mathematics fairy" does in the paper
+The package does what "the mathematics fairy" does in the paper (it does not store the paper's models; you enter them as constraint strings, as shown below)
 (<https://modeling-for-everyone.eu/posts/fairy/>):
 
 | In the paper | In the package |
@@ -43,26 +43,43 @@ child, teen, or adult cringes at an illogical joke or at a pun gives the order
 `p1, ..., p6`:
 
 ```{r labels}
-data.frame(parameter = paste0("p", 1:6), meaning = cringe_labels())
+lab <- c("illogical: children", "illogical: teens", "illogical: adults",
+         "pun: children", "pun: teens", "pun: adults")
+data.frame(parameter = paste0("p", 1:6), meaning = lab)
 ```
 
 A model is a character string. Constraints are separated by `;`, chains such as
 `p1 > p2 > p3` are allowed, and `<` and `<=` mean the same thing (as in the paper,
-models are closed sets, so no software can tell `<` from `<=`). Here are
-Models 1 to 9, exactly as the package stores them:
+models are closed sets, so no software can tell `<` from `<=`). The package does not
+come with the paper's models: you enter them yourself. Here are Models 1 to 9 as constraint
+strings:
 
 ```{r model-strings}
-as.data.frame(unlist(cringe_models(as = "string")))
+strings <- c(
+  M1 = "(p1+p4)/2 < (p2+p5)/2 < (p3+p6)/2",
+  M2 = "p1 < p2 < p3; p4 < p5 < p6",
+  M3 = "p1 > p2 > p3; p4 < p5 < p6; p1+p2+p3 < p4+p5+p6",
+  M4 = "p1 > p2 > p3; p4 < p5 < p6; p1 < p4; p2 < p5; p3 < p6",
+  M5 = "p1 = p2 = p3 = p4 = p5 = p6",
+  M6 = "p1 > p2 > p3; p4 < p5 < p6; p1+p2+p3 = p4+p5+p6",
+  M7 = "p1 > p2 > p3; p4 < p5 < p6; (p1+p2+p3)/3 = (p4+p5+p6)/3",
+  M8 = "{p1,p2,p3,p4,p5,p6} = {p1,p2,p3,p4,p5,p6}",
+  M9 = "p1 < p2 < p3; p4 > p5 > p6; p1 > p4; p2 > p5; p3 > p6"
+)
 ```
 
 * Model 1 is the average of the two joke types per age group, increasing with age.
 * Models 7 and 8 use *approximate* equality: `approx_tol = 0.05` turns every equality into
-  "within five percentage points". `cringe_models()` applies that tolerance for you.
+  "within five percentage points"; it is passed to `fairy_h()` for these two models below.
 * Model 10, the mixture of Models 4 and 9, is not a string: it is built with
   `fairy_mixture()` below.
 
 ```{r models}
-m <- cringe_models()          # H-representations of Models 1 to 10
+m <- lapply(strings, fairy_h, n_p = 6)                          # H-representations of Models 1 to 9
+m$M7 <- fairy_h(strings[["M7"]], n_p = 6, approx_tol = 0.05)     # approximate equalities
+m$M8 <- fairy_h(strings[["M8"]], n_p = 6, approx_tol = 0.05)
+m$M10 <- fairy_mixture(m$M4, m$M9)                               # the mixture of Models 4 and 9
+m <- m[paste0("M", 1:10)]
 names(m)
 ```
 
@@ -81,7 +98,7 @@ machine-readable format of QTest are written by `fairy_write_qtest()`
 (and for the R package multinomineq by `fairy_write_multinomineq()`):
 
 ```{r qtest, eval = FALSE}
-fairy_write_qtest(c(M4 = cringe_models(as = "string")$M4), n_p = 6, file = "model4.tar")
+fairy_write_qtest(strings["M4"], n_p = 6, file = "model4.tar")
 ```
 
 The no-effect model (Model 5) is two inequalities and five equalities:
@@ -97,8 +114,7 @@ with an unknown weight. Geometrically, that is the convex
 hull of the two models, and `fairy_mixture()` computes its H-representation:
 
 ```{r mixture}
-mix <- fairy_mixture(fairy_h(cringe_models(as = "string")$M4, n_p = 6),
-                     fairy_h(cringe_models(as = "string")$M9, n_p = 6))
+mix <- fairy_mixture(m$M4, m$M9)
 fairy_info(mix, volume = FALSE)
 ```
 
@@ -137,7 +153,6 @@ c(order_constraints = sum(abs(slack[!single]) < 1e-9),
 so the rows are sorted. The labels are the six columns of the paper's tables:
 
 ```{r table1}
-lab <- cringe_labels()
 fairy_words(m$M4, labels = lab)       # Table 1, Model 4
 ```
 
@@ -296,11 +311,21 @@ To get the full row, including the 46,739 vertices, call
 
 # Part 2: The Heuristic-Systematic Model (online supplement)
 
-`hsm_models()` contains the theoretical predictions of the supplement. In the 2 x 2 design the four
-probabilities are `PbW, PbS, PsW, PsS`: big or small gap, weak or strong argument.
+Here are the theoretical predictions of the supplement, again entered as constraint strings. In the 2 x 2 design the four
+probabilities are `PbW, PbS, PsW, PsS` (`p1` to `p4`): big or small gap, weak or strong argument.
+For the cue-congruence models the six probabilities `PiW, PnW, PcW, PiS, PnS, PcS` are `p1` to `p6`.
 
 ```{r hsm}
-hsm <- hsm_models()
+hsm <- lapply(c(
+  pred1    = "p1 < p2; p3 < p4",                                  # stronger arguments never hurt
+  pred2    = "p1 < p3; p2 < p4",                                  # a smaller gap never hurts
+  pred3    = "p1 < p2 < p4; p1 < p3 < p4",                        # both
+  pred6    = "p1 < p2 < p3; p4 < p5 < p6; p7 < p8 < p9; p1 < p4 < p7; p2 < p5 < p8; p3 < p6 < p9",
+  override = "p6 > p3 > p2 = p1; p6 > p4 = p5 > p2",
+  tradeoff = "p6 > p3 > p2 > p1; p6 > p5 > p4 > p1; p5 > p2",
+  ttb      = "p1 = 0; p4 = 0; p2 = 1; p5 = 1; p3 = 1; p6 = 1"    # take the best
+), fairy_h)
+hsm$override_ttb_mixture <- fairy_mixture(hsm$override, hsm$ttb)
 lab4 <- c("big, weak", "big, strong", "small, weak", "small, strong")
 ```
 

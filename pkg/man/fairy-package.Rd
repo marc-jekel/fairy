@@ -21,13 +21,13 @@ possible Bayes factor, and the numbers reported in the paper's tables.
 overlap, mixtures and model relationships.
 \item \code{\link[=fairy_replicate]{fairy_replicate()}}: identical, joint, and substitutable replication models.
 \item \code{\link[=fairy_write_qtest]{fairy_write_qtest()}}, \code{\link[=fairy_write_multinomineq]{fairy_write_multinomineq()}}: export for QTest and multinomineq.
-\item \code{\link[=cringe_models]{cringe_models()}}, \code{\link[=hsm_models]{hsm_models()}}: the models of the paper and its supplement.
 }
 }
 
 \section{Vignette}{
 
-\code{vignette("cringe", package = "fairy")} reproduces the paper's examples step by step.
+\code{vignette("cringe", package = "fairy")} reproduces the paper's examples step by step; the models
+are entered as constraint strings in the vignette, the package does not store them.
 }
 
 \seealso{

@@ -14,10 +14,10 @@
 #'   overlap, mixtures and model relationships.
 #' * [fairy_replicate()]: identical, joint, and substitutable replication models.
 #' * [fairy_write_qtest()], [fairy_write_multinomineq()]: export for QTest and multinomineq.
-#' * [cringe_models()], [hsm_models()]: the models of the paper and its supplement.
 #'
 #' @section Vignette:
-#' `vignette("cringe", package = "fairy")` reproduces the paper's examples step by step.
+#' `vignette("cringe", package = "fairy")` reproduces the paper's examples step by step; the models
+#' are entered as constraint strings in the vignette, the package does not store them.
 #'
 #' @keywords internal
 #' @importFrom utils tar write.table

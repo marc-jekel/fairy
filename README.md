@@ -45,6 +45,31 @@ used with tools like [QTest](https://www.dwheck.de/software/multinomineq/) and
 - Plot polytopes and edge cases.
 - Upload/download the full app state as `.xlsx`.
 
+## R package: `fairy`
+
+Everything the app computes is also available as an R package, for scripts and
+reproducible analyses. It lives in the folder [`pkg/`](pkg) of this repository:
+
+```r
+# install.packages("remotes")
+remotes::install_github("marc-jekel/fairy", subdir = "pkg", build_vignettes = TRUE)
+library(fairy)
+
+fairy_constraints("p1 > p2 > p3")   # H-representation as readable constraints
+fairy_words("p1 > p2 > p3")         # extreme cases (V-representation), in words
+fairy_max_bf("p1 > p2 > p3")        # parsimony: largest possible Bayes factor (6)
+```
+
+It also builds intersections, mixtures, and replication models (identical, joint,
+substitutable), compares sets of models, and writes QTest / multinomineq files.
+
+The vignette reproduces the examples of the paper and of its online supplement
+(the cringeyness study, Tables 1-4, and the Heuristic-Systematic Model case study),
+entering each model as a constraint string. Open it without R as
+[HTML](pkg/doc/cringe.html) or [PDF](pkg/doc/cringe.pdf), or after installing with
+`vignette("cringe", package = "fairy")`. See [`pkg/README.md`](pkg/README.md) for the
+functions and the constraint syntax.
+
 ## Running locally
 
 Requires R and the packages the app loads at the top of `app.R` (installed
@@ -58,6 +83,8 @@ shiny::runApp("app.R")
 ## Project files
 
 - `app.R` — the entire app (UI + server).
+- `pkg/` — the `fairy` R package (see above), with tests that check every number
+  reproduced from the paper.
 - `fairy.Rproj` — RStudio project file (not tracked in git — generate your
   own via RStudio's *New Project > Existing Directory* if you want one).
 - `rsconnect/` — local shinyapps.io deployment metadata (created by
