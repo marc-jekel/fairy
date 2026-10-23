@@ -9448,8 +9448,7 @@ server <- shinyServer(function(input, output, session) {
       txt <- rawToChar(memDecompress(jsonlite::base64_dec(tok), type = "gzip"))
       sheets <- fromJSON(txt, simplifyVector = TRUE)
       stopifnot(is.list(sheets), length(sheets) == 14)
-      # some jsonlite versions add a "_row" column from row names: it is not part of the data
-      sheets <- lapply(sheets, function(x) { x[["_row"]] <- NULL; as.data.frame(x, stringsAsFactors = FALSE, check.names = FALSE) })
+      sheets <- lapply(sheets, function(x) as.data.frame(x, stringsAsFactors = FALSE, check.names = FALSE))
       write_xlsx(sheets, tmp)
       TRUE
     }, error = function(e) FALSE)
