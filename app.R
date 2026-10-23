@@ -4616,9 +4616,12 @@ ui <- shinyUI(fluidPage(
            // A cloned DataTable is inert markup holding only the current page's rows, so
            // its Show / Search / paging did nothing: rebuild each one from the live table's data
            var dtJobs = [];
-           $(card).find('table.dataTable').each(function(i) {
+           $(card).find('.dataTables_wrapper').each(function(i) {
              try {
-               var api = $(this).DataTable();
+               // with scrolling DT keeps a separate header table; the data lives in the scroll body
+               var real = $(this).find('.dataTables_scrollBody table.dataTable').first();
+               if (!real.length) real = $(this).find('table.dataTable').first();
+               var api = real.DataTable();
                dtJobs.push({
                  data: api.data().toArray(),
                  cols: api.columns().header().toArray().map(function(h) { return { title: h.innerHTML }; }),
