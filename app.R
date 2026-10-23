@@ -1232,12 +1232,14 @@ ui <- shinyUI(fluidPage(
         inset: 0;
         z-index: 20000;
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
+        box-sizing: border-box;
+        padding-top: 14vh;
         background: rgba(20, 20, 30, 0.45);
         opacity: 0;
         pointer-events: none;
-        transition: opacity 0.15s ease;
+        transition: opacity 0.2s ease;
       }
       #fairy-progress-overlay.active {
         opacity: 1;
@@ -1252,6 +1254,7 @@ ui <- shinyUI(fluidPage(
         max-width: 480px;
         width: calc(100% - 48px);
         max-height: 80vh;
+        min-height: 230px;
         overflow-y: auto;
         overflow-x: hidden;
         box-sizing: border-box;
@@ -1309,8 +1312,12 @@ ui <- shinyUI(fluidPage(
         font-size: 20px;
         letter-spacing: 4px;
         color: var(--fairy-primary, #3a6df0);
-        opacity: 0.6;
-        animation: fairy-idle-spin 1.8s ease-in-out infinite;
+        opacity: 0.55;
+        animation: fairy-soft-fade 2.8s ease-in-out infinite;
+      }
+      @keyframes fairy-soft-fade {
+        0%, 100% { opacity: 0.35; }
+        50%      { opacity: 0.7;  }
       }
       .fairy-progress-cores {
         font-size: 14px;
@@ -1412,19 +1419,24 @@ ui <- shinyUI(fluidPage(
       }
       .fairy-progress-bar-indeterminate {
         height: 100%;
-        width: 40%;
+        width: 30%;
         border-radius: 999px;
         background: var(--fairy-primary, #3a6df0);
-        animation: fairy-bar-slide 1.1s ease-in-out infinite;
+        animation: fairy-bar-slide 2.4s ease-in-out infinite;
       }
       @keyframes fairy-bar-slide {
         0%   { transform: translateX(-100%); }
-        100% { transform: translateX(350%); }
+        100% { transform: translateX(340%); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .fairy-progress-dots { animation: none; opacity: 0.55; }
+        .fairy-progress-bar-indeterminate { animation: none; margin-left: 35%; }
+        #fairy-progress-overlay { transition: none; }
       }
       .fairy-progress-count {
         font-size: 12.5px;
         font-weight: 500;
-        color: #999;
+        color: var(--fairy-text-muted, #667085);
       }
       .model-card::after {
         content: 'click to expand';
@@ -3916,16 +3928,32 @@ ui <- shinyUI(fluidPage(
         if (!ov) return;
         t.innerHTML = msg.title || '';
         b.innerHTML = msg.text || '';
+        fpPending = null; fpLast = Date.now();
         ov.classList.add('active');
       });
-      Shiny.addCustomMessageHandler('fairy_progress_update', function(msg) {
+      var fpPending = null, fpTimer = null, fpLast = 0;
+      function fpApply(msg) {
         var t = document.getElementById('fairy-progress-overlay-title');
         var b = document.getElementById('fairy-progress-overlay-body');
         if (msg.title !== null && t) t.innerHTML = msg.title;
         if (msg.text  !== null && b) b.innerHTML  = msg.text;
+        fpLast = Date.now();
+      }
+      Shiny.addCustomMessageHandler('fairy_progress_update', function(msg) {
+        // Large batches send an update per model; redrawing the card that
+        // often reads as flicker. Keep only the latest message and apply it
+        // at most every 250 ms.
+        fpPending = msg;
+        if (fpTimer) return;
+        fpTimer = setTimeout(function() {
+          fpTimer = null;
+          if (fpPending) { fpApply(fpPending); fpPending = null; }
+        }, Math.max(0, 250 - (Date.now() - fpLast)));
       });
       Shiny.addCustomMessageHandler('fairy_progress_close', function(msg) {
         var ov = document.getElementById('fairy-progress-overlay');
+        if (fpTimer) { clearTimeout(fpTimer); fpTimer = null; }
+        fpPending = null;
         if (ov) ov.classList.remove('active');
       });
       "
@@ -5202,17 +5230,22 @@ server <- shinyServer(function(input, output, session) {
   # A capped chip count plus a "+N more" chip guarantees every visible
   # row is complete, regardless of how many models are in the batch.
   # Shared by fairy_progress_text() and fairy_success_chips() below.
-  fairy_chip_row <- function(label_html, chips, chip_class, max_n = 12) {
+  fairy_chip_row <- function(label_html, chips, chip_class, max_n = 12, latest = FALSE) {
     if (is.null(chips) || length(chips) == 0) return("")
-    shown <- if (length(chips) > max_n) chips[seq_len(max_n)] else chips
+    # latest = TRUE (the Done list): chronological order, and when capped the
+    # NEWEST chips stay visible with the overflow marker in front. Earlier
+    # chips then keep their position as new ones are appended at the end.
+    shown <- if (length(chips) > max_n) {
+      if (latest) utils::tail(chips, max_n) else chips[seq_len(max_n)]
+    } else chips
     more_n <- length(chips) - length(shown)
     more_html <- if (more_n > 0)
-      paste0("<span class='", chip_class, " fairy-progress-chip-more'>+", more_n, " more</span>") else ""
+      paste0("<span class='", chip_class, " fairy-progress-chip-more'>+", more_n, if (latest) " earlier" else " more", "</span>") else ""
+    chips_html <- paste0("<span class='", chip_class, "'>", shown, "</span>", collapse = "")
     paste0(
       label_html,
       "<div class='", chip_class, "s'>",
-      paste0("<span class='", chip_class, "'>", shown, "</span>", collapse = ""),
-      more_html,
+      if (latest) paste0(more_html, chips_html) else paste0(chips_html, more_html),
       "</div>"
     )
   }
@@ -5252,13 +5285,13 @@ server <- shinyServer(function(input, output, session) {
       fairy_chip_row("<div class='fairy-progress-items-label'>Computing</div>", items, "fairy-progress-items-chip"),
       "</div>"
     ) else ""
-    # Most-recently-finished model first — that's the one the user just
-    # watched complete and is most likely checking for, and it also keeps
-    # the chip that appears/moves each frame anchored at a fixed spot
-    # (top-left of the Done list) instead of jumping to a growing tail.
+    # Chronological order: a newly finished model is appended at the end, so
+    # every chip that is already there stays exactly where it was (the old
+    # newest-first order pushed all chips one slot to the right on every
+    # update, which looked restless).
     done_html <- if (!is.null(done) && length(done) > 0) paste0(
       "<div class='fairy-progress-done'>",
-      fairy_chip_row("<div class='fairy-progress-done-label'>&#10003; Done</div>", rev(done), "fairy-progress-done-chip"),
+      fairy_chip_row("<div class='fairy-progress-done-label'>&#10003; Done</div>", done, "fairy-progress-done-chip", latest = TRUE),
       "</div>"
     ) else ""
     paste0("<div class='fairy-progress-wrap'>", items_html, svg, cores_html, bar_html, dots, done_html, "</div>")
@@ -5273,10 +5306,9 @@ server <- shinyServer(function(input, output, session) {
     if (is.null(items) || length(items) == 0) return("")
     paste0(
       "<div class='fairy-progress-wrap'><div class='fairy-progress-done' style='margin-top:0;padding-top:0;border-top:none;'>",
-      # Same most-recent-first ordering as fairy_progress_text()'s own
-      # Done list (see its comment) — kept consistent here since this is
-      # exactly that list's final, permanent state once the batch ends.
-      fairy_chip_row("", rev(items), "fairy-progress-done-chip"),
+      # Same chronological ordering as the Done list of fairy_progress_text()
+      # (see its comment), since this is exactly that list's final state.
+      fairy_chip_row("", items, "fairy-progress-done-chip", latest = TRUE),
       "</div></div>"
     )
   }
