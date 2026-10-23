@@ -1950,6 +1950,10 @@ ui <- shinyUI(fluidPage(
         line-height: 1.2;
         font-size: 10.5px;
       }
+      #banner p.fairy-banner-text { text-align: center; color: rgba(255, 255, 255, 0.62); letter-spacing: 0.01em; }
+      #banner p.fairy-banner-text a { color: rgba(255, 255, 255, 0.9); text-decoration: underline; text-underline-offset: 2px; }
+      #banner p.fairy-banner-text a:hover { color: #fff; }
+      #banner * { box-shadow: none; }
 
       a { color: var(--fairy-primary); }
       a:hover { color: var(--fairy-primary-dark); }
@@ -5861,7 +5865,7 @@ server <- shinyServer(function(input, output, session) {
 
   shinyjs::html(
     id = "banner",
-    html = "<SPAN STYLE='color:#FFFFFF'><p><center> &#129668; The Shiny app is under active development (Beta release 07/28/26), please click <a href='mailto:mjekel@uni-koeln.de?subject=bug-report fairy app' style='color: red;'>here</a> to report bugs. &#127984; </center></p></SPAN>",
+    html = "<p class='fairy-banner-text'>Beta release 07/28/26 &middot; under active development &middot; <a href='mailto:mjekel@uni-koeln.de?subject=bug-report fairy app'>report a bug</a></p>",
     add = TRUE
   )
 
