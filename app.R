@@ -12241,7 +12241,7 @@ server <- shinyServer(function(input, output, session) {
                     "setTimeout(function() { MathJax.Hub.Queue(['Typeset', MathJax.Hub]); }, 30); } }"
                   )
                 ))
-              })
+              }, server = FALSE)   # client-side paging: Show N entries must not need a round trip to the R process
             })
           }
         }
@@ -12703,7 +12703,7 @@ server <- shinyServer(function(input, output, session) {
             target  = "row",
             backgroundColor = DT::styleEqual(names(model_colors), unname(model_colors))
           )
-      })
+      }, server = FALSE)   # client-side paging, see the V-representation tables
 
       # One (grouped) bar per model x algorithm — same numbers as the
       # "Volume" column of the table below, just visual, so both a big
@@ -13068,7 +13068,7 @@ server <- shinyServer(function(input, output, session) {
 
   output$d_h <- downloadHandler(
     filename = function() {
-      paste("h_representation_",
+      paste("h_representation_qtest_",
         str_replace_all(Sys.Date(), "-", "_"),
         ".tar",
         sep = ""
@@ -13137,7 +13137,7 @@ server <- shinyServer(function(input, output, session) {
 
   output$d_h_multinomineq <- downloadHandler(
     filename = function() {
-      paste("h_representation_",
+      paste("h_representation_multinomineq_",
         str_replace_all(Sys.Date(), "-", "_"),
         ".tar",
         sep = ""
@@ -13235,7 +13235,7 @@ server <- shinyServer(function(input, output, session) {
 
   output$d_v <- downloadHandler(
     filename = function() {
-      paste("v_representation_",
+      paste("v_representation_qtest_",
         str_replace_all(Sys.Date(), "-", "_"),
         ".tar",
         sep = ""
@@ -13316,7 +13316,7 @@ server <- shinyServer(function(input, output, session) {
 
   output$d_v_multinomineq <- downloadHandler(
     filename = function() {
-      paste("v_representation_",
+      paste("v_representation_multinomineq_",
         str_replace_all(Sys.Date(), "-", "_"),
         ".tar",
         sep = ""
