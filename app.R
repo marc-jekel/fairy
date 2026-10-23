@@ -4612,7 +4612,27 @@ ui <- shinyUI(fluidPage(
 
          function openOverlay(card) {
            var content = $(card).clone();
-           content.find('.model-card-expand-hint').remove();
+           content.find('.model-card-expand-hint, .fairy-handle').remove();
+           // A cloned DataTable is inert markup holding only the current page's rows, so
+           // its Show / Search / paging did nothing: rebuild each one from the live table's data
+           var dtJobs = [];
+           $(card).find('table.dataTable').each(function(i) {
+             try {
+               var api = $(this).DataTable();
+               dtJobs.push({
+                 data: api.data().toArray(),
+                 cols: api.columns().header().toArray().map(function(h) { return { title: h.innerHTML }; }),
+                 len: api.page.len()
+               });
+             } catch (e) { dtJobs.push(null); }
+           });
+           content.find('.dataTables_wrapper').each(function(i) {
+             var job = dtJobs[i];
+             if (!job) return;
+             var tb = $('<table class=\"display\" style=\"width:100%\"></table>');
+             $(this).replaceWith(tb);
+             job.tb = tb;
+           });
            // Undo any shrink-to-fit the small card's own table got (see
            // window.fitHTablesToWidth) — the overlay has far more room,
            // so it should start from the table's natural, full-size
@@ -4651,6 +4671,11 @@ ui <- shinyUI(fluidPage(
            }
            $('#fairy-card-overlay').addClass('active');
            document.body.style.overflow = 'hidden';
+           dtJobs.forEach(function(job) {
+             if (job && job.tb && job.tb.closest('body').length) {
+               try { job.tb.DataTable({ data: job.data, columns: job.cols, pageLength: job.len, lengthMenu: [10, 25, 50, 100], autoWidth: false }); } catch (e) {}
+             }
+           });
            fitContentToWidth();
          }
 
