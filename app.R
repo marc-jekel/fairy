@@ -4373,9 +4373,15 @@ ui <- shinyUI(fluidPage(
         }
         // ---- free layout: cards can be placed anywhere (absolute), also overlapping ----
         var freeMode = false, pos = {}, zTop = 10, freeDrag = null;
-        try { freeMode = sessionStorage.getItem('fairyCardFree') === '1'; pos = JSON.parse(sessionStorage.getItem('fairyCardPos') || '{}'); } catch (e) {}
+        // free positioning is the default; the choice is remembered for the session
+        freeMode = true;
+        try {
+          var fz = sessionStorage.getItem('fairyCardFree2');
+          if (fz !== null) freeMode = fz === '1';
+          pos = JSON.parse(sessionStorage.getItem('fairyCardPos2') || '{}');
+        } catch (e) {}
         function savePos() {
-          try { sessionStorage.setItem('fairyCardPos', JSON.stringify(pos)); sessionStorage.setItem('fairyCardFree', freeMode ? '1' : '0'); } catch (e) {}
+          try { sessionStorage.setItem('fairyCardPos2', JSON.stringify(pos)); sessionStorage.setItem('fairyCardFree2', freeMode ? '1' : '0'); } catch (e) {}
         }
         function isVisible(el) { return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length); }
         function fitWrap(wrap) {
@@ -4400,13 +4406,18 @@ ui <- shinyUI(fluidPage(
           cards.forEach(function(c, k) { c.style.left = '0px'; c.style.top = '0px'; c.style.width = sizes[k].w + 'px'; });
           sizes.forEach(function(z, k) { z.h = cards[k].offsetHeight; });   // heights as they are once absolutely placed
           cards.forEach(function(c, k) {
-            var w = sizes[k].w, h = sizes[k].h, bx = 0, by = Infinity, x, j, y;
+            var w = sizes[k].w, h = sizes[k].h, bx = 0, by = Infinity, x, j, y, cand = [];
             for (x = 0; x + w <= W + 0.5; x += Q) {
               y = 0;
               for (j = Math.floor(x / Q); j < Math.min(n, Math.ceil((x + w + G) / Q)); j++) if (sky[j] > y) y = sky[j];
-              if (y < by) { by = y; bx = x; }
+              cand.push([x, y]);
+              if (y < by) by = y;
             }
-            if (by === Infinity) { bx = 0; by = Math.max.apply(null, sky); }
+            if (!cand.length) { bx = 0; by = Math.max.apply(null, sky); }
+            else {
+              // reading order: the leftmost spot that is at most a third of the tile's height lower than the best one
+              for (j = 0; j < cand.length; j++) if (cand[j][1] <= by + 0.3 * h) { bx = cand[j][0]; by = cand[j][1]; break; }
+            }
             for (j = Math.floor(bx / Q); j < Math.min(n, Math.ceil((bx + w + G) / Q)); j++) sky[j] = by + h + G;
             c.style.left = bx + 'px'; c.style.top = by + 'px'; c.style.width = w + 'px';
           });
@@ -4430,12 +4441,13 @@ ui <- shinyUI(fluidPage(
         function enterFree(wrap) {
           if (wrap.classList.contains('fairy-free') || !isVisible(wrap)) return;
           refit();   // let the tables size their columns first, otherwise the cards are measured collapsed
-          var cards = wrapCards(wrap), wr = wrap.getBoundingClientRect();
-          var m = cards.map(function(c) { var r = c.getBoundingClientRect(); return { x: r.left - wr.left, y: r.top - wr.top, w: r.width }; });
+          // start from the gap-free packed arrangement (no overlaps), then apply positions the user has set
+          packing = false; pack(wrap); packing = false;
+          var cards = wrapCards(wrap);
           wrap.classList.add('fairy-free'); wrap.classList.remove('fairy-packed');
-          cards.forEach(function(c, i) {
-            var p = pos[titleOf(c)] || { x: Math.max(0, m[i].x), y: Math.max(0, m[i].y) };
-            c.style.left = p.x + 'px'; c.style.top = p.y + 'px'; c.style.width = m[i].w + 'px';
+          cards.forEach(function(c) {
+            var p = pos[titleOf(c)];
+            if (p) { c.style.left = p.x + 'px'; c.style.top = p.y + 'px'; }
           });
           fitWrap(wrap);
         }
@@ -4608,8 +4620,15 @@ ui <- shinyUI(fluidPage(
           document.querySelectorAll('.fairy-h-cards-wrap.fairy-free').forEach(function(wrap) {
             if (!isVisible(wrap)) return;
             refit();
-            wrapCards(wrap).forEach(function(c) { c.style.width = ''; });
-            wrapCards(wrap).forEach(function(c) { c.style.width = c.offsetWidth + 'px'; });
+            var cs = wrapCards(wrap);
+            if (cs.every(function(c) { return !pos[titleOf(c)]; })) {
+              // nothing moved by hand yet: arrange again now that the tables have their final size
+              wrap.classList.remove('fairy-free'); packing = false; pack(wrap); packing = false;
+              wrap.classList.add('fairy-free'); wrap.classList.remove('fairy-packed');
+            } else {
+              cs.forEach(function(c) { c.style.width = ''; });
+              cs.forEach(function(c) { c.style.width = c.offsetWidth + 'px'; });
+            }
             fitWrap(wrap);
           });
         }
