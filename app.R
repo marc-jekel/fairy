@@ -5843,7 +5843,7 @@ ui <- shinyUI(fluidPage(
               # tooltip text cut off behind the navbar).
               tags$span(class = "fairy-tooltip fairy-tooltip-down", `data-tooltip` = "Set an exact number of probabilities",
                 numericInput("set_prob_count", NULL, value = 3, min = 3, max = 30, width = "62px")),
-              actionBttn("show_items_modal", "Several items", icon = icon("layer-group"),
+              actionBttn("show_items_modal", "Multiple items", icon = icon("layer-group"),
                 size = "xs", style = "jelly", color = "default"
               )
             ),
@@ -7254,7 +7254,7 @@ server <- shinyServer(function(input, output, session) {
       title = NULL,
       size = "m",
       class = "fairy-eq-tol-modal",
-      tags$div(class = "fairy-eq-tol-header", tags$strong(if (is_edit) "Edit several items" else "Several items")),
+      tags$div(class = "fairy-eq-tol-header", tags$strong(if (is_edit) "Edit multiple items" else "Multiple items")),
       tags$p(class = "fairy-eq-tol-help",
         HTML("Use this when a probability was measured on <b>several items</b> (e.g. different jokes, stimuli or labs) instead of just once. Set <b>Items</b> to the number of items and choose with <b>Type</b> how your model should hold across them. Items = 1 leaves a probability as it is.")
       ),
@@ -7624,7 +7624,7 @@ server <- shinyServer(function(input, output, session) {
             title = "Show as typed input",
             size = "m",
             tags$p(class = "fairy-eq-tol-help",
-              "Exactly what you'd get typing a fresh model with this many probabilities, instead of using Several items:"),
+              "Exactly what you'd get typing a fresh model with this many probabilities, instead of using Multiple items:"),
             # A real, readonly, click-to-select-all textarea — copy/paste
             # friendly, unlike a plain <pre> block — this is meant to be
             # pasted straight into a Unique Model Specification box.
@@ -7906,7 +7906,7 @@ server <- shinyServer(function(input, output, session) {
     specs <- mytable_items_reactive$value
     n_total <- if (is.null(specs)) 0 else sum(vapply(specs, function(s) length(s$types), integer(1)))
     updateActionButton(session, "show_items",
-      label = if (n_total > 0) paste0("Several items (n=", n_total, ")") else "Several items")
+      label = if (n_total > 0) paste0("Multiple items (n=", n_total, ")") else "Multiple items")
   })
 
   model_sel_multiple_reactive <- reactiveValues(value = "None")
