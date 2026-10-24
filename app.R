@@ -77,6 +77,7 @@ dim_picker_row <- function(id, selected) {
 }
 
 ui <- shinyUI(fluidPage(
+  lang = "en",
   tags$head(
     tags$style(HTML(
       "
@@ -1516,7 +1517,7 @@ ui <- shinyUI(fluidPage(
       }
       .model-card .fairy-handle:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 16%, transparent); }
       .model-card .fairy-handle:active { cursor: grabbing; }
-      .model-card .fairy-handle-grip { color: var(--fairy-text-muted, #667085); font-size: 13px; letter-spacing: 2px; line-height: 1; }
+      .model-card .fairy-handle-grip { color: #566075; font-size: 13px; letter-spacing: 2px; line-height: 1; }
       .model-card .fairy-handle-kind {
         position: absolute;
         right: 12px;
@@ -1540,6 +1541,33 @@ ui <- shinyUI(fluidPage(
         background: rgba(255, 244, 214, 0.96); color: #8a5a00; font-size: 11px; line-height: 1.3; pointer-events: none; z-index: 5;
       }
       body.dark-mode .fairy-conflict-hint { background: rgba(70, 52, 12, 0.96); color: #f5d27a; }
+      /* Phones and small tablets: less padding, tiles stacked in one column, no layout switch */
+      @media (max-width: 640px) {
+        .container-fluid { padding-left: 6px !important; padding-right: 6px !important; }
+        .tab-pane > .col-sm-12 { padding-left: 0 !important; padding-right: 0 !important; }
+        .model-def-panel, .def-col--models-card { padding-left: 8px !important; padding-right: 8px !important; }
+        .fairy-card-layout-group { display: none !important; }
+        .fairy-vrep-count { display: none !important; }
+        /* the toolbar column moves above the content, as a row */
+        .tab-pane:has(.fairy-input-toolbar), .tab-pane:has(.fairy-input-toolbar) > div:has(> .fairy-input-toolbar) { flex-direction: column !important; }
+        .fairy-input-toolbar { flex-direction: row !important; flex-wrap: wrap; width: auto !important; align-items: center; gap: 8px; padding-bottom: 8px; }
+        .fairy-input-toolbar > hr { display: none; }
+        .fairy-input-toolbar #d_h, .fairy-input-toolbar #d_v, .fairy-input-toolbar #d_h_multinomineq, .fairy-input-toolbar #d_v_multinomineq { margin-right: 22px; }
+        .navbar-fixed-top, .navbar-fixed-top .container-fluid { max-width: 100vw; overflow-x: hidden; }
+        .navbar-fixed-top .navbar-nav { max-width: 100vw; }
+        html, body { overflow-x: hidden; }
+        body { padding-top: 98px !important; }   /* the tab row sits below the title row, so the bar is taller */
+        /* the tabs sit in one scrollable row instead of a tall stack */
+        .navbar-fixed-top .navbar-nav { display: flex !important; flex-direction: row; overflow-x: auto; margin: 0 !important; }
+        .navbar-fixed-top .navbar-nav > li { float: none; flex: 0 0 auto; }
+        .def-col--models-card colgroup col:nth-child(1) { width: 30% !important; }
+        .def-col--models-card colgroup col:nth-child(2), .def-col--models-card colgroup col:nth-child(3) { width: 35% !important; }
+        .fairy-h-cards-wrap.fairy-stacked { display: block !important; position: static !important; height: auto !important; }
+        .fairy-h-cards-wrap.fairy-stacked .model-card { position: relative !important; width: auto !important; max-width: none !important; margin: 0 0 14px !important; box-sizing: border-box; }
+        .fairy-h-cards-wrap.fairy-stacked .fairy-h-table-scroll { max-width: 100%; overflow-x: auto; }
+        #fairy-card-overlay-inner { padding: 48px 12px 24px !important; }
+        #fairy-run-card { width: calc(100vw - 20px) !important; max-width: none !important; }
+      }
       .fairy-share-wrap { position: relative; display: inline-flex; }
       .fairy-share-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
       .fairy-share-pop { position: absolute; left: 0; bottom: calc(100% + 10px); min-width: 188px; z-index: 5; padding: 4px;
@@ -1913,7 +1941,7 @@ ui <- shinyUI(fluidPage(
 
       /* Model Properties tab — visually distinct, rightmost */
       .navbar-default .navbar-nav > li:last-child > a {
-        color: var(--fairy-primary) !important;
+        color: #8db0ff !important;   /* light enough on the dark bar (contrast >= 4.5) */
         font-weight: 600 !important;
         border-left: 2px solid var(--fairy-border);
         margin-left: 6px;
@@ -4430,8 +4458,17 @@ ui <- shinyUI(fluidPage(
         // Flow layout without gaps: cards keep their natural size and DOM order, but each one
         // is placed at the highest free spot (skyline packing) instead of in flex rows.
         var packing = false, packTimer = null, ro = null;
+        function isNarrow() { return window.innerWidth <= 640; }
         function pack(wrap) {
-          if (packing || wrap.classList.contains('fairy-free') || !isVisible(wrap)) return;
+          if (!isVisible(wrap)) return;
+          if (isNarrow()) {                       // phones: one column, no absolute positioning
+            wrap.classList.remove('fairy-packed', 'fairy-free'); wrap.classList.add('fairy-stacked');
+            wrap.style.height = '';
+            wrapCards(wrap).forEach(function(c) { c.style.left = c.style.top = c.style.width = ''; });
+            return;
+          }
+          wrap.classList.remove('fairy-stacked');
+          if (packing || wrap.classList.contains('fairy-free')) return;
           var cards = wrapCards(wrap);
           if (!cards.length) return;
           packing = true;
@@ -4479,7 +4516,7 @@ ui <- shinyUI(fluidPage(
         }
         window.addEventListener('resize', packLater);
         function enterFree(wrap) {
-          if (wrap.classList.contains('fairy-free') || !isVisible(wrap)) return;
+          if (wrap.classList.contains('fairy-free') || !isVisible(wrap) || isNarrow()) return;
           refit();   // let the tables size their columns first, otherwise the cards are measured collapsed
           // start from the gap-free packed arrangement (no overlaps), then apply positions the user has set
           packing = false; pack(wrap); packing = false;
@@ -4730,6 +4767,46 @@ ui <- shinyUI(fluidPage(
             }, 300);
           });
         });
+      })();
+
+      // ---- Accessibility patches for generated markup (landmarks, tab roles, math headers) ----
+      (function() {
+        function patch() {
+          // two navigation bars: give them distinct names; the bottom one is the page notice
+          var top = document.querySelector('nav.navbar-fixed-top'), bot = document.querySelector('nav.navbar-fixed-bottom');
+          if (top && !top.getAttribute('aria-label')) top.setAttribute('aria-label', 'Main navigation');
+          if (bot) bot.setAttribute('aria-label', 'Notice');
+          var ban = document.getElementById('banner'); if (ban) ban.setAttribute('role', 'presentation');
+          // the hidden page title belongs to a landmark
+          var h1 = document.querySelector('h1.sr-only');
+          if (h1 && top && !top.contains(h1)) top.insertBefore(h1, top.firstChild);
+          // tab links: real tab semantics (aria-selected is only allowed on role=tab)
+          document.querySelectorAll('.navbar-nav').forEach(function(ul) {
+            if (!ul.querySelector('a[data-toggle=tab], a[data-bs-toggle=tab]')) return;
+            ul.setAttribute('role', 'tablist');
+            ul.querySelectorAll(':scope > li').forEach(function(li) { li.setAttribute('role', 'presentation'); });
+            ul.querySelectorAll('a[data-toggle=tab], a[data-bs-toggle=tab]').forEach(function(a) { a.setAttribute('role', 'tab'); a.removeAttribute('aria-expanded'); });
+          });
+          // the full-screen tile is a dialog
+          var inner = document.getElementById('fairy-card-overlay-inner');
+          if (inner && !inner.getAttribute('role')) { inner.setAttribute('role', 'dialog'); inner.setAttribute('aria-modal', 'true'); inner.setAttribute('aria-label', 'Expanded tile'); }
+          // table headers that only contain rendered math (p with a subscript) have no text a screen reader finds
+          document.querySelectorAll('table.dataTable thead th').forEach(function(th) {
+            if (th.querySelector('.fairy-th-sr')) return;
+            var lab = th.getAttribute('aria-label') || '';
+            var m = /p_\\{([^}]+)\\}/.exec(lab);
+            var name = m ? 'p' + m[1] : (th.textContent.replace(/\\s+/g, '') === '' ? lab.split(':')[0] : '');
+            if (!name) return;
+            var sp = document.createElement('span'); sp.className = 'sr-only fairy-th-sr'; sp.textContent = name;
+            th.appendChild(sp);
+          });
+        }
+        var timer = null;
+        // throttle (not debounce): the page keeps changing, a debounce would never fire
+        function later() { if (timer) return; timer = setTimeout(function() { timer = null; try { patch(); } catch (e) {} }, 400); }
+        document.addEventListener('DOMContentLoaded', later);
+        if (window.jQuery) jQuery(document).on('shiny:connected shiny:value shiny:idle shown.bs.tab draw.dt', later);
+        if (window.MutationObserver) new MutationObserver(later).observe(document.documentElement, { childList: true, subtree: true });
       })();
 
       // ---- Share / save menu in the floating panel ----
@@ -14883,6 +14960,7 @@ server <- shinyServer(function(input, output, session) {
     }, logical(1))
     included_count <- sum(row_included)
     tags$span(
+      class = "fairy-vrep-count",
       style = "font-size:12px; color:var(--fairy-text-muted); white-space:nowrap;",
       paste0(n, " model", if (n != 1) "s" else "", " · ",
         included_count, " selected for V-representation")
