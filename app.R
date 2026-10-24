@@ -7577,6 +7577,14 @@ server <- shinyServer(function(input, output, session) {
               if (sameAs) { sameAs.style.display = follower ? '' : 'none'; if (follower) sameAs.textContent = 'same as ' + info[firstOfSet[g]].name; }
               if (c5) c5.style.visibility = follower ? 'hidden' : '';
             });
+            // in the picture, rows of one item set sit next to each other (the table keeps its own order)
+            var order = [], seen = {};
+            info.forEach(function(x, i) {
+              if (seen[i]) return;
+              order.push(i); seen[i] = true;
+              if (x.g) info.forEach(function(y, j) { if (!seen[j] && y.g === x.g) { order.push(j); seen[j] = true; } });
+            });
+            info = order.map(function(i) { return info[i]; });
             var tolHdr = document.querySelector('#fairy-items-header-row > :nth-child(5)');
             if (tolHdr) tolHdr.style.visibility = info.some(function(x) { return x.t === 'identical' && x.n > 1; }) ? 'visible' : 'hidden';
             var maxN = Math.min(8, Math.max.apply(null, info.map(function(x) { return x.n; })));
