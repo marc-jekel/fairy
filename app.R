@@ -1584,6 +1584,10 @@ ui <- shinyUI(fluidPage(
         input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select, .form-control, .selectize-input, .selectize-input input,
         .dataTables_wrapper input, .dataTables_wrapper select, .fairy-ineq-overlay { font-size: 16px !important; }
       }
+      /* short press feedback on buttons (added by script on click) */
+      @keyframes fairy-click-kf { 0% { transform: scale(1); } 35% { transform: scale(0.9); } 70% { transform: scale(1.04); } 100% { transform: scale(1); } }
+      .fairy-clicked { animation: fairy-click-kf 0.26s ease-out; }
+      @media (prefers-reduced-motion: reduce) { .fairy-clicked { animation: none; } }
       .fairy-share-wrap { position: relative; display: inline-flex; }
       .fairy-share-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
       .fairy-share-pop { position: absolute; left: 0; bottom: calc(100% + 10px); min-width: 188px; z-index: 5; padding: 4px;
@@ -4785,6 +4789,20 @@ ui <- shinyUI(fluidPage(
             }, 300);
           });
         });
+      })();
+
+      // ---- Short click animation on buttons ----
+      (function() {
+        var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+        document.addEventListener('click', function(e) {
+          if (reduce && reduce.matches) return;
+          var t = e.target.closest ? e.target : e.target.parentNode;
+          var b = t.closest('button, .btn, .bttn, .shiny-download-link');
+          if (!b || b.disabled || b.getAttribute('aria-disabled') === 'true') return;
+          if (b.closest('.fairy-handle, .model-card-title')) return;
+          b.classList.remove('fairy-clicked'); void b.offsetWidth; b.classList.add('fairy-clicked');
+          setTimeout(function() { b.classList.remove('fairy-clicked'); }, 300);
+        }, true);
       })();
 
       // ---- Accessibility patches for generated markup (landmarks, tab roles, math headers) ----
