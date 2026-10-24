@@ -452,7 +452,7 @@ ui <- shinyUI(fluidPage(
          a 6px gap) + 10px right padding, rounded up a little. */
       #sidebar-fab-panel:hover,
       #sidebar-fab-panel:focus-within {
-        min-width: 234px;   /* 92 + three 36px icons + two 6px gaps + padding (Download, Share link, Upload) */
+        min-width: 188px;   /* 92 + two 36px icons + one 6px gap + padding (Share menu, Upload) */
       }
       #sidebar-fab-panel .fairy-primary-action {
         position: absolute !important;
@@ -1540,6 +1540,18 @@ ui <- shinyUI(fluidPage(
         background: rgba(255, 244, 214, 0.96); color: #8a5a00; font-size: 11px; line-height: 1.3; pointer-events: none; z-index: 5;
       }
       body.dark-mode .fairy-conflict-hint { background: rgba(70, 52, 12, 0.96); color: #f5d27a; }
+      .fairy-share-wrap { position: relative; display: inline-flex; }
+      .fairy-share-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
+      .fairy-share-pop { position: absolute; left: 0; bottom: calc(100% + 10px); min-width: 188px; z-index: 5; padding: 4px;
+        background: var(--fairy-panel, #fff); border: 1px solid var(--fairy-border, #e3e6ee); border-radius: 10px;
+        box-shadow: 0 6px 20px rgba(16, 24, 40, 0.18); }
+      .fairy-share-pop[hidden] { display: none; }
+      .fairy-share-pop:not([hidden]) { display: flex; flex-direction: column; }
+      .fairy-share-item { display: flex; align-items: center; gap: 9px; border: 0; background: transparent; color: var(--fairy-text, #222);
+        padding: 8px 10px; border-radius: 7px; font-size: 12.5px; text-align: left; cursor: pointer; white-space: nowrap; }
+      .fairy-share-item:hover, .fairy-share-item:focus-visible { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 12%, transparent); outline: none; }
+      .fairy-share-item.fairy-share-muted { opacity: 0.45; cursor: default; }
+      .fairy-share-open .fairy-tooltip::after { display: none !important; }
       .fairy-toast {
         position: fixed; left: 50%; bottom: 52px; transform: translateX(-50%);
         z-index: 3000; padding: 8px 16px; border-radius: 999px;
@@ -2272,12 +2284,13 @@ ui <- shinyUI(fluidPage(
            corner.classList.add('fairy-away');
            var f = spawnFlyer(ox, oy);
            setTimeout(function() {
-             var dlg = document.querySelector('.swal2-popup, .sweet-alert');
+             var runCard = runWindowOpen() ? document.getElementById('fairy-run-card') : null;
+             var dlg = runCard || document.querySelector('.swal2-popup, .sweet-alert');
              var tx, ty;
              if (dlg) {
                var dr = dlg.getBoundingClientRect();
                tx = dr.left + dr.width / 2 - ox;
-               ty = dr.top  + 110          - oy;
+               ty = (runCard ? dr.top - 6 : dr.top + 110) - oy;     // sits on the top edge of the run window
              } else {
                tx = window.innerWidth / 2 - ox;
                ty = window.innerHeight / 2 - oy;
@@ -2293,6 +2306,7 @@ ui <- shinyUI(fluidPage(
                { transform: 'translate('+tx+'px,'+ty+'px) rotate(0deg) scale(1)',           offset: 1    }
              ], { duration: 950, easing: 'ease-in', fill: 'forwards' }
              ).onfinish = function() {
+               if (runCard) return;       // the fairy stays on the run window until it is closed (land() takes her home)
                f.remove();
                var dlgF2 = document.querySelector('.fairy-progress-figure');
                if (dlgF2) dlgF2.classList.add('fairy-landed');
@@ -2314,9 +2328,14 @@ ui <- shinyUI(fluidPage(
              dlgF.classList.remove('fairy-landed');
            } else {
              var existingF = document.getElementById('fairy-flyer');
-             if (existingF) { existingF.remove(); }
-             sx = window.innerWidth / 2;
-             sy = window.innerHeight / 2;
+             if (existingF) {
+               var er = existingF.getBoundingClientRect();
+               sx = er.left + er.width / 2; sy = er.top + er.height / 2;
+               existingF.remove();
+             } else {
+               sx = window.innerWidth / 2;
+               sy = window.innerHeight / 2;
+             }
            }
            if (!corner) return;
            var cr = corner.getBoundingClientRect();
@@ -2350,9 +2369,15 @@ ui <- shinyUI(fluidPage(
            };
          }
 
+         // the large run window counts as the dialog while it is still calculating
+         function runWindowOpen() {
+           var ov = document.getElementById('fairy-run-overlay'), cl = document.getElementById('fairy-run-close');
+           return !!(ov && ov.classList.contains('active') && !(cl && cl.classList.contains('visible')));
+         }
+
          setInterval(function() {
            var dlg = document.querySelector('.sweet-alert');
-           var has = !!(dlg && dlg.style.display === 'block');
+           var has = !!(dlg && dlg.style.display === 'block') || runWindowOpen();
            if (has === prev) return;
            prev = has;
            if (has) {
@@ -4681,6 +4706,55 @@ ui <- shinyUI(fluidPage(
         });
       })();
 
+      // ---- Share / save menu in the floating panel ----
+      (function() {
+        function parts() {
+          return { btn: document.getElementById('fairy_share_menu'), pop: document.getElementById('fairy-share-pop'),
+                   dl: document.getElementById('download') };
+        }
+        function setOpen(v) {
+          var p = parts(); if (!p.btn || !p.pop) return;
+          p.pop.hidden = !v;
+          p.btn.setAttribute('aria-expanded', v ? 'true' : 'false');
+          var wrap = p.btn.closest('.fairy-share-wrap'); if (wrap) wrap.classList.toggle('fairy-share-open', v);
+          var file = document.getElementById('fairy_share_file');
+          if (v && file) {
+            file.classList.toggle('fairy-share-muted', !!(p.dl && p.dl.classList.contains('fairy-btn-muted')));
+            var first = document.getElementById('fairy_share_link'); if (first) first.focus();
+          }
+        }
+        document.addEventListener('click', function(e) {
+          var p = parts(); if (!p.pop) return;
+          var t = e.target.closest ? e.target : e.target.parentNode;
+          if (t.closest('#fairy_share_menu')) { setOpen(p.pop.hidden); return; }
+          var item = t.closest('.fairy-share-item');
+          if (item) {
+            if (item.id === 'fairy_share_link') {
+              Shiny.setInputValue('share_request', Date.now(), { priority: 'event' });
+            } else if (item.id === 'fairy_share_file' && !item.classList.contains('fairy-share-muted') && p.dl) {
+              p.dl.click();
+            }
+            setOpen(false); if (p.btn) p.btn.focus(); return;
+          }
+          if (!p.pop.hidden) setOpen(false);
+        });
+        document.addEventListener('keydown', function(e) {
+          var p = parts(); if (!p.pop || p.pop.hidden) return;
+          if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen(false); if (p.btn) p.btn.focus(); return; }
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            var items = Array.prototype.slice.call(p.pop.querySelectorAll('.fairy-share-item'));
+            var i = items.indexOf(document.activeElement);
+            items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus();
+          }
+        }, true);
+        // the panel collapses when the mouse leaves it: close the menu too
+        document.addEventListener('mouseout', function(e) {
+          var panel = e.target.closest && e.target.closest('#sidebar-fab-panel');
+          if (panel && !(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('#sidebar-fab-panel'))) setOpen(false);
+        });
+      })();
+
       // ---- Live check while typing: bounds on one probability that contradict each other ----
       (function() {
         function num(x) {
@@ -5484,20 +5558,25 @@ ui <- shinyUI(fluidPage(
           class = "fairy-primary-action fairy-tooltip", `data-tooltip` = "Recalculate (⌘/Ctrl+Enter)"),
         # Download/Upload: ordinary hover-collapsible flow content.
         div(class = "fairy-primary-controls",
-          tags$span(class = "fairy-tooltip", `data-tooltip` = "Download app input",
-            # Starts muted (grey, not the usual active blue) — nothing
-            # meaningful to export yet. A server-side observer (see
-            # "Mute Download until something's typed" below) toggles
-            # fairy-btn-muted off via shinyjs::toggleClass the moment any
-            # model specification box actually has content, and back on
-            # if everything gets cleared out again — driven by Shiny's
-            # own reactive graph rather than a client-side DOM poll, so
-            # there's no separate copy of "what counts as filled in" to
-            # keep in sync and no polling-interval timing to get wrong.
-            downloadButton("download", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn fairy-btn-muted")
-          ),
-          tags$span(class = "fairy-tooltip", `data-tooltip` = "Copy a link to this input",
-            actionButton("share_request", NULL, icon = icon("link"), class = "fairy-toolbar-iconbtn")
+          # One "Share or save" menu instead of separate Download and Link buttons: the menu
+          # copies a link or saves the .xlsx. The real downloadButton stays in the page (Shiny
+          # binds it, and the muted state is toggled on it, see "Mute Download until something's
+          # typed" below) but is visually hidden; the menu item clicks it.
+          tags$span(class = "fairy-share-wrap",
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Share or save this input",
+              tags$button(id = "fairy_share_menu", type = "button", class = "fairy-toolbar-iconbtn",
+                `aria-haspopup` = "true", `aria-expanded` = "false", `aria-controls` = "fairy-share-pop",
+                `aria-label` = "Share or save this input", icon("share-nodes"))
+            ),
+            div(id = "fairy-share-pop", class = "fairy-share-pop", role = "menu", hidden = NA,
+              tags$button(id = "fairy_share_link", type = "button", role = "menuitem", class = "fairy-share-item",
+                icon("link"), "Copy link"),
+              tags$button(id = "fairy_share_file", type = "button", role = "menuitem", class = "fairy-share-item",
+                icon("download"), "Save file (.xlsx)")
+            ),
+            tags$span(class = "fairy-share-hidden",
+              downloadButton("download", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn fairy-btn-muted")
+            )
           ),
           # A hand-rolled <input type=file> here would NOT get Shiny's
           # real upload wiring (the multipart POST + progress bar live in
@@ -6178,6 +6257,8 @@ server <- shinyServer(function(input, output, session) {
     session$sendCustomMessage("fairy_run_row", msg)
   }
   fairy_run_end <- function(note = "") session$sendCustomMessage("fairy_run_end", list(note = note))
+  # last mixture results by name, with a signature of the component models they were built from
+  mixture_cache <- new.env()
 
   # An unexpected R error inside a big computation block used to end the session (greyed-out
   # app). Report it in the run window / as a notification instead and keep the session alive.
@@ -12352,6 +12433,21 @@ server <- shinyServer(function(input, output, session) {
 
           if (length(selected_mix) < 2) next
 
+          # unchanged components (same H-representations as at the last Go): reuse the last mixture
+          mix_sig <- paste(selected_mix, collapse = "+")
+          mix_sig <- paste(c(mix_sig, vapply(selected_mix, function(m) {
+            h <- isolate(h_reactive[[m]])
+            if (is.null(h)) "NULL" else paste(c(dim(h), as.vector(h)), collapse = ",")
+          }, character(1))), collapse = "|")
+          mix_prev <- mixture_cache[[mix_name]]
+          if (!is.null(mix_prev) && identical(mix_prev$sig, mix_sig)) {
+            h_reactive[[mix_name]] <- mix_prev$h
+            v_reactive[[mix_name]] <- mix_prev$v
+            mixture_names <- c(mixture_names, mix_name)
+            fairy_run_row(mix_name, "mixture", h = "cached", v = "cached")
+            next
+          }
+
           fairy_run_row(mix_name, "mixture", h = "run", v = "run")   # a mixture always gets H and V in this one step
 
           # The model H-reps do not include simplex constraints, so their raw
@@ -12426,6 +12522,7 @@ server <- shinyServer(function(input, output, session) {
             h_reactive[[mix_name]] <- mix_result$h
             v_reactive[[mix_name]] <- mix_result$v
             mixture_names <- c(mixture_names, mix_name)
+            mixture_cache[[mix_name]] <- list(sig = mix_sig, h = mix_result$h, v = mix_result$v)
           }
           mix_feedback <- c(mix_feedback, mix_name)
           fairy_run_row(mix_name, h = if (!is.null(mix_result)) "done" else "fail", v = if (!is.null(mix_result)) "done" else "fail")
