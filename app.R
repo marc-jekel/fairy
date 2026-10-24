@@ -4373,8 +4373,8 @@ ui <- shinyUI(fluidPage(
         }
         // ---- free layout: cards can be placed anywhere (absolute), also overlapping ----
         var freeMode = false, pos = {}, zTop = 10, freeDrag = null;
-        // free positioning is the default; the choice is remembered for the session
-        freeMode = true;
+        // the gap-free grid is the default; free positioning is a switch, remembered for the session
+        freeMode = false;
         try {
           var fz = sessionStorage.getItem('fairyCardFree2');
           if (fz !== null) freeMode = fz === '1';
