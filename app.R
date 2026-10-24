@@ -7344,7 +7344,7 @@ server <- shinyServer(function(input, output, session) {
             .fairy-items-custom .fairy-items-main, .fairy-items-custom .fairy-items-nrow { opacity:.4; }
           ")),
           tags$div(id = "fairy_items_custom_note", style = "display:none; margin-bottom:10px; padding:6px 10px; border-radius:6px; background:#fff4d6; color:#5c4300; font-size:12px;",
-            "Different settings per probability are used (see below). ",
+            "Different item sets are used (see below). ",
             tags$a(href = "#", id = "fairy_items_reset", style = "font-weight:600;", "Use the settings above for all probabilities")),
           tags$div(class = "fairy-items-nrow", style = "display:flex; align-items:center; gap:8px; margin-bottom:12px;",
             tags$strong("How many items?", style = "font-size:12.5px;"),
@@ -7372,14 +7372,14 @@ server <- shinyServer(function(input, output, session) {
           )
         )
       },
-      tags$details(class = if (adv_diff) NULL else "fairy-items-simple", open = if (adv_diff) NA else NULL, style = "margin-top:8px;",
+      tags$details(open = if (adv_diff) NA else NULL, style = "margin-top:8px;",
         tags$summary(style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
-          HTML("Optional: different items per probability")),
+          "Were some probabilities measured on different items?"),
         tags$p(class = "fairy-eq-tol-help", style = "margin-top:6px;",
-          HTML("Only needed if your probabilities were <b>not</b> all measured on the same items. Each row is one probability: how many items it has (<b>Items</b>), which <b>item set</b> it belongs to, and how the model applies to its items (<b>Model holds</b>, as above). Probabilities in the same item set are measured on the same items: item 1 of one goes with item 1 of the other.")),
-        tags$div(id = "fairy_items_rows_diagram", `aria-hidden` = "true", style = "margin:4px 0 4px;"),
-        tags$div(style = "font-size:11.5px; color:var(--fairy-text-muted); margin:0 0 10px;",
-          HTML("<b>Box</b> = one item set (same items). <b>Lines</b> = how its items are combined.")),
+          HTML("Click a probability to move it into another <b>item set</b>. A set is a group of probabilities that were measured on the same items (e.g. the same jokes). Each set can have its own number of items.")),
+        tags$div(id = "fairy_items_chips", style = "display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;"),
+        tags$div(id = "fairy_items_sets", style = "margin:6px 0 10px;"),
+        tags$div(style = "display:none;",
       tags$div(
         id = "fairy-items-header-row",
         style = "display:grid; grid-template-columns: 1.6fr 1.6fr 1fr 1.6fr 1.4fr; gap:6px 10px; align-items:center; margin-top:6px;",
@@ -7412,6 +7412,7 @@ server <- shinyServer(function(input, output, session) {
           )
         )
       })
+        )
       ),
       tags$script(HTML(
         "
@@ -7550,6 +7551,102 @@ server <- shinyServer(function(input, output, session) {
           });
           $(document).on('change', '.fairy-items-row [id^=items_multi_type_]', function() {
             syncGroupItems(this.closest('.fairy-items-row'), 'type');
+          });
+          // ---- item sets as coloured chips: click a probability to move it to the next set ----
+          var chipState = { asg: [], sets: [] };
+          var chipPal = ['#3a6df0', '#e07b00', '#2a9d6f', '#b04fd0', '#c2385a', '#7a7f8c'];
+          var CHIP_TYPES = [['joint', 'Item by item'], ['substitutable', 'Any item with any item'], ['identical', 'All items the same'], ['average', 'Only the average']];
+          function chipRowName(i) {
+            var rows = document.querySelectorAll('.fairy-items-row'), sp = rows[i] && rows[i].querySelector('span');
+            var t = sp ? sp.textContent.replace(/[_{}]/g, '').trim() : '';
+            return t || ('p' + (i + 1));
+          }
+          function chipsFromRows() {
+            var rows = document.querySelectorAll('.fairy-items-row'), info = [];
+            rows.forEach(function(r) {
+              info.push({
+                g: (r.querySelector('input[id^=items_multi_group_]').value || '').trim(),
+                n: Math.max(1, parseInt(r.querySelector('input[id^=items_multi_n_]').value, 10) || 1),
+                t: r.querySelector('select[id^=items_multi_type_]').value || 'joint'
+              });
+            });
+            var uniform = info.every(function(x) { return !x.g && x.n === info[0].n && x.t === info[0].t; });
+            var asg = [], sets = [], keyIdx = {};
+            info.forEach(function(x, i) {
+              var key = uniform ? 'all' : (x.g ? 'g:' + x.g : 's:' + i);
+              if (!(key in keyIdx)) { keyIdx[key] = Math.min(sets.length + 1, 6); if (sets.length < 6) sets.push({ n: x.n, type: x.t }); }
+              asg.push(keyIdx[key]);
+            });
+            chipState = { asg: asg, sets: sets };
+          }
+          function chipsCompact() {
+            var used = [];
+            chipState.asg.forEach(function(s) { if (used.indexOf(s) < 0) used.push(s); });
+            used.sort(function(a, b) { return a - b; });
+            var map = {}, ns = [];
+            used.forEach(function(s, k) { map[s] = k + 1; ns.push(chipState.sets[s - 1] || { n: chipState.sets[0].n, type: chipState.sets[0].type }); });
+            chipState.asg = chipState.asg.map(function(s) { return map[s]; });
+            chipState.sets = ns;
+          }
+          function chipsRender() {
+            var ch = document.getElementById('fairy_items_chips'), sl = document.getElementById('fairy_items_sets');
+            if (!ch || !sl) return;
+            ch.textContent = ''; sl.textContent = '';
+            chipState.asg.forEach(function(s, i) {
+              var b = document.createElement('button');
+              b.type = 'button'; b.className = 'fairy-chip'; b.setAttribute('data-p', i);
+              b.textContent = chipRowName(i) + ' ' + String.fromCharCode(183) + ' set ' + s;
+              b.style.cssText = 'border:1.5px solid ' + chipPal[s - 1] + '; background:' + chipPal[s - 1] + '22; color:inherit; border-radius:14px; padding:3px 11px; font-size:12.5px; cursor:pointer;';
+              ch.appendChild(b);
+            });
+            chipState.sets.forEach(function(st, k) {
+              var row = document.createElement('div');
+              row.style.cssText = 'display:flex; align-items:center; gap:8px; margin:5px 0; flex-wrap:wrap;';
+              var dot = document.createElement('span'); dot.style.cssText = 'width:12px; height:12px; border-radius:50%; background:' + chipPal[k] + '; display:inline-block;';
+              var lab = document.createElement('b'); lab.style.fontSize = '12.5px'; lab.textContent = 'Set ' + (k + 1);
+              var members = chipState.asg.map(function(s, i) { return s === k + 1 ? chipRowName(i) : null; }).filter(Boolean).join(', ');
+              var mem = document.createElement('span'); mem.style.cssText = 'font-size:12px; color:var(--fairy-text-muted);'; mem.textContent = '(' + members + ')';
+              var inp = document.createElement('input'); inp.type = 'number'; inp.min = 1; inp.max = 50; inp.value = st.n; inp.className = 'form-control fairy-set-n';
+              inp.style.cssText = 'width:70px; height:28px; padding:2px 6px;'; inp.setAttribute('data-set', k); inp.setAttribute('aria-label', 'Items in set ' + (k + 1));
+              var it = document.createElement('span'); it.style.fontSize = '12.5px'; it.textContent = 'items, model holds';
+              var sel = document.createElement('select'); sel.className = 'form-control fairy-set-type'; sel.style.cssText = 'width:auto; height:28px; padding:2px 6px;'; sel.setAttribute('data-set', k);
+              CHIP_TYPES.forEach(function(t) { var o = document.createElement('option'); o.value = t[0]; o.textContent = t[1]; if (t[0] === st.type) o.selected = true; sel.appendChild(o); });
+              [dot, lab, mem, inp, it, sel].forEach(function(e) { row.appendChild(e); });
+              sl.appendChild(row);
+            });
+          }
+          function chipsApply() {
+            itemsApplying = true;
+            var rows = document.querySelectorAll('.fairy-items-row');
+            var epsEl = document.getElementById('fairy_items_quick_eps'), epsV = Math.min(1, Math.max(0, parseFloat(epsEl && epsEl.value) || 0));
+            rows.forEach(function(row) { var g = row.querySelector('input[id^=items_multi_group_]'); if (g) { g.value = ''; $(g).trigger('input'); } });
+            rows.forEach(function(row, i) { var st = chipState.sets[chipState.asg[i] - 1], nIn = row.querySelector('input[id^=items_multi_n_]'); if (nIn) { nIn.value = st.n; $(nIn).trigger('change'); } });
+            rows.forEach(function(row, i) {
+              var k = chipState.asg[i], st = chipState.sets[k - 1];
+              var gIn = row.querySelector('input[id^=items_multi_group_]'), sel = row.querySelector('select[id^=items_multi_type_]'), eIn = row.querySelector('input[id^=items_multi_eps_]');
+              if (st.n > 1) {
+                if (sel) { if (sel.selectize) sel.selectize.setValue(st.type); else { sel.value = st.type; $(sel).trigger('change'); } }
+                if (gIn && (st.type === 'joint' || st.type === 'identical')) { gIn.value = 'set ' + k; $(gIn).trigger('input'); }
+              }
+              if (eIn) { eIn.value = st.type === 'identical' ? epsV : 0; $(eIn).trigger('change'); }
+            });
+            syncGroupItems(null);
+            updateAllItemsRows();
+            itemsApplying = false;
+            markItemsCustom(chipState.sets.length > 1);
+          }
+          $(document).on('click', '.fairy-chip', function() {
+            var i = parseInt(this.getAttribute('data-p'), 10), cur = chipState.asg[i], mx = 0;
+            chipState.asg.forEach(function(s, j) { if (j !== i && s > mx) mx = s; });
+            var nxt = cur + 1; if (nxt > mx + 1 || nxt > 6) nxt = 1;
+            if (!chipState.sets[nxt - 1]) chipState.sets[nxt - 1] = { n: chipState.sets[0].n, type: chipState.sets[0].type };
+            chipState.asg[i] = nxt; chipsCompact(); chipsRender(); chipsApply();
+          });
+          $(document).on('input change', '.fairy-set-n', function() {
+            var k = parseInt(this.getAttribute('data-set'), 10); chipState.sets[k].n = Math.max(1, Math.min(50, parseInt(this.value, 10) || 1)); chipsApply();
+          });
+          $(document).on('change', '.fairy-set-type', function() {
+            var k = parseInt(this.getAttribute('data-set'), 10); chipState.sets[k].type = this.value; chipsApply();
           });
           // Picture of the table below: one row per probability, one dot per item, same colour = same item set.
           function drawRowsDiagram() {
@@ -7786,7 +7883,7 @@ server <- shinyServer(function(input, output, session) {
             updateAllItemsRows();
             itemsApplying = false;
             markItemsCustom(false);
-            drawRowsDiagram();
+            chipsFromRows(); chipsRender();
           }
           $(document).on('input change', '.fairy-items-quick-type, #fairy_items_quick_n, #fairy_items_quick_eps', quickApply);
           $(document).on('input change', '.fairy-items-row input', function(e) {
@@ -7798,12 +7895,11 @@ server <- shinyServer(function(input, output, session) {
           setTimeout(function() {
             var q = document.querySelector('.fairy-items-quick');
             if (q && q.getAttribute('data-custom') === '1') markItemsCustom(true);
-            drawRowsDiagram();
           }, 300);
           // a new dialog starts from the defaults shown above (edit mode keeps the saved values)
           setTimeout(function() {
             var q = document.querySelector('.fairy-items-quick');
-            if (q && q.getAttribute('data-edit') !== '1') quickApply(); else drawItemsDiagram();
+            if (q && q.getAttribute('data-edit') !== '1') quickApply(); else { drawItemsDiagram(); chipsFromRows(); chipsRender(); }
           }, 200);
           // Selectize finishes initializing asynchronously after this
           // script runs, so the very first pass (before it exists yet)
