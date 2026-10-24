@@ -7618,12 +7618,12 @@ server <- shinyServer(function(input, output, session) {
               }
             });
             for (var q = 0; q < info.length - 1; q++) {
-              var a1 = info[q], a2 = info[q + 1], ya = yc(q) + 7, yb = yc(q + 1) - 7, cm = Math.min(a1.n, a2.n, 4), kk, mm;
+              var a1 = info[q], a2 = info[q + 1], ya = yc(q) + 7, yb = yc(q + 1) - 7, cm = Math.min(a1.n, a2.n, maxN), kk, mm;
               if (a1.g && a1.g === a2.g) {
                 var c = pal[setIdx[a1.g] % pal.length], T = a1.t;
                 if (T === 'substitutable') {
                   for (kk = 0; kk < cm; kk++) for (mm = 0; mm < cm; mm++)
-                    el('line', { x1: x0 + kk * dx, y1: ya, x2: x0 + mm * dx, y2: yb, stroke: c, 'stroke-width': '1.4', opacity: '0.85' }, svg);
+                    el('line', { x1: x0 + kk * dx, y1: ya, x2: x0 + mm * dx, y2: yb, stroke: c, 'stroke-width': cm > 4 ? '0.8' : '1.4', opacity: cm > 4 ? '0.5' : '0.85' }, svg);
                 } else if (T === 'average') {
                   el('line', { x1: x0 + (Math.min(a1.n, maxN) - 1) * dx / 2, y1: ya, x2: x0 + (Math.min(a2.n, maxN) - 1) * dx / 2, y2: yb, stroke: c, 'stroke-width': '1.6', 'stroke-dasharray': '3 2' }, svg);
                 } else {
