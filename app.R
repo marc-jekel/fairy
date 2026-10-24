@@ -7277,8 +7277,8 @@ server <- shinyServer(function(input, output, session) {
             tags$input(id = "fairy_items_quick_n", type = "number", min = 1, max = 50, step = 1, value = 1, class = "form-control", `aria-label` = "Number of items")),
           tags$strong("Model holds", style = "font-size:12px; padding-top:6px;"),
           tags$select(id = "fairy_items_quick_type", class = "form-control", style = "width:100%; max-width:420px;", `aria-label` = "How the model holds across the items",
-            tags$option(value = "joint", "Joint \u2013 for each item on its own (item 1 with item 1, \u2026)"),
-            tags$option(value = "substitutable", "Substitutable \u2013 for any combination of items"),
+            tags$option(value = "joint", "Joint \u2013 separately per item (item 1 with item 1, item 2 with item 2, \u2026)"),
+            tags$option(value = "substitutable", "Substitutable \u2013 for every pairing of items (any item with any item)"),
             tags$option(value = "identical", "Identical \u2013 items are interchangeable (equal values)"),
             tags$option(value = "average", "Average \u2013 only for the average over the items")),
           tags$strong("Applies to", style = "font-size:12px; padding-top:2px;"),
@@ -7298,7 +7298,7 @@ server <- shinyServer(function(input, output, session) {
             HTML("Example: p1 and p2 are each measured on 2 items, and the model says <i>p1 &gt; p2</i>.")
           ),
           tags$p(class = "fairy-eq-tol-help", style = "margin-top:2px;",
-            HTML("<b>Joint</b> &mdash; the model must hold <i>item by item</i>: item 1 of p1 &gt; item 1 of p2, and item 2 of p1 &gt; item 2 of p2 (2 comparisons). Each item may have its own values.<br><b>Substitutable</b> &mdash; the model must hold <i>whichever items you pick</i>: every item of p1 &gt; every item of p2 (4 comparisons).<br><b>Identical</b> &mdash; all items of a probability have the same value (interchangeable items). Approx. tol. allows a small deviation.<br><b>Average</b> &mdash; the model only has to hold for the <i>average</i> over the items (marginals); single items may violate it.")
+            HTML("<b>Joint</b> &mdash; the model holds <i>separately for each item</i>, comparing only the same item number: item 1 of p1 &gt; item 1 of p2, and item 2 of p1 &gt; item 2 of p2 (2 comparisons). Each item may have its own values.<br><b>Substitutable</b> &mdash; the model must hold <i>whichever items you pick</i>: every item of p1 &gt; every item of p2 (4 comparisons).<br><b>Identical</b> &mdash; all items of a probability have the same value (interchangeable items). Approx. tol. allows a small deviation.<br><b>Average</b> &mdash; the model only has to hold for the <i>average</i> over the items (marginals); single items may violate it.")
           ),
           tags$p(class = "fairy-eq-tol-help", style = "margin-top:8px;",
             HTML("<b>Group</b> (optional) &mdash; give two probabilities the same word to link their items, so item 1 is compared with item 1 and so on. Leave it empty to keep the items of each probability separate. Joint and Substitutable only differ for linked probabilities.")
