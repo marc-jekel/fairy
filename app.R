@@ -7336,8 +7336,6 @@ server <- shinyServer(function(input, output, session) {
             .modal:has(#submit_items_multi) #submit_items_multi { position:static; top:0; transform:none; }
             .modal:has(#submit_items_multi) .modal-footer button { height:38px; box-sizing:border-box; padding:0 18px; margin:0 0 0 8px; display:inline-flex; align-items:center; justify-content:center; line-height:1; }
             .fairy-items-custom .fairy-items-main, .fairy-items-custom .fairy-items-nrow { opacity:.4; }
-            .fairy-items-simple #fairy-items-header-row, .fairy-items-simple .fairy-items-row { grid-template-columns: 1.4fr 1.6fr 1fr !important; }
-            .fairy-items-simple #fairy-items-header-row > :nth-child(n+4), .fairy-items-simple .fairy-items-row > :nth-child(n+4) { display:none !important; }
           ")),
           tags$div(id = "fairy_items_custom_note", style = "display:none; margin-bottom:10px; padding:6px 10px; border-radius:6px; background:#fff4d6; color:#5c4300; font-size:12px;",
             "Different settings per probability are used (see below). ",
@@ -7372,7 +7370,7 @@ server <- shinyServer(function(input, output, session) {
         tags$summary(style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
           HTML("Optional: different items per probability")),
         tags$p(class = "fairy-eq-tol-help", style = "margin-top:6px;",
-          HTML("Only needed if your probabilities were <b>not</b> all measured on the same items. Each row is one probability: how many items it has (<b>Items</b>) and which <b>item set</b> it belongs to. Probabilities in the same item set are measured on the same items, so item 1 of one goes with item 1 of the other.")),
+          HTML("Only needed if your probabilities were <b>not</b> all measured on the same items. Each row is one probability: how many items it has (<b>Items</b>), which <b>item set</b> it belongs to, and how the model applies to its items (<b>Model holds</b>, as above). Probabilities in the same item set are measured on the same items: item 1 of one goes with item 1 of the other.")),
         tags$div(id = "fairy_items_rows_diagram", `aria-hidden` = "true", style = "margin:4px 0 10px;"),
       tags$div(
         id = "fairy-items-header-row",
@@ -7381,7 +7379,7 @@ server <- shinyServer(function(input, output, session) {
         tags$strong("Item set", class = "fairy-items-group-cell", style = "font-size:11.5px; color:var(--fairy-text-muted);"),
         tags$strong("Items", style = "font-size:11.5px; color:var(--fairy-text-muted);"),
         tags$strong("Model holds", style = "font-size:11.5px; color:var(--fairy-text-muted);"),
-        tags$strong("Approx. tol.", style = "font-size:11.5px; color:var(--fairy-text-muted);")
+        tags$strong("May differ by", style = "font-size:11.5px; color:var(--fairy-text-muted);")
       ),
       lapply(seq_along(p_names), function(i) {
         pf <- prefill_rows[[p_names[i]]]
@@ -7398,7 +7396,7 @@ server <- shinyServer(function(input, output, session) {
           ),
           numericInput(paste0("items_multi_n_", i), NULL, value = pf$n %||% 1, min = 1, max = 50, step = 1, width = "100%"),
           selectInput(paste0("items_multi_type_", i), NULL,
-            choices = c("Joint (item by item)" = "joint", "Substitutable (any item)" = "substitutable", "Interchangeable (equal items)" = "identical", "Average (marginals)" = "average"),
+            choices = c("Item by item" = "joint", "Any item with any item" = "substitutable", "All items the same" = "identical", "Only the average" = "average"),
             selected = pf$type %||% "joint", width = "100%"),
           conditionalPanel(
             condition = paste0("input.items_multi_type_", i, " == 'identical'"),
@@ -7556,14 +7554,17 @@ server <- shinyServer(function(input, output, session) {
               info.push({
                 name: (sp ? sp.textContent.replace(/[_{}]/g, '').trim() : ''),
                 n: Math.max(1, Math.min(50, parseInt(r.querySelector('input[id^=items_multi_n_]').value, 10) || 1)),
-                g: (r.querySelector('input[id^=items_multi_group_]').value || '').trim()
+                g: (r.querySelector('input[id^=items_multi_group_]').value || '').trim(),
+                t: (r.querySelector('select[id^=items_multi_type_]') || {}).value || 'joint'
               });
             });
             if (!info.length) return;
+            var tolHdr = document.querySelector('#fairy-items-header-row > :nth-child(5)');
+            if (tolHdr) tolHdr.style.visibility = info.some(function(x) { return x.t === 'identical' && x.n > 1; }) ? 'visible' : 'hidden';
             var maxN = Math.min(8, Math.max.apply(null, info.map(function(x) { return x.n; })));
             var pal = ['#3a6df0', '#e07b00', '#2a9d6f', '#b04fd0', '#c2385a'], setIdx = {}, nsets = 0;
             info.forEach(function(x) { if (x.g && !(x.g in setIdx)) setIdx[x.g] = nsets++; });
-            var x0 = 64, dx = 26, rh = 26, W = x0 + maxN * dx + 150, H = 22 + info.length * rh + 4;
+            var x0 = 64, dx = 26, rh = 26, W = x0 + maxN * dx + 250, H = 22 + info.length * rh + 4;
             var NS = 'http://www.w3.org/2000/svg';
             function el(tag, attrs, parent) {
               var e = document.createElementNS(NS, tag);
@@ -7587,7 +7588,8 @@ server <- shinyServer(function(input, output, session) {
               }
               if (x.n > 8) { var m = el('text', { x: x0 + maxN * dx - 8, y: y + 4, 'font-size': '11', fill: 'currentColor' }, svg); m.textContent = String.fromCharCode(8230) + ' ' + x.n; }
               var lab = el('text', { x: x0 + maxN * dx + 4, y: y + 4, 'font-size': '11', fill: col }, svg);
-              lab.textContent = x.g ? x.g : 'own items';
+              var tn = { joint: 'item by item', substitutable: 'any item with any item', identical: 'all the same', average: 'only the average' }[x.t] || '';
+              lab.textContent = (x.g ? x.g : 'own items') + (x.n > 1 ? ' - ' + tn : '');
             });
           }
           // One diagram that follows the choice: rows = probabilities, columns = items, lines = where the rule is checked.
@@ -7728,6 +7730,7 @@ server <- shinyServer(function(input, output, session) {
             if (!itemsApplying && e.originalEvent) markItemsCustom(true);
           });
           $(document).on('input change', '.fairy-items-row input', function() { setTimeout(drawRowsDiagram, 30); });
+          $(document).on('change', '.fairy-items-row select', function() { if (!itemsApplying) markItemsCustom(true); setTimeout(drawRowsDiagram, 30); });
           $(document).on('click', '#fairy_items_reset', function(e) { e.preventDefault(); quickApply(); });
           setTimeout(function() {
             var q = document.querySelector('.fairy-items-quick');
