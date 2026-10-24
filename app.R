@@ -7291,7 +7291,7 @@ server <- shinyServer(function(input, output, session) {
       class = "fairy-eq-tol-modal",
       tags$div(class = "fairy-eq-tol-header", tags$strong(if (is_edit) "Edit unpacking across items" else "Unpack across items")),
       tags$p(class = "fairy-eq-tol-help",
-        HTML("Use this when your theory is tested with <b>several items</b> (e.g. different jokes or stimuli), so every probability exists once per item. Set <b>Items</b> to the number of items and choose how the model should hold across them. Items = 1 leaves a probability as it is.")
+        HTML("Use this if every probability of your model was measured on <b>several items</b>, e.g. several different jokes. The model is then applied to the items.")
       ),
       selectInput("items_base_model", "Base model", choices = model_choices,
         selected = prefill_base %||% model_choices[1], width = "100%"),
@@ -7310,33 +7310,46 @@ server <- shinyServer(function(input, output, session) {
         q_n    <- if (length(pf_all)) max(vapply(pf_all, function(r) as.integer(r$n %||% 1L), integer(1))) else 2L
         q_type <- if (length(pf_all)) (pf_all[[1]]$type %||% "joint") else "joint"
         q_eps  <- if (length(pf_all)) (pf_all[[1]]$eps %||% 0) else 0
+        # small picture per option: rows = probabilities (p1, p2), dots = items, lines = what gets compared
+        pic <- function(kind) {
+          dots <- "<circle cx='34' cy='13' r='4'/><circle cx='70' cy='13' r='4'/><circle cx='34' cy='47' r='4'/><circle cx='70' cy='47' r='4'/>"
+          lines <- switch(kind,
+            joint = "<path d='M34 17V43M70 17V43'/>",
+            substitutable = "<path d='M34 17V43M70 17V43M36 17L68 43M68 17L36 43'/>",
+            identical = "<path d='M38 13H66M38 47H66'/><text x='52' y='11' font-size='11' text-anchor='middle' fill='currentColor' stroke='none'>=</text><text x='52' y='45' font-size='11' text-anchor='middle' fill='currentColor' stroke='none'>=</text>",
+            average = "<ellipse cx='52' cy='13' rx='27' ry='9' stroke-dasharray='3 2'/><ellipse cx='52' cy='47' rx='27' ry='9' stroke-dasharray='3 2'/><path d='M52 22V38'/>")
+          HTML(paste0("<svg width='104' height='60' viewBox='0 0 104 60' aria-hidden='true' style='flex:none; color:var(--fairy-text-muted);'>",
+            "<g fill='currentColor' stroke='none' font-size='10'><text x='1' y='17'>p1</text><text x='1' y='51'>p2</text>", dots, "</g>",
+            "<g fill='none' stroke='var(--fairy-primary, #3a6df0)' stroke-width='1.8' stroke-linecap='round'>", lines, "</g></svg>"))
+        }
         opt <- function(value, label, expl)
-          tags$label(style = "display:block; font-weight:normal; margin:0 0 7px; cursor:pointer;",
+          tags$label(style = "display:flex; align-items:center; gap:10px; font-weight:normal; margin:0 0 8px; cursor:pointer;",
             tags$input(type = "radio", name = "fairy_items_quick_type", value = value, class = "fairy-items-quick-type",
-              checked = if (identical(value, q_type)) "checked" else NULL, style = "margin-right:6px;"),
-            tags$b(label, style = "font-size:13px;"),
-            tags$div(style = "margin-left:20px; font-size:12px; color:var(--fairy-text-muted);", HTML(expl)))
+              checked = if (identical(value, q_type)) "checked" else NULL, style = "margin:0; flex:none;"),
+            pic(value),
+            tags$span(tags$b(label, style = "font-size:13px;"),
+              tags$span(style = "display:block; font-size:12px; color:var(--fairy-text-muted);", HTML(expl))))
         tags$div(class = "fairy-items-quick", `data-edit` = if (is_edit) "1" else "0", style = "margin-top:8px; padding:10px 12px; border-radius:8px; background:var(--ct-diag);",
           tags$div(style = "display:flex; align-items:center; gap:8px; margin-bottom:10px;",
-            tags$strong("Number of items", style = "font-size:12.5px;"),
+            tags$strong("How many items?", style = "font-size:12.5px;"),
             tags$input(id = "fairy_items_quick_n", type = "number", min = 1, max = 50, step = 1, value = q_n,
               class = "form-control", style = "width:80px;", `aria-label` = "Number of items")),
-          tags$div(style = "font-size:12.5px; font-weight:600;", "The model holds \u2026"),
+          tags$div(style = "font-size:12.5px; font-weight:600;", "How should your model's rules apply to the items?"),
           tags$div(style = "font-size:12px; color:var(--fairy-text-muted); margin-bottom:8px;",
-            HTML("Examples for a model with the constraint p1 &gt; p2, where each probability is measured on several items:")),
-          opt("joint", "separately for each item",
-            "item 1 of p1 &gt; item 1 of p2, item 2 of p1 &gt; item 2 of p2, \u2026"),
-          opt("substitutable", "for any pairing of items",
-            "every item of p1 &gt; every item of p2"),
-          opt("identical", "with all items equal",
-            "all items of a probability have the same value (interchangeable items)"),
-          tags$div(id = "fairy_items_quick_eps_wrap", style = paste0("margin:-2px 0 8px 20px; font-size:12px; ", if (identical(q_type, "identical")) "" else "display:none;"),
-            "Approximately equal: allow a deviation of \u00b1 ",
+            HTML("Rows are your probabilities, dots are their items, a line is a place where the rule is checked (example: p1 &gt; p2).")),
+          opt("joint", "Item by item",
+            "The rule is checked within each item: item 1 against item 1, item 2 against item 2, \u2026"),
+          opt("substitutable", "Any item against any item",
+            "The rule is checked for every combination of items."),
+          opt("identical", "All items are the same",
+            "The items of a probability must have the same value."),
+          tags$div(id = "fairy_items_quick_eps_wrap", style = paste0("margin:-2px 0 8px 118px; font-size:12px; ", if (identical(q_type, "identical")) "" else "display:none;"),
+            "Allow a small difference of up to ",
             tags$input(id = "fairy_items_quick_eps", type = "number", min = 0, max = 1, step = 0.01, value = q_eps,
               class = "form-control", style = "width:80px; display:inline-block; height:26px; padding:2px 6px;", `aria-label` = "Allowed deviation"),
-            " (0 = exactly equal)"),
-          opt("average", "for the average over the items",
-            "only the averages have to satisfy the model (marginals)")
+            " (0 = exactly the same)"),
+          opt("average", "Only the average counts",
+            "The rule is checked for the average over the items of each probability.")
         )
       },
       tags$details(open = if (is_edit && length(prefill_rows) > 1 && {
@@ -7344,9 +7357,9 @@ server <- shinyServer(function(input, output, session) {
             u(function(r) r$n) > 1 || u(function(r) r$type) > 1 || u(function(r) r$eps) > 1 || u(function(r) r$group) > 1
           }) NA else NULL, style = "margin-top:8px;",
         tags$summary(style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
-          HTML("Advanced: different settings per probability")),
+          HTML("Optional: settings per probability")),
         tags$p(class = "fairy-eq-tol-help", style = "margin-top:6px;",
-          HTML("All probabilities use the settings above. Change a row only if one needs something different, e.g. <b>Items = 1</b> for a probability that was measured only once.<br>If you have two kinds of items (say jokes and puns), give the probabilities of the same kind the same <b>Group</b> name, e.g. <i>jokes</i> and <i>puns</i>. Probabilities in one group are measured on the same items (item 1 with item 1, \u2026).")),
+          HTML("Optional. Probabilities that are measured on the same kind of items (e.g. all the jokes) get the same <b>Group</b> name. Set <b>Items</b> to 1 for a probability that was measured only once.")),
       tags$div(
         id = "fairy-items-header-row",
         style = "display:grid; grid-template-columns: 1.6fr 1.6fr 1fr 1.6fr 1.4fr; gap:6px 10px; align-items:center; margin-top:6px;",
