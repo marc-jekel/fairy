@@ -2226,7 +2226,7 @@ ui <- shinyUI(fluidPage(
            'This is technically a business meeting. With math.',
            'I will be right there. The polytope will not enumerate itself.'
          ];
-         $(document).on('click', '.fairy-progress-figure.fairy-landed', function(e) {
+         $(document).on('click', '.fairy-progress-figure.fairy-landed, #fairy-flyer.fairy-parked', function(e) {
            e.stopPropagation();
            var el = this;
            var r = el.getBoundingClientRect();
@@ -2290,7 +2290,7 @@ ui <- shinyUI(fluidPage(
              if (dlg) {
                var dr = dlg.getBoundingClientRect();
                tx = dr.left + dr.width / 2 - ox;
-               ty = (runCard ? dr.top - 6 : dr.top + 110) - oy;     // sits on the top edge of the run window
+               ty = (runCard ? dr.top - 28 : dr.top + 110) - oy;     // sits on the top edge of the run window
              } else {
                tx = window.innerWidth / 2 - ox;
                ty = window.innerHeight / 2 - oy;
@@ -2306,7 +2306,20 @@ ui <- shinyUI(fluidPage(
                { transform: 'translate('+tx+'px,'+ty+'px) rotate(0deg) scale(1)',           offset: 1    }
              ], { duration: 950, easing: 'ease-in', fill: 'forwards' }
              ).onfinish = function() {
-               if (runCard) return;       // the fairy stays on the run window until it is closed (land() takes her home)
+               if (runCard) {
+                 // she stays on the run window, moving gently, until the calculation is done (land() takes her home)
+                 f.classList.add('fairy-parked');          // clickable like the landed fairy of the old dialog
+                 f.style.pointerEvents = 'auto'; f.style.cursor = 'pointer';
+                 var fig = f.firstChild;
+                 if (fig && fig.animate) fig.animate([
+                   { transform: 'translate(0,0) rotate(-5deg)' },
+                   { transform: 'translate(7px,-9px) rotate(5deg)' },
+                   { transform: 'translate(0,-3px) rotate(-3deg)' },
+                   { transform: 'translate(-7px,-9px) rotate(6deg)' },
+                   { transform: 'translate(0,0) rotate(-5deg)' }
+                 ], { duration: 2600, iterations: Infinity, easing: 'ease-in-out' });
+                 return;
+               }
                f.remove();
                var dlgF2 = document.querySelector('.fairy-progress-figure');
                if (dlgF2) dlgF2.classList.add('fairy-landed');
@@ -9783,6 +9796,9 @@ server <- shinyServer(function(input, output, session) {
     # Update counters — this triggers Shiny to re-render the input rows
     counter_input$n <- new_counter_input_n
     counter$n       <- new_counter_n
+    # extra probabilities are intentional: keep them as the floor, otherwise the auto-detect
+    # pass shrinks the count to the highest p referenced in the specifications
+    manual_p_floor(max(3L, min(30L, as.integer(new_counter_n))))
 
     # Still update via updateTextAreaInput too, as a fallback for any box
     # that existed (and so wasn't freshly rendered) before this upload, and
@@ -12033,6 +12049,9 @@ server <- shinyServer(function(input, output, session) {
 
       for (loop_numb_models in 1:numb_models_to_convert) {
         name_m <- mytable_input[loop_numb_models, 1]
+        # A mixture row gets its real H and V together in the mixture step further down; its trivial
+        # placeholder H here must not show up in the run window as a separate calculation.
+        run_row_here <- function(...) if (!identical(kinds_run[loop_numb_models], "mixture")) fairy_run_row(...)
 
         model_snap <- list(
           spec    = mytable_input[loop_numb_models, 2],
@@ -12054,12 +12073,12 @@ server <- shinyServer(function(input, output, session) {
             identical(cache[[name_m]], model_snap) &&
             !is.null(isolate(h_reactive[[name_m]]))) {
           feedback_name <- c(feedback_name, name_m)
-          fairy_run_row(name_m, h = "cached")
+          run_row_here(name_m, h = "cached")
           next
         }
         recomputed_models <- c(recomputed_models, name_m)
 
-        fairy_run_row(name_m, h = "run")
+        run_row_here(name_m, h = "run")
 
         feedback_name <- c(feedback_name, name_m)
 
@@ -12117,7 +12136,7 @@ server <- shinyServer(function(input, output, session) {
             )
           }
 
-          fairy_run_row(name_m, h = "fail")
+          run_row_here(name_m, h = "fail")
           fairy_run_hide()
           shinyalert(
             title = paste0("Could not read the specification of model ", name_m, "."),
@@ -12233,7 +12252,7 @@ server <- shinyServer(function(input, output, session) {
           empty_set <- c(empty_set, mytable_input[loop_numb_models, 1])
         }
 
-        fairy_run_row(name_m, h = if (valid_hrep == 0) "warn" else "done")
+        run_row_here(name_m, h = if (valid_hrep == 0) "warn" else "done")
       }
 
       model_snap_cache(cache)
@@ -12409,6 +12428,7 @@ server <- shinyServer(function(input, output, session) {
       # as expensive as an intersection of the same size.
 
       mixture_names <- character()
+      mix_fail_notes <- character()
       mixture_specs <- Filter(function(x) x$type == "mixture", isolate(derived_model_sources$value))
 
       if (length(mixture_specs) > 0) {
@@ -12477,6 +12497,7 @@ server <- shinyServer(function(input, output, session) {
           })
           V_sel <- Filter(function(v) !is.null(v) && nrow(v) > 0, V_sel)
           if (length(V_sel) == 0) {
+            mix_fail_notes <- c(mix_fail_notes, paste0(mix_name, ": its component models have no extreme cases to combine"))
             fairy_run_row(mix_name, h = "fail", v = "fail")
             next
           }
@@ -12514,9 +12535,12 @@ server <- shinyServer(function(input, output, session) {
             colnames(hh) <- h1_cols
             vv <- scdd(hh)
             v1 <- isolate(v_reactive[[selected_mix[1]]])
-            if (!is.null(v1)) colnames(vv$output) <- colnames(v1$output)
+            # only take over the names of an earlier V-representation if it has the same number of
+            # columns (it can be stale after the number of probabilities changed)
+            if (!is.null(v1) && ncol(v1$output) == ncol(vv$output)) colnames(vv$output) <- colnames(v1$output)
+            else colnames(vv$output) <- h1_cols
             list(h = hh, v = vv)
-          }, error = function(e) NULL)
+          }, error = function(e) { mix_fail_notes <<- c(mix_fail_notes, paste0(mix_name, ": ", conditionMessage(e))); NULL })
 
           if (!is.null(mix_result)) {
             h_reactive[[mix_name]] <- mix_result$h
@@ -12782,12 +12806,14 @@ server <- shinyServer(function(input, output, session) {
           }
         }
 
-        fairy_run_end(fairy_empty_set_note(empty_set))
+        fairy_run_end(paste0(fairy_empty_set_note(empty_set),
+          if (length(mix_fail_notes)) paste0("<br><b>Mixture failed</b> - ", paste(htmltools::htmlEscape(mix_fail_notes), collapse = "; ")) else ""))
       } else {
         hideTab(inputId = "tabs", target = "V-representation")
         hideTab(inputId = "tabs", target = "Plot Polytope(s)")
         hideTab(inputId = "tabs", target = "Plot Edge Cases")
-        fairy_run_end(fairy_empty_set_note(empty_set))
+        fairy_run_end(paste0(fairy_empty_set_note(empty_set),
+          if (length(mix_fail_notes)) paste0("<br><b>Mixture failed</b> - ", paste(htmltools::htmlEscape(mix_fail_notes), collapse = "; ")) else ""))
       }
 
       ####* Display Formula H-Representation ####
