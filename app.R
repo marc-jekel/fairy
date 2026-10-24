@@ -7608,7 +7608,7 @@ server <- shinyServer(function(input, output, session) {
               var tn = { joint: 'item by item', substitutable: 'any item with any item', identical: 'all the same', average: 'only the average' }[x.t] || '';
               lab.textContent = (x.g ? x.g : 'own items') + (x.n > 8 ? ' (' + x.n + ' items)' : '') + (x.n > 1 ? ' - ' + tn : '');
             });
-            // relations like in the big picture: inside an item set according to its Model holds, between sets every item with every item
+            // relations like in the big picture, only inside an item set and according to its Model holds
             var BL = 'var(--fairy-primary, #3a6df0)';
             function yc(i) { return 22 + i * rh + 10; }
             info.forEach(function(x, i) {
@@ -7630,9 +7630,6 @@ server <- shinyServer(function(input, output, session) {
                   for (kk = 0; kk < Math.min(a1.n, a2.n, maxN); kk++)
                     el('line', { x1: x0 + kk * dx, y1: ya, x2: x0 + kk * dx, y2: yb, stroke: c, 'stroke-width': '1.6', opacity: '0.85' }, svg);
                 }
-              } else {
-                for (kk = 0; kk < cm; kk++) for (mm = 0; mm < cm; mm++)
-                  el('line', { x1: x0 + kk * dx, y1: ya, x2: x0 + mm * dx, y2: yb, stroke: 'currentColor', 'stroke-width': '1', opacity: '0.3' }, svg);
               }
             }
           }
