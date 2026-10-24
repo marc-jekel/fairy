@@ -7608,16 +7608,31 @@ server <- shinyServer(function(input, output, session) {
               var tn = { joint: 'item by item', substitutable: 'any item with any item', identical: 'all the same', average: 'only the average' }[x.t] || '';
               lab.textContent = (x.g ? x.g : 'own items') + (x.n > 8 ? ' (' + x.n + ' items)' : '') + (x.n > 1 ? ' - ' + tn : '');
             });
-            // relation between neighbouring rows: same item set = item k with item k, different sets = every item with every item
+            // relations like in the big picture: inside an item set according to its Model holds, between sets every item with every item
+            var BL = 'var(--fairy-primary, #3a6df0)';
+            function yc(i) { return 22 + i * rh + 10; }
+            info.forEach(function(x, i) {
+              if (x.g && x.t === 'identical' && x.n > 1) {
+                for (var e = 0; e < Math.min(x.n, maxN) - 1; e++)
+                  el('line', { x1: x0 + e * dx + 7, y1: yc(i), x2: x0 + (e + 1) * dx - 7, y2: yc(i), stroke: pal[setIdx[x.g] % pal.length], 'stroke-width': '1.6' }, svg);
+              }
+            });
             for (var q = 0; q < info.length - 1; q++) {
-              var a1 = info[q], a2 = info[q + 1], ym = 22 + q * rh + 10 + rh / 2;
+              var a1 = info[q], a2 = info[q + 1], ya = yc(q) + 7, yb = yc(q + 1) - 7, cm = Math.min(a1.n, a2.n, 4), kk, mm;
               if (a1.g && a1.g === a2.g) {
-                var c = pal[setIdx[a1.g] % pal.length];
-                for (var kk = 0; kk < Math.min(a1.n, a2.n, maxN); kk++)
-                  el('line', { x1: x0 + kk * dx, y1: ym - rh / 2 + 7, x2: x0 + kk * dx, y2: ym + rh / 2 - 7, stroke: c, 'stroke-width': '1.6', opacity: '0.8' }, svg);
+                var c = pal[setIdx[a1.g] % pal.length], T = a1.t;
+                if (T === 'substitutable') {
+                  for (kk = 0; kk < cm; kk++) for (mm = 0; mm < cm; mm++)
+                    el('line', { x1: x0 + kk * dx, y1: ya, x2: x0 + mm * dx, y2: yb, stroke: c, 'stroke-width': '1.4', opacity: '0.85' }, svg);
+                } else if (T === 'average') {
+                  el('line', { x1: x0 + (Math.min(a1.n, maxN) - 1) * dx / 2, y1: ya, x2: x0 + (Math.min(a2.n, maxN) - 1) * dx / 2, y2: yb, stroke: c, 'stroke-width': '1.6', 'stroke-dasharray': '3 2' }, svg);
+                } else {
+                  for (kk = 0; kk < Math.min(a1.n, a2.n, maxN); kk++)
+                    el('line', { x1: x0 + kk * dx, y1: ya, x2: x0 + kk * dx, y2: yb, stroke: c, 'stroke-width': '1.6', opacity: '0.85' }, svg);
+                }
               } else {
-                var rel = el('text', { x: x0 + maxN * dx + 4, y: ym + 3, 'font-size': '9.5', fill: 'currentColor', opacity: '0.75' }, svg);
-                rel.textContent = 'every item with every item';
+                for (kk = 0; kk < cm; kk++) for (mm = 0; mm < cm; mm++)
+                  el('line', { x1: x0 + kk * dx, y1: ya, x2: x0 + mm * dx, y2: yb, stroke: 'currentColor', 'stroke-width': '1', opacity: '0.3' }, svg);
               }
             }
           }
