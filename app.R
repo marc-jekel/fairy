@@ -4438,6 +4438,8 @@ ui <- shinyUI(fluidPage(
         }
         function save() { try { sessionStorage.setItem('fairyCardOrder', JSON.stringify(order)); } catch (e) {} }
         function applyOrder() {
+          // the touch reorder script writes the shared order straight to sessionStorage
+          try { var st = JSON.parse(sessionStorage.getItem('fairyCardOrder') || '[]'); if (st.length) order = st; } catch (e) {}
           if (!order.length) return;
           document.querySelectorAll('.fairy-h-cards-wrap').forEach(function(wrap) {
             var cards = wrapCards(wrap);
@@ -4464,12 +4466,12 @@ ui <- shinyUI(fluidPage(
         // the gap-free grid is the default; free positioning is a switch, remembered for the session
         freeMode = false;
         try {
-          var fz = sessionStorage.getItem('fairyCardFree2');
+          var fz = sessionStorage.getItem('fairyCardFree3');
           if (fz !== null) freeMode = fz === '1';
           pos = JSON.parse(sessionStorage.getItem('fairyCardPos2') || '{}');
         } catch (e) {}
         function savePos() {
-          try { sessionStorage.setItem('fairyCardPos2', JSON.stringify(pos)); sessionStorage.setItem('fairyCardFree2', freeMode ? '1' : '0'); } catch (e) {}
+          try { sessionStorage.setItem('fairyCardPos2', JSON.stringify(pos)); sessionStorage.setItem('fairyCardFree3', freeMode ? '1' : '0'); } catch (e) {}
         }
         function isVisible(el) { return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length); }
         function fitWrap(wrap) {
