@@ -1542,7 +1542,7 @@ ui <- shinyUI(fluidPage(
       }
       body.dark-mode .fairy-conflict-hint { background: rgba(70, 52, 12, 0.96); color: #f5d27a; }
       /* Phones and small tablets: less padding, tiles stacked in one column, no layout switch */
-      @media (max-width: 640px) {
+      @media (max-width: 767px) {
         .container-fluid { padding-left: 6px !important; padding-right: 6px !important; }
         .tab-pane > .col-sm-12 { padding-left: 0 !important; padding-right: 0 !important; }
         .model-def-panel, .def-col--models-card { padding-left: 8px !important; padding-right: 8px !important; }
@@ -1580,7 +1580,7 @@ ui <- shinyUI(fluidPage(
         .fairy-tooltip::after, #sidebar-fab-panel .fairy-tooltip::after { display: none !important; }
       }
       /* Touch devices: form fields at 16px, otherwise iOS Safari zooms into the page when a field is focused */
-      @media (max-width: 640px), (pointer: coarse) {
+      @media (max-width: 767px), (pointer: coarse) {
         input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select, .form-control, .selectize-input, .selectize-input input,
         .dataTables_wrapper input, .dataTables_wrapper select, .fairy-ineq-overlay { font-size: 16px !important; }
       }
@@ -4425,6 +4425,8 @@ ui <- shinyUI(fluidPage(
         try { order = JSON.parse(sessionStorage.getItem('fairyCardOrder') || '[]'); } catch (e) { order = []; }
         var dragCard = null, dropTarget = null, dropSide = null, suppressUntil = 0;
         function titleOf(card) { var t = card.querySelector('.model-card-title'); return t ? t.textContent.trim() : ''; }
+        // free positions are kept per tab (H and V can look different); only the grid order is shared
+        function pkey(card) { return (card.closest('#v_rep') ? 'v|' : 'h|') + titleOf(card); }
         function wrapCards(wrap) {
           return Array.prototype.filter.call(wrap.querySelectorAll('.model-card'), function(c) {
             return c.querySelector('.model-card-title') && c.closest('.fairy-h-cards-wrap') === wrap;
@@ -4474,7 +4476,7 @@ ui <- shinyUI(fluidPage(
         // Flow layout without gaps: cards keep their natural size and DOM order, but each one
         // is placed at the highest free spot (skyline packing) instead of in flex rows.
         var packing = false, packTimer = null, ro = null;
-        function isNarrow() { return window.innerWidth <= 640; }
+        function isNarrow() { return window.innerWidth <= 767; }
         function pack(wrap) {
           if (!isVisible(wrap)) return;
           if (isNarrow()) {                       // phones: one column, no absolute positioning
@@ -4539,7 +4541,7 @@ ui <- shinyUI(fluidPage(
           var cards = wrapCards(wrap);
           wrap.classList.add('fairy-free'); wrap.classList.remove('fairy-packed');
           cards.forEach(function(c) {
-            var p = pos[titleOf(c)];
+            var p = pos[pkey(c)];
             if (p) { c.style.left = p.x + 'px'; c.style.top = p.y + 'px'; }
           });
           fitWrap(wrap);
@@ -4659,7 +4661,7 @@ ui <- shinyUI(fluidPage(
             e.preventDefault();
             var fc = t.closest('.model-card');
             fc.style.left = Math.max(0, fc.offsetLeft + dx) + 'px'; fc.style.top = Math.max(0, fc.offsetTop + dy) + 'px';
-            pos[titleOf(fc)] = { x: fc.offsetLeft, y: fc.offsetTop }; savePos(); fitWrap(fwrap);
+            pos[pkey(fc)] = { x: fc.offsetLeft, y: fc.offsetTop }; savePos(); fitWrap(fwrap);
             return;
           }
           var dir = (e.key === 'ArrowLeft' || e.key === 'ArrowUp') ? -1 : ((e.key === 'ArrowRight' || e.key === 'ArrowDown') ? 1 : 0);
@@ -4695,7 +4697,7 @@ ui <- shinyUI(fluidPage(
           if (!freeDrag) return;
           var d = freeDrag; freeDrag = null;
           d.card.classList.remove('fairy-card-dragging');
-          pos[titleOf(d.card)] = { x: d.card.offsetLeft, y: d.card.offsetTop }; savePos();
+          pos[pkey(d.card)] = { x: d.card.offsetLeft, y: d.card.offsetTop }; savePos();
           suppressUntil = Date.now() + 300;
         }
         document.addEventListener('pointerup', endFree);
@@ -4714,7 +4716,7 @@ ui <- shinyUI(fluidPage(
             if (!isVisible(wrap)) return;
             refit();
             var cs = wrapCards(wrap);
-            if (cs.every(function(c) { return !pos[titleOf(c)]; })) {
+            if (cs.every(function(c) { return !pos[pkey(c)]; })) {
               // nothing moved by hand yet: arrange again now that the tables have their final size
               wrap.classList.remove('fairy-free'); packing = false; pack(wrap); packing = false;
               wrap.classList.add('fairy-free'); wrap.classList.remove('fairy-packed');
@@ -15344,8 +15346,16 @@ server <- shinyServer(function(input, output, session) {
         )
       }
 
+      # every parameter gets its own tick, tilted and smaller when there are many, so none is skipped
+      n_par <- length(parameter_names)
       p %>% layout(
-        xaxis = list(title = "Parameters"),
+        xaxis = list(
+          title = "Parameters", type = "category",
+          categoryorder = "array", categoryarray = parameter_names,
+          tickmode = "array", tickvals = parameter_names, ticktext = parameter_names,
+          tickangle = if (n_par > 6) -60 else 0,
+          tickfont = list(size = if (n_par > 12) 9 else 12)
+        ),
         # Keep the 0-1 tick labels but pad the range slightly so markers
         # sitting exactly at 0 or 1 aren't clipped at the axis edge.
         yaxis = list(
