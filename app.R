@@ -5843,7 +5843,7 @@ ui <- shinyUI(fluidPage(
               # tooltip text cut off behind the navbar).
               tags$span(class = "fairy-tooltip fairy-tooltip-down", `data-tooltip` = "Set an exact number of probabilities",
                 numericInput("set_prob_count", NULL, value = 3, min = 3, max = 30, width = "62px")),
-              actionBttn("show_items_modal", "Repeated items", icon = icon("layer-group"),
+              actionBttn("show_items_modal", "Several items", icon = icon("layer-group"),
                 size = "xs", style = "jelly", color = "default"
               )
             ),
@@ -7254,9 +7254,9 @@ server <- shinyServer(function(input, output, session) {
       title = NULL,
       size = "m",
       class = "fairy-eq-tol-modal",
-      tags$div(class = "fairy-eq-tol-header", tags$strong(if (is_edit) "Edit repeated items" else "Repeated items")),
+      tags$div(class = "fairy-eq-tol-header", tags$strong(if (is_edit) "Edit several items" else "Several items")),
       tags$p(class = "fairy-eq-tol-help",
-        "Expand any of these probabilities across several items — e.g. one parameter per stimulus instead of a single shared value. Leave a probability's items at 1 to keep it as-is."
+        HTML("Use this when a probability was measured on <b>several items</b> (e.g. different jokes, stimuli or labs) instead of just once. Set <b>Items</b> to the number of items and choose with <b>Type</b> how your model should hold across them. Items = 1 leaves a probability as it is.")
       ),
       selectInput("items_base_model", "Base model", choices = model_choices,
         selected = prefill_base %||% model_choices[1], width = "100%"),
@@ -7270,20 +7270,17 @@ server <- shinyServer(function(input, output, session) {
       #
       tags$details(style = "margin-top:2px;",
         tags$summary(style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
-          HTML("&#9432; What do Group and Type do? <span style='font-size:11px;font-weight:normal;color:var(--fairy-text-muted);'>(click to expand)</span>")
+          HTML("&#9432; What do the Types mean? <span style='font-size:11px;font-weight:normal;color:var(--fairy-text-muted);'>(click to expand)</span>")
         ),
         tags$div(style = "margin-top:8px;",
-          tags$p(class = "fairy-eq-tol-help", style = "margin-top:2px;background:var(--ct-diag);padding:8px 10px;border-radius:6px;",
-            HTML("<b>Short version:</b> Type only changes anything once two or more probabilities share the <i>same</i> Group. Left ungrouped (the default), probabilities are always compared against every combination of each other's items no matter what Type says below — Joint vs Substitutable only matters once you actually group them together. See the worked example at the bottom.")
-          ),
-          tags$p(class = "fairy-eq-tol-help", style = "margin-top:8px;",
-            HTML("<b>Group</b> — type the exact same word into two or more probabilities' Group boxes to combine them into one shared item count. Leave blank for a probability to keep its own, independent item count (this is also what \"ungrouped\" in the box means).")
+          tags$p(class = "fairy-eq-tol-help", style = "margin-top:2px;",
+            HTML("Example: p1 and p2 are each measured on 2 items, and the model says <i>p1 &gt; p2</i>.")
           ),
           tags$p(class = "fairy-eq-tol-help", style = "margin-top:2px;",
-            HTML("<b>Type</b> — for probabilities placed in the <i>same</i> Group, how their items line up.<br><b>Joint</b>: paired one-to-one — item 1 with item 1, item 2 with item 2. This is the one Type that actually changes anything compared to leaving probabilities ungrouped.<br><b>Substitutable</b>: every item against every other — the exact same result you already get by leaving probabilities ungrouped, just now sharing one name/one item count instead of each having its own.<br><b>Identical</b>: like Joint, but the grouped probabilities' items must additionally be forced equal in value. Set Approx. tol. above 0 to allow a small deviation instead of exact equality.<br><b>Average</b>: items stay individually free, but the original condition applies to their <i>average</i> instead of to every item on its own — e.g. \"p1 &gt; .5\" becomes \"the average of p1's items &gt; .5\", not \"every one of p1's items &gt; .5\".")
+            HTML("<b>Joint</b> &mdash; the model must hold <i>item by item</i>: item 1 of p1 &gt; item 1 of p2, and item 2 of p1 &gt; item 2 of p2 (2 comparisons). Each item may have its own values.<br><b>Substitutable</b> &mdash; the model must hold <i>whichever items you pick</i>: every item of p1 &gt; every item of p2 (4 comparisons).<br><b>Identical</b> &mdash; all items of a probability have the same value (interchangeable items). Approx. tol. allows a small deviation.<br><b>Average</b> &mdash; the model only has to hold for the <i>average</i> over the items (marginals); single items may violate it.")
           ),
           tags$p(class = "fairy-eq-tol-help", style = "margin-top:8px;",
-            HTML("<b>Worked example</b> — p1 and p2 each given 2 items, condition \"p1 &gt; p2\":<br>&bull; Left ungrouped (any Type): 4 comparisons — every item of p1 against every item of p2.<br>&bull; Grouped, Type = Substitutable: the same 4 comparisons — grouping did not change anything here.<br>&bull; Grouped, Type = Joint: only 2 comparisons — item 1 of p1 against item 1 of p2, item 2 against item 2. This is the case where grouping actually matters.")
+            HTML("<b>Group</b> (optional) &mdash; give two probabilities the same word to link their items, so item 1 is compared with item 1 and so on. Leave it empty to keep the items of each probability separate. Joint and Substitutable only differ for linked probabilities.")
           )
         )
       ),
@@ -7311,7 +7308,7 @@ server <- shinyServer(function(input, output, session) {
           ),
           numericInput(paste0("items_multi_n_", i), NULL, value = pf$n %||% 1, min = 1, max = 50, step = 1, width = "100%"),
           selectInput(paste0("items_multi_type_", i), NULL,
-            choices = c("Joint" = "joint", "Substitutable" = "substitutable", "Identical" = "identical", "Average" = "average"),
+            choices = c("Joint (item by item)" = "joint", "Substitutable (any item)" = "substitutable", "Identical (equal items)" = "identical", "Average (marginal)" = "average"),
             selected = pf$type %||% "joint", width = "100%"),
           conditionalPanel(
             condition = paste0("input.items_multi_type_", i, " == 'identical'"),
@@ -7576,7 +7573,7 @@ server <- shinyServer(function(input, output, session) {
             title = "Show as typed input",
             size = "m",
             tags$p(class = "fairy-eq-tol-help",
-              "Exactly what you'd get typing a fresh model with this many probabilities, instead of using Repeated items:"),
+              "Exactly what you'd get typing a fresh model with this many probabilities, instead of using Several items:"),
             # A real, readonly, click-to-select-all textarea — copy/paste
             # friendly, unlike a plain <pre> block — this is meant to be
             # pasted straight into a Unique Model Specification box.
@@ -7858,7 +7855,7 @@ server <- shinyServer(function(input, output, session) {
     specs <- mytable_items_reactive$value
     n_total <- if (is.null(specs)) 0 else sum(vapply(specs, function(s) length(s$types), integer(1)))
     updateActionButton(session, "show_items",
-      label = if (n_total > 0) paste0("Repeated items (n=", n_total, ")") else "Repeated items")
+      label = if (n_total > 0) paste0("Several items (n=", n_total, ")") else "Several items")
   })
 
   model_sel_multiple_reactive <- reactiveValues(value = "None")
