@@ -2295,11 +2295,11 @@ ui <- shinyUI(fluidPage(
                tx = window.innerWidth / 2 - ox;
                ty = window.innerHeight / 2 - oy;
              }
-             var ax = tx * 0.4 - 80;
-             var ay = Math.min(-160, ty - 160);
+             var ax = tx * 0.5 - 30;          // the arc sags below the straight line so she stays inside the window
+             var ay = ty * 0.5 + 80;
              f.animate([
                { transform: 'translate(0,0) rotate(0deg) scale(1)',                         offset: 0    },
-               { transform: 'translate(-6px,-20px) rotate(8deg) scale(1.25)',               offset: 0.07 },
+               { transform: 'translate(-6px,12px) rotate(8deg) scale(1.25)',                offset: 0.07 },
                { transform: 'translate('+ax+'px,'+ay+'px) rotate(-50deg) scale(1.5)',       offset: 0.38 },
                { transform: 'translate('+tx+'px,'+(ty+18)+'px) rotate(20deg) scale(1.1)',   offset: 0.80 },
                { transform: 'translate('+tx+'px,'+ty+'px) rotate(-5deg) scale(0.88)',       offset: 0.92 },
@@ -2356,12 +2356,12 @@ ui <- shinyUI(fluidPage(
            var ey = cr.top  + cr.height / 2;
            var tx = ex - sx;
            var ty = ey - sy;
-           var ax = tx * 0.3 + 70;
-           var ay = Math.min(ty - 100, -80);
+           var ax = tx * 0.5 + 30;
+           var ay = ty * 0.5 + 80;
            var f2 = spawnFlyer(sx, sy);
            f2.animate([
              { transform: 'translate(0,0) rotate(0deg) scale(1)',                       offset: 0    },
-             { transform: 'translate(5px,-22px) rotate(-10deg) scale(1.28)',            offset: 0.09 },
+             { transform: 'translate(5px,14px) rotate(-10deg) scale(1.28)',             offset: 0.09 },
              { transform: 'translate('+ax+'px,'+ay+'px) rotate(45deg) scale(1.45)',     offset: 0.45 },
              { transform: 'translate('+tx+'px,'+(ty+10)+'px) rotate(-12deg) scale(0.9)', offset: 0.87 },
              { transform: 'translate('+tx+'px,'+ty+'px) rotate(0deg) scale(0.82)',      offset: 1    }
@@ -4437,6 +4437,8 @@ ui <- shinyUI(fluidPage(
           packing = true;
           wrap.classList.remove('fairy-packed'); wrap.style.height = '';
           cards.forEach(function(c) { c.style.left = c.style.top = c.style.width = ''; });
+          // the H tables size themselves to their view (Aligned / Compact); let them do that before measuring
+          if (window.fitHTablesToWidth) { try { window.fitHTablesToWidth(); } catch (e) {} }
           var W = wrap.clientWidth, G = 16, Q = 4, n = Math.ceil(W / Q), sky = [], i;
           for (i = 0; i < n; i++) sky.push(0);
           var sizes = cards.map(function(c) { return { w: Math.min(c.offsetWidth, W), h: c.offsetHeight }; });
@@ -4670,7 +4672,15 @@ ui <- shinyUI(fluidPage(
             fitWrap(wrap);
           });
         }
-        function later() { setTimeout(decorate, 40); setTimeout(refit, 120); setTimeout(refit, 600); setTimeout(refreeWidths, 750); }
+        // switching the table view (Aligned / Compact, colours, trivial bounds) changes the tables' widths
+        function watchView() {
+          var op = document.getElementById('outP');
+          if (!op || op.__fairyViewWatched || !window.MutationObserver) return;
+          op.__fairyViewWatched = true;
+          new MutationObserver(function() { packLater(); setTimeout(refreeWidths, 300); })
+            .observe(op, { attributes: true, attributeFilter: ['data-h-view', 'class'] });
+        }
+        function later() { watchView(); setTimeout(decorate, 40); setTimeout(refit, 120); setTimeout(refit, 600); setTimeout(refreeWidths, 750); }
         Shiny.addCustomMessageHandler('fairy_kinds', function(m) { window.fairyKinds = m || {}; later(); });
         if (window.jQuery) {
           jQuery(document).on('shiny:recalculated shiny:value shown.bs.tab', later);
@@ -4701,7 +4711,10 @@ ui <- shinyUI(fluidPage(
           });
         }
         Shiny.addCustomMessageHandler('fairy_share', function(m) {
-          var base = location.origin + location.pathname + location.search;
+          // embedded in the tutorial page: share a link to that page, which loads the app with this input
+          var embedded = false;
+          try { embedded = window.parent !== window; } catch (e) {}
+          var base = embedded ? 'https://modeling-for-everyone.eu/posts/fairy/' : location.origin + location.pathname + location.search;
           var url = base + '#s=' + m.token;
           copyText(url).then(function() { toast('Link copied to the clipboard'); })
             .catch(function() { window.prompt('Copy this link:', url); });
