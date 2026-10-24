@@ -7309,6 +7309,7 @@ server <- shinyServer(function(input, output, session) {
         pf_all <- prefill_rows
         q_n    <- if (length(pf_all)) max(vapply(pf_all, function(r) as.integer(r$n %||% 1L), integer(1))) else 2L
         q_type <- if (length(pf_all)) (pf_all[[1]]$type %||% "joint") else "joint"
+        q_eps  <- if (length(pf_all)) (pf_all[[1]]$eps %||% 0) else 0
         opt <- function(value, label, expl)
           tags$label(style = "display:block; font-weight:normal; margin:0 0 7px; cursor:pointer;",
             tags$input(type = "radio", name = "fairy_items_quick_type", value = value, class = "fairy-items-quick-type",
@@ -7327,6 +7328,11 @@ server <- shinyServer(function(input, output, session) {
             "every item of p1 &gt; every item of p2"),
           opt("identical", "with all items equal",
             "all items of a probability have the same value (interchangeable items)"),
+          tags$div(id = "fairy_items_quick_eps_wrap", style = paste0("margin:-2px 0 8px 20px; font-size:12px; ", if (identical(q_type, "identical")) "" else "display:none;"),
+            "Approximately equal: allow a deviation of \u00b1 ",
+            tags$input(id = "fairy_items_quick_eps", type = "number", min = 0, max = 1, step = 0.01, value = q_eps,
+              class = "form-control", style = "width:80px; display:inline-block; height:26px; padding:2px 6px;", `aria-label` = "Allowed deviation"),
+            " (0 = exactly equal)"),
           opt("average", "for the average over the items",
             "only the averages have to satisfy the model (marginals)")
         )
@@ -7514,6 +7520,10 @@ server <- shinyServer(function(input, output, session) {
             if (!nEl || !tEl) return;
             var n = Math.max(1, parseInt(nEl.value, 10) || 1), type = tEl.value;
             var linked = type === 'joint' || type === 'identical';
+            var epsEl = document.getElementById('fairy_items_quick_eps');
+            var epsV = Math.min(1, Math.max(0, parseFloat(epsEl && epsEl.value) || 0));
+            var wrap = document.getElementById('fairy_items_quick_eps_wrap');
+            if (wrap) wrap.style.display = type === 'identical' ? '' : 'none';
             document.querySelectorAll('.fairy-items-row').forEach(function(row) {
               var nIn = row.querySelector('input[id^=items_multi_n_]');
               var gIn = row.querySelector('input[id^=items_multi_group_]');
@@ -7524,11 +7534,13 @@ server <- shinyServer(function(input, output, session) {
                 if (sel) { if (sel.selectize) sel.selectize.setValue(type); else { sel.value = type; $(sel).trigger('change'); } }
                 if (gIn && linked) { gIn.value = 'i'; $(gIn).trigger('input'); }
               }
+              var eIn = row.querySelector('input[id^=items_multi_eps_]');
+              if (eIn) { eIn.value = type === 'identical' ? epsV : 0; $(eIn).trigger('change'); }
             });
             syncGroupItems(null);
             updateAllItemsRows();
           }
-          $(document).on('input change', '.fairy-items-quick-type, #fairy_items_quick_n', quickApply);
+          $(document).on('input change', '.fairy-items-quick-type, #fairy_items_quick_n, #fairy_items_quick_eps', quickApply);
           // a new dialog starts from the defaults shown above (edit mode keeps the saved values)
           setTimeout(function() {
             var q = document.querySelector('.fairy-items-quick');
