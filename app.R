@@ -7337,7 +7337,10 @@ server <- shinyServer(function(input, output, session) {
             "only the averages have to satisfy the model (marginals)")
         )
       },
-      tags$details(open = if (is_edit) NA else NULL, style = "margin-top:8px;",
+      tags$details(open = if (is_edit && length(prefill_rows) > 1 && {
+            u <- function(f) length(unique(vapply(prefill_rows, function(r) as.character(f(r) %||% ""), character(1))))
+            u(function(r) r$n) > 1 || u(function(r) r$type) > 1 || u(function(r) r$eps) > 1 || u(function(r) r$group) > 1
+          }) NA else NULL, style = "margin-top:8px;",
         tags$summary(style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
           HTML("Advanced: different settings per probability")),
         tags$p(class = "fairy-eq-tol-help", style = "margin-top:6px;",
