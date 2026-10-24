@@ -8056,6 +8056,13 @@ server <- shinyServer(function(input, output, session) {
       if (nchar(g) > 0) return(g)
       paste0("__solo_", i)
     }, character(1))
+    # Substitutable and Average do not depend on grouping (every item against every item either way), so
+    # such a group is split into single probabilities: the same model always gets the same name and cache entry.
+    for (gk0 in unique(group_keys[!startsWith(group_keys, "__solo_")])) {
+      idx0 <- which(group_keys == gk0)
+      if (raw_rows[[idx0[1]]]$type %in% c("substitutable", "average"))
+        group_keys[idx0] <- paste0("__solo_", idx0)
+    }
     rows <- lapply(unique(group_keys), function(gk) {
       members <- raw_rows[group_keys == gk]
       first <- members[[1]]
