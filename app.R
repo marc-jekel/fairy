@@ -5843,7 +5843,7 @@ ui <- shinyUI(fluidPage(
               # tooltip text cut off behind the navbar).
               tags$span(class = "fairy-tooltip fairy-tooltip-down", `data-tooltip` = "Set an exact number of probabilities",
                 numericInput("set_prob_count", NULL, value = 3, min = 3, max = 30, width = "62px")),
-              actionBttn("show_items_modal", "Multiple items", icon = icon("layer-group"),
+              actionBttn("show_items_modal", "Unpack across items", icon = icon("layer-group"),
                 size = "xs", style = "jelly", color = "default"
               )
             ),
@@ -7254,9 +7254,9 @@ server <- shinyServer(function(input, output, session) {
       title = NULL,
       size = "m",
       class = "fairy-eq-tol-modal",
-      tags$div(class = "fairy-eq-tol-header", tags$strong(if (is_edit) "Edit multiple items" else "Multiple items")),
+      tags$div(class = "fairy-eq-tol-header", tags$strong(if (is_edit) "Edit unpacking across items" else "Unpack across items")),
       tags$p(class = "fairy-eq-tol-help",
-        HTML("Use this when a probability was measured on <b>several items</b> (e.g. different jokes, stimuli or labs) instead of just once. Set <b>Items</b> to the number of items and choose with <b>Type</b> how your model should hold across them. Items = 1 leaves a probability as it is.")
+        HTML("Use this when your theory is tested with <b>several items</b> (e.g. different jokes or stimuli), so every probability exists once per item. Set <b>Items</b> to the number of items and choose how the model should hold across them. Items = 1 leaves a probability as it is.")
       ),
       selectInput("items_base_model", "Base model", choices = model_choices,
         selected = prefill_base %||% model_choices[1], width = "100%"),
@@ -7279,8 +7279,8 @@ server <- shinyServer(function(input, output, session) {
           tags$select(id = "fairy_items_quick_type", class = "form-control", style = "width:100%; max-width:420px;", `aria-label` = "How the model holds across the items",
             tags$option(value = "joint", "Joint \u2013 separately per item (item 1 with item 1, item 2 with item 2, \u2026)"),
             tags$option(value = "substitutable", "Substitutable \u2013 for every pairing of items (any item with any item)"),
-            tags$option(value = "identical", "Identical \u2013 items are interchangeable (equal values)"),
-            tags$option(value = "average", "Average \u2013 only for the average over the items")),
+            tags$option(value = "identical", "Interchangeable \u2013 all items have equal values"),
+            tags$option(value = "average", "Average \u2013 only for the average over items (marginals)")),
           tags$strong("Applies to", style = "font-size:12px; padding-top:2px;"),
           tags$div(style = "display:flex; flex-wrap:wrap; gap:4px 14px; font-size:13px;",
             lapply(seq_along(p_names), function(i)
@@ -7298,7 +7298,7 @@ server <- shinyServer(function(input, output, session) {
             HTML("Example: p1 and p2 are each measured on 2 items, and the model says <i>p1 &gt; p2</i>.")
           ),
           tags$p(class = "fairy-eq-tol-help", style = "margin-top:2px;",
-            HTML("<b>Joint</b> &mdash; the model holds <i>separately for each item</i>, comparing only the same item number: item 1 of p1 &gt; item 1 of p2, and item 2 of p1 &gt; item 2 of p2 (2 comparisons). Each item may have its own values.<br><b>Substitutable</b> &mdash; the model must hold <i>whichever items you pick</i>: every item of p1 &gt; every item of p2 (4 comparisons).<br><b>Identical</b> &mdash; all items of a probability have the same value (interchangeable items). Approx. tol. allows a small deviation.<br><b>Average</b> &mdash; the model only has to hold for the <i>average</i> over the items (marginals); single items may violate it.")
+            HTML("<b>Joint</b> &mdash; the model holds <i>separately for each item</i>, comparing only the same item number: item 1 of p1 &gt; item 1 of p2, and item 2 of p1 &gt; item 2 of p2 (2 comparisons). Each item may have its own values.<br><b>Substitutable</b> &mdash; the model must hold <i>whichever items you pick</i>: every item of p1 &gt; every item of p2 (4 comparisons).<br><b>Interchangeable</b> &mdash; all items of a probability have the same value (\"interchangeability of items\" in the paper). Approx. tol. allows a small deviation.<br><b>Average</b> &mdash; the model only has to hold for the <i>average</i> over the items (the marginals); single items may violate it.")
           ),
           tags$p(class = "fairy-eq-tol-help", style = "margin-top:8px;",
             HTML("<b>Group</b> (optional) &mdash; give two probabilities the same word to link their items, so item 1 is compared with item 1 and so on. Leave it empty to keep the items of each probability separate. Joint and Substitutable only differ for linked probabilities.")
@@ -7309,7 +7309,7 @@ server <- shinyServer(function(input, output, session) {
         tags$summary(style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
           "Advanced: items, group and type per probability"),
         tags$p(class = "fairy-eq-tol-help", style = "margin-top:6px;",
-          HTML("Only needed if probabilities differ, e.g. some are measured once, or two groups of items. <b>Group</b>: the same word in two rows links their items (item 1 with item 1, \u2026); the quick setup uses the group <i>i</i> for Joint and Identical. Without a group, every item of one probability is combined with every item of the others.")),
+          HTML("Only needed if probabilities differ, e.g. some are measured once, or two groups of items. <b>Group</b>: the same word in two rows links their items (item 1 with item 1, \u2026); the quick setup uses one group <i>i</i> for Joint and Interchangeable. If you have two sets of items (say jokes and puns), give each set its own group here. Without a group, every item of one probability is combined with every item of the others.")),
       tags$div(
         id = "fairy-items-header-row",
         style = "display:grid; grid-template-columns: 1.6fr 1.6fr 1fr 1.6fr 1.4fr; gap:6px 10px; align-items:center; margin-top:6px;",
@@ -7334,7 +7334,7 @@ server <- shinyServer(function(input, output, session) {
           ),
           numericInput(paste0("items_multi_n_", i), NULL, value = pf$n %||% 1, min = 1, max = 50, step = 1, width = "100%"),
           selectInput(paste0("items_multi_type_", i), NULL,
-            choices = c("Joint (item by item)" = "joint", "Substitutable (any item)" = "substitutable", "Identical (equal items)" = "identical", "Average (marginal)" = "average"),
+            choices = c("Joint (item by item)" = "joint", "Substitutable (any item)" = "substitutable", "Interchangeable (equal items)" = "identical", "Average (marginals)" = "average"),
             selected = pf$type %||% "joint", width = "100%"),
           conditionalPanel(
             condition = paste0("input.items_multi_type_", i, " == 'identical'"),
@@ -7624,7 +7624,7 @@ server <- shinyServer(function(input, output, session) {
             title = "Show as typed input",
             size = "m",
             tags$p(class = "fairy-eq-tol-help",
-              "Exactly what you'd get typing a fresh model with this many probabilities, instead of using Multiple items:"),
+              "Exactly what you'd get typing a fresh model with this many probabilities, instead of using Unpack across items:"),
             # A real, readonly, click-to-select-all textarea — copy/paste
             # friendly, unlike a plain <pre> block — this is meant to be
             # pasted straight into a Unique Model Specification box.
@@ -7906,7 +7906,7 @@ server <- shinyServer(function(input, output, session) {
     specs <- mytable_items_reactive$value
     n_total <- if (is.null(specs)) 0 else sum(vapply(specs, function(s) length(s$types), integer(1)))
     updateActionButton(session, "show_items",
-      label = if (n_total > 0) paste0("Multiple items (n=", n_total, ")") else "Multiple items")
+      label = if (n_total > 0) paste0("Unpacked across items (n=", n_total, ")") else "Unpack across items")
   })
 
   model_sel_multiple_reactive <- reactiveValues(value = "None")
