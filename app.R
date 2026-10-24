@@ -1567,6 +1567,13 @@ ui <- shinyUI(fluidPage(
         .fairy-h-cards-wrap.fairy-stacked .fairy-h-table-scroll { max-width: 100%; overflow-x: auto; }
         #fairy-card-overlay-inner { padding: 48px 12px 24px !important; }
         #fairy-run-card { width: calc(100vw - 20px) !important; max-width: none !important; }
+        #fairy-run-table-wrap { min-height: 0; }
+        .fairy-run-table th { font-size: 10px; letter-spacing: 0.02em; padding: 6px; overflow-wrap: anywhere; }
+        .fairy-run-table td { padding: 6px; font-size: 13px; }
+      }
+      /* Touch screens have no hover: a tooltip would only get stuck after a tap */
+      @media (hover: none) {
+        .fairy-tooltip::after, #sidebar-fab-panel .fairy-tooltip::after { display: none !important; }
       }
       /* Touch devices: form fields at 16px, otherwise iOS Safari zooms into the page when a field is focused */
       @media (max-width: 640px), (pointer: coarse) {
