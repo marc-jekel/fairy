@@ -7187,9 +7187,15 @@ server <- shinyServer(function(input, output, session) {
     all_in_one <- length(out) == 1L && length(out[[1]]$members) == length(param_factors)
     kinds <- unique(vapply(out, function(sg) sg$kind, character(1)))
     one_kind <- length(kinds) == 1L
+    short_kind <- function(k) {
+      k <- sub("^interchangeable", "same", k)
+      k <- sub("^substitutable$", "any", k)
+      k <- sub("^average$", "avg", k)
+      k
+    }
     body <- vapply(out, function(sg)
-      paste0(if (all_in_one) "" else paste0(paste(sg$members, collapse = ", "), ": "), sg$n, " items",
-             if (one_kind) "" else paste0(", ", sg$kind)), character(1))
+      paste0(if (all_in_one) "" else paste0(paste(sg$members, collapse = ", "), ": "),
+             if (one_kind) paste0(sg$n, " items") else paste0(sg$n, "\u00d7 ", short_kind(sg$kind))), character(1))
     paste0(if (one_kind) paste0(kinds, " \u00b7 ") else "", paste(body, collapse = "; "))
   }
 
@@ -7559,6 +7565,18 @@ server <- shinyServer(function(input, output, session) {
               });
             });
             if (!info.length) return;
+            // Model holds (and its tolerance) belong to the item set: show them in the first row of a set only
+            var firstOfSet = {};
+            rows.forEach(function(r, i) {
+              var g = info[i].g, c4 = r.children[3], c5 = r.children[4];
+              var sameAs = c4 && c4.querySelector('.fairy-items-same');
+              if (c4 && !sameAs) { sameAs = document.createElement('span'); sameAs.className = 'fairy-items-same'; sameAs.style.cssText = 'font-size:12px; color:var(--fairy-text-muted);'; c4.appendChild(sameAs); }
+              var follower = !!g && (g in firstOfSet);
+              if (g && !(g in firstOfSet)) firstOfSet[g] = i;
+              if (c4) Array.prototype.forEach.call(c4.children, function(ch) { if (ch !== sameAs) ch.style.display = follower ? 'none' : ''; });
+              if (sameAs) { sameAs.style.display = follower ? '' : 'none'; if (follower) sameAs.textContent = 'same as ' + info[firstOfSet[g]].name; }
+              if (c5) c5.style.visibility = follower ? 'hidden' : '';
+            });
             var tolHdr = document.querySelector('#fairy-items-header-row > :nth-child(5)');
             if (tolHdr) tolHdr.style.visibility = info.some(function(x) { return x.t === 'identical' && x.n > 1; }) ? 'visible' : 'hidden';
             var maxN = Math.min(8, Math.max.apply(null, info.map(function(x) { return x.n; })));
@@ -7590,6 +7608,18 @@ server <- shinyServer(function(input, output, session) {
               var tn = { joint: 'item by item', substitutable: 'any item with any item', identical: 'all the same', average: 'only the average' }[x.t] || '';
               lab.textContent = (x.g ? x.g : 'own items') + (x.n > 8 ? ' (' + x.n + ' items)' : '') + (x.n > 1 ? ' - ' + tn : '');
             });
+            // relation between neighbouring rows: same item set = item k with item k, different sets = every item with every item
+            for (var q = 0; q < info.length - 1; q++) {
+              var a1 = info[q], a2 = info[q + 1], ym = 22 + q * rh + 10 + rh / 2;
+              if (a1.g && a1.g === a2.g) {
+                var c = pal[setIdx[a1.g] % pal.length];
+                for (var kk = 0; kk < Math.min(a1.n, a2.n, maxN); kk++)
+                  el('line', { x1: x0 + kk * dx, y1: ym - rh / 2 + 7, x2: x0 + kk * dx, y2: ym + rh / 2 - 7, stroke: c, 'stroke-width': '1.6', opacity: '0.8' }, svg);
+              } else {
+                var rel = el('text', { x: x0 + maxN * dx + 4, y: ym + 3, 'font-size': '9.5', fill: 'currentColor', opacity: '0.75' }, svg);
+                rel.textContent = 'every item with every item';
+              }
+            }
           }
           // One diagram that follows the choice: rows = probabilities, columns = items, lines = where the rule is checked.
           function drawItemsDiagram() {
