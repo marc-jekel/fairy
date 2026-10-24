@@ -4420,6 +4420,20 @@ ui <- shinyUI(fluidPage(
     )),
     tags$script(HTML(
       "
+      // Touch: a first tap on Go only made iOS fire the emulated hover, which opens the corner menu;
+      // the real click needed a second tap. Handle the tap ourselves and suppress the emulated mouse events.
+      (function() {
+        document.addEventListener('touchend', function(e) {
+          var b = e.target.closest && e.target.closest('#go_v_h');
+          if (!b || b.disabled) return;
+          e.preventDefault();
+          b.click();
+        }, { passive: false });
+      })();
+      "
+    )),
+    tags$script(HTML(
+      "
       // Model cards (H- and V-representation tabs) can be re-ordered by
       // dragging their title, e.g. to put two models next to each other for a
       // direct comparison. One order for both tabs, kept across new Go runs.
