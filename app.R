@@ -7332,6 +7332,9 @@ server <- shinyServer(function(input, output, session) {
             .fairy-items-opt.fairy-items-opt-sel { background:var(--ct-default, #fff); border-color:var(--fairy-primary, #3a6df0); }
             .fairy-items-viz { background:var(--ct-default, #fff); border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px; padding:8px 10px; }
             #fairy_items_diagram svg { display:block; max-width:100%; height:auto; color:var(--fairy-text-muted); }
+            .modal:has(#submit_items_multi) .modal-footer { display:flex; justify-content:flex-end; align-items:center; }
+            .modal:has(#submit_items_multi) #submit_items_multi { position:static; top:0; transform:none; }
+            .modal:has(#submit_items_multi) .modal-footer button { height:38px; box-sizing:border-box; padding:0 18px; margin:0 0 0 8px; display:inline-flex; align-items:center; justify-content:center; line-height:1; }
             .fairy-items-custom .fairy-items-main, .fairy-items-custom .fairy-items-nrow { opacity:.4; }
             .fairy-items-simple #fairy-items-header-row, .fairy-items-simple .fairy-items-row { grid-template-columns: 1.4fr 1.6fr 1fr !important; }
             .fairy-items-simple #fairy-items-header-row > :nth-child(n+4), .fairy-items-simple .fairy-items-row > :nth-child(n+4) { display:none !important; }
@@ -7369,7 +7372,8 @@ server <- shinyServer(function(input, output, session) {
         tags$summary(style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
           HTML("Optional: different items per probability")),
         tags$p(class = "fairy-eq-tol-help", style = "margin-top:6px;",
-          HTML("Optional. Probabilities measured on the same kind of items (e.g. all jokes) share one <b>item set</b> name. If you also have another kind (e.g. puns), give it a different name. Use <b>Items = 1</b> for a probability that was measured only once.")),
+          HTML("Only needed if your probabilities were <b>not</b> all measured on the same items. Each row is one probability: how many items it has (<b>Items</b>) and which <b>item set</b> it belongs to. Probabilities in the same item set are measured on the same items, so item 1 of one goes with item 1 of the other.")),
+        tags$div(id = "fairy_items_rows_diagram", `aria-hidden` = "true", style = "margin:4px 0 10px;"),
       tags$div(
         id = "fairy-items-header-row",
         style = "display:grid; grid-template-columns: 1.6fr 1.6fr 1fr 1.6fr 1.4fr; gap:6px 10px; align-items:center; margin-top:6px;",
@@ -7541,6 +7545,51 @@ server <- shinyServer(function(input, output, session) {
           $(document).on('change', '.fairy-items-row [id^=items_multi_type_]', function() {
             syncGroupItems(this.closest('.fairy-items-row'), 'type');
           });
+          // Picture of the table below: one row per probability, one dot per item, same colour = same item set.
+          function drawRowsDiagram() {
+            var host = document.getElementById('fairy_items_rows_diagram');
+            if (!host) return;
+            var rows = document.querySelectorAll('.fairy-items-row');
+            var info = [];
+            rows.forEach(function(r) {
+              var sp = r.querySelector('span');
+              info.push({
+                name: (sp ? sp.textContent.replace(/[_{}]/g, '').trim() : ''),
+                n: Math.max(1, Math.min(50, parseInt(r.querySelector('input[id^=items_multi_n_]').value, 10) || 1)),
+                g: (r.querySelector('input[id^=items_multi_group_]').value || '').trim()
+              });
+            });
+            if (!info.length) return;
+            var maxN = Math.min(8, Math.max.apply(null, info.map(function(x) { return x.n; })));
+            var pal = ['#3a6df0', '#e07b00', '#2a9d6f', '#b04fd0', '#c2385a'], setIdx = {}, nsets = 0;
+            info.forEach(function(x) { if (x.g && !(x.g in setIdx)) setIdx[x.g] = nsets++; });
+            var x0 = 64, dx = 26, rh = 26, W = x0 + maxN * dx + 150, H = 22 + info.length * rh + 4;
+            var NS = 'http://www.w3.org/2000/svg';
+            function el(tag, attrs, parent) {
+              var e = document.createElementNS(NS, tag);
+              Object.keys(attrs || {}).forEach(function(k) { e.setAttribute(k, attrs[k]); });
+              if (parent) parent.appendChild(e);
+              return e;
+            }
+            host.textContent = '';
+            var svg = el('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, style: 'max-width:100%; height:auto; color:var(--fairy-text-muted);' }, host);
+            for (var j = 0; j < maxN; j++) {
+              var h = el('text', { x: x0 + j * dx, y: 11, 'text-anchor': 'middle', 'font-size': '10', fill: 'currentColor' }, svg);
+              h.textContent = String(j + 1);
+            }
+            var hl = el('text', { x: 0, y: 11, 'font-size': '10', fill: 'currentColor' }, svg); hl.textContent = 'item no.';
+            info.forEach(function(x, i) {
+              var y = 22 + i * rh + 10, col = x.g ? pal[setIdx[x.g] % pal.length] : '#8a93a6';
+              var t = el('text', { x: 0, y: y + 4, 'font-size': '11.5', 'font-weight': '600', fill: 'currentColor' }, svg); t.textContent = x.name;
+              for (var k = 0; k < maxN; k++) {
+                if (k < x.n) el('circle', { cx: x0 + k * dx, cy: y, r: 6, fill: col }, svg);
+                else el('circle', { cx: x0 + k * dx, cy: y, r: 5, fill: 'none', stroke: 'currentColor', 'stroke-dasharray': '2 2', opacity: '0.35' }, svg);
+              }
+              if (x.n > 8) { var m = el('text', { x: x0 + maxN * dx - 8, y: y + 4, 'font-size': '11', fill: 'currentColor' }, svg); m.textContent = String.fromCharCode(8230) + ' ' + x.n; }
+              var lab = el('text', { x: x0 + maxN * dx + 4, y: y + 4, 'font-size': '11', fill: col }, svg);
+              lab.textContent = x.g ? x.g : 'own items';
+            });
+          }
           // One diagram that follows the choice: rows = probabilities, columns = items, lines = where the rule is checked.
           function drawItemsDiagram() {
             var host = document.getElementById('fairy_items_diagram');
@@ -7609,7 +7658,7 @@ server <- shinyServer(function(input, output, session) {
             }
             if (type === 'identical') sign((X(0) + X(cols - 1)) / 2, (y1 + y2) / 2);
             if (type === 'average') sign(X(cols - 1) + dx + (more ? 22 : 0), (y1 + y2) / 2);
-            if (cols <= 3) {
+            if (cols <= (type === 'substitutable' ? 2 : 3)) {
               if (type === 'joint') for (k = 0; k < cols; k++) sign(X(k), (y1 + y2) / 2);
               else if (type === 'substitutable') for (k = 0; k < cols; k++) for (m = 0; m < cols; m++) {
                 var f = k === m ? 0.5 : 0.28;
@@ -7672,15 +7721,18 @@ server <- shinyServer(function(input, output, session) {
             updateAllItemsRows();
             itemsApplying = false;
             markItemsCustom(false);
+            drawRowsDiagram();
           }
           $(document).on('input change', '.fairy-items-quick-type, #fairy_items_quick_n, #fairy_items_quick_eps', quickApply);
           $(document).on('input change', '.fairy-items-row input', function(e) {
             if (!itemsApplying && e.originalEvent) markItemsCustom(true);
           });
+          $(document).on('input change', '.fairy-items-row input', function() { setTimeout(drawRowsDiagram, 30); });
           $(document).on('click', '#fairy_items_reset', function(e) { e.preventDefault(); quickApply(); });
           setTimeout(function() {
             var q = document.querySelector('.fairy-items-quick');
             if (q && q.getAttribute('data-custom') === '1') markItemsCustom(true);
+            drawRowsDiagram();
           }, 300);
           // a new dialog starts from the defaults shown above (edit mode keeps the saved values)
           setTimeout(function() {
