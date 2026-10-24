@@ -1584,6 +1584,17 @@ ui <- shinyUI(fluidPage(
         input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select, .form-control, .selectize-input, .selectize-input input,
         .dataTables_wrapper input, .dataTables_wrapper select, .fairy-ineq-overlay { font-size: 16px !important; }
       }
+      /* Plot Polytope(s): the 800px plot is taller than a phone/tablet window; fit it so the whole cube is in view */
+      @media (max-width: 767px), (max-height: 900px) {
+        #plot { height: calc(100vh - 170px) !important; min-height: 340px; }
+      }
+      /* Parsimony results table: stay inside the window on phones, scroll sideways inside its own box */
+      @media (max-width: 767px) {
+        #parsimony_spinner_table, #parsimony_spinner_table .dataTables_wrapper { max-width: 100%; box-sizing: border-box; }
+        #parsimony_spinner_table .dataTables_wrapper { overflow-x: auto; }
+        #parsimony_spinner_table table.dataTable { font-size: 13px; }
+        #parsimony_spinner_table table.dataTable th, #parsimony_spinner_table table.dataTable td { padding: 6px 8px; }
+      }
       /* short press feedback on buttons (added by script on click) */
       @keyframes fairy-click-kf { 0% { transform: scale(1); } 35% { transform: scale(0.9); } 70% { transform: scale(1.04); } 100% { transform: scale(1); } }
       .fairy-clicked { animation: fairy-click-kf 0.26s ease-out; }
@@ -4429,6 +4440,25 @@ ui <- shinyUI(fluidPage(
           e.preventDefault();
           b.click();
         }, { passive: false });
+      })();
+      "
+    )),
+    tags$script(HTML(
+      "
+      // narrow screens: move the 3D camera back once per drawn plot so the whole cube is visible
+      (function() {
+        function fit() {
+          var gd = document.getElementById('plot');
+          if (!gd || !gd.layout || !window.Plotly || gd.__fairyCam) return;
+          if (innerWidth > 767) return;
+          var e = gd.layout.scene && gd.layout.scene.camera && gd.layout.scene.camera.eye;
+          if (!e) return;
+          gd.__fairyCam = true;
+          Plotly.relayout(gd, {'scene.camera.eye': {x: e.x * 1.45, y: e.y * 1.45, z: e.z * 1.45}});
+        }
+        if (window.jQuery) jQuery(document).on('shiny:value', function(ev) {
+          if (ev.name === 'plot') { var gd = document.getElementById('plot'); if (gd) gd.__fairyCam = false; setTimeout(fit, 600); setTimeout(fit, 1500); }
+        });
       })();
       "
     )),
