@@ -7272,26 +7272,39 @@ server <- shinyServer(function(input, output, session) {
       # It fills the per-probability fields below (Group / Items / Type), which stay available as "Advanced".
       tags$div(class = "fairy-items-quick", style = "margin-top:8px; padding:10px 12px; border-radius:8px; background:var(--ct-diag);",
         tags$div(style = "display:grid; grid-template-columns: 1fr 3fr; gap:6px 12px; align-items:start;",
-          tags$strong("Items", style = "font-size:12px; padding-top:6px;"),
-          tags$div(style = "max-width:110px;",
-            tags$input(id = "fairy_items_quick_n", type = "number", min = 1, max = 50, step = 1, value = 1, class = "form-control", `aria-label` = "Number of items")),
           tags$strong("Model holds", style = "font-size:12px; padding-top:6px;"),
           tags$select(id = "fairy_items_quick_type", class = "form-control", style = "width:100%; max-width:420px;", `aria-label` = "How the model holds across the items",
             tags$option(value = "joint", "Joint \u2013 separately per item (item 1 with item 1, item 2 with item 2, \u2026)"),
             tags$option(value = "substitutable", "Substitutable \u2013 for every pairing of items (any item with any item)"),
             tags$option(value = "identical", "Interchangeable \u2013 all items have equal values"),
             tags$option(value = "average", "Average \u2013 only for the average over items (marginals)")),
+          tags$strong("Items", style = "font-size:12px; padding-top:6px;"),
+          tags$div(style = "display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center;",
+            tags$span(class = "fairy-items-quick-nwrap", `data-set` = 1,
+              tags$input(id = "fairy_items_quick_n", type = "number", min = 1, max = 50, step = 1, value = 1, class = "form-control", style = "width:80px; display:inline-block;", `aria-label` = "Number of items")),
+            lapply(2:4, function(k) tags$span(class = "fairy-items-quick-nwrap", `data-set` = k, style = "display:none; white-space:nowrap;",
+              paste0("set ", k, ": "),
+              tags$input(id = paste0("fairy_items_quick_n", k), type = "number", min = 1, max = 50, step = 1, value = 1, class = "form-control", style = "width:80px; display:inline-block;", `aria-label` = paste0("Number of items in set ", k))))
+          ),
           tags$strong("Applies to", style = "font-size:12px; padding-top:2px;"),
-          tags$div(style = "display:flex; flex-wrap:wrap; gap:4px 14px; font-size:13px;",
-            lapply(seq_along(p_names), function(i)
-              tags$label(style = "font-weight:normal; margin:0; display:inline-flex; align-items:center; gap:4px; cursor:pointer;",
-                tags$input(type = "checkbox", class = "fairy-items-quick-p", `data-p` = i, checked = "checked"), p_names[i]))
+          tags$div(
+            tags$div(style = "display:flex; flex-wrap:wrap; gap:4px 14px; font-size:13px;",
+              lapply(seq_along(p_names), function(i)
+                tags$span(style = "display:inline-flex; align-items:center; gap:4px;",
+                  tags$label(style = "font-weight:normal; margin:0; display:inline-flex; align-items:center; gap:4px; cursor:pointer;",
+                    tags$input(type = "checkbox", class = "fairy-items-quick-p", `data-p` = i, checked = "checked"), p_names[i]),
+                  tags$select(class = "fairy-items-quick-set", `data-p` = i, style = "display:none; width:auto; font-size:12px; padding:0 2px;", `aria-label` = paste0("Item set of ", p_names[i]),
+                    lapply(1:4, function(k) tags$option(value = k, paste0("set ", k))))))
+            ),
+            tags$label(style = "font-weight:normal; margin:8px 0 0; font-size:12.5px; display:flex; align-items:center; gap:6px; cursor:pointer;",
+              tags$input(type = "checkbox", id = "fairy_items_quick_multi"),
+              HTML("Several sets of items with their own count (e.g. jokes <i>and</i> puns). Pick a set for each probability."))
           )
         )
       ),
       tags$details(style = "margin-top:2px;",
         tags$summary(style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
-          HTML("&#9432; What do the Types mean? <span style='font-size:11px;font-weight:normal;color:var(--fairy-text-muted);'>(click to expand)</span>")
+          HTML("&#9432; What do the options of &ldquo;Model holds&rdquo; mean? <span style='font-size:11px;font-weight:normal;color:var(--fairy-text-muted);'>(click to expand)</span>")
         ),
         tags$div(style = "margin-top:8px;",
           tags$p(class = "fairy-eq-tol-help", style = "margin-top:2px;",
@@ -7307,7 +7320,7 @@ server <- shinyServer(function(input, output, session) {
       ),
       tags$details(open = if (is_edit) NA else NULL, style = "margin-top:8px;",
         tags$summary(style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
-          "Advanced: items, group and type per probability"),
+          HTML("Advanced: items, group and &ldquo;model holds&rdquo; per probability")),
         tags$p(class = "fairy-eq-tol-help", style = "margin-top:6px;",
           HTML("Only needed if probabilities differ, e.g. some are measured once, or two groups of items. <b>Group</b>: the same word in two rows links their items (item 1 with item 1, \u2026); the quick setup uses one group <i>i</i> for Joint and Interchangeable. If you have two sets of items (say jokes and puns), give each set its own group here. Without a group, every item of one probability is combined with every item of the others.")),
       tags$div(
@@ -7316,7 +7329,7 @@ server <- shinyServer(function(input, output, session) {
         tags$strong("Probability", style = "font-size:11.5px; color:var(--fairy-text-muted);"),
         tags$strong("Group", class = "fairy-items-group-cell", style = "font-size:11.5px; color:var(--fairy-text-muted);"),
         tags$strong("Items", style = "font-size:11.5px; color:var(--fairy-text-muted);"),
-        tags$strong("Type", style = "font-size:11.5px; color:var(--fairy-text-muted);"),
+        tags$strong("Model holds", style = "font-size:11.5px; color:var(--fairy-text-muted);"),
         tags$strong("Approx. tol.", style = "font-size:11.5px; color:var(--fairy-text-muted);")
       ),
       lapply(seq_along(p_names), function(i) {
@@ -7482,15 +7495,31 @@ server <- shinyServer(function(input, output, session) {
             syncGroupItems(this.closest('.fairy-items-row'), 'type');
           });
           // Quick setup -> fills the per-probability rows (Group / Items / Type) below.
+          // One set of items = one group (paper: item index i); several sets (e.g. jokes i and puns j)
+          // get one group each, and different sets are crossed with each other.
           function quickApply() {
-            var nEl = document.getElementById('fairy_items_quick_n'), tEl = document.getElementById('fairy_items_quick_type');
-            if (!nEl || !tEl) return;
-            var n = Math.max(1, parseInt(nEl.value, 10) || 1), type = tEl.value;
-            var linked = type === 'joint' || type === 'identical';
+            var tEl = document.getElementById('fairy_items_quick_type');
+            if (!tEl) return;
+            var type = tEl.value, linked = type === 'joint' || type === 'identical';
+            var multi = document.getElementById('fairy_items_quick_multi').checked;
+            var names = ['i', 'j', 'k', 'l'];
             var rows = document.querySelectorAll('.fairy-items-row');
+            var used = {};
             document.querySelectorAll('.fairy-items-quick-p').forEach(function(cb) {
-              var row = rows[parseInt(cb.getAttribute('data-p'), 10) - 1];
+              var p = cb.getAttribute('data-p');
+              var setSel = document.querySelector('.fairy-items-quick-set[data-p=\"' + p + '\"]');
+              setSel.style.display = (multi && cb.checked) ? '' : 'none';
+              if (cb.checked) used[multi ? parseInt(setSel.value, 10) : 1] = true;
+            });
+            document.querySelectorAll('.fairy-items-quick-nwrap').forEach(function(w) {
+              w.style.display = used[parseInt(w.getAttribute('data-set'), 10)] ? '' : 'none';
+            });
+            document.querySelectorAll('.fairy-items-quick-p').forEach(function(cb) {
+              var p = cb.getAttribute('data-p'), row = rows[parseInt(p, 10) - 1];
               if (!row) return;
+              var set = multi ? (parseInt(document.querySelector('.fairy-items-quick-set[data-p=\"' + p + '\"]').value, 10) || 1) : 1;
+              var nEl = document.getElementById(set === 1 ? 'fairy_items_quick_n' : 'fairy_items_quick_n' + set);
+              var n = Math.max(1, parseInt(nEl && nEl.value, 10) || 1);
               var nIn = row.querySelector('input[id^=items_multi_n_]');
               var gIn = row.querySelector('input[id^=items_multi_group_]');
               var sel = row.querySelector('select[id^=items_multi_type_]');
@@ -7498,13 +7527,13 @@ server <- shinyServer(function(input, output, session) {
               if (nIn) { nIn.value = cb.checked ? n : 1; $(nIn).trigger('change'); }
               if (cb.checked && n > 1) {
                 if (sel) { if (sel.selectize) sel.selectize.setValue(type); else { sel.value = type; $(sel).trigger('change'); } }
-                if (gIn && linked) { gIn.value = 'i'; $(gIn).trigger('input'); }
+                if (gIn && linked) { gIn.value = names[set - 1]; $(gIn).trigger('input'); }
               }
             });
             syncGroupItems(null);
             updateAllItemsRows();
           }
-          $(document).on('input change', '#fairy_items_quick_n, #fairy_items_quick_type, .fairy-items-quick-p', quickApply);
+          $(document).on('input change', '#fairy_items_quick_type, #fairy_items_quick_multi, .fairy-items-quick-p, .fairy-items-quick-set, [id^=fairy_items_quick_n]', quickApply);
           // Selectize finishes initializing asynchronously after this
           // script runs, so the very first pass (before it exists yet)
           // wouldn't find .selectize on the type dropdown — one retry
@@ -7827,21 +7856,21 @@ server <- shinyServer(function(input, output, session) {
     factor_tag <- paste(vapply(rows, function(r)
       items_factor_tag(r$name, r$n, r$type, unname(eps_per_param[r$members])), character(1)), collapse = ", ")
     items_name <- paste0(base_m, " [", factor_tag, "]")
-    describe_items_row <- function(n, name, type, member_eps) {
+    describe_items_row <- function(n, members, type, member_eps) {
       how <- switch(type,
-        joint = "linked together",
-        substitutable = "interchangeable",
-        average = "free individually, constrained on their average",
+        joint = "joint (item by item)",
+        substitutable = "substitutable (any item with any item)",
+        average = "model holds for the average (marginals)",
         identical = {
           ev <- member_eps
-          if (length(ev) == 0 || all(ev == 0)) "forced equal"
-          else if (length(unique(round(ev, 10))) == 1) paste0("forced equal (±", frac_str(ev[1]), " tol.)")
-          else paste0("forced equal (tol. ", paste(vapply(ev, frac_str, character(1)), collapse = ", "), ")")
+          if (length(ev) == 0 || all(ev == 0)) "interchangeable (equal values)"
+          else if (length(unique(round(ev, 10))) == 1) paste0("interchangeable (equal within \u00b1", frac_str(ev[1]), ")")
+          else paste0("interchangeable (equal within \u00b1", paste(vapply(ev, frac_str, character(1)), collapse = ", "), ")")
         })
-      paste0(n, " copies of ", plain_p_name(name), ", ", how)
+      paste0(paste(vapply(members, plain_p_name, character(1)), collapse = ", "), ": ", n, " items, ", how)
     }
     description <- paste(vapply(rows, function(r)
-      describe_items_row(r$n, r$name, r$type, unname(eps_per_param[r$members])),
+      describe_items_row(r$n, r$members, r$type, unname(eps_per_param[r$members])),
       character(1)), collapse = "; ")
 
     edit_info <- isolate(active_items_edit())
