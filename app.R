@@ -7379,7 +7379,7 @@ server <- shinyServer(function(input, output, session) {
           HTML("Only needed if your probabilities were <b>not</b> all measured on the same items. Each row is one probability: how many items it has (<b>Items</b>), which <b>item set</b> it belongs to, and how the model applies to its items (<b>Model holds</b>, as above). Probabilities in the same item set are measured on the same items: item 1 of one goes with item 1 of the other.")),
         tags$div(id = "fairy_items_rows_diagram", `aria-hidden` = "true", style = "margin:4px 0 4px;"),
         tags$div(style = "font-size:11.5px; color:var(--fairy-text-muted); margin:0 0 10px;",
-          "The lines show how the items of one set are combined whenever your model compares two of its probabilities (for example p1 with p2, or p1 with p3). Which pairs are compared is given by your model."),
+          HTML("<b>Box</b> = one item set (same items). <b>Lines</b> = how its items are combined.")),
       tags$div(
         id = "fairy-items-header-row",
         style = "display:grid; grid-template-columns: 1.6fr 1.6fr 1fr 1.6fr 1.4fr; gap:6px 10px; align-items:center; margin-top:6px;",
@@ -7602,6 +7602,19 @@ server <- shinyServer(function(input, output, session) {
             }
             host.textContent = '';
             var svg = el('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, style: 'max-width:100%; height:auto; color:var(--fairy-text-muted);' }, host);
+            // a box around every item set with more than one probability
+            (function() {
+              var i0 = 0;
+              while (i0 < info.length) {
+                var g0 = info[i0].g, i1 = i0;
+                while (g0 && i1 + 1 < info.length && info[i1 + 1].g === g0) i1++;
+                if (i1 > i0) {
+                  var bc = pal[setIdx[g0] % pal.length], bn = Math.min(maxN, Math.max(info[i0].n, 1));
+                  el('rect', { x: x0 - 15, y: 22 + i0 * rh + 10 - 13, width: (bn - 1) * dx + 30, height: (i1 - i0) * rh + 26, rx: 9, fill: bc, 'fill-opacity': '0.08', stroke: bc, 'stroke-opacity': '0.55', 'stroke-width': '1.2' }, svg);
+                }
+                i0 = i1 + 1;
+              }
+            })();
             for (var j = 0; j < maxN; j++) {
               var h = el('text', { x: x0 + j * dx, y: 11, 'text-anchor': 'middle', 'font-size': '10', fill: 'currentColor' }, svg);
               h.textContent = String(j + 1);
