@@ -7333,9 +7333,9 @@ server <- shinyServer(function(input, output, session) {
       },
       tags$details(open = if (is_edit) NA else NULL, style = "margin-top:8px;",
         tags$summary(style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
-          HTML("Advanced: items, group and &ldquo;model holds&rdquo; per probability")),
+          HTML("Advanced: different settings per probability")),
         tags$p(class = "fairy-eq-tol-help", style = "margin-top:6px;",
-          HTML("Only needed if probabilities differ, e.g. some are measured once, or two sets of items with different counts (say jokes and puns): give each set its own <b>Group</b> word; the same word in two rows links their items (item 1 with item 1, \u2026). Changing the settings above overwrites these fields.")),
+          HTML("All probabilities use the settings above. Change a row only if one needs something different, e.g. <b>Items = 1</b> for a probability that was measured only once.<br>If you have two kinds of items (say jokes and puns), give the probabilities of the same kind the same <b>Group</b> name, e.g. <i>jokes</i> and <i>puns</i>. Probabilities in one group are measured on the same items (item 1 with item 1, \u2026).")),
       tags$div(
         id = "fairy-items-header-row",
         style = "display:grid; grid-template-columns: 1.6fr 1.6fr 1fr 1.6fr 1.4fr; gap:6px 10px; align-items:center; margin-top:6px;",
