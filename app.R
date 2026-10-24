@@ -1568,6 +1568,11 @@ ui <- shinyUI(fluidPage(
         #fairy-card-overlay-inner { padding: 48px 12px 24px !important; }
         #fairy-run-card { width: calc(100vw - 20px) !important; max-width: none !important; }
       }
+      /* Touch devices: form fields at 16px, otherwise iOS Safari zooms into the page when a field is focused */
+      @media (max-width: 640px), (pointer: coarse) {
+        input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select, .form-control, .selectize-input, .selectize-input input,
+        .dataTables_wrapper input, .dataTables_wrapper select, .fairy-ineq-overlay { font-size: 16px !important; }
+      }
       .fairy-share-wrap { position: relative; display: inline-flex; }
       .fairy-share-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
       .fairy-share-pop { position: absolute; left: 0; bottom: calc(100% + 10px); min-width: 188px; z-index: 5; padding: 4px;
@@ -4790,6 +4795,12 @@ ui <- shinyUI(fluidPage(
           // the full-screen tile is a dialog
           var inner = document.getElementById('fairy-card-overlay-inner');
           if (inner && !inner.getAttribute('role')) { inner.setAttribute('role', 'dialog'); inner.setAttribute('aria-modal', 'true'); inner.setAttribute('aria-label', 'Expanded tile'); }
+          // DataTables keeps a second, zero-height header in the scroll body only to fix the column widths:
+          // hide it from assistive technology and the tab order (nothing visible changes)
+          document.querySelectorAll('.dataTables_scrollBody table thead').forEach(function(th0) {
+            th0.setAttribute('aria-hidden', 'true');
+            th0.querySelectorAll('th').forEach(function(c) { c.setAttribute('tabindex', '-1'); });
+          });
           // table headers that only contain rendered math (p with a subscript) have no text a screen reader finds
           document.querySelectorAll('table.dataTable thead th').forEach(function(th) {
             if (th.querySelector('.fairy-th-sr')) return;
