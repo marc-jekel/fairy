@@ -4894,15 +4894,24 @@ ui <- shinyUI(fluidPage(
            var content = document.getElementById('fairy-card-overlay-content');
            content.style.transform       = 'none';
            content.style.transformOrigin = '';
+           content.style.zoom            = '';
            requestAnimationFrame(function() {
              var availW = inner.clientWidth - 96;
+             var availH = inner.clientHeight - 96;
              var natW   = content.scrollWidth;
+             var natH   = content.scrollHeight;
              if (natW < 1 || availW < 1) return;
              var scale = availW / natW;
-             scale = Math.max(0.05, Math.min(scale, 4));
              if (scale < 0.99) {
+               scale = Math.max(0.05, scale);
                content.style.transformOrigin = 'top left';
                content.style.transform       = 'scale(' + scale + ')';
+             } else {
+               // small content: make real use of the screen. Enlarge as far as width and height allow
+               // (never beyond 4x; tall content is not enlarged beyond the screen height, it scrolls).
+               // zoom, unlike a transform, also changes the layout size, so the centering stays right.
+               var up = Math.min(scale, 4, Math.max(1, availH / Math.max(natH, 1)));
+               if (up > 1.05) content.style.zoom = up;
              }
            });
          }
