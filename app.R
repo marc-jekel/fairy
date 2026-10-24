@@ -7564,7 +7564,7 @@ server <- shinyServer(function(input, output, session) {
             var maxN = Math.min(8, Math.max.apply(null, info.map(function(x) { return x.n; })));
             var pal = ['#3a6df0', '#e07b00', '#2a9d6f', '#b04fd0', '#c2385a'], setIdx = {}, nsets = 0;
             info.forEach(function(x) { if (x.g && !(x.g in setIdx)) setIdx[x.g] = nsets++; });
-            var x0 = 64, dx = 26, rh = 26, W = x0 + maxN * dx + 250, H = 22 + info.length * rh + 4;
+            var x0 = 64, dx = 26, rh = 26, W = x0 + maxN * dx + 290, H = 22 + info.length * rh + 4;
             var NS = 'http://www.w3.org/2000/svg';
             function el(tag, attrs, parent) {
               var e = document.createElementNS(NS, tag);
@@ -7586,10 +7586,9 @@ server <- shinyServer(function(input, output, session) {
                 if (k < x.n) el('circle', { cx: x0 + k * dx, cy: y, r: 6, fill: col }, svg);
                 else el('circle', { cx: x0 + k * dx, cy: y, r: 5, fill: 'none', stroke: 'currentColor', 'stroke-dasharray': '2 2', opacity: '0.35' }, svg);
               }
-              if (x.n > 8) { var m = el('text', { x: x0 + maxN * dx - 8, y: y + 4, 'font-size': '11', fill: 'currentColor' }, svg); m.textContent = String.fromCharCode(8230) + ' ' + x.n; }
               var lab = el('text', { x: x0 + maxN * dx + 4, y: y + 4, 'font-size': '11', fill: col }, svg);
               var tn = { joint: 'item by item', substitutable: 'any item with any item', identical: 'all the same', average: 'only the average' }[x.t] || '';
-              lab.textContent = (x.g ? x.g : 'own items') + (x.n > 1 ? ' - ' + tn : '');
+              lab.textContent = (x.g ? x.g : 'own items') + (x.n > 8 ? ' (' + x.n + ' items)' : '') + (x.n > 1 ? ' - ' + tn : '');
             });
           }
           // One diagram that follows the choice: rows = probabilities, columns = items, lines = where the rule is checked.
