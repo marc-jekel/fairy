@@ -7377,7 +7377,9 @@ server <- shinyServer(function(input, output, session) {
           HTML("Optional: different items per probability")),
         tags$p(class = "fairy-eq-tol-help", style = "margin-top:6px;",
           HTML("Only needed if your probabilities were <b>not</b> all measured on the same items. Each row is one probability: how many items it has (<b>Items</b>), which <b>item set</b> it belongs to, and how the model applies to its items (<b>Model holds</b>, as above). Probabilities in the same item set are measured on the same items: item 1 of one goes with item 1 of the other.")),
-        tags$div(id = "fairy_items_rows_diagram", `aria-hidden` = "true", style = "margin:4px 0 10px;"),
+        tags$div(id = "fairy_items_rows_diagram", `aria-hidden` = "true", style = "margin:4px 0 4px;"),
+        tags$div(style = "font-size:11.5px; color:var(--fairy-text-muted); margin:0 0 10px;",
+          "The lines show how the items of one set are combined whenever your model compares two of its probabilities (for example p1 with p2, or p1 with p3). Which pairs are compared is given by your model."),
       tags$div(
         id = "fairy-items-header-row",
         style = "display:grid; grid-template-columns: 1.6fr 1.6fr 1fr 1.6fr 1.4fr; gap:6px 10px; align-items:center; margin-top:6px;",
