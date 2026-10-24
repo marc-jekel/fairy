@@ -7635,10 +7635,10 @@ server <- shinyServer(function(input, output, session) {
                 el('line', { x1: X(k) + 8, y1: y1, x2: X(k + 1) - 8, y2: y1 }, g);
                 el('line', { x1: X(k) + 8, y1: y2, x2: X(k + 1) - 8, y2: y2 }, g);
                 var e1 = el('text', { x: (X(k) + X(k + 1)) / 2, y: y1 - 5, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12' }, svg); e1.textContent = '=';
-                var e2 = el('text', { x: (X(k) + X(k + 1)) / 2, y: y2 - 5, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12' }, svg); e2.textContent = '=';
+                var e2 = el('text', { x: (X(k) + X(k + 1)) / 2, y: y2 + 16, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12' }, svg); e2.textContent = '=';
               }
               // the shared values of p1 and p2 are then compared as the model says
-              el('line', { x1: (X(0) + X(cols - 1)) / 2, y1: y1 + 6, x2: (X(0) + X(cols - 1)) / 2, y2: y2 - 6 }, g);
+              el('line', { x1: (X(0) + X(cols - 1)) / 2, y1: y1 + 2, x2: (X(0) + X(cols - 1)) / 2, y2: y2 - 2 }, g);
             } else {
               // every row collapses into ONE average point; only the two averages are compared
               var ax = X(cols - 1) + dx + (more ? 22 : 0);
