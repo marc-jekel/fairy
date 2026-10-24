@@ -8844,7 +8844,11 @@ server <- shinyServer(function(input, output, session) {
       class = "fairy-combo-modal",
       tags$div(class = "fairy-combo-header", tags$strong("Add mixture model")),
       tags$p(class = "fairy-combo-help", "Pick two or more models for a mixture."),
-      checkboxGroupInput("mixture_model_picker", NULL, choices = setNames(seq_len(n), model_names)),
+      if (any(vapply(seq_len(n), is_items_row, logical(1))))
+        tags$p(class = "fairy-combo-help", style = "font-style:italic;",
+          "Models unpacked across items are not listed: they live in a different parameter space (one probability per item)."),
+      checkboxGroupInput("mixture_model_picker", NULL,
+        choices = setNames(seq_len(n), model_names)[!vapply(seq_len(n), is_items_row, logical(1))]),
       footer = tagList(
         modalButton("Cancel"),
         actionBttn("submit_mixture_model", "Add", style = "material-flat", color = "primary", size = "sm")
@@ -8860,7 +8864,7 @@ server <- shinyServer(function(input, output, session) {
       return()
     }
     its <- vapply(selected_idx, is_items_row, logical(1))
-    if (any(its) && !all(its)) {
+    if (any(its)) {
       showModal(modalDialog(title = "Cannot mix", items_combine_msg, easyClose = TRUE))
       return()
     }
