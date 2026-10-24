@@ -7319,7 +7319,7 @@ server <- shinyServer(function(input, output, session) {
             tags$input(type = "radio", name = "fairy_items_quick_type", value = value, class = "fairy-items-quick-type",
               checked = if (identical(value, q_type)) "checked" else NULL),
             tags$span(tags$b(label), tags$span(expl)))
-        tags$div(class = "fairy-items-quick", `data-edit` = if (is_edit) "1" else "0", style = "margin-top:8px; padding:12px; border-radius:8px; background:var(--ct-diag);",
+        tags$div(class = "fairy-items-quick", `data-edit` = if (is_edit) "1" else "0", `data-custom` = if (adv_diff) "1" else "0", style = "margin-top:8px; padding:12px; border-radius:8px; background:var(--ct-diag);",
           tags$style(HTML("
             .fairy-items-main { display:grid; grid-template-columns: 1fr 1fr; gap:14px; align-items:start; }
             @media (max-width: 560px) { .fairy-items-main { grid-template-columns: 1fr; } }
@@ -7332,10 +7332,14 @@ server <- shinyServer(function(input, output, session) {
             .fairy-items-opt.fairy-items-opt-sel { background:var(--ct-default, #fff); border-color:var(--fairy-primary, #3a6df0); }
             .fairy-items-viz { background:var(--ct-default, #fff); border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px; padding:8px 10px; }
             #fairy_items_diagram svg { display:block; max-width:100%; height:auto; color:var(--fairy-text-muted); }
+            .fairy-items-custom .fairy-items-main, .fairy-items-custom .fairy-items-nrow { opacity:.4; }
             .fairy-items-simple #fairy-items-header-row, .fairy-items-simple .fairy-items-row { grid-template-columns: 1.4fr 1.6fr 1fr !important; }
             .fairy-items-simple #fairy-items-header-row > :nth-child(n+4), .fairy-items-simple .fairy-items-row > :nth-child(n+4) { display:none !important; }
           ")),
-          tags$div(style = "display:flex; align-items:center; gap:8px; margin-bottom:12px;",
+          tags$div(id = "fairy_items_custom_note", style = "display:none; margin-bottom:10px; padding:6px 10px; border-radius:6px; background:#fff4d6; color:#5c4300; font-size:12px;",
+            "Different settings per probability are used (see below). ",
+            tags$a(href = "#", id = "fairy_items_reset", style = "font-weight:600;", "Use the settings above for all probabilities")),
+          tags$div(class = "fairy-items-nrow", style = "display:flex; align-items:center; gap:8px; margin-bottom:12px;",
             tags$strong("How many items?", style = "font-size:12.5px;"),
             tags$input(id = "fairy_items_quick_n", type = "number", min = 1, max = 50, step = 1, value = q_n,
               class = "form-control", style = "width:80px;", `aria-label` = "Number of items")),
@@ -7551,7 +7555,7 @@ server <- shinyServer(function(input, output, session) {
               return t || ('p' + (i + 1));
             }
             var cols = Math.min(n, 4), more = n > 4;
-            var x0 = 46, dx = 52, y1 = 40, y2 = 96, W = x0 + (cols - 1) * dx + 34 + (more ? 22 : 0), H = 118;
+            var x0 = 46, dx = 52, y1 = 40, y2 = 96, W = x0 + (cols - 1) * dx + 34 + (more ? 22 : 0) + (type === 'average' ? dx + 14 : 0), H = 118;
             var NS = 'http://www.w3.org/2000/svg';
             function el(tag, attrs, parent) {
               var e = document.createElementNS(NS, tag);
@@ -7585,10 +7589,29 @@ server <- shinyServer(function(input, output, session) {
                 var e2 = el('text', { x: (X(k) + X(k + 1)) / 2, y: y2 - 5, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12' }, svg); e2.textContent = '=';
               }
             } else {
-              var cx = (X(0) + X(cols - 1)) / 2, rx = (X(cols - 1) - X(0)) / 2 + 18;
-              el('ellipse', { cx: cx, cy: y1, rx: rx, ry: 13, 'stroke-dasharray': '3 2.5' }, g);
-              el('ellipse', { cx: cx, cy: y2, rx: rx, ry: 13, 'stroke-dasharray': '3 2.5' }, g);
-              el('line', { x1: cx, y1: y1 + 14, x2: cx, y2: y2 - 14 }, g);
+              // every row collapses into ONE average point; only the two averages are compared
+              var ax = X(cols - 1) + dx + (more ? 22 : 0);
+              var ah = el('text', { x: ax, y: 14, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '10.5', 'font-weight': '600' }, svg);
+              ah.textContent = 'average';
+              [y1, y2].forEach(function(yy) {
+                for (k = 0; k < cols; k++) el('line', { x1: X(k) + 6, y1: yy, x2: ax - 8, y2: yy, stroke: 'currentColor', 'stroke-width': '1', opacity: '0.4', 'stroke-dasharray': '2 3' }, svg);
+                el('circle', { cx: ax, cy: yy, r: 7, fill: 'var(--ct-default, #fff)' }, g);
+              });
+              el('line', { x1: ax, y1: y1 + 8, x2: ax, y2: y2 - 8 }, g);
+            }
+            // the comparison sign of the example (p1 > p2) on the lines, as long as the picture stays readable
+            function sign(x, y) {
+              var t = el('text', { x: x, y: y + 4, 'text-anchor': 'middle', 'font-size': '13', 'font-weight': '700',
+                fill: 'var(--fairy-primary, #3a6df0)', stroke: 'var(--ct-default, #fff)', 'stroke-width': '3', 'paint-order': 'stroke' }, svg);
+              t.textContent = '>';
+            }
+            if (type === 'average') sign(X(cols - 1) + dx + (more ? 22 : 0), (y1 + y2) / 2);
+            if (cols <= 3) {
+              if (type === 'joint') for (k = 0; k < cols; k++) sign(X(k), (y1 + y2) / 2);
+              else if (type === 'substitutable') for (k = 0; k < cols; k++) for (m = 0; m < cols; m++) {
+                var f = k === m ? 0.5 : 0.28;
+                sign(X(k) + (X(m) - X(k)) * f, y1 + 7 + (y2 - y1 - 14) * f);
+              }
             }
             var gd = el('g', { fill: 'currentColor' }, svg);
             for (k = 0; k < cols; k++) { el('circle', { cx: X(k), cy: y1, r: 5 }, gd); el('circle', { cx: X(k), cy: y2, r: 5 }, gd); }
@@ -7601,7 +7624,14 @@ server <- shinyServer(function(input, output, session) {
             }[type];
           }
           // Quick setup -> fills the per-probability rows (Group / Items / Model holds) under Advanced.
+          var itemsApplying = false;
+          function markItemsCustom(on) {
+            var q = document.querySelector('.fairy-items-quick'), note = document.getElementById('fairy_items_custom_note');
+            if (q) q.classList.toggle('fairy-items-custom', on);
+            if (note) note.style.display = on ? '' : 'none';
+          }
           function quickApply() {
+            itemsApplying = true;
             document.querySelectorAll('.fairy-items-opt').forEach(function(t) {
               var r = t.querySelector('input'); t.classList.toggle('fairy-items-opt-sel', !!(r && r.checked));
             });
@@ -7615,12 +7645,19 @@ server <- shinyServer(function(input, output, session) {
             var epsV = Math.min(1, Math.max(0, parseFloat(epsEl && epsEl.value) || 0));
             var wrap = document.getElementById('fairy_items_quick_eps_wrap');
             if (wrap) wrap.style.display = type === 'identical' ? '' : 'none';
+            // pass 1: clear all groups and set the count everywhere (otherwise the old groups pull the counts back)
+            document.querySelectorAll('.fairy-items-row').forEach(function(row) {
+              var gIn = row.querySelector('input[id^=items_multi_group_]');
+              if (gIn) { gIn.value = ''; $(gIn).trigger('input'); }
+            });
             document.querySelectorAll('.fairy-items-row').forEach(function(row) {
               var nIn = row.querySelector('input[id^=items_multi_n_]');
+              if (nIn) { nIn.value = n; $(nIn).trigger('change'); }
+            });
+            // pass 2: model type, group and tolerance
+            document.querySelectorAll('.fairy-items-row').forEach(function(row) {
               var gIn = row.querySelector('input[id^=items_multi_group_]');
               var sel = row.querySelector('select[id^=items_multi_type_]');
-              if (gIn) { gIn.value = ''; $(gIn).trigger('input'); }
-              if (nIn) { nIn.value = n; $(nIn).trigger('change'); }
               if (n > 1) {
                 if (sel) { if (sel.selectize) sel.selectize.setValue(type); else { sel.value = type; $(sel).trigger('change'); } }
                 if (gIn && linked) { gIn.value = 'set 1'; $(gIn).trigger('input'); }
@@ -7630,8 +7667,18 @@ server <- shinyServer(function(input, output, session) {
             });
             syncGroupItems(null);
             updateAllItemsRows();
+            itemsApplying = false;
+            markItemsCustom(false);
           }
           $(document).on('input change', '.fairy-items-quick-type, #fairy_items_quick_n, #fairy_items_quick_eps', quickApply);
+          $(document).on('input change', '.fairy-items-row input', function(e) {
+            if (!itemsApplying && e.originalEvent) markItemsCustom(true);
+          });
+          $(document).on('click', '#fairy_items_reset', function(e) { e.preventDefault(); quickApply(); });
+          setTimeout(function() {
+            var q = document.querySelector('.fairy-items-quick');
+            if (q && q.getAttribute('data-custom') === '1') markItemsCustom(true);
+          }, 300);
           // a new dialog starts from the defaults shown above (edit mode keeps the saved values)
           setTimeout(function() {
             var q = document.querySelector('.fairy-items-quick');
