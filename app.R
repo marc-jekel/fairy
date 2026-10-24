@@ -7640,7 +7640,7 @@ server <- shinyServer(function(input, output, session) {
                 var e2 = el('text', { x: (X(k) + X(k + 1)) / 2, y: y2 + 16, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12' }, svg); e2.textContent = '=';
               }
               // the shared values of p1 and p2 are then compared as the model says
-              el('line', { x1: (X(0) + X(cols - 1)) / 2, y1: y1 + 2, x2: (X(0) + X(cols - 1)) / 2, y2: y2 - 2 }, g);
+              for (k = 0; k < cols; k++) el('line', { x1: X(k), y1: y1 + 7, x2: X(k), y2: y2 - 7 }, g);
             } else {
               // every row collapses into ONE average point; only the two averages are compared
               var ax = X(cols - 1) + dx + (more ? 22 : 0);
@@ -7658,10 +7658,9 @@ server <- shinyServer(function(input, output, session) {
                 fill: 'var(--fairy-primary, #3a6df0)', stroke: 'var(--ct-default, #fff)', 'stroke-width': '3', 'paint-order': 'stroke' }, svg);
               t.textContent = '>';
             }
-            if (type === 'identical') sign((X(0) + X(cols - 1)) / 2, (y1 + y2) / 2);
             if (type === 'average') sign(X(cols - 1) + dx + (more ? 22 : 0), (y1 + y2) / 2);
             if (cols <= (type === 'substitutable' ? 2 : 3)) {
-              if (type === 'joint') for (k = 0; k < cols; k++) sign(X(k), (y1 + y2) / 2);
+              if (type === 'joint' || type === 'identical') for (k = 0; k < cols; k++) sign(X(k), (y1 + y2) / 2);
               else if (type === 'substitutable') for (k = 0; k < cols; k++) for (m = 0; m < cols; m++) {
                 var f = k === m ? 0.5 : 0.28;
                 sign(X(k) + (X(m) - X(k)) * f, y1 + 7 + (y2 - y1 - 14) * f);
