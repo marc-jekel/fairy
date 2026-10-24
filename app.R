@@ -7268,6 +7268,27 @@ server <- shinyServer(function(input, output, session) {
       # A row-local grid isn't affected by what a DIFFERENT row's grid
       # does with its own (independent) 4th column.
       #
+      # Quick setup in the paper's words: how many items, and how the model should hold across them.
+      # It fills the per-probability fields below (Group / Items / Type), which stay available as "Advanced".
+      tags$div(class = "fairy-items-quick", style = "margin-top:8px; padding:10px 12px; border-radius:8px; background:var(--ct-diag);",
+        tags$div(style = "display:grid; grid-template-columns: 1fr 3fr; gap:6px 12px; align-items:start;",
+          tags$strong("Items", style = "font-size:12px; padding-top:6px;"),
+          tags$div(style = "max-width:110px;",
+            tags$input(id = "fairy_items_quick_n", type = "number", min = 1, max = 50, step = 1, value = 1, class = "form-control", `aria-label` = "Number of items")),
+          tags$strong("Model holds", style = "font-size:12px; padding-top:6px;"),
+          tags$select(id = "fairy_items_quick_type", class = "form-control", style = "width:100%; max-width:420px;", `aria-label` = "How the model holds across the items",
+            tags$option(value = "joint", "Joint \u2013 for each item on its own (item 1 with item 1, \u2026)"),
+            tags$option(value = "substitutable", "Substitutable \u2013 for any combination of items"),
+            tags$option(value = "identical", "Identical \u2013 items are interchangeable (equal values)"),
+            tags$option(value = "average", "Average \u2013 only for the average over the items")),
+          tags$strong("Applies to", style = "font-size:12px; padding-top:2px;"),
+          tags$div(style = "display:flex; flex-wrap:wrap; gap:4px 14px; font-size:13px;",
+            lapply(seq_along(p_names), function(i)
+              tags$label(style = "font-weight:normal; margin:0; display:inline-flex; align-items:center; gap:4px; cursor:pointer;",
+                tags$input(type = "checkbox", class = "fairy-items-quick-p", `data-p` = i, checked = "checked"), p_names[i]))
+          )
+        )
+      ),
       tags$details(style = "margin-top:2px;",
         tags$summary(style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
           HTML("&#9432; What do the Types mean? <span style='font-size:11px;font-weight:normal;color:var(--fairy-text-muted);'>(click to expand)</span>")
@@ -7284,6 +7305,11 @@ server <- shinyServer(function(input, output, session) {
           )
         )
       ),
+      tags$details(open = if (is_edit) NA else NULL, style = "margin-top:8px;",
+        tags$summary(style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
+          "Advanced: items, group and type per probability"),
+        tags$p(class = "fairy-eq-tol-help", style = "margin-top:6px;",
+          HTML("Only needed if probabilities differ, e.g. some are measured once, or two groups of items. <b>Group</b>: the same word in two rows links their items (item 1 with item 1, \u2026); the quick setup uses the group <i>i</i> for Joint and Identical. Without a group, every item of one probability is combined with every item of the others.")),
       tags$div(
         id = "fairy-items-header-row",
         style = "display:grid; grid-template-columns: 1.6fr 1.6fr 1fr 1.6fr 1.4fr; gap:6px 10px; align-items:center; margin-top:6px;",
@@ -7315,7 +7341,8 @@ server <- shinyServer(function(input, output, session) {
             numericInput(paste0("items_multi_eps_", i), NULL, value = pf$eps %||% 0, min = 0, max = 1, step = 0.01, width = "100%")
           )
         )
-      }),
+      })
+      ),
       tags$script(HTML(
         "
         (function() {
@@ -7454,6 +7481,30 @@ server <- shinyServer(function(input, output, session) {
           $(document).on('change', '.fairy-items-row [id^=items_multi_type_]', function() {
             syncGroupItems(this.closest('.fairy-items-row'), 'type');
           });
+          // Quick setup -> fills the per-probability rows (Group / Items / Type) below.
+          function quickApply() {
+            var nEl = document.getElementById('fairy_items_quick_n'), tEl = document.getElementById('fairy_items_quick_type');
+            if (!nEl || !tEl) return;
+            var n = Math.max(1, parseInt(nEl.value, 10) || 1), type = tEl.value;
+            var linked = type === 'joint' || type === 'identical';
+            var rows = document.querySelectorAll('.fairy-items-row');
+            document.querySelectorAll('.fairy-items-quick-p').forEach(function(cb) {
+              var row = rows[parseInt(cb.getAttribute('data-p'), 10) - 1];
+              if (!row) return;
+              var nIn = row.querySelector('input[id^=items_multi_n_]');
+              var gIn = row.querySelector('input[id^=items_multi_group_]');
+              var sel = row.querySelector('select[id^=items_multi_type_]');
+              if (gIn) { gIn.value = ''; $(gIn).trigger('input'); }
+              if (nIn) { nIn.value = cb.checked ? n : 1; $(nIn).trigger('change'); }
+              if (cb.checked && n > 1) {
+                if (sel) { if (sel.selectize) sel.selectize.setValue(type); else { sel.value = type; $(sel).trigger('change'); } }
+                if (gIn && linked) { gIn.value = 'i'; $(gIn).trigger('input'); }
+              }
+            });
+            syncGroupItems(null);
+            updateAllItemsRows();
+          }
+          $(document).on('input change', '#fairy_items_quick_n, #fairy_items_quick_type, .fairy-items-quick-p', quickApply);
           // Selectize finishes initializing asynchronously after this
           // script runs, so the very first pass (before it exists yet)
           // wouldn't find .selectize on the type dropdown — one retry
