@@ -7284,6 +7284,10 @@ server <- shinyServer(function(input, output, session) {
       if (nzchar(nm)) nm else paste0("p", i)
     }, character(1))
     is_edit <- !is.null(prefill_rows)
+    adv_diff <- is_edit && length(prefill_rows) > 1 && {
+      u <- function(f) length(unique(vapply(prefill_rows, function(r) as.character(f(r) %||% ""), character(1))))
+      u(function(r) r$n) > 1 || u(function(r) r$type) > 1 || u(function(r) r$eps) > 1 || u(function(r) r$group) > 1
+    }
 
     showModal(modalDialog(
       title = NULL,
@@ -7310,61 +7314,63 @@ server <- shinyServer(function(input, output, session) {
         q_n    <- if (length(pf_all)) max(vapply(pf_all, function(r) as.integer(r$n %||% 1L), integer(1))) else 2L
         q_type <- if (length(pf_all)) (pf_all[[1]]$type %||% "joint") else "joint"
         q_eps  <- if (length(pf_all)) (pf_all[[1]]$eps %||% 0) else 0
-        # small picture per option: rows = probabilities (p1, p2), dots = items, lines = what gets compared
-        pic <- function(kind) {
-          dots <- "<circle cx='34' cy='13' r='4'/><circle cx='70' cy='13' r='4'/><circle cx='34' cy='47' r='4'/><circle cx='70' cy='47' r='4'/>"
-          lines <- switch(kind,
-            joint = "<path d='M34 17V43M70 17V43'/>",
-            substitutable = "<path d='M34 17V43M70 17V43M36 17L68 43M68 17L36 43'/>",
-            identical = "<path d='M38 13H66M38 47H66'/><text x='52' y='11' font-size='11' text-anchor='middle' fill='currentColor' stroke='none'>=</text><text x='52' y='45' font-size='11' text-anchor='middle' fill='currentColor' stroke='none'>=</text>",
-            average = "<ellipse cx='52' cy='13' rx='27' ry='9' stroke-dasharray='3 2'/><ellipse cx='52' cy='47' rx='27' ry='9' stroke-dasharray='3 2'/><path d='M52 22V38'/>")
-          HTML(paste0("<svg width='104' height='60' viewBox='0 0 104 60' aria-hidden='true' style='flex:none; color:var(--fairy-text-muted);'>",
-            "<g fill='currentColor' stroke='none' font-size='10'><text x='1' y='17'>p1</text><text x='1' y='51'>p2</text>", dots, "</g>",
-            "<g fill='none' stroke='var(--fairy-primary, #3a6df0)' stroke-width='1.8' stroke-linecap='round'>", lines, "</g></svg>"))
-        }
         opt <- function(value, label, expl)
-          tags$label(style = "display:flex; align-items:center; gap:10px; font-weight:normal; margin:0 0 8px; cursor:pointer;",
+          tags$label(class = paste("fairy-items-opt", if (identical(value, q_type)) "fairy-items-opt-sel" else ""),
             tags$input(type = "radio", name = "fairy_items_quick_type", value = value, class = "fairy-items-quick-type",
-              checked = if (identical(value, q_type)) "checked" else NULL, style = "margin:0; flex:none;"),
-            pic(value),
-            tags$span(tags$b(label, style = "font-size:13px;"),
-              tags$span(style = "display:block; font-size:12px; color:var(--fairy-text-muted);", HTML(expl))))
-        tags$div(class = "fairy-items-quick", `data-edit` = if (is_edit) "1" else "0", style = "margin-top:8px; padding:10px 12px; border-radius:8px; background:var(--ct-diag);",
-          tags$div(style = "display:flex; align-items:center; gap:8px; margin-bottom:10px;",
+              checked = if (identical(value, q_type)) "checked" else NULL),
+            tags$span(tags$b(label), tags$span(expl)))
+        tags$div(class = "fairy-items-quick", `data-edit` = if (is_edit) "1" else "0", style = "margin-top:8px; padding:12px; border-radius:8px; background:var(--ct-diag);",
+          tags$style(HTML("
+            .fairy-items-main { display:grid; grid-template-columns: 1fr 1fr; gap:14px; align-items:start; }
+            @media (max-width: 560px) { .fairy-items-main { grid-template-columns: 1fr; } }
+            .fairy-items-opt { display:flex; gap:8px; align-items:flex-start; margin:0 0 4px; padding:6px 8px; border-radius:8px; cursor:pointer;
+              font-weight:normal; border:1.5px solid transparent; }
+            .fairy-items-opt b { display:block; font-size:13px; }
+            .fairy-items-opt span span { display:block; font-size:11.5px; line-height:1.3; color:var(--fairy-text-muted); }
+            .fairy-items-opt input { margin-top:3px; flex:none; }
+            .fairy-items-opt:hover { background:rgba(120,140,200,.10); }
+            .fairy-items-opt.fairy-items-opt-sel { background:var(--ct-default, #fff); border-color:var(--fairy-primary, #3a6df0); }
+            .fairy-items-viz { background:var(--ct-default, #fff); border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px; padding:8px 10px; }
+            #fairy_items_diagram svg { display:block; max-width:100%; height:auto; color:var(--fairy-text-muted); }
+            .fairy-items-simple #fairy-items-header-row, .fairy-items-simple .fairy-items-row { grid-template-columns: 1.4fr 1.6fr 1fr !important; }
+            .fairy-items-simple #fairy-items-header-row > :nth-child(n+4), .fairy-items-simple .fairy-items-row > :nth-child(n+4) { display:none !important; }
+          ")),
+          tags$div(style = "display:flex; align-items:center; gap:8px; margin-bottom:12px;",
             tags$strong("How many items?", style = "font-size:12.5px;"),
             tags$input(id = "fairy_items_quick_n", type = "number", min = 1, max = 50, step = 1, value = q_n,
               class = "form-control", style = "width:80px;", `aria-label` = "Number of items")),
-          tags$div(style = "font-size:12.5px; font-weight:600;", "How should your model's rules apply to the items?"),
-          tags$div(style = "font-size:12px; color:var(--fairy-text-muted); margin-bottom:8px;",
-            HTML("Rows are your probabilities, dots are their items, a line is a place where the rule is checked (example: p1 &gt; p2).")),
-          opt("joint", "Item by item",
-            "The rule is checked within each item: item 1 against item 1, item 2 against item 2, \u2026"),
-          opt("substitutable", "Any item against any item",
-            "The rule is checked for every combination of items."),
-          opt("identical", "All items are the same",
-            "The items of a probability must have the same value."),
-          tags$div(id = "fairy_items_quick_eps_wrap", style = paste0("margin:-2px 0 8px 118px; font-size:12px; ", if (identical(q_type, "identical")) "" else "display:none;"),
-            "Allow a small difference of up to ",
-            tags$input(id = "fairy_items_quick_eps", type = "number", min = 0, max = 1, step = 0.01, value = q_eps,
-              class = "form-control", style = "width:80px; display:inline-block; height:26px; padding:2px 6px;", `aria-label` = "Allowed deviation"),
-            " (0 = exactly the same)"),
-          opt("average", "Only the average counts",
-            "The rule is checked for the average over the items of each probability.")
+          tags$div(class = "fairy-items-main",
+            tags$div(
+              tags$div(style = "font-size:12.5px; font-weight:600; margin-bottom:6px;", "How should your model's comparisons (like p1 > p2) be applied to the items?"),
+              opt("joint", "Item by item", "Each item is checked on its own."),
+              opt("substitutable", "Any item with any item", "Every combination of items is checked."),
+              opt("identical", "All items the same", "A probability has the same value in every item."),
+              tags$div(id = "fairy_items_quick_eps_wrap", style = paste0("margin:2px 0 4px 26px; font-size:12px; ", if (identical(q_type, "identical")) "" else "display:none;"),
+                "may differ by up to ",
+                tags$input(id = "fairy_items_quick_eps", type = "number", min = 0, max = 1, step = 0.01, value = q_eps,
+                  class = "form-control", style = "width:76px; display:inline-block; height:26px; padding:2px 6px;", `aria-label` = "Allowed deviation"),
+                " (0 = exactly the same)"),
+              opt("average", "Only the average", "Only the average over the items is checked.")
+            ),
+            tags$div(class = "fairy-items-viz",
+              tags$div(id = "fairy_items_diagram", `aria-hidden` = "true"),
+              tags$div(id = "fairy_items_caption", style = "font-size:12px; margin-top:6px;"),
+              tags$div(style = "font-size:11px; color:var(--fairy-text-muted); margin-top:6px;",
+                HTML("<b>Rows</b>: your probabilities. <b>Columns</b>: your items (e.g. jokes). <b>Dot</b>: the probability for one item. <b style='color:var(--fairy-primary, #3a6df0);'>Line</b>: two probabilities are compared here, as your model says (e.g. p1 &gt; p2)."))
+            )
+          )
         )
       },
-      tags$details(open = if (is_edit && length(prefill_rows) > 1 && {
-            u <- function(f) length(unique(vapply(prefill_rows, function(r) as.character(f(r) %||% ""), character(1))))
-            u(function(r) r$n) > 1 || u(function(r) r$type) > 1 || u(function(r) r$eps) > 1 || u(function(r) r$group) > 1
-          }) NA else NULL, style = "margin-top:8px;",
+      tags$details(class = if (adv_diff) NULL else "fairy-items-simple", open = if (adv_diff) NA else NULL, style = "margin-top:8px;",
         tags$summary(style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
-          HTML("Optional: settings per probability")),
+          HTML("Optional: different items per probability")),
         tags$p(class = "fairy-eq-tol-help", style = "margin-top:6px;",
-          HTML("Optional. Probabilities that are measured on the same kind of items (e.g. all the jokes) get the same <b>Group</b> name. Set <b>Items</b> to 1 for a probability that was measured only once.")),
+          HTML("Optional. Probabilities measured on the same kind of items (e.g. all jokes) share one <b>item set</b> name. If you also have another kind (e.g. puns), give it a different name. Use <b>Items = 1</b> for a probability that was measured only once.")),
       tags$div(
         id = "fairy-items-header-row",
         style = "display:grid; grid-template-columns: 1.6fr 1.6fr 1fr 1.6fr 1.4fr; gap:6px 10px; align-items:center; margin-top:6px;",
         tags$strong("Probability", style = "font-size:11.5px; color:var(--fairy-text-muted);"),
-        tags$strong("Group", class = "fairy-items-group-cell", style = "font-size:11.5px; color:var(--fairy-text-muted);"),
+        tags$strong("Item set", class = "fairy-items-group-cell", style = "font-size:11.5px; color:var(--fairy-text-muted);"),
         tags$strong("Items", style = "font-size:11.5px; color:var(--fairy-text-muted);"),
         tags$strong("Model holds", style = "font-size:11.5px; color:var(--fairy-text-muted);"),
         tags$strong("Approx. tol.", style = "font-size:11.5px; color:var(--fairy-text-muted);")
@@ -7380,7 +7386,7 @@ server <- shinyServer(function(input, output, session) {
           class = "fairy-items-row", style = "display:grid; grid-template-columns: 1.6fr 1.6fr 1fr 1.6fr 1.4fr; gap:6px 10px; align-items:center; margin-top:4px;",
           tags$span(p_names[i], style = "font-size:13px;"),
           tags$div(class = "fairy-items-group-cell",
-            textInput(paste0("items_multi_group_", i), NULL, value = pf$group %||% "", placeholder = "ungrouped", width = "100%")
+            textInput(paste0("items_multi_group_", i), NULL, value = pf$group %||% "", placeholder = "own items", width = "100%")
           ),
           numericInput(paste0("items_multi_n_", i), NULL, value = pf$n %||% 1, min = 1, max = 50, step = 1, width = "100%"),
           selectInput(paste0("items_multi_type_", i), NULL,
@@ -7531,8 +7537,75 @@ server <- shinyServer(function(input, output, session) {
           $(document).on('change', '.fairy-items-row [id^=items_multi_type_]', function() {
             syncGroupItems(this.closest('.fairy-items-row'), 'type');
           });
+          // One diagram that follows the choice: rows = probabilities, columns = items, lines = where the rule is checked.
+          function drawItemsDiagram() {
+            var host = document.getElementById('fairy_items_diagram');
+            var tEl = document.querySelector('.fairy-items-quick-type:checked');
+            var nEl = document.getElementById('fairy_items_quick_n');
+            if (!host || !tEl) return;
+            var type = tEl.value, n = Math.max(1, Math.min(50, parseInt(nEl && nEl.value, 10) || 1));
+            var rows = document.querySelectorAll('.fairy-items-row');
+            function nm(i) {
+              var sp = rows[i] && rows[i].querySelector('span');
+              var t = sp ? sp.textContent.replace(/[_{}]/g, '').trim() : '';
+              return t || ('p' + (i + 1));
+            }
+            var cols = Math.min(n, 4), more = n > 4;
+            var x0 = 46, dx = 52, y1 = 40, y2 = 96, W = x0 + (cols - 1) * dx + 34 + (more ? 22 : 0), H = 118;
+            var NS = 'http://www.w3.org/2000/svg';
+            function el(tag, attrs, parent) {
+              var e = document.createElementNS(NS, tag);
+              Object.keys(attrs || {}).forEach(function(k) { e.setAttribute(k, attrs[k]); });
+              if (parent) parent.appendChild(e);
+              return e;
+            }
+            function X(j) { return x0 + j * dx; }
+            host.textContent = '';
+            var svg = el('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H }, host);
+            var gt = el('g', { fill: 'currentColor', 'font-size': '10.5' }, svg);
+            for (var j = 0; j < cols; j++) {
+              var th = el('text', { x: X(j), y: 14, 'text-anchor': 'middle' }, gt); th.textContent = 'item ' + (j + 1);
+            }
+            if (more) {
+              [14, y1 + 4, y2 + 4].forEach(function(yy) { var d = el('text', { x: X(cols - 1) + 34, y: yy, 'text-anchor': 'middle' }, gt); d.textContent = String.fromCharCode(8230); });
+            }
+            var l1 = el('text', { x: 0, y: y1 + 4, 'font-weight': '600' }, gt); l1.textContent = nm(0);
+            var l2 = el('text', { x: 0, y: y2 + 4, 'font-weight': '600' }, gt); l2.textContent = nm(1);
+            var g = el('g', { fill: 'none', stroke: 'var(--fairy-primary, #3a6df0)', 'stroke-width': '2', 'stroke-linecap': 'round' }, svg);
+            var k, m;
+            if (type === 'joint') {
+              for (k = 0; k < cols; k++) el('line', { x1: X(k), y1: y1 + 7, x2: X(k), y2: y2 - 7 }, g);
+            } else if (type === 'substitutable') {
+              for (k = 0; k < cols; k++) for (m = 0; m < cols; m++) el('line', { x1: X(k), y1: y1 + 7, x2: X(m), y2: y2 - 7, opacity: '0.85' }, g);
+            } else if (type === 'identical') {
+              for (k = 0; k < cols - 1; k++) {
+                el('line', { x1: X(k) + 8, y1: y1, x2: X(k + 1) - 8, y2: y1 }, g);
+                el('line', { x1: X(k) + 8, y1: y2, x2: X(k + 1) - 8, y2: y2 }, g);
+                var e1 = el('text', { x: (X(k) + X(k + 1)) / 2, y: y1 - 5, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12' }, svg); e1.textContent = '=';
+                var e2 = el('text', { x: (X(k) + X(k + 1)) / 2, y: y2 - 5, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12' }, svg); e2.textContent = '=';
+              }
+            } else {
+              var cx = (X(0) + X(cols - 1)) / 2, rx = (X(cols - 1) - X(0)) / 2 + 18;
+              el('ellipse', { cx: cx, cy: y1, rx: rx, ry: 13, 'stroke-dasharray': '3 2.5' }, g);
+              el('ellipse', { cx: cx, cy: y2, rx: rx, ry: 13, 'stroke-dasharray': '3 2.5' }, g);
+              el('line', { x1: cx, y1: y1 + 14, x2: cx, y2: y2 - 14 }, g);
+            }
+            var gd = el('g', { fill: 'currentColor' }, svg);
+            for (k = 0; k < cols; k++) { el('circle', { cx: X(k), cy: y1, r: 5 }, gd); el('circle', { cx: X(k), cy: y2, r: 5 }, gd); }
+            var a = nm(0), b = nm(1), cap = document.getElementById('fairy_items_caption');
+            if (cap) cap.textContent = {
+              joint: a + ' is compared with ' + b + ' within every item: in item 1, in item 2, and so on.',
+              substitutable: a + ' is compared with ' + b + ' for every combination of items, e.g. ' + a + ' in item 1 with ' + b + ' in item 2.',
+              identical: 'Each probability has the same value in all items. Your comparisons then apply to these shared values.',
+              average: 'The comparison is made between the averages over the items. Single items may break it.'
+            }[type];
+          }
           // Quick setup -> fills the per-probability rows (Group / Items / Model holds) under Advanced.
           function quickApply() {
+            document.querySelectorAll('.fairy-items-opt').forEach(function(t) {
+              var r = t.querySelector('input'); t.classList.toggle('fairy-items-opt-sel', !!(r && r.checked));
+            });
+            drawItemsDiagram();
             var nEl = document.getElementById('fairy_items_quick_n');
             var tEl = document.querySelector('.fairy-items-quick-type:checked');
             if (!nEl || !tEl) return;
@@ -7550,7 +7623,7 @@ server <- shinyServer(function(input, output, session) {
               if (nIn) { nIn.value = n; $(nIn).trigger('change'); }
               if (n > 1) {
                 if (sel) { if (sel.selectize) sel.selectize.setValue(type); else { sel.value = type; $(sel).trigger('change'); } }
-                if (gIn && linked) { gIn.value = 'i'; $(gIn).trigger('input'); }
+                if (gIn && linked) { gIn.value = 'set 1'; $(gIn).trigger('input'); }
               }
               var eIn = row.querySelector('input[id^=items_multi_eps_]');
               if (eIn) { eIn.value = type === 'identical' ? epsV : 0; $(eIn).trigger('change'); }
@@ -7562,7 +7635,7 @@ server <- shinyServer(function(input, output, session) {
           // a new dialog starts from the defaults shown above (edit mode keeps the saved values)
           setTimeout(function() {
             var q = document.querySelector('.fairy-items-quick');
-            if (q && q.getAttribute('data-edit') !== '1') quickApply();
+            if (q && q.getAttribute('data-edit') !== '1') quickApply(); else drawItemsDiagram();
           }, 200);
           // Selectize finishes initializing asynchronously after this
           // script runs, so the very first pass (before it exists yet)
