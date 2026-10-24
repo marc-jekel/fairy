@@ -5026,7 +5026,8 @@ ui <- shinyUI(fluidPage(
           clear(); d.over = null;
           if (over && over !== d.card && over.closest('.fairy-h-cards-wrap') === d.wrap) {
             var r = over.getBoundingClientRect();
-            d.side = e.clientX < r.left + r.width / 2 ? 'before' : 'after';
+            // in the one-column phone layout the tiles are stacked: decide by height, not by width
+            d.side = (d.wrap.classList.contains('fairy-stacked') ? e.clientY < r.top + r.height / 2 : e.clientX < r.left + r.width / 2) ? 'before' : 'after';
             over.classList.add(d.side === 'before' ? 'fairy-drop-before' : 'fairy-drop-after'); d.over = over;
           }
         });
