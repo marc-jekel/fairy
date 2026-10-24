@@ -11941,8 +11941,13 @@ server <- shinyServer(function(input, output, session) {
         else "model"
       }, character(1))
       session$sendCustomMessage("fairy_kinds", setNames(as.list(kinds_run), as.character(mytable_input[seq_len(numb_models_to_convert), 1])))
+      # models selected for the V-representation already show "waiting" in the V column, so the
+      # run window is not misleading during the H phase
+      v_sel_run <- isolate(mytable_v_reactive$value)
+      v_included_run <- if (!is.null(v_sel_run) && ncol(v_sel_run) >= 2) as.character(v_sel_run[[1]][which(as.logical(v_sel_run[[2]]))]) else character()
       for (i_run in seq_len(numb_models_to_convert)) {
-        fairy_run_row(mytable_input[i_run, 1], kinds_run[i_run], h = "wait")
+        fairy_run_row(mytable_input[i_run, 1], kinds_run[i_run], h = "wait",
+          v = if (mytable_input[i_run, 1] %in% v_included_run) "wait" else NULL)
       }
 
       for (loop_numb_models in 1:numb_models_to_convert) {
