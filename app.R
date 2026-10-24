@@ -1568,6 +1568,10 @@ ui <- shinyUI(fluidPage(
         #fairy-card-overlay-inner { padding: 48px 12px 24px !important; }
         #fairy-run-card { width: calc(100vw - 20px) !important; max-width: none !important; }
         #fairy-run-table-wrap { min-height: 0; }
+        /* tabs with a side panel (plots): panel on top, content below, both full width */
+        .tab-pane.active { flex-direction: column !important; }
+        .tab-pane.active > [class*='col-sm-'] { width: 100% !important; max-width: 100% !important; flex: 0 0 auto !important; }
+        .tab-pane.active .plotly.html-widget { max-width: 100%; }
         .fairy-run-table th { font-size: 10px; letter-spacing: 0.02em; padding: 6px; overflow-wrap: anywhere; }
         .fairy-run-table td { padding: 6px; font-size: 13px; }
       }
