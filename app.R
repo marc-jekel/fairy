@@ -7459,7 +7459,7 @@ server <- shinyServer(function(input, output, session) {
               tags$div(id = "fairy_items_stmts", style = "margin-top:10px; padding:8px 10px; border:1px solid var(--ct-border, #d9dedb); border-radius:6px; background:var(--ct-default, #fff); font-size:12px;"),
               tags$div(id = "fairy_items_caption", style = "font-size:12px; margin-top:6px;"),
               tags$div(style = "font-size:11px; color:var(--fairy-text-muted); margin-top:6px;",
-                HTML("<b>Rows</b>: your probabilities. <b>Columns</b>: your items (e.g. jokes). <b>Dot</b>: the probability for one item. <b style='color:var(--fairy-primary, #3a6df0);'>Line</b>: a comparison that your model makes between two probabilities.<span id='fairy_items_sq_legend' hidden> <b>Square</b>: a sum of probabilities, e.g. p1+p2; its parts join into it (+). A long <b>bar</b> instead of squares means: one item for each part, in every combination.</span>")))),
+                HTML("&#9679; one probability for one item &nbsp;&middot;&nbsp; <b style='color:var(--fairy-primary, #3a6df0);'>&#8593;</b> arrow points to the larger probability<span id='fairy_items_sq_legend' hidden> &nbsp;&middot;&nbsp; &#9645; a sum; its parts join into it</span>")))),
           tags$div(id = "fairy_items_quick_eps_wrap", style = paste0(if (identical(q_type, "identical")) "" else "display:none;"),
             qh(4, "Are the items of a probability exactly equal, or only approximately?"),
             tags$div(style = "margin-left:28px; font-size:12.5px;",
@@ -8003,7 +8003,7 @@ server <- shinyServer(function(input, output, session) {
               pdisp = [[0, 1]];
             }
             var nRows = idxs.length, R = idxs.map(function(i) { return spec(i); });
-            var MAXC = 5, dx = 46, x0 = Math.max(92, Math.round(14 + 6.3 * Math.max.apply(null, R.map(function(r) { return r.name.length; })))), rowGap = R.length > 6 ? Math.max(26, Math.round(300 / R.length)) : 52, ys = R.map(function(r, i) { return 44 + i * rowGap; }), H = ys[ys.length - 1] + 40;
+            var MAXC = 3, dx = 46, x0 = Math.max(92, Math.round(14 + 6.3 * Math.max.apply(null, R.map(function(r) { return r.name.length; })))), rowGap = R.length > 6 ? Math.max(26, Math.round(300 / R.length)) : 52, ys = R.map(function(r, i) { return 44 + i * rowGap; }), H = ys[ys.length - 1] + 40;
             var cnt = R.map(function(r) { return Math.min(r.n, MAXC); });
             var cols = Math.max.apply(null, cnt), more = R.some(function(r) { return r.n > MAXC; });
             var hasAvg = R.some(function(r) { return r.type === 'average'; });
@@ -8019,6 +8019,8 @@ server <- shinyServer(function(input, output, session) {
             function X(j) { return x0 + j * dx; }
             host.textContent = '';
             var svg = el('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H }, host);
+            var defs = el('defs', {}, svg), mkr = el('marker', { id: 'fairyArrow', markerWidth: 9, markerHeight: 9, refX: 8, refY: 4.5, orient: 'auto-start-reverse', markerUnits: 'userSpaceOnUse' }, defs);
+            el('path', { d: 'M1 1 L8 4.5 L1 8 Z', fill: 'var(--fairy-primary, #3a6df0)', stroke: 'none' }, mkr);
             var gt = el('g', { fill: 'currentColor', 'font-size': '10.5' }, svg);
             for (var j = 0; j < cols; j++) { var th = el('text', { x: X(j), y: 14, 'text-anchor': 'middle' }, gt); th.textContent = 'item ' + (j + 1); }
             if (more) ys.concat([0]).slice(0, -1).forEach(function(yy) { var d = el('text', { x: X(cols - 1) + 30, y: yy + 4, 'text-anchor': 'middle' }, gt); d.textContent = String.fromCharCode(8230); });
@@ -8030,6 +8032,7 @@ server <- shinyServer(function(input, output, session) {
             var g = el('g', { fill: 'none', stroke: BL, 'stroke-width': '2', 'stroke-linecap': 'round' }, svg);
             var k, m;
             function sign(x, y, ch) {
+              if (ch === '>' || ch === '<') return;
               var t = el('text', { x: x, y: y + 4, 'text-anchor': 'middle', 'font-size': '13', 'font-weight': '700', fill: BL, stroke: 'var(--ct-default, #fff)', 'stroke-width': '3', 'paint-order': 'stroke' }, svg);
               t.textContent = ch || '>';
             }
@@ -8050,7 +8053,7 @@ server <- shinyServer(function(input, output, session) {
               }
             });
             // one link per comparison of the model; the larger probability sits on top where possible
-            pdisp.forEach(function(pp) {
+            function drawPair(pp) {
               var q = Math.min(pp[0], pp[1]), q2 = Math.max(pp[0], pp[1]), ch = pp[2] || (pp[0] > pp[1] ? '<' : '>');
               var r0 = R[q], r1 = R[q2], same = r0.list === r1.list, y0 = ys[q], y1 = ys[q2], c0 = cnt[q], c1 = cnt[q2];
               if (pp[3] && !anchor[q].grid && !anchor[q2].grid) {
@@ -8085,7 +8088,7 @@ server <- shinyServer(function(input, output, session) {
                 if (r1.type === 'average') st1.push(avgX + 8); else for (k = 0; k < c1; k++) st1.push(X(k) + 7);
                 var thin = st0.length * st1.length > 1, ga = { 'stroke-dasharray': '4 3' };
                 if (thin) { ga.opacity = '0.6'; ga['stroke-width'] = '1.3'; }
-                st0.forEach(function(sx) { var a0 = Object.assign({ d: 'M' + sx + ' ' + y0 + ' C ' + xr + ' ' + y0 + ' ' + xr + ' ' + ym + ' ' + xr + ' ' + ym }, ga); el('path', a0, g); });
+                st0.forEach(function(sx, ix) { var a0 = Object.assign({ d: 'M' + sx + ' ' + y0 + ' C ' + xr + ' ' + y0 + ' ' + xr + ' ' + ym + ' ' + xr + ' ' + ym }, ga); if (thin && ix > 0) a0.opacity = '0.2'; el('path', a0, g); });
                 st1.forEach(function(sx) { var a1 = Object.assign({ d: 'M' + xr + ' ' + ym + ' C ' + xr + ' ' + y1 + ' ' + xr + ' ' + y1 + ' ' + sx + ' ' + y1 }, ga); el('path', a1, g); });
                 el('circle', { cx: xr, cy: ym, r: 3.2, fill: BL, stroke: 'none' }, g);
                 sign(xr + 12, ym, ch);
@@ -8098,8 +8101,8 @@ server <- shinyServer(function(input, output, session) {
                   for (k = 0; k < Math.min(c0, c1); k++) el('line', { x1: X(k), y1: y0 + 7, x2: X(k), y2: y1 - 7 }, g);
                   for (k = 0; k < Math.min(c0, c1); k++) sign(X(k), (y0 + y1) / 2, ch);
                 } else {
-                  var many = c0 * c1 > 9;
-                  for (k = 0; k < c0; k++) for (m = 0; m < c1; m++) el('line', { x1: X(k), y1: y0 + 7, x2: X(m), y2: y1 - 7, opacity: many ? '0.55' : '0.9', 'stroke-width': many ? '1' : '1.6' }, g);
+                  // item 1 is shown in full, the other items fade out (the same holds for them)
+                  for (k = 0; k < c0; k++) for (m = 0; m < c1; m++) el('line', { x1: X(k), y1: y0 + 7, x2: X(m), y2: y1 - 7, opacity: k === 0 ? '0.95' : '0.2', 'stroke-width': k === 0 ? '1.7' : '1' }, g);
                   sign((X(0) + X(c0 - 1)) / 4 + (X(0) + X(c1 - 1)) / 4, (y0 + y1) / 2, ch);
                 }
               } else {
@@ -8115,6 +8118,16 @@ server <- shinyServer(function(input, output, session) {
                   for (k = 0; k < c1; k++) el('line', { x1: avgX, y1: y0 + 8, x2: X(k), y2: y1 - 7, opacity: c1 > 4 ? '0.6' : '0.9', 'stroke-width': c1 > 4 ? '1' : '1.6' }, g);
                   sign((X(0) + avgX) / 2 * 0.5 + avgX * 0.5, (y0 + y1) / 2 - 6, ch);
                 }
+              }
+            }
+            pdisp.forEach(function(pp) {
+              var before = g.childNodes.length;
+              drawPair(pp);
+              if (pp[3]) return;
+              var mk2 = (pp[0] < pp[1]) ? 'marker-start' : 'marker-end';
+              for (var ci = before; ci < g.childNodes.length; ci++) {
+                var nd = g.childNodes[ci];
+                if (nd.tagName === 'line' || nd.tagName === 'path') nd.setAttribute(mk2, 'url(#fairyArrow)');
               }
             });
             var gd = el('g', {}, svg);
@@ -8136,35 +8149,20 @@ server <- shinyServer(function(input, output, session) {
             var cmpTxt = realPairs ? pairs0.map(function(p) { return nm(p[0]) + ' > ' + (p[2] ? p[2] + ' ' + String.fromCharCode(183) + ' ' : '') + nm(p[1]); }) : null;
             var hintEl = document.getElementById('fairy_items_pairs_hint'), bmEl = document.getElementById('items_base_model'), bmName = bmEl ? bmEl.value : '';
             if (hintEl) hintEl.textContent = realPairs
-              ? ('The comparisons and the picture are taken from your model' + (bmName ? ' ' + bmName : '') + '.')
+              ? ('Taken from your model' + (bmName ? ' ' + bmName : '') + '.')
               : (Array.isArray(P0) ? 'Your model has no direct comparison between two probabilities, so the picture is only an example.'
                 : 'Example only. Run your model once with Go first, then the question and the picture show the comparisons of your own model.');
             var q3t = document.getElementById('fairy_items_q3_text');
             if (q3t) q3t.textContent = cmpTxt ? ('Your model (' + cmpTxt.slice(0, 4).join(', ') + (cmpTxt.length > 4 ? ', ...' : '') + ') holds ' + String.fromCharCode(8230)) : ('Your model holds ' + String.fromCharCode(8230));
             var pair = realPairs ? (cmpTxt.length === 1 ? ('the two probabilities in ' + cmpTxt[0]) : ('two of its probabilities (here ' + cmpTxt.slice(0, 2).join(' and ') + ')')) : 'two probabilities (for example ' + a + ' > ' + b + ')';
-            var allSameList = R.every(function(r) { return r.list === R[0].list; }), allType = R.every(function(r) { return r.type === R[0].type; }), t0 = R[0].type, txt;
-            if (allType && allSameList) {
-              if (t0 === 'joint') txt = 'Whenever the model compares ' + pair + ', this happens within each item: item 1 with item 1, item 2 with item 2, and so on.';
-              else if (t0 === 'substitutable') txt = 'Whenever the model compares ' + pair + ', every item of one is compared with every item of the other.';
-              else if (t0 === 'identical') txt = 'Each probability has the same value in all items. The model then compares these shared values.';
-              else txt = 'The model compares the averages over the items, e.g. ' + a + ' = ' + avgFormula + '. Single items may break it.';
-            } else if (allType && (t0 === 'joint' || t0 === 'substitutable')) {
-              txt = 'Probabilities with different item lists have different items, so whenever the model compares them, every item of one is compared with every item of the other. Within one list: ' + (t0 === 'joint' ? 'item 1 with item 1, item 2 with item 2, and so on.' : 'every item with every item.');
-            } else {
-              var wd = { joint: 'for each item separately', substitutable: 'for every combination of items', identical: 'for the shared value of each probability', average: 'for the average over the items' };
-              var descr = (two ? chipState.sets : []).map(function(st, kk) {
-                var mem = chipState.asg.map(function(g, ii) { return g === kk + 1 ? chipRowName(ii) : null; }).filter(Boolean).join(', ');
-                return 'list ' + chipLetter(kk) + ' (' + mem + '): ' + wd[st.over || gType];
-              });
-              txt = (descr.length ? 'The model holds ' + descr.join('; ') + '. ' : '') + 'When probabilities from different lists are compared, each item (or shared value, or average) of one is compared with each item (or shared value, or average) of the other.';
-            }
+            var allType = R.every(function(r) { return r.type === R[0].type; }), t0 = R[0].type, txt;
+            var shortT = { joint: 'Item 1 is compared with item 1, item 2 with item 2, and so on.', substitutable: 'Every item is compared with every other item (item 1 highlighted).', identical: 'All items of a probability are equal, so each probability counts as one value.', average: 'The averages over the items are compared.' };
+            txt = (two || !allType) ? 'Different item lists: each item of one list is compared with each item of the other list.' : shortT[t0];
             if (realPairs && nProb > nRows) {
               var hidden = []; for (var hz = 0; hz < nProb; hz++) if (idxs.indexOf(hz) < 0) hidden.push(chipRowName(hz));
-              if (hidden.length) txt += ' Not shown: ' + hidden.join(', ') + ' (not compared directly by your model).';
+              if (hidden.length) txt += ' Not shown: ' + hidden.join(', ') + ' (not compared).';
             }
-            if (vN.length) txt += R.some(function(r) { return r.virt && r.type === 'substitutable'; })
-              ? ' A sum such as ' + vN[0] + ' is drawn as a bar: its parts join into it (+). The bar means one item for each part, in every combination.'
-              : ' A sum such as ' + vN[0] + ' is drawn as a square: its parts join into it (+), and the square is compared as a whole.';
+            if (R.some(function(r) { return r.virt && r.type === 'substitutable'; })) txt += ' Bar: one item for each part, in any combination.';
             // the statements that this setting makes out of the model, in plain notation
             var stEl = document.getElementById('fairy_items_stmts');
             if (stEl) {
