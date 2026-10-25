@@ -7647,7 +7647,7 @@ server <- shinyServer(function(input, output, session) {
               var sel = document.createElement('select'); sel.className = 'form-control fairy-set-type'; sel.style.cssText = 'width:auto; height:28px; padding:2px 6px;'; sel.setAttribute('data-set', k);
               CHIP_TYPES.forEach(function(t) { var o = document.createElement('option'); o.value = t[0]; o.textContent = t[1]; if (t[0] === st.type) o.selected = true; sel.appendChild(o); });
               var parts = [dot, lab, mem, inp, it];
-              if (chipState.sets.length > 1) {
+              if (chipState.sets.some(function(x) { return x.over; })) {
                 var ov = document.createElement('select'); ov.className = 'form-control fairy-set-over'; ov.style.cssText = 'width:auto; height:28px; padding:2px 6px; font-size:12px;'; ov.setAttribute('data-set', k);
                 ov.setAttribute('aria-label', 'How the model is applied to list ' + chipLetter(k));
                 var o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'applied as in 3 below'; ov.appendChild(o0);
@@ -7841,10 +7841,11 @@ server <- shinyServer(function(input, output, session) {
               if (two) { var k = chipState.asg[i], st = chipState.sets[k - 1]; return { name: chipRowName(i), n: st.n, list: k, color: chipColor(k - 1), type: st.over || gType, tag: ' - list ' + chipLetter(k - 1) }; }
               return { name: chipRowName(i), n: n0, list: 1, color: null, type: gType, tag: '' };
             }
-            var R = [spec(0), spec(1)], same = R[0].list === R[1].list;
-            var MAXC = 5, dx = 46, x0 = 92, ys = [44, 98], H = 124;
+            var nProb = document.querySelectorAll('.fairy-items-row').length || 2, nRows = Math.max(2, Math.min(5, nProb));
+            var R = []; for (var ri = 0; ri < nRows; ri++) R.push(spec(ri));
+            var MAXC = 5, dx = 46, x0 = 92, ys = R.map(function(r, i) { return 44 + i * 52; }), H = ys[ys.length - 1] + 40;
             var cnt = R.map(function(r) { return Math.min(r.n, MAXC); });
-            var cols = Math.max(cnt[0], cnt[1]), more = R[0].n > MAXC || R[1].n > MAXC;
+            var cols = Math.max.apply(null, cnt), more = R.some(function(r) { return r.n > MAXC; });
             var hasAvg = R.some(function(r) { return r.type === 'average'; });
             var W = x0 + (cols - 1) * dx + 30 + (more ? 22 : 0) + (hasAvg ? dx : 0);
             var NS = 'http://www.w3.org/2000/svg';
@@ -7859,11 +7860,12 @@ server <- shinyServer(function(input, output, session) {
             var svg = el('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H }, host);
             var gt = el('g', { fill: 'currentColor', 'font-size': '10.5' }, svg);
             for (var j = 0; j < cols; j++) { var th = el('text', { x: X(j), y: 14, 'text-anchor': 'middle' }, gt); th.textContent = 'item ' + (j + 1); }
-            if (more) [14, ys[0] + 4, ys[1] + 4].forEach(function(yy) { var d = el('text', { x: X(cols - 1) + 30, y: yy, 'text-anchor': 'middle' }, gt); d.textContent = String.fromCharCode(8230); });
+            if (more) ys.concat([0]).slice(0, -1).forEach(function(yy) { var d = el('text', { x: X(cols - 1) + 30, y: yy + 4, 'text-anchor': 'middle' }, gt); d.textContent = String.fromCharCode(8230); });
             R.forEach(function(r, i) {
               var l = el('text', { x: 0, y: ys[i] + 4, 'font-weight': '600' }, gt); l.textContent = r.name;
               if (r.tag) { var l2 = el('text', { x: 0, y: ys[i] + 17, 'font-size': '9.5', fill: r.color }, svg); l2.textContent = r.tag.replace(' - ', ''); }
             });
+            if (nProb > nRows) { var mt = el('text', { x: 0, y: H - 4, 'font-size': '10', fill: 'currentColor', opacity: '0.7' }, svg); mt.textContent = '+ ' + (nProb - nRows) + ' more probabilities, treated the same way'; }
             var BL = 'var(--fairy-primary, #3a6df0)';
             var g = el('g', { fill: 'none', stroke: BL, 'stroke-width': '2', 'stroke-linecap': 'round' }, svg);
             var k, m;
@@ -7871,7 +7873,6 @@ server <- shinyServer(function(input, output, session) {
               var t = el('text', { x: x, y: y + 4, 'text-anchor': 'middle', 'font-size': '13', 'font-weight': '700', fill: BL, stroke: 'var(--ct-default, #fff)', 'stroke-width': '3', 'paint-order': 'stroke' }, svg);
               t.textContent = '>';
             }
-            // within a row: equal items get equals-sign links, an average gets its own point
             var anchor = [], avgX = X(cols - 1) + dx;
             R.forEach(function(r, i) {
               var c = cnt[i], cx = (X(0) + X(c - 1)) / 2;
@@ -7879,47 +7880,49 @@ server <- shinyServer(function(input, output, session) {
               if (r.type === 'identical') {
                 for (k = 0; k < c - 1; k++) {
                   el('line', { x1: X(k) + 8, y1: ys[i], x2: X(k + 1) - 8, y2: ys[i] }, g);
-                  var e = el('text', { x: (X(k) + X(k + 1)) / 2, y: ys[i] + (i === 0 ? -5 : 16), 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12' }, svg); e.textContent = '=';
+                  var e = el('text', { x: (X(k) + X(k + 1)) / 2, y: ys[i] - 5, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12' }, svg); e.textContent = '=';
                 }
               } else if (r.type === 'average') {
-                var ah = (i === 0) ? el('text', { x: avgX, y: 14, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '10.5', 'font-weight': '600' }, svg) : null;
-                if (ah) ah.textContent = 'average';
+                if (i === 0) { var ah = el('text', { x: avgX, y: 14, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '10.5', 'font-weight': '600' }, svg); ah.textContent = 'average'; }
                 for (k = 0; k < c; k++) el('line', { x1: X(k) + 6, y1: ys[i], x2: avgX - 8, y2: ys[i], stroke: 'currentColor', 'stroke-width': '1', opacity: '0.4', 'stroke-dasharray': '2 3' }, svg);
                 el('circle', { cx: avgX, cy: ys[i], r: 7, fill: 'var(--ct-default, #fff)' }, g);
                 anchor[i] = { x: avgX, y: ys[i], grid: false };
               }
             });
-            // the comparison between the two probabilities
-            var both = anchor[0].grid && anchor[1].grid;
-            if (both) {
-              if (same && R[0].type === 'joint' && R[1].type === 'joint') {
-                for (k = 0; k < Math.min(cnt[0], cnt[1]); k++) el('line', { x1: X(k), y1: ys[0] + 7, x2: X(k), y2: ys[1] - 7 }, g);
-                if (cols <= 3) for (k = 0; k < Math.min(cnt[0], cnt[1]); k++) sign(X(k), (ys[0] + ys[1]) / 2);
+            // comparison between each probability and the next one
+            for (var q = 0; q < R.length - 1; q++) {
+              var r0 = R[q], r1 = R[q + 1], same = r0.list === r1.list, y0 = ys[q], y1 = ys[q + 1], c0 = cnt[q], c1 = cnt[q + 1];
+              if (anchor[q].grid && anchor[q + 1].grid) {
+                if (same && r0.type === 'joint' && r1.type === 'joint') {
+                  for (k = 0; k < Math.min(c0, c1); k++) el('line', { x1: X(k), y1: y0 + 7, x2: X(k), y2: y1 - 7 }, g);
+                  if (cols <= 3) for (k = 0; k < Math.min(c0, c1); k++) sign(X(k), (y0 + y1) / 2);
+                } else {
+                  var many = c0 * c1 > 9;
+                  for (k = 0; k < c0; k++) for (m = 0; m < c1; m++) el('line', { x1: X(k), y1: y0 + 7, x2: X(m), y2: y1 - 7, opacity: many ? '0.55' : '0.9', 'stroke-width': many ? '1' : '1.6' }, g);
+                  if (c0 <= 2 && c1 <= 2) sign((X(0) + X(c0 - 1)) / 4 + (X(0) + X(c1 - 1)) / 4, (y0 + y1) / 2);
+                }
               } else {
-                for (k = 0; k < cnt[0]; k++) for (m = 0; m < cnt[1]; m++) el('line', { x1: X(k), y1: ys[0] + 7, x2: X(m), y2: ys[1] - 7, opacity: cnt[0] * cnt[1] > 9 ? '0.55' : '0.9', 'stroke-width': cnt[0] * cnt[1] > 9 ? '1' : '1.6' }, g);
-                if (cnt[0] <= 2 && cnt[1] <= 2) sign((X(0) + X(cnt[0] - 1)) / 2 * 0.5 + (X(0) + X(cnt[1] - 1)) / 2 * 0.5, (ys[0] + ys[1]) / 2);
+                el('line', { x1: anchor[q].x, y1: y0 + 8, x2: anchor[q + 1].x, y2: y1 - 8 }, g);
+                sign((anchor[q].x + anchor[q + 1].x) / 2, (y0 + y1) / 2);
               }
-            } else {
-              el('line', { x1: anchor[0].x, y1: ys[0] + 8, x2: anchor[1].x, y2: ys[1] - 8 }, g);
-              sign((anchor[0].x + anchor[1].x) / 2, (ys[0] + ys[1]) / 2);
             }
             var gd = el('g', {}, svg);
             R.forEach(function(r, i) {
-              for (var q = 0; q < cols; q++) {
-                if (q < cnt[i]) el('circle', { cx: X(q), cy: ys[i], r: 5, fill: r.color || 'currentColor' }, gd);
-                else el('circle', { cx: X(q), cy: ys[i], r: 4.5, fill: 'none', stroke: 'currentColor', 'stroke-dasharray': '2 2', opacity: '0.35' }, gd);
+              for (var q2 = 0; q2 < cols; q2++) {
+                if (q2 < cnt[i]) el('circle', { cx: X(q2), cy: ys[i], r: 5, fill: r.color || 'currentColor' }, gd);
+                else el('circle', { cx: X(q2), cy: ys[i], r: 4.5, fill: 'none', stroke: 'currentColor', 'stroke-dasharray': '2 2', opacity: '0.35' }, gd);
               }
             });
             var a = R[0].name, b = R[1].name, cap = document.getElementById('fairy_items_caption');
-            var midDot = String.fromCharCode(183), avgFormula;
-            if (R[0].n <= 4) { var fp = []; for (var q2 = 1; q2 <= R[0].n; q2++) fp.push('1/' + R[0].n + ' ' + midDot + ' item ' + q2); avgFormula = fp.join(' + '); }
+            var bothGrid = anchor[0].grid && anchor[1].grid, sameL = R[0].list === R[1].list, midDot = String.fromCharCode(183), avgFormula;
+            if (R[0].n <= 4) { var fp = []; for (var q3 = 1; q3 <= R[0].n; q3++) fp.push('1/' + R[0].n + ' ' + midDot + ' item ' + q3); avgFormula = fp.join(' + '); }
             else avgFormula = '(item 1 + ... + item ' + R[0].n + ') / ' + R[0].n;
             var txt;
-            if (!both) txt = 'The comparison is made between ' + a + ' and ' + b + (R[0].type === 'average' || R[1].type === 'average' ? ' using the average over the items (' + a + ' = ' + avgFormula + ').' : ' using their shared value.') + ' Single items may break it.';
-            else if (!same) txt = a + ' (' + R[0].n + ' items) and ' + b + ' (' + R[1].n + ' items) use different items, so ' + a + ' is compared with ' + b + ' for every combination of items.';
+            if (!bothGrid) txt = 'The comparison is made between ' + a + ' and ' + b + (R[0].type === 'average' || R[1].type === 'average' ? ' using the average over the items (' + a + ' = ' + avgFormula + ').' : ' using their shared value.') + ' Single items may break it.';
+            else if (!sameL) txt = a + ' (' + R[0].n + ' items) and ' + b + ' (' + R[1].n + ' items) use different items, so ' + a + ' is compared with ' + b + ' for every combination of items.';
             else if (R[0].type === 'joint') txt = a + ' is compared with ' + b + ' within every item: in item 1, in item 2, and so on.';
             else txt = a + ' is compared with ' + b + ' for every combination of items, e.g. ' + a + ' in item 1 with ' + b + ' in item 2.';
-            if (cap) cap.textContent = txt;
+            if (cap) cap.textContent = txt + (R.length > 2 ? ' The same holds for the other probabilities.' : '');
           }
           // Quick setup -> fills the per-probability rows (Group / Items / Model holds) under Advanced.
           var itemsApplying = false;
