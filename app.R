@@ -7165,13 +7165,13 @@ server <- shinyServer(function(input, output, session) {
       if (length(members) == 0) members <- factors[[fi]]$name
       ev <- member_eps_for_factor(param_factors, eps_per_param, fi)
       kind <- switch(factor_types[fi],
-        joint = "joint",
-        substitutable = "substitutable",
+        joint = "per item",
+        substitutable = "all combinations",
         average = "average",
         identical = {
-          if (length(ev) == 0 || all(ev == 0)) "interchangeable"
-          else if (length(unique(round(ev, 10))) == 1) paste0("interchangeable \u00b1", frac_str(ev[1]))
-          else paste0("interchangeable \u00b1", paste(vapply(ev, frac_str, character(1)), collapse = ","))
+          if (length(ev) == 0 || all(ev == 0)) "equal"
+          else if (length(unique(round(ev, 10))) == 1) paste0("equal \u00b1", frac_str(ev[1]))
+          else paste0("equal \u00b1", paste(vapply(ev, frac_str, character(1)), collapse = ","))
         })
       list(members = vapply(members, plain_p_name, character(1)), n = factors[[fi]]$n, kind = kind,
            solo = length(members) == 1)
@@ -7187,15 +7187,9 @@ server <- shinyServer(function(input, output, session) {
     all_in_one <- length(out) == 1L && length(out[[1]]$members) == length(param_factors)
     kinds <- unique(vapply(out, function(sg) sg$kind, character(1)))
     one_kind <- length(kinds) == 1L
-    short_kind <- function(k) {
-      k <- sub("^interchangeable", "same", k)
-      k <- sub("^substitutable$", "any", k)
-      k <- sub("^average$", "avg", k)
-      k
-    }
     body <- vapply(out, function(sg)
       paste0(if (all_in_one) "" else paste0(paste(sg$members, collapse = ", "), ": "),
-             if (one_kind) paste0(sg$n, " items") else paste0(sg$n, "\u00d7 ", short_kind(sg$kind))), character(1))
+             if (one_kind) paste0(sg$n, " items") else paste0(sg$n, "\u00d7 ", sg$kind)), character(1))
     paste0(if (one_kind) paste0(kinds, " \u00b7 ") else "", paste(body, collapse = "; "))
   }
 
@@ -7348,11 +7342,7 @@ server <- shinyServer(function(input, output, session) {
             .modal:has(#submit_items_multi) .modal-footer button { height:38px; box-sizing:border-box; padding:0 18px; margin:0 0 0 8px; display:inline-flex; align-items:center; justify-content:center; line-height:1; }
             .fairy-items-custom .fairy-items-main, .fairy-items-custom .fairy-items-nrow { opacity:.4; }
           ")),
-          qh(1, "How many items?", "e.g. 3 different jokes"),
-          tags$div(class = "fairy-items-nrow", style = "margin:0 0 4px 28px;",
-            tags$input(id = "fairy_items_quick_n", type = "number", min = 1, max = 50, step = 1, value = q_n,
-              class = "form-control", style = "width:80px;", `aria-label` = "Number of items")),
-          qh(2, "Do all probabilities use the same items?"),
+          qh(1, "Do all probabilities use the same items?"),
           tags$div(style = "margin-left:28px;",
             tags$label(style = "display:block; font-weight:normal; font-size:13px; margin:0 0 4px; cursor:pointer;",
               tags$input(type = "radio", name = "fairy_items_two_choice", value = "same", class = "fairy-items-two-choice",
@@ -7361,21 +7351,28 @@ server <- shinyServer(function(input, output, session) {
               tags$input(type = "radio", name = "fairy_items_two_choice", value = "two", class = "fairy-items-two-choice",
                 checked = if (adv_diff) "checked" else NULL, style = "margin-right:6px;"),
               "No, they use different item lists ",
-              tags$span(style = "color:var(--fairy-text-muted); font-size:11.5px;", "(e.g. p1, p2 use a list of 3 jokes, p3, p4 a list of 5 puns)")),
-            tags$div(id = "fairy_items_two_panel", style = paste0("margin-top:6px; padding:8px 10px; border-radius:8px; background:var(--ct-default, #fff); border:1px solid var(--fairy-border, #d5d9e4); ", if (adv_diff) "" else "display:none;"),
+              tags$span(style = "color:var(--fairy-text-muted); font-size:11.5px;", "(e.g. p1, p2 use a list of 3 jokes, p3, p4 a list of 5 puns)"))),
+          tags$div(id = "fairy_items_count_same", style = if (adv_diff) "display:none;" else "",
+            qh(2, "How many items?", "e.g. 3 different jokes"),
+            tags$div(class = "fairy-items-nrow", style = "margin:0 0 4px 28px;",
+              tags$input(id = "fairy_items_quick_n", type = "number", min = 1, max = 50, step = 1, value = q_n,
+                class = "form-control", style = "width:80px;", `aria-label` = "Number of items"))),
+          tags$div(id = "fairy_items_two_panel", style = if (adv_diff) "" else "display:none;",
+            qh(2, "Which probabilities share a list, and how many items does each list have?"),
+            tags$div(style = "margin:0 0 4px 28px; padding:8px 10px; border-radius:8px; background:var(--ct-default, #fff); border:1px solid var(--fairy-border, #d5d9e4);",
               tags$div(style = "font-size:12px; color:var(--fairy-text-muted);",
-                "Every probability uses one list of items (e.g. the 3 jokes). Click a probability to move it to the next list (A, B, C, \u2026). Probabilities with the same list use the same items; each list has its own number of items."),
+                "Click a probability to move it to the next list (A, B, C, \u2026). Probabilities in the same list use the same items."),
               tags$div(id = "fairy_items_chips", style = "display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;"),
               tags$div(id = "fairy_items_sets", style = "margin:4px 0 2px;"))),
-          qh(3, "How should your model's comparisons (like p1 > p2) be applied to the items?"),
+          qh(3, "Your model (like p1 > p2) holds \u2026"),
           tags$div(class = "fairy-items-main",
             tags$div(
-              opt("joint", "Item by item", "Each item is checked on its own."),
-              opt("substitutable", "Any item with any item", "Every combination of items is checked."),
-              opt("identical", "All items the same", "A probability has the same value in every item."),
-              opt("average", "Only the average", "Only the average over the items is checked."),
+              opt("joint", "for each item separately", "item 1 with item 1, item 2 with item 2, \u2026"),
+              opt("substitutable", "for every combination of items", "every item with every other item"),
+              opt("identical", "for the shared value of each probability", "all items of a probability are equal"),
+              opt("average", "for the average over the items", "single items may break it"),
               tags$div(id = "fairy_items_perlist_wrap", style = "display:none;",
-                opt("perlist", "Different for each list", "Choose it separately for every item list in question 2."))
+                opt("perlist", "differently for each list", "choose it for every list in question 2"))
             ),
             tags$div(class = "fairy-items-viz",
               tags$div(id = "fairy_items_diagram", `aria-hidden` = "true"),
@@ -7383,12 +7380,12 @@ server <- shinyServer(function(input, output, session) {
               tags$div(style = "font-size:11px; color:var(--fairy-text-muted); margin-top:6px;",
                 HTML("<b>Rows</b>: your probabilities. <b>Columns</b>: your items (e.g. jokes). <b>Dot</b>: the probability for one item. <b style='color:var(--fairy-primary, #3a6df0);'>Line</b>: two probabilities are compared here, as your model says (e.g. p1 &gt; p2).")))),
           tags$div(id = "fairy_items_quick_eps_wrap", style = paste0(if (identical(q_type, "identical")) "" else "display:none;"),
-            qh(4, "Exactly the same, or only approximately?", "e.g. 0.05 means: two items may be up to 0.05 apart"),
+            qh(4, "Are the items of a probability exactly equal, or only approximately?"),
             tags$div(style = "margin-left:28px; font-size:12.5px;",
-              "Allowed difference between items: ",
+              "They may differ by up to ",
               tags$input(id = "fairy_items_quick_eps", type = "number", min = 0, max = 1, step = 0.01, value = q_eps,
                 class = "form-control", style = "width:76px; display:inline-block; height:26px; padding:2px 6px;", `aria-label` = "Allowed deviation"),
-              " (0 = exactly the same)")),
+              " (0 = exactly equal, 0.05 = up to 0.05 apart)")),
           tags$div(id = "fairy_items_summary", style = "margin-top:14px; padding:8px 10px; border-left:3px solid var(--fairy-primary, #3a6df0); background:var(--ct-default, #fff); border-radius:4px; font-size:12.5px;")
         )
       },
@@ -7571,7 +7568,7 @@ server <- shinyServer(function(input, output, session) {
           var chipPal = ['#3a6df0', '#e07b00', '#2a9d6f', '#b04fd0', '#c2385a', '#7a7f8c'];
           function chipLetter(k) { return k < 26 ? String.fromCharCode(65 + k) : String(k + 1); }
           function chipColor(k) { return chipPal[k % chipPal.length]; }
-          var CHIP_TYPES = [['joint', 'Item by item'], ['substitutable', 'Any item with any item'], ['identical', 'All items the same'], ['average', 'Only the average']];
+          var CHIP_TYPES = [['joint', 'for each item separately'], ['substitutable', 'for every combination of items'], ['identical', 'for the shared value (items equal)'], ['average', 'for the average over the items']];
           function chipRowName(i) {
             var rows = document.querySelectorAll('.fairy-items-row'), sp = rows[i] && rows[i].querySelector('span');
             var t = sp ? sp.textContent.replace(/[_{}]/g, '').trim() : '';
@@ -7704,9 +7701,9 @@ server <- shinyServer(function(input, output, session) {
             chipsApplyCounts();
           });
           $(document).on('change', '.fairy-items-two-choice', function() {
-            var two = twoKinds(), p = document.getElementById('fairy_items_two_panel'), nEl = document.getElementById('fairy_items_quick_n');
+            var two = twoKinds(), p = document.getElementById('fairy_items_two_panel'), cs = document.getElementById('fairy_items_count_same');
             if (p) p.style.display = two ? '' : 'none';
-            if (nEl) { nEl.disabled = two; nEl.parentNode.style.opacity = two ? '0.45' : ''; }
+            if (cs) cs.style.display = two ? 'none' : '';
             if (!two) { var cur = document.querySelector('.fairy-items-quick-type:checked'); if (cur && cur.value === 'perlist') { var jr2 = document.querySelector('.fairy-items-quick-type[value=joint]'); if (jr2) jr2.checked = true; } }
             if (two) { chipsFromRows(); chipsRender(); quickChrome(); chipsApply(); } else quickApply();
           });
@@ -7940,7 +7937,7 @@ server <- shinyServer(function(input, output, session) {
           function itemsSummary() {
             var el = document.getElementById('fairy_items_summary'), tEl = document.querySelector('.fairy-items-quick-type:checked'), nEl = document.getElementById('fairy_items_quick_n');
             if (!el || !tEl) return;
-            var words = { joint: 'item by item', substitutable: 'with any item against any item', identical: 'with all items the same', average: 'on the average over the items' };
+            var words = { joint: 'for each item separately', substitutable: 'for every combination of items', identical: 'for the shared value of each probability', average: 'for the average over the items' };
             var epsEl = document.getElementById('fairy_items_quick_eps'), epsV = parseFloat(epsEl && epsEl.value) || 0, parts;
             if (twoKinds() && chipState.sets.length > 1) {
               parts = chipState.sets.map(function(st, k) {
@@ -7948,7 +7945,7 @@ server <- shinyServer(function(input, output, session) {
                 return mem + ': ' + st.n + ' items' + (st.over ? ' (' + words[st.over] + ')' : '');
               }).join('; ');
             } else parts = (parseInt(nEl && nEl.value, 10) || 1) + ' items';
-            el.textContent = 'Summary: your model is applied to ' + parts + (tEl.value === 'perlist' ? '' : ', ' + words[tEl.value]) + (tEl.value === 'identical' && epsV > 0 ? ' (may differ by up to ' + epsV + ')' : '') + '.';
+            el.textContent = 'Summary: your model holds ' + (tEl.value === 'perlist' ? 'differently for each list' : words[tEl.value]) + (tEl.value === 'identical' && epsV > 0 ? ' (items may differ by up to ' + epsV + ')' : '') + ', with ' + parts + '.';
           }
           function quickChrome() {
             document.querySelectorAll('.fairy-items-opt').forEach(function(t) {
@@ -8027,7 +8024,7 @@ server <- shinyServer(function(input, output, session) {
           // a new dialog starts from the defaults shown above (edit mode keeps the saved values)
           setTimeout(function() {
             var q = document.querySelector('.fairy-items-quick');
-            if (q && q.getAttribute('data-edit') !== '1') quickApply(); else { drawItemsDiagram(); chipsFromRows(); chipsRender(); var two = chipState.sets.length > 1; if (two) { var rr = document.querySelector('.fairy-items-two-choice[value=two]'); if (rr) rr.checked = true; var pn = document.getElementById('fairy_items_two_panel'); if (pn) pn.style.display = ''; var n1 = document.getElementById('fairy_items_quick_n'); if (n1) { n1.disabled = true; n1.parentNode.style.opacity = '0.45'; } } if (chipState.sets.some(function(x) { return x.over; })) { var pr = document.querySelector('.fairy-items-quick-type[value=perlist]'); if (pr) pr.checked = true; } chipsRender(); quickChrome(); itemsSummary(); }
+            if (q && q.getAttribute('data-edit') !== '1') quickApply(); else { drawItemsDiagram(); chipsFromRows(); chipsRender(); var two = chipState.sets.length > 1; if (two) { var rr = document.querySelector('.fairy-items-two-choice[value=two]'); if (rr) rr.checked = true; var pn = document.getElementById('fairy_items_two_panel'); if (pn) pn.style.display = ''; var cs2 = document.getElementById('fairy_items_count_same'); if (cs2) cs2.style.display = 'none'; } if (chipState.sets.some(function(x) { return x.over; })) { var pr = document.querySelector('.fairy-items-quick-type[value=perlist]'); if (pr) pr.checked = true; } chipsRender(); quickChrome(); itemsSummary(); }
           }, 200);
           // Selectize finishes initializing asynchronously after this
           // script runs, so the very first pass (before it exists yet)
