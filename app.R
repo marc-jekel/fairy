@@ -7281,15 +7281,19 @@ server <- shinyServer(function(input, output, session) {
     for (r in seq_len(nrow(hn))) {
       if (hn[r, 1] != 0 || abs(hn[r, 2]) > 1e-12) next
       nz <- which(abs(A[r, ]) > 1e-12)
-      if (length(nz) == 2 && all(abs(abs(A[r, nz]) - 1) < 1e-12) && abs(sum(A[r, nz])) < 1e-12)
-        pairs[[length(pairs) + 1L]] <- c(nz[A[r, nz] > 0], nz[A[r, nz] < 0])
+      if (length(nz) == 2 && prod(A[r, nz]) < 0) {
+        hi <- nz[A[r, nz] > 0]; lo <- nz[A[r, nz] < 0]
+        ratio <- abs(A[r, lo]) / A[r, hi]
+        lab <- if (abs(ratio - 1) < 1e-9) "" else tryCatch(frac_str(ratio), error = function(e) format(round(ratio, 3)))
+        pairs[[length(pairs) + 1L]] <- list(as.integer(hi - 1L), as.integer(lo - 1L), lab)
+      }
     }
     unique(pairs)
   }
   items_pairs_json <- function(model_name) {
     pr <- items_pairs_for(model_name)
     if (is.null(pr)) return("null")
-    as.character(jsonlite::toJSON(lapply(pr, function(p) as.integer(p - 1L)), auto_unbox = FALSE))
+    as.character(jsonlite::toJSON(pr, auto_unbox = TRUE))
   }
 
   open_items_modal <- function(prefill_base = NULL, prefill_rows = NULL) {
@@ -7865,7 +7869,7 @@ server <- shinyServer(function(input, output, session) {
             }
             var nProb = document.querySelectorAll('.fairy-items-row').length || 2;
             var P0 = window.fairyItemsPairs, pairs0 = null;
-            if (Array.isArray(P0)) pairs0 = P0.filter(function(p) { return p.length === 2 && p[0] < nProb && p[1] < nProb; });
+            if (Array.isArray(P0)) pairs0 = P0.filter(function(p) { return p.length >= 2 && p[0] < nProb && p[1] < nProb; });
             var realPairs = !!(pairs0 && pairs0.length), idxs, pdisp;
             if (realPairs) {
               var inv = [], outd = {}, ind = {};
@@ -7900,7 +7904,6 @@ server <- shinyServer(function(input, output, session) {
               var l = el('text', { x: 0, y: ys[i] + 4, 'font-weight': '600' }, gt); l.textContent = r.name;
               if (r.tag) { var l2 = el('text', { x: 0, y: ys[i] + 17, 'font-size': '9.5', fill: r.color }, svg); l2.textContent = r.tag.replace(' - ', ''); }
             });
-            if (realPairs && nProb > nRows) { var mt = el('text', { x: 0, y: H - 4, 'font-size': '10', fill: 'currentColor', opacity: '0.7' }, svg); mt.textContent = 'not shown: probabilities your model does not compare'; }
             var BL = 'var(--fairy-primary, #3a6df0)';
             var g = el('g', { fill: 'none', stroke: BL, 'stroke-width': '2', 'stroke-linecap': 'round' }, svg);
             var k, m;
@@ -7957,7 +7960,7 @@ server <- shinyServer(function(input, output, session) {
             var midDot = String.fromCharCode(183), avgFormula;
             if (R[0].n <= 4) { var fp = []; for (var q3 = 1; q3 <= R[0].n; q3++) fp.push('1/' + R[0].n + ' ' + midDot + ' item ' + q3); avgFormula = fp.join(' + '); }
             else avgFormula = '(item 1 + ... + item ' + R[0].n + ') / ' + R[0].n;
-            var cmpTxt = realPairs ? pairs0.map(function(p) { return chipRowName(p[0]) + ' > ' + chipRowName(p[1]); }) : null;
+            var cmpTxt = realPairs ? pairs0.map(function(p) { return chipRowName(p[0]) + ' > ' + (p[2] ? p[2] + ' ' + String.fromCharCode(183) + ' ' : '') + chipRowName(p[1]); }) : null;
             var q3t = document.getElementById('fairy_items_q3_text');
             if (q3t) q3t.textContent = cmpTxt ? ('Your model (' + cmpTxt.slice(0, 4).join(', ') + (cmpTxt.length > 4 ? ', ...' : '') + ') holds ' + String.fromCharCode(8230)) : ('Your model holds ' + String.fromCharCode(8230));
             var pair = realPairs ? (cmpTxt.length === 1 ? ('the two probabilities in ' + cmpTxt[0]) : ('two of its probabilities (here ' + cmpTxt.slice(0, 2).join(' and ') + ')')) : 'two probabilities (for example ' + a + ' > ' + b + ')';
@@ -7970,6 +7973,10 @@ server <- shinyServer(function(input, output, session) {
             } else if (allType && (t0 === 'joint' || t0 === 'substitutable')) {
               txt = 'Probabilities with different item lists have different items, so whenever the model compares them, every item of one is compared with every item of the other. Within one list: ' + (t0 === 'joint' ? 'item 1 with item 1, item 2 with item 2, and so on.' : 'every item with every item.');
             } else txt = 'Each list is treated as chosen above. Probabilities from different lists are compared for every combination of items.';
+            if (realPairs && nProb > nRows) {
+              var hidden = []; for (var hz = 0; hz < nProb; hz++) if (idxs.indexOf(hz) < 0) hidden.push(chipRowName(hz));
+              if (hidden.length) txt += ' Not shown: ' + hidden.join(', ') + ' (not compared directly by your model).';
+            }
             if (cap) cap.textContent = txt;
           }
           if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_items_pairs', function(msg) { window.fairyItemsPairs = (msg && msg.pairs) || null; drawItemsDiagram(); });
