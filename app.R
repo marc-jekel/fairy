@@ -7415,7 +7415,7 @@ server <- shinyServer(function(input, output, session) {
             .fairy-items-viz { background:var(--ct-default, #fff); border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px; padding:8px 10px; }
             #fairy_items_diagram { max-height:520px; overflow-y:auto; }
             #fairy_items_diagram svg { display:block; max-width:100%; height:auto; margin:0 auto; color:var(--fairy-text-muted); }
-            .modal:has(#submit_items_multi) .modal-dialog { width:95vw; max-width:1100px; }
+            .modal:has(#submit_items_multi) .modal-dialog { width:95vw; max-width:900px; }
             .modal:has(#submit_items_multi) .modal-footer { display:flex; justify-content:flex-end; align-items:center; }
             .modal:has(#submit_items_multi) #submit_items_multi { position:static; top:0; transform:none; }
             .modal:has(#submit_items_multi) .modal-footer button { height:38px; box-sizing:border-box; padding:0 18px; margin:0 0 0 8px; display:inline-flex; align-items:center; justify-content:center; line-height:1; }
