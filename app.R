@@ -8035,6 +8035,14 @@ server <- shinyServer(function(input, output, session) {
             pdisp.forEach(function(pp) {
               var q = Math.min(pp[0], pp[1]), q2 = Math.max(pp[0], pp[1]), ch = pp[2] || (pp[0] > pp[1] ? '<' : '>');
               var r0 = R[q], r1 = R[q2], same = r0.list === r1.list, y0 = ys[q], y1 = ys[q2], c0 = cnt[q], c1 = cnt[q2];
+              if (pp[2] === '+' && same && r0.type === r1.type && (r0.type === 'joint' || r0.type === 'identical')) {
+                // parts of a sum: one straight line down from each part to the square, in every column (dots sit on the line)
+                for (k = 0; k < Math.min(c0, c1); k++) {
+                  el('line', { x1: X(k), y1: y0 + 7, x2: X(k), y2: y1 - 7 }, g);
+                  sign(X(k), y0 + (ys[q + 1] - ys[q]) / 2, '+');
+                }
+                return;
+              }
               if (q2 - q > 1 && same && r0.type === r1.type && (r0.type === 'joint' || r0.type === 'identical')) {
                 // item by item: the comparison holds in every column, so curve it in every column
                 var bulge = Math.min(12 + 4 * (q2 - q - 1), 24);
