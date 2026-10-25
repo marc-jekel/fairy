@@ -7271,6 +7271,27 @@ server <- shinyServer(function(input, output, session) {
   active_items_edit <- reactiveVal(NULL)
   item_model_spec_idx <- reactiveValues(value = list())
 
+  # pairs (hi, lo) the base model compares directly, e.g. p1 > p2 gives c(1, 2); from the non-redundant H-representation
+  items_pairs_for <- function(model_name) {
+    h <- isolate(h_reactive[[model_name]])
+    if (is.null(h) || !is.matrix(h)) return(NULL)
+    hn <- tryCatch(if (is.character(h)) q2d(h) else h, error = function(e) NULL)
+    if (is.null(hn) || ncol(hn) < 4) return(NULL)
+    A <- hn[, -(1:2), drop = FALSE]; pairs <- list()
+    for (r in seq_len(nrow(hn))) {
+      if (hn[r, 1] != 0 || abs(hn[r, 2]) > 1e-12) next
+      nz <- which(abs(A[r, ]) > 1e-12)
+      if (length(nz) == 2 && all(abs(abs(A[r, nz]) - 1) < 1e-12) && abs(sum(A[r, nz])) < 1e-12)
+        pairs[[length(pairs) + 1L]] <- c(nz[A[r, nz] > 0], nz[A[r, nz] < 0])
+    }
+    unique(pairs)
+  }
+  items_pairs_json <- function(model_name) {
+    pr <- items_pairs_for(model_name)
+    if (is.null(pr)) return("null")
+    as.character(jsonlite::toJSON(lapply(pr, function(p) as.integer(p - 1L)), auto_unbox = FALSE))
+  }
+
   open_items_modal <- function(prefill_base = NULL, prefill_rows = NULL) {
     model_choices <- get_name_models_reactive()
     if (length(model_choices) == 0) {
@@ -7299,6 +7320,7 @@ server <- shinyServer(function(input, output, session) {
       ),
       selectInput("items_base_model", "Base model", choices = model_choices,
         selected = prefill_base %||% model_choices[1], width = "100%"),
+      tags$script(HTML(paste0("window.fairyItemsPairs = ", items_pairs_json(prefill_base %||% model_choices[1]), ";"))),
       # Each row is its OWN grid container rather than one flat grid for
       # header + all rows — conditionalPanel hides the tolerance cell via
       # display:none, and a display:none item drops out of grid flow
@@ -7319,10 +7341,10 @@ server <- shinyServer(function(input, output, session) {
             tags$input(type = "radio", name = "fairy_items_quick_type", value = value, class = "fairy-items-quick-type",
               checked = if (identical(value, q_type)) "checked" else NULL),
             tags$span(tags$b(label), tags$span(expl)))
-        qh <- function(num, text, hint = NULL)
+        qh <- function(num, text, hint = NULL, id = NULL)
           tags$div(style = "display:flex; align-items:baseline; gap:8px; margin:14px 0 6px;",
             tags$span(style = "flex:none; width:20px; height:20px; border-radius:50%; background:var(--fairy-primary, #3a6df0); color:#fff; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; justify-content:center;", num),
-            tags$span(tags$strong(text, style = "font-size:13px;"),
+            tags$span(tags$strong(id = id, text, style = "font-size:13px;"),
               if (!is.null(hint)) tags$span(HTML(hint), style = "display:block; font-size:11.5px; color:var(--fairy-text-muted);")))
         tags$div(class = "fairy-items-quick", `data-edit` = if (is_edit) "1" else "0", `data-custom` = if (adv_diff) "1" else "0", style = "margin-top:8px; padding:12px; border-radius:8px; background:var(--ct-diag);",
           tags$style(HTML("
@@ -7364,7 +7386,7 @@ server <- shinyServer(function(input, output, session) {
                 "Click a probability to move it to the next list (A, B, C, \u2026). Probabilities in the same list use the same items."),
               tags$div(id = "fairy_items_chips", style = "display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;"),
               tags$div(id = "fairy_items_sets", style = "margin:4px 0 2px;"))),
-          qh(3, "Your model (like p1 > p2) holds \u2026"),
+          qh(3, "Your model holds \u2026", id = "fairy_items_q3_text"),
           tags$div(class = "fairy-items-main",
             tags$div(
               opt("joint", "for each item separately", "item 1 with item 1, item 2 with item 2, \u2026"),
@@ -7378,7 +7400,7 @@ server <- shinyServer(function(input, output, session) {
               tags$div(id = "fairy_items_diagram", `aria-hidden` = "true"),
               tags$div(id = "fairy_items_caption", style = "font-size:12px; margin-top:6px;"),
               tags$div(style = "font-size:11px; color:var(--fairy-text-muted); margin-top:6px;",
-                HTML("<b>Rows</b>: your probabilities. <b>Columns</b>: your items (e.g. jokes). <b>Dot</b>: the probability for one item. <b style='color:var(--fairy-primary, #3a6df0);'>Line</b>: two probabilities are compared here, as your model says (e.g. p1 &gt; p2).")))),
+                HTML("<b>Rows</b>: your probabilities. <b>Columns</b>: your items (e.g. jokes). <b>Dot</b>: the probability for one item. <b style='color:var(--fairy-primary, #3a6df0);'>Line</b>: a comparison that your model makes between two probabilities.")))),
           tags$div(id = "fairy_items_quick_eps_wrap", style = paste0(if (identical(q_type, "identical")) "" else "display:none;"),
             qh(4, "Are the items of a probability exactly equal, or only approximately?"),
             tags$div(style = "margin-left:28px; font-size:12.5px;",
@@ -7705,7 +7727,7 @@ server <- shinyServer(function(input, output, session) {
             if (p) p.style.display = two ? '' : 'none';
             if (cs) cs.style.display = two ? 'none' : '';
             if (!two) { var cur = document.querySelector('.fairy-items-quick-type:checked'); if (cur && cur.value === 'perlist') { var jr2 = document.querySelector('.fairy-items-quick-type[value=joint]'); if (jr2) jr2.checked = true; } }
-            if (two) { chipsFromRows(); chipsRender(); quickChrome(); chipsApply(); } else quickApply();
+            if (two) { chipsFromRows(); chipsRender(); quickChrome(); chipsApply(); } else { quickApply(); quickChrome(); }
           });
           $(document).on('click', '.fairy-chip', function() {
             var i = parseInt(this.getAttribute('data-p'), 10), cur = chipState.asg[i], mx = 0;
@@ -7841,8 +7863,21 @@ server <- shinyServer(function(input, output, session) {
               if (two) { var k = chipState.asg[i], st = chipState.sets[k - 1]; return { name: chipRowName(i), n: st.n, list: k, color: chipColor(k - 1), type: st.over || gType, tag: ' - list ' + chipLetter(k - 1) }; }
               return { name: chipRowName(i), n: n0, list: 1, color: null, type: gType, tag: '' };
             }
-            var nProb = document.querySelectorAll('.fairy-items-row').length || 2, nRows = Math.max(2, Math.min(5, nProb));
-            var R = []; for (var ri = 0; ri < nRows; ri++) R.push(spec(ri));
+            var nProb = document.querySelectorAll('.fairy-items-row').length || 2;
+            var P0 = window.fairyItemsPairs, pairs0 = null;
+            if (Array.isArray(P0)) pairs0 = P0.filter(function(p) { return p.length === 2 && p[0] < nProb && p[1] < nProb; });
+            var realPairs = !!(pairs0 && pairs0.length), idxs, pdisp;
+            if (realPairs) {
+              var inv = [], outd = {}, ind = {};
+              pairs0.forEach(function(p) { [p[0], p[1]].forEach(function(v) { if (inv.indexOf(v) < 0) { inv.push(v); outd[v] = 0; ind[v] = 0; } }); outd[p[0]]++; ind[p[1]]++; });
+              inv.sort(function(x, y) { return ((outd[y] - ind[y]) - (outd[x] - ind[x])) || (x - y); });
+              idxs = inv.slice(0, 5);
+              pdisp = pairs0.map(function(p) { return [idxs.indexOf(p[0]), idxs.indexOf(p[1])]; }).filter(function(q) { return q[0] >= 0 && q[1] >= 0; });
+            } else {
+              idxs = []; for (var z = 0; z < Math.min(2, nProb); z++) idxs.push(z);
+              pdisp = [[0, 1]];
+            }
+            var nRows = idxs.length, R = idxs.map(function(i) { return spec(i); });
             var MAXC = 5, dx = 46, x0 = 92, ys = R.map(function(r, i) { return 44 + i * 52; }), H = ys[ys.length - 1] + 40;
             var cnt = R.map(function(r) { return Math.min(r.n, MAXC); });
             var cols = Math.max.apply(null, cnt), more = R.some(function(r) { return r.n > MAXC; });
@@ -7865,13 +7900,13 @@ server <- shinyServer(function(input, output, session) {
               var l = el('text', { x: 0, y: ys[i] + 4, 'font-weight': '600' }, gt); l.textContent = r.name;
               if (r.tag) { var l2 = el('text', { x: 0, y: ys[i] + 17, 'font-size': '9.5', fill: r.color }, svg); l2.textContent = r.tag.replace(' - ', ''); }
             });
-            if (nProb > nRows) { var mt = el('text', { x: 0, y: H - 4, 'font-size': '10', fill: 'currentColor', opacity: '0.7' }, svg); mt.textContent = '+ ' + (nProb - nRows) + ' more probabilities, treated the same way'; }
+            if (realPairs && nProb > nRows) { var mt = el('text', { x: 0, y: H - 4, 'font-size': '10', fill: 'currentColor', opacity: '0.7' }, svg); mt.textContent = 'not shown: probabilities your model does not compare'; }
             var BL = 'var(--fairy-primary, #3a6df0)';
             var g = el('g', { fill: 'none', stroke: BL, 'stroke-width': '2', 'stroke-linecap': 'round' }, svg);
             var k, m;
-            function sign(x, y) {
+            function sign(x, y, ch) {
               var t = el('text', { x: x, y: y + 4, 'text-anchor': 'middle', 'font-size': '13', 'font-weight': '700', fill: BL, stroke: 'var(--ct-default, #fff)', 'stroke-width': '3', 'paint-order': 'stroke' }, svg);
-              t.textContent = '>';
+              t.textContent = ch || '>';
             }
             var anchor = [], avgX = X(cols - 1) + dx;
             R.forEach(function(r, i) {
@@ -7889,23 +7924,28 @@ server <- shinyServer(function(input, output, session) {
                 anchor[i] = { x: avgX, y: ys[i], grid: false };
               }
             });
-            // comparison between each probability and the next one
-            for (var q = 0; q < R.length - 1; q++) {
-              var r0 = R[q], r1 = R[q + 1], same = r0.list === r1.list, y0 = ys[q], y1 = ys[q + 1], c0 = cnt[q], c1 = cnt[q + 1];
-              if (anchor[q].grid && anchor[q + 1].grid) {
+            // one link per comparison of the model; the larger probability sits on top where possible
+            pdisp.forEach(function(pp) {
+              var q = Math.min(pp[0], pp[1]), q2 = Math.max(pp[0], pp[1]), ch = pp[0] > pp[1] ? '<' : '>';
+              var r0 = R[q], r1 = R[q2], same = r0.list === r1.list, y0 = ys[q], y1 = ys[q2], c0 = cnt[q], c1 = cnt[q2];
+              if (q2 - q > 1) {
+                var xr = X(cols - 1) + 30 + 8 * (q2 - q);
+                el('path', { d: 'M' + (X(cnt[q] - 1) + 7) + ' ' + y0 + ' C ' + xr + ' ' + y0 + ' ' + xr + ' ' + y1 + ' ' + (X(cnt[q2] - 1) + 7) + ' ' + y1, 'stroke-dasharray': '4 3' }, g);
+                sign(xr - 4, (y0 + y1) / 2, ch);
+              } else if (anchor[q].grid && anchor[q2].grid) {
                 if (same && r0.type === 'joint' && r1.type === 'joint') {
                   for (k = 0; k < Math.min(c0, c1); k++) el('line', { x1: X(k), y1: y0 + 7, x2: X(k), y2: y1 - 7 }, g);
-                  if (cols <= 3) for (k = 0; k < Math.min(c0, c1); k++) sign(X(k), (y0 + y1) / 2);
+                  if (cols <= 3) for (k = 0; k < Math.min(c0, c1); k++) sign(X(k), (y0 + y1) / 2, ch);
                 } else {
                   var many = c0 * c1 > 9;
                   for (k = 0; k < c0; k++) for (m = 0; m < c1; m++) el('line', { x1: X(k), y1: y0 + 7, x2: X(m), y2: y1 - 7, opacity: many ? '0.55' : '0.9', 'stroke-width': many ? '1' : '1.6' }, g);
-                  if (c0 <= 2 && c1 <= 2) sign((X(0) + X(c0 - 1)) / 4 + (X(0) + X(c1 - 1)) / 4, (y0 + y1) / 2);
+                  if (c0 <= 2 && c1 <= 2) sign((X(0) + X(c0 - 1)) / 4 + (X(0) + X(c1 - 1)) / 4, (y0 + y1) / 2, ch);
                 }
               } else {
-                el('line', { x1: anchor[q].x, y1: y0 + 8, x2: anchor[q + 1].x, y2: y1 - 8 }, g);
-                sign((anchor[q].x + anchor[q + 1].x) / 2, (y0 + y1) / 2);
+                el('line', { x1: anchor[q].x, y1: y0 + 8, x2: anchor[q2].x, y2: y1 - 8 }, g);
+                sign((anchor[q].x + anchor[q2].x) / 2, (y0 + y1) / 2, ch);
               }
-            }
+            });
             var gd = el('g', {}, svg);
             R.forEach(function(r, i) {
               for (var q2 = 0; q2 < cols; q2++) {
@@ -7917,7 +7957,10 @@ server <- shinyServer(function(input, output, session) {
             var midDot = String.fromCharCode(183), avgFormula;
             if (R[0].n <= 4) { var fp = []; for (var q3 = 1; q3 <= R[0].n; q3++) fp.push('1/' + R[0].n + ' ' + midDot + ' item ' + q3); avgFormula = fp.join(' + '); }
             else avgFormula = '(item 1 + ... + item ' + R[0].n + ') / ' + R[0].n;
-            var pair = R.length === 2 ? (a + ' and ' + b) : ('two probabilities (like ' + a + ' and ' + b + ', or ' + b + ' and ' + R[2].name + ')');
+            var cmpTxt = realPairs ? pairs0.map(function(p) { return chipRowName(p[0]) + ' > ' + chipRowName(p[1]); }) : null;
+            var q3t = document.getElementById('fairy_items_q3_text');
+            if (q3t) q3t.textContent = cmpTxt ? ('Your model (' + cmpTxt.slice(0, 4).join(', ') + (cmpTxt.length > 4 ? ', ...' : '') + ') holds ' + String.fromCharCode(8230)) : ('Your model holds ' + String.fromCharCode(8230));
+            var pair = realPairs ? (cmpTxt.length === 1 ? ('the two probabilities in ' + cmpTxt[0]) : ('two of its probabilities (here ' + cmpTxt.slice(0, 2).join(' and ') + ')')) : 'two probabilities (for example ' + a + ' > ' + b + ')';
             var allSameList = R.every(function(r) { return r.list === R[0].list; }), allType = R.every(function(r) { return r.type === R[0].type; }), t0 = R[0].type, txt;
             if (allType && allSameList) {
               if (t0 === 'joint') txt = 'Whenever the model compares ' + pair + ', this happens within each item: item 1 with item 1, item 2 with item 2, and so on.';
@@ -7929,6 +7972,7 @@ server <- shinyServer(function(input, output, session) {
             } else txt = 'Each list is treated as chosen above. Probabilities from different lists are compared for every combination of items.';
             if (cap) cap.textContent = txt;
           }
+          if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_items_pairs', function(msg) { window.fairyItemsPairs = (msg && msg.pairs) || null; drawItemsDiagram(); });
           // Quick setup -> fills the per-probability rows (Group / Items / Model holds) under Advanced.
           var itemsApplying = false;
           function markItemsCustom(on) { }
@@ -8042,6 +8086,12 @@ server <- shinyServer(function(input, output, session) {
       easyClose = TRUE, fade = TRUE
     ))
   }
+
+  observeEvent(input$items_base_model, {
+    nm <- input$items_base_model
+    if (is.null(nm) || !nzchar(nm)) return()
+    session$sendCustomMessage("fairy_items_pairs", list(pairs = jsonlite::fromJSON(items_pairs_json(nm), simplifyVector = FALSE)))
+  }, ignoreInit = TRUE)
 
   observeEvent(input$show_items_modal, {
     active_items_edit(NULL)
