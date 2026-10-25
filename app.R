@@ -7454,7 +7454,7 @@ server <- shinyServer(function(input, output, session) {
               tags$div(id = "fairy_items_diagram", `aria-hidden` = "true"),
               tags$div(id = "fairy_items_caption", style = "font-size:12px; margin-top:6px;"),
               tags$div(style = "font-size:11px; color:var(--fairy-text-muted); margin-top:6px;",
-                HTML("<b>Rows</b>: your probabilities. <b>Columns</b>: your items (e.g. jokes). <b>Dot</b>: the probability for one item. <b style='color:var(--fairy-primary, #3a6df0);'>Line</b>: a comparison that your model makes between two probabilities.")))),
+                HTML("<b>Rows</b>: your probabilities. <b>Columns</b>: your items (e.g. jokes). <b>Dot</b>: the probability for one item. <b style='color:var(--fairy-primary, #3a6df0);'>Line</b>: a comparison that your model makes between two probabilities.<span id='fairy_items_sq_legend' hidden> <b>Square</b>: a sum of probabilities, e.g. p1+p2; its parts join into it (+).</span>")))),
           tags$div(id = "fairy_items_quick_eps_wrap", style = paste0(if (identical(q_type, "identical")) "" else "display:none;"),
             qh(4, "Are the items of a probability exactly equal, or only approximately?"),
             tags$div(style = "margin-left:28px; font-size:12.5px;",
@@ -8117,6 +8117,7 @@ server <- shinyServer(function(input, output, session) {
             }
             if (vN.length) txt += ' A sum such as ' + vN[0] + ' is drawn as a square: its parts join into it (+), and the square is compared as a whole.';
             if (cap) cap.textContent = txt;
+            var sqL = document.getElementById('fairy_items_sq_legend'); if (sqL) sqL.hidden = !vN.length;
           }
           if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_items_pairs', function(msg) { window.fairyItemsPairs = (msg && msg.pairs) || null; drawItemsDiagram(); });
           // Quick setup -> fills the per-probability rows (Group / Items / Model holds) under Advanced.
