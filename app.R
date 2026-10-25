@@ -8078,9 +8078,16 @@ server <- shinyServer(function(input, output, session) {
                 // compared rows that are not neighbours: one curve to the side, starting at the dots (or at the average point)
                 var baseR = hasAvg ? avgX : X(cols - 1);
                 var xr = baseR + 30 + Math.min(8 * (q2 - q), 60);
-                var sx0 = r0.type === 'average' ? avgX + 8 : X(cnt[q] - 1) + 7, sx1 = r1.type === 'average' ? avgX + 8 : X(cnt[q2] - 1) + 7;
-                el('path', { d: 'M' + sx0 + ' ' + y0 + ' C ' + xr + ' ' + y0 + ' ' + xr + ' ' + y1 + ' ' + sx1 + ' ' + y1, 'stroke-dasharray': '4 3' }, g);
-                sign(xr - 4, (y0 + y1) / 2, ch);
+                // every item of one row is compared with every item of the other: all dots join a common node at the side
+                var ym = (y0 + y1) / 2, st0 = [], st1 = [];
+                if (r0.type === 'average') st0.push(avgX + 8); else for (k = 0; k < c0; k++) st0.push(X(k) + 7);
+                if (r1.type === 'average') st1.push(avgX + 8); else for (k = 0; k < c1; k++) st1.push(X(k) + 7);
+                var thin = st0.length * st1.length > 1, ga = { 'stroke-dasharray': '4 3' };
+                if (thin) { ga.opacity = '0.6'; ga['stroke-width'] = '1.3'; }
+                st0.forEach(function(sx) { var a0 = Object.assign({ d: 'M' + sx + ' ' + y0 + ' C ' + xr + ' ' + y0 + ' ' + xr + ' ' + ym + ' ' + xr + ' ' + ym }, ga); el('path', a0, g); });
+                st1.forEach(function(sx) { var a1 = Object.assign({ d: 'M' + xr + ' ' + ym + ' C ' + xr + ' ' + y1 + ' ' + xr + ' ' + y1 + ' ' + sx + ' ' + y1 }, ga); el('path', a1, g); });
+                el('circle', { cx: xr, cy: ym, r: 3.2, fill: BL, stroke: 'none' }, g);
+                sign(xr + 12, ym, ch);
               } else if (anchor[q].grid && anchor[q2].grid) {
                 if (same && r0.type === r1.type && (r0.type === 'joint' || r0.type === 'identical')) {
                   for (k = 0; k < Math.min(c0, c1); k++) el('line', { x1: X(k), y1: y0 + 7, x2: X(k), y2: y1 - 7 }, g);
