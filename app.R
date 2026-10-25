@@ -7344,7 +7344,7 @@ server <- shinyServer(function(input, output, session) {
             .fairy-items-custom .fairy-items-main, .fairy-items-custom .fairy-items-nrow { opacity:.4; }
           ")),
           tags$div(id = "fairy_items_custom_note", style = "display:none; margin-bottom:10px; padding:6px 10px; border-radius:6px; background:#fff4d6; color:#5c4300; font-size:12px;",
-            "Different item sets are used (see below). ",
+            "Different item groups are used (see below). ",
             tags$a(href = "#", id = "fairy_items_reset", style = "font-weight:600;", "Use the settings above for all probabilities")),
           tags$div(class = "fairy-items-nrow", style = "display:flex; align-items:center; gap:8px; margin-bottom:12px;",
             tags$strong("How many items?", style = "font-size:12.5px;"),
@@ -7374,9 +7374,9 @@ server <- shinyServer(function(input, output, session) {
       },
       tags$details(open = if (adv_diff) NA else NULL, style = "margin-top:8px;",
         tags$summary(style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
-          "Do some probabilities come from different parts of your study?"),
+          "Do all probabilities use the same items?"),
         tags$p(class = "fairy-eq-tol-help", style = "margin-top:6px;",
-          HTML("Usually all probabilities have the same items. But some may come from a different condition or stimulus type with its own items (e.g. jokes versus puns). Click such a probability to move it into another <b>item set</b>. Probabilities in one set share their items. Each set can have its own number of items.")),
+          HTML("If yes, you are done. If some probabilities use <b>other items</b> than the rest, sort them into groups: probabilities in one group use the same items. Click a probability to move it to the next group.<br><i>Example: p1 and p2 use 3 jokes, p3 and p4 use 5 puns. Put p3 and p4 into group B and give each group its number of items.</i>")),
         tags$div(id = "fairy_items_chips", style = "display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;"),
         tags$div(id = "fairy_items_sets", style = "margin:6px 0 10px;"),
         tags$div(style = "display:none;",
@@ -7555,6 +7555,7 @@ server <- shinyServer(function(input, output, session) {
           // ---- item sets as coloured chips: click a probability to move it to the next set ----
           var chipState = { asg: [], sets: [] };
           var chipPal = ['#3a6df0', '#e07b00', '#2a9d6f', '#b04fd0', '#c2385a', '#7a7f8c'];
+          var chipLet = ['A', 'B', 'C', 'D', 'E', 'F'];
           var CHIP_TYPES = [['joint', 'Item by item'], ['substitutable', 'Any item with any item'], ['identical', 'All items the same'], ['average', 'Only the average']];
           function chipRowName(i) {
             var rows = document.querySelectorAll('.fairy-items-row'), sp = rows[i] && rows[i].querySelector('span');
@@ -7595,7 +7596,7 @@ server <- shinyServer(function(input, output, session) {
             chipState.asg.forEach(function(s, i) {
               var b = document.createElement('button');
               b.type = 'button'; b.className = 'fairy-chip'; b.setAttribute('data-p', i);
-              b.textContent = chipRowName(i) + ' ' + String.fromCharCode(183) + ' set ' + s;
+              b.textContent = chipRowName(i) + ' ' + String.fromCharCode(183) + ' group ' + chipLet[s - 1];
               b.style.cssText = 'border:1.5px solid ' + chipPal[s - 1] + '; background:' + chipPal[s - 1] + '22; color:inherit; border-radius:14px; padding:3px 11px; font-size:12.5px; cursor:pointer;';
               ch.appendChild(b);
             });
@@ -7603,12 +7604,12 @@ server <- shinyServer(function(input, output, session) {
               var row = document.createElement('div');
               row.style.cssText = 'display:flex; align-items:center; gap:8px; margin:5px 0; flex-wrap:wrap;';
               var dot = document.createElement('span'); dot.style.cssText = 'width:12px; height:12px; border-radius:50%; background:' + chipPal[k] + '; display:inline-block;';
-              var lab = document.createElement('b'); lab.style.fontSize = '12.5px'; lab.textContent = 'Set ' + (k + 1);
+              var lab = document.createElement('b'); lab.style.fontSize = '12.5px'; lab.textContent = 'Group ' + chipLet[k];
               var members = chipState.asg.map(function(s, i) { return s === k + 1 ? chipRowName(i) : null; }).filter(Boolean).join(', ');
               var mem = document.createElement('span'); mem.style.cssText = 'font-size:12px; color:var(--fairy-text-muted);'; mem.textContent = '(' + members + ')';
               var inp = document.createElement('input'); inp.type = 'number'; inp.min = 1; inp.max = 50; inp.value = st.n; inp.className = 'form-control fairy-set-n';
-              inp.style.cssText = 'width:70px; height:28px; padding:2px 6px;'; inp.setAttribute('data-set', k); inp.setAttribute('aria-label', 'Items in set ' + (k + 1));
-              var it = document.createElement('span'); it.style.fontSize = '12.5px'; it.textContent = 'items, model holds';
+              inp.style.cssText = 'width:70px; height:28px; padding:2px 6px;'; inp.setAttribute('data-set', k); inp.setAttribute('aria-label', 'Items in group ' + chipLet[k]);
+              var it = document.createElement('span'); it.style.fontSize = '12.5px'; it.textContent = 'items; the model holds';
               var sel = document.createElement('select'); sel.className = 'form-control fairy-set-type'; sel.style.cssText = 'width:auto; height:28px; padding:2px 6px;'; sel.setAttribute('data-set', k);
               CHIP_TYPES.forEach(function(t) { var o = document.createElement('option'); o.value = t[0]; o.textContent = t[1]; if (t[0] === st.type) o.selected = true; sel.appendChild(o); });
               [dot, lab, mem, inp, it, sel].forEach(function(e) { row.appendChild(e); });
@@ -7626,7 +7627,7 @@ server <- shinyServer(function(input, output, session) {
               var gIn = row.querySelector('input[id^=items_multi_group_]'), sel = row.querySelector('select[id^=items_multi_type_]'), eIn = row.querySelector('input[id^=items_multi_eps_]');
               if (st.n > 1) {
                 if (sel) { if (sel.selectize) sel.selectize.setValue(st.type); else { sel.value = st.type; $(sel).trigger('change'); } }
-                if (gIn && (st.type === 'joint' || st.type === 'identical')) { gIn.value = 'set ' + k; $(gIn).trigger('input'); }
+                if (gIn && (st.type === 'joint' || st.type === 'identical')) { gIn.value = 'group ' + chipLet[k - 1]; $(gIn).trigger('input'); }
               }
               if (eIn) { eIn.value = st.type === 'identical' ? epsV : 0; $(eIn).trigger('change'); }
             });
