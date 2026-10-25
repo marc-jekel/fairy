@@ -7917,15 +7917,20 @@ server <- shinyServer(function(input, output, session) {
               }
             });
             var a = R[0].name, b = R[1].name, cap = document.getElementById('fairy_items_caption');
-            var bothGrid = anchor[0].grid && anchor[1].grid, sameL = R[0].list === R[1].list, midDot = String.fromCharCode(183), avgFormula;
+            var midDot = String.fromCharCode(183), avgFormula;
             if (R[0].n <= 4) { var fp = []; for (var q3 = 1; q3 <= R[0].n; q3++) fp.push('1/' + R[0].n + ' ' + midDot + ' item ' + q3); avgFormula = fp.join(' + '); }
             else avgFormula = '(item 1 + ... + item ' + R[0].n + ') / ' + R[0].n;
-            var txt;
-            if (!bothGrid) txt = 'The comparison is made between ' + a + ' and ' + b + (R[0].type === 'average' || R[1].type === 'average' ? ' using the average over the items (' + a + ' = ' + avgFormula + ').' : ' using their shared value.') + ' Single items may break it.';
-            else if (!sameL) txt = a + ' (' + R[0].n + ' items) and ' + b + ' (' + R[1].n + ' items) use different items, so ' + a + ' is compared with ' + b + ' for every combination of items.';
-            else if (R[0].type === 'joint') txt = a + ' is compared with ' + b + ' within every item: in item 1, in item 2, and so on.';
-            else txt = a + ' is compared with ' + b + ' for every combination of items, e.g. ' + a + ' in item 1 with ' + b + ' in item 2.';
-            if (cap) cap.textContent = txt + (R.length > 2 ? ' The same holds for the other probabilities.' : '');
+            var pair = R.length === 2 ? (a + ' and ' + b) : ('two probabilities (like ' + a + ' and ' + b + ', or ' + b + ' and ' + R[2].name + ')');
+            var allSameList = R.every(function(r) { return r.list === R[0].list; }), allType = R.every(function(r) { return r.type === R[0].type; }), t0 = R[0].type, txt;
+            if (allType && allSameList) {
+              if (t0 === 'joint') txt = 'Whenever the model compares ' + pair + ', this happens within each item: item 1 with item 1, item 2 with item 2, and so on.';
+              else if (t0 === 'substitutable') txt = 'Whenever the model compares ' + pair + ', every item of one is compared with every item of the other.';
+              else if (t0 === 'identical') txt = 'Each probability has the same value in all items. The model then compares these shared values.';
+              else txt = 'The model compares the averages over the items, e.g. ' + a + ' = ' + avgFormula + '. Single items may break it.';
+            } else if (allType && (t0 === 'joint' || t0 === 'substitutable')) {
+              txt = 'Probabilities with different item lists have different items, so whenever the model compares them, every item of one is compared with every item of the other. Within one list: ' + (t0 === 'joint' ? 'item 1 with item 1, item 2 with item 2, and so on.' : 'every item with every item.');
+            } else txt = 'Each list is treated as chosen above. Probabilities from different lists are compared for every combination of items.';
+            if (cap) cap.textContent = txt;
           }
           // Quick setup -> fills the per-probability rows (Group / Items / Model holds) under Advanced.
           var itemsApplying = false;
