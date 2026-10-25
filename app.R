@@ -7400,7 +7400,7 @@ server <- shinyServer(function(input, output, session) {
             .fairy-items-opt.fairy-items-opt-sel { background:var(--ct-default, #fff); border-color:var(--fairy-primary, #3a6df0); }
             .fairy-items-viz { background:var(--ct-default, #fff); border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px; padding:8px 10px; }
             #fairy_items_diagram { max-height:520px; overflow-y:auto; }
-            #fairy_items_diagram svg { display:block; max-width:100%; height:auto; color:var(--fairy-text-muted); }
+            #fairy_items_diagram svg { display:block; max-width:100%; height:auto; margin:0 auto; color:var(--fairy-text-muted); }
             .modal:has(#submit_items_multi) .modal-dialog { width:95vw; max-width:1100px; }
             .modal:has(#submit_items_multi) .modal-footer { display:flex; justify-content:flex-end; align-items:center; }
             .modal:has(#submit_items_multi) #submit_items_multi { position:static; top:0; transform:none; }
