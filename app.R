@@ -7325,6 +7325,11 @@ server <- shinyServer(function(input, output, session) {
             tags$input(type = "radio", name = "fairy_items_quick_type", value = value, class = "fairy-items-quick-type",
               checked = if (identical(value, q_type)) "checked" else NULL),
             tags$span(tags$b(label), tags$span(expl)))
+        qh <- function(num, text, hint = NULL)
+          tags$div(style = "display:flex; align-items:baseline; gap:8px; margin:14px 0 6px;",
+            tags$span(style = "flex:none; width:20px; height:20px; border-radius:50%; background:var(--fairy-primary, #3a6df0); color:#fff; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; justify-content:center;", num),
+            tags$span(tags$strong(text, style = "font-size:13px;"),
+              if (!is.null(hint)) tags$span(HTML(hint), style = "display:block; font-size:11.5px; color:var(--fairy-text-muted);")))
         tags$div(class = "fairy-items-quick", `data-edit` = if (is_edit) "1" else "0", `data-custom` = if (adv_diff) "1" else "0", style = "margin-top:8px; padding:12px; border-radius:8px; background:var(--ct-diag);",
           tags$style(HTML("
             .fairy-items-main { display:grid; grid-template-columns: 1fr 1fr; gap:14px; align-items:start; }
@@ -7343,42 +7348,49 @@ server <- shinyServer(function(input, output, session) {
             .modal:has(#submit_items_multi) .modal-footer button { height:38px; box-sizing:border-box; padding:0 18px; margin:0 0 0 8px; display:inline-flex; align-items:center; justify-content:center; line-height:1; }
             .fairy-items-custom .fairy-items-main, .fairy-items-custom .fairy-items-nrow { opacity:.4; }
           ")),
-          tags$div(id = "fairy_items_custom_note", style = "display:none; margin-bottom:10px; padding:6px 10px; border-radius:6px; background:#fff4d6; color:#5c4300; font-size:12px;",
-            "Different item groups are used (see below). ",
-            tags$a(href = "#", id = "fairy_items_reset", style = "font-weight:600;", "Use the settings above for all probabilities")),
-          tags$div(class = "fairy-items-nrow", style = "display:flex; align-items:center; gap:8px; margin-bottom:12px;",
-            tags$strong("How many items?", style = "font-size:12.5px;"),
+          qh(1, "How many items?", "e.g. 3 different jokes"),
+          tags$div(class = "fairy-items-nrow", style = "margin:0 0 4px 28px;",
             tags$input(id = "fairy_items_quick_n", type = "number", min = 1, max = 50, step = 1, value = q_n,
               class = "form-control", style = "width:80px;", `aria-label` = "Number of items")),
+          qh(2, "Do all probabilities use the same items?"),
+          tags$div(style = "margin-left:28px;",
+            tags$label(style = "display:block; font-weight:normal; font-size:13px; margin:0 0 4px; cursor:pointer;",
+              tags$input(type = "radio", name = "fairy_items_two_choice", value = "same", class = "fairy-items-two-choice",
+                checked = if (adv_diff) NULL else "checked", style = "margin-right:6px;"), "Yes, the same items for all probabilities"),
+            tags$label(style = "display:block; font-weight:normal; font-size:13px; margin:0 0 4px; cursor:pointer;",
+              tags$input(type = "radio", name = "fairy_items_two_choice", value = "two", class = "fairy-items-two-choice",
+                checked = if (adv_diff) "checked" else NULL, style = "margin-right:6px;"),
+              "No, they come in two kinds ",
+              tags$span(style = "color:var(--fairy-text-muted); font-size:11.5px;", "(e.g. p1 and p2 use 3 jokes, p3 and p4 use 5 puns)")),
+            tags$div(id = "fairy_items_two_panel", style = paste0("margin-top:6px; padding:8px 10px; border-radius:8px; background:var(--ct-default, #fff); border:1px solid var(--fairy-border, #d5d9e4); ", if (adv_diff) "" else "display:none;"),
+              tags$div(style = "font-size:12px; color:var(--fairy-text-muted);",
+                "Click a probability to switch it between kind A and kind B. Each kind has its own number of items."),
+              tags$div(id = "fairy_items_chips", style = "display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;"),
+              tags$div(id = "fairy_items_sets", style = "margin:4px 0 2px;"))),
+          qh(3, "How should your model's comparisons (like p1 > p2) be applied to the items?"),
           tags$div(class = "fairy-items-main",
             tags$div(
-              tags$div(style = "font-size:12.5px; font-weight:600; margin-bottom:6px;", "How should your model's comparisons (like p1 > p2) be applied to the items?"),
               opt("joint", "Item by item", "Each item is checked on its own."),
               opt("substitutable", "Any item with any item", "Every combination of items is checked."),
               opt("identical", "All items the same", "A probability has the same value in every item."),
-              tags$div(id = "fairy_items_quick_eps_wrap", style = paste0("margin:2px 0 4px 26px; font-size:12px; ", if (identical(q_type, "identical")) "" else "display:none;"),
-                "may differ by up to ",
-                tags$input(id = "fairy_items_quick_eps", type = "number", min = 0, max = 1, step = 0.01, value = q_eps,
-                  class = "form-control", style = "width:76px; display:inline-block; height:26px; padding:2px 6px;", `aria-label` = "Allowed deviation"),
-                " (0 = exactly the same)"),
               opt("average", "Only the average", "Only the average over the items is checked.")
             ),
             tags$div(class = "fairy-items-viz",
               tags$div(id = "fairy_items_diagram", `aria-hidden` = "true"),
               tags$div(id = "fairy_items_caption", style = "font-size:12px; margin-top:6px;"),
               tags$div(style = "font-size:11px; color:var(--fairy-text-muted); margin-top:6px;",
-                HTML("<b>Rows</b>: your probabilities. <b>Columns</b>: your items (e.g. jokes). <b>Dot</b>: the probability for one item. <b style='color:var(--fairy-primary, #3a6df0);'>Line</b>: two probabilities are compared here, as your model says (e.g. p1 &gt; p2)."))
-            )
-          )
+                HTML("<b>Rows</b>: your probabilities. <b>Columns</b>: your items (e.g. jokes). <b>Dot</b>: the probability for one item. <b style='color:var(--fairy-primary, #3a6df0);'>Line</b>: two probabilities are compared here, as your model says (e.g. p1 &gt; p2).")))),
+          tags$div(id = "fairy_items_quick_eps_wrap", style = paste0(if (identical(q_type, "identical")) "" else "display:none;"),
+            qh(4, "How equal must the items be?"),
+            tags$div(style = "margin-left:28px; font-size:12.5px;",
+              "They may differ by up to ",
+              tags$input(id = "fairy_items_quick_eps", type = "number", min = 0, max = 1, step = 0.01, value = q_eps,
+                class = "form-control", style = "width:76px; display:inline-block; height:26px; padding:2px 6px;", `aria-label` = "Allowed deviation"),
+              " (0 = exactly equal)")),
+          tags$div(id = "fairy_items_summary", style = "margin-top:14px; padding:8px 10px; border-left:3px solid var(--fairy-primary, #3a6df0); background:var(--ct-default, #fff); border-radius:4px; font-size:12.5px;")
         )
       },
-      tags$details(open = if (adv_diff) NA else NULL, style = "margin-top:8px;",
-        tags$summary(id = "fairy_items_adv_summary", style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
-          "Do all probabilities use the same items?"),
-        tags$p(id = "fairy_items_adv_help", class = "fairy-eq-tol-help", style = "margin-top:6px;",
-          HTML("If yes, you are done. If some probabilities use <b>other items</b> than the rest, sort them into groups: probabilities in one group use the same items. Click a probability to move it to the next group.<br><i>Example: p1 and p2 use 3 jokes, p3 and p4 use 5 puns. Put p3 and p4 into group B and give each group its number of items.</i>")),
-        tags$div(id = "fairy_items_chips", style = "display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;"),
-        tags$div(id = "fairy_items_sets", style = "margin:6px 0 10px;"),
+      tags$div(style = "margin-top:12px;",
         tags$div(style = "display:none;",
       tags$div(
         id = "fairy-items-header-row",
@@ -7593,15 +7605,7 @@ server <- shinyServer(function(input, output, session) {
             var t = document.querySelector('.fairy-items-quick-type:checked');
             return !!t && (t.value === 'substitutable' || t.value === 'average');
           }
-          function chipsRender() {
-            var sum = document.getElementById('fairy_items_adv_summary'), hp = document.getElementById('fairy_items_adv_help');
-            var counts = itemsCountsMode();
-            if (sum) sum.textContent = counts ? 'Do all probabilities have the same number of items?' : 'Do all probabilities use the same items?';
-            if (hp) hp.innerHTML = counts
-              ? 'If yes, you are done. If not, enter the number of items for each probability.'
-              : 'If yes, you are done. If some probabilities use <b>other items</b> than the rest, sort them into groups: probabilities in one group use the same items. Click a probability to move it to the next group.<br><i>Example: p1 and p2 use 3 jokes, p3 and p4 use 5 puns. Put p3 and p4 into group B and give each group its number of items.</i>';
-            if (counts) chipsRenderCounts(); else chipsRenderGroups();
-          }
+          function chipsRender() { chipsRenderGroups(); }
           function chipsRenderCounts() {
             var ch = document.getElementById('fairy_items_chips'), sl = document.getElementById('fairy_items_sets');
             if (!ch || !sl) return;
@@ -7623,7 +7627,7 @@ server <- shinyServer(function(input, output, session) {
             chipState.asg.forEach(function(s, i) {
               var b = document.createElement('button');
               b.type = 'button'; b.className = 'fairy-chip'; b.setAttribute('data-p', i);
-              b.textContent = chipRowName(i) + ' ' + String.fromCharCode(183) + ' group ' + chipLet[s - 1];
+              b.textContent = chipRowName(i) + ' ' + String.fromCharCode(183) + ' kind ' + chipLet[s - 1];
               b.style.cssText = 'border:1.5px solid ' + chipPal[s - 1] + '; background:' + chipPal[s - 1] + '22; color:inherit; border-radius:14px; padding:3px 11px; font-size:12.5px; cursor:pointer;';
               ch.appendChild(b);
             });
@@ -7631,16 +7635,15 @@ server <- shinyServer(function(input, output, session) {
               var row = document.createElement('div');
               row.style.cssText = 'display:flex; align-items:center; gap:8px; margin:5px 0; flex-wrap:wrap;';
               var dot = document.createElement('span'); dot.style.cssText = 'width:12px; height:12px; border-radius:50%; background:' + chipPal[k] + '; display:inline-block;';
-              var lab = document.createElement('b'); lab.style.fontSize = '12.5px'; lab.textContent = 'Group ' + chipLet[k];
+              var lab = document.createElement('b'); lab.style.fontSize = '12.5px'; lab.textContent = 'Kind ' + chipLet[k];
               var members = chipState.asg.map(function(s, i) { return s === k + 1 ? chipRowName(i) : null; }).filter(Boolean).join(', ');
               var mem = document.createElement('span'); mem.style.cssText = 'font-size:12px; color:var(--fairy-text-muted);'; mem.textContent = '(' + members + ')';
               var inp = document.createElement('input'); inp.type = 'number'; inp.min = 1; inp.max = 50; inp.value = st.n; inp.className = 'form-control fairy-set-n';
-              inp.style.cssText = 'width:70px; height:28px; padding:2px 6px;'; inp.setAttribute('data-set', k); inp.setAttribute('aria-label', 'Items in group ' + chipLet[k]);
-              var it = document.createElement('span'); it.style.fontSize = '12.5px'; it.textContent = chipState.sets.length > 1 ? 'items; the model holds' : 'items';
+              inp.style.cssText = 'width:70px; height:28px; padding:2px 6px;'; inp.setAttribute('data-set', k); inp.setAttribute('aria-label', 'Items of kind ' + chipLet[k]);
+              var it = document.createElement('span'); it.style.fontSize = '12.5px'; it.textContent = 'items';
               var sel = document.createElement('select'); sel.className = 'form-control fairy-set-type'; sel.style.cssText = 'width:auto; height:28px; padding:2px 6px;'; sel.setAttribute('data-set', k);
               CHIP_TYPES.forEach(function(t) { var o = document.createElement('option'); o.value = t[0]; o.textContent = t[1]; if (t[0] === st.type) o.selected = true; sel.appendChild(o); });
               var parts = [dot, lab, mem, inp, it];
-              if (chipState.sets.length > 1) parts.push(sel);
               parts.forEach(function(e) { row.appendChild(e); });
               sl.appendChild(row);
             });
@@ -7651,8 +7654,9 @@ server <- shinyServer(function(input, output, session) {
             var epsEl = document.getElementById('fairy_items_quick_eps'), epsV = Math.min(1, Math.max(0, parseFloat(epsEl && epsEl.value) || 0));
             rows.forEach(function(row) { var g = row.querySelector('input[id^=items_multi_group_]'); if (g) { g.value = ''; $(g).trigger('input'); } });
             rows.forEach(function(row, i) { var st = chipState.sets[chipState.asg[i] - 1], nIn = row.querySelector('input[id^=items_multi_n_]'); if (nIn) { nIn.value = st.n; $(nIn).trigger('change'); } });
+            var gT = document.querySelector('.fairy-items-quick-type:checked'); gT = gT ? gT.value : 'joint';
             rows.forEach(function(row, i) {
-              var k = chipState.asg[i], st = chipState.sets[k - 1];
+              var k = chipState.asg[i], st = { n: chipState.sets[k - 1].n, type: gT };
               var gIn = row.querySelector('input[id^=items_multi_group_]'), sel = row.querySelector('select[id^=items_multi_type_]'), eIn = row.querySelector('input[id^=items_multi_eps_]');
               if (st.n > 1) {
                 if (sel) { if (sel.selectize) sel.selectize.setValue(st.type); else { sel.value = st.type; $(sel).trigger('change'); } }
@@ -7663,7 +7667,7 @@ server <- shinyServer(function(input, output, session) {
             syncGroupItems(null);
             updateAllItemsRows();
             itemsApplying = false;
-            markItemsCustom(chipState.sets.length > 1);
+            itemsSummary();
           }
           function chipsApplyCounts() {
             itemsApplying = true;
@@ -7686,10 +7690,16 @@ server <- shinyServer(function(input, output, session) {
             chipState.counts[i] = Math.max(1, Math.min(50, parseInt(this.value, 10) || 1));
             chipsApplyCounts();
           });
+          $(document).on('change', '.fairy-items-two-choice', function() {
+            var two = twoKinds(), p = document.getElementById('fairy_items_two_panel'), nEl = document.getElementById('fairy_items_quick_n');
+            if (p) p.style.display = two ? '' : 'none';
+            if (nEl) { nEl.disabled = two; nEl.parentNode.style.opacity = two ? '0.45' : ''; }
+            if (two) { chipsFromRows(); chipsRender(); chipsApply(); } else quickApply();
+          });
           $(document).on('click', '.fairy-chip', function() {
             var i = parseInt(this.getAttribute('data-p'), 10), cur = chipState.asg[i], mx = 0;
             chipState.asg.forEach(function(s, j) { if (j !== i && s > mx) mx = s; });
-            var nxt = cur + 1; if (nxt > mx + 1 || nxt > 6) nxt = 1;
+            var lim = Math.max(2, chipState.sets.length), nxt = cur + 1; if (nxt > mx + 1 || nxt > lim) nxt = 1;
             if (!chipState.sets[nxt - 1]) chipState.sets[nxt - 1] = { n: chipState.sets[0].n, type: chipState.sets[0].type };
             chipState.asg[i] = nxt; chipsCompact(); chipsRender(); chipsApply();
           });
@@ -7893,10 +7903,31 @@ server <- shinyServer(function(input, output, session) {
           }
           // Quick setup -> fills the per-probability rows (Group / Items / Model holds) under Advanced.
           var itemsApplying = false;
-          function markItemsCustom(on) {
-            var q = document.querySelector('.fairy-items-quick'), note = document.getElementById('fairy_items_custom_note');
-            if (q) q.classList.toggle('fairy-items-custom', on);
-            if (note) note.style.display = on ? '' : 'none';
+          function markItemsCustom(on) { }
+          function twoKinds() { var r = document.querySelector('.fairy-items-two-choice:checked'); return !!r && r.value === 'two'; }
+          function itemsSummary() {
+            var el = document.getElementById('fairy_items_summary'), tEl = document.querySelector('.fairy-items-quick-type:checked'), nEl = document.getElementById('fairy_items_quick_n');
+            if (!el || !tEl) return;
+            var words = { joint: 'item by item', substitutable: 'with any item against any item', identical: 'with all items the same', average: 'on the average over the items' };
+            var epsEl = document.getElementById('fairy_items_quick_eps'), epsV = parseFloat(epsEl && epsEl.value) || 0, parts;
+            if (twoKinds() && chipState.sets.length > 1) {
+              parts = chipState.sets.map(function(st, k) {
+                var mem = chipState.asg.map(function(g, i) { return g === k + 1 ? chipRowName(i) : null; }).filter(Boolean).join(', ');
+                return mem + ': ' + st.n + ' items';
+              }).join('; ');
+            } else parts = (parseInt(nEl && nEl.value, 10) || 1) + ' items';
+            el.textContent = 'Summary: your model is applied to ' + parts + ', ' + words[tEl.value] + (tEl.value === 'identical' && epsV > 0 ? ' (may differ by up to ' + epsV + ')' : '') + '.';
+          }
+          function quickChrome() {
+            document.querySelectorAll('.fairy-items-opt').forEach(function(t) {
+              var r = t.querySelector('input'); t.classList.toggle('fairy-items-opt-sel', !!(r && r.checked));
+            });
+            drawItemsDiagram();
+            var tEl = document.querySelector('.fairy-items-quick-type:checked'), wrap = document.getElementById('fairy_items_quick_eps_wrap');
+            if (wrap && tEl) wrap.style.display = tEl.value === 'identical' ? '' : 'none';
+          }
+          function quickDispatch() {
+            if (twoKinds()) { quickChrome(); chipsApply(); } else quickApply();
           }
           function quickApply() {
             itemsApplying = true;
@@ -7936,10 +7967,9 @@ server <- shinyServer(function(input, output, session) {
             syncGroupItems(null);
             updateAllItemsRows();
             itemsApplying = false;
-            markItemsCustom(false);
-            chipsFromRows(); chipsRender();
+            chipsFromRows(); chipsRender(); itemsSummary();
           }
-          $(document).on('input change', '.fairy-items-quick-type, #fairy_items_quick_n, #fairy_items_quick_eps', quickApply);
+          $(document).on('input change', '.fairy-items-quick-type, #fairy_items_quick_n, #fairy_items_quick_eps', quickDispatch);
           $(document).on('input change', '.fairy-items-row input', function(e) {
             if (!itemsApplying && e.originalEvent) markItemsCustom(true);
           });
@@ -7953,7 +7983,7 @@ server <- shinyServer(function(input, output, session) {
           // a new dialog starts from the defaults shown above (edit mode keeps the saved values)
           setTimeout(function() {
             var q = document.querySelector('.fairy-items-quick');
-            if (q && q.getAttribute('data-edit') !== '1') quickApply(); else { drawItemsDiagram(); chipsFromRows(); chipsRender(); }
+            if (q && q.getAttribute('data-edit') !== '1') quickApply(); else { drawItemsDiagram(); chipsFromRows(); chipsRender(); var two = chipState.sets.length > 1; if (two) { var rr = document.querySelector('.fairy-items-two-choice[value=two]'); if (rr) rr.checked = true; var pn = document.getElementById('fairy_items_two_panel'); if (pn) pn.style.display = ''; var n1 = document.getElementById('fairy_items_quick_n'); if (n1) { n1.disabled = true; n1.parentNode.style.opacity = '0.45'; } } quickChrome(); itemsSummary(); }
           }, 200);
           // Selectize finishes initializing asynchronously after this
           // script runs, so the very first pass (before it exists yet)
