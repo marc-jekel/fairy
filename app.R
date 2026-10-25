@@ -4973,7 +4973,7 @@ ui <- shinyUI(fluidPage(
             });
           });
           // comparisons between probabilities plus the bounds, as difference constraints (Floyd-Warshall)
-          var edges = [], vars = [];
+          var edges = [], vars = [], selfCmp = [];
           function addV(v) { if (vars.indexOf(v) < 0) vars.push(v); }
           function edge(f, t, w, st) { edges.push([f, t, w, st]); }
           spec.split(';').forEach(function(cl) {
@@ -4983,7 +4983,7 @@ ui <- shinyUI(fluidPage(
               if (op === '=') return;
               var a = opd[i], b = opd[i + 1], st = op.indexOf('=') < 0, lt = op.charAt(0) === '<';
               var va = /^p[0-9]+$/.test(a), vb = /^p[0-9]+$/.test(b);
-              if (va && vb) { addV(a); addV(b); if (lt) edge(b, a, 0, st); else edge(a, b, 0, st); }
+              if (va && vb) { addV(a); addV(b); if (a === b) { if (selfCmp.indexOf(a) < 0) selfCmp.push(a); } else if (lt) edge(b, a, 0, st); else edge(a, b, 0, st); }
               else if (va && !isNaN(num(b))) { addV(a); if (lt) edge('Z', a, num(b), st); else edge(a, 'Z', -num(b), st); }
               else if (vb && !isNaN(num(a))) { addV(b); if (lt) edge(b, 'Z', -num(a), st); else edge('Z', b, num(a), st); }
             });
@@ -5001,9 +5001,10 @@ ui <- shinyUI(fluidPage(
               var nd = D[i][k] + D[k][j], ns = S[i][k] || S[k][j];
               if (nd < D[i][j] - 1e-12 || (Math.abs(nd - D[i][j]) <= 1e-12 && ns && !S[i][j])) { D[i][j] = nd; S[i][j] = ns; }
             }
-            var bad = vars.filter(function(v) { var x = nodes.indexOf(v); return D[x][x] < -1e-12 || (Math.abs(D[x][x]) <= 1e-12 && S[x][x]); });
+            var bad = vars.filter(function(v) { var x = nodes.indexOf(v); return selfCmp.indexOf(v) < 0 && (D[x][x] < -1e-12 || (Math.abs(D[x][x]) <= 1e-12 && S[x][x])); });
             if (bad.length) graphMsg.push(bad.join(', ') + ' cannot satisfy all comparisons at once (empty set)');
           }
+          selfCmp.forEach(function(v) { graphMsg.push(v + ' is compared with itself - please check the chain (a typo?)'); });
           var out = [];
           Object.keys(lo).concat(Object.keys(hi)).filter(function(k, i, a) { return a.indexOf(k) === i; }).forEach(function(k) {
             var l = lo[k] || { v: 0, st: false }, h = hi[k] || { v: 1, st: false };
