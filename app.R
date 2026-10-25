@@ -7316,7 +7316,7 @@ server <- shinyServer(function(input, output, session) {
 
     showModal(modalDialog(
       title = NULL,
-      size = "m",
+      size = "l",
       class = "fairy-eq-tol-modal",
       tags$div(class = "fairy-eq-tol-header", tags$strong(if (is_edit) "Edit unpacking across items" else "Unpack across items")),
       tags$p(class = "fairy-eq-tol-help",
@@ -7352,7 +7352,10 @@ server <- shinyServer(function(input, output, session) {
               if (!is.null(hint)) tags$span(HTML(hint), style = "display:block; font-size:11.5px; color:var(--fairy-text-muted);")))
         tags$div(class = "fairy-items-quick", `data-edit` = if (is_edit) "1" else "0", `data-custom` = if (adv_diff) "1" else "0", style = "margin-top:8px; padding:12px; border-radius:8px; background:var(--ct-diag);",
           tags$style(HTML("
-            .fairy-items-main { display:grid; grid-template-columns: 1fr 1fr; gap:14px; align-items:start; }
+            .fairy-items-main { display:grid; grid-template-columns: 1fr 1.15fr; gap:22px; align-items:start; }
+            .modal:has(#submit_items_multi) .modal-body { padding:16px 26px; }
+            .fairy-items-opt { padding:8px 10px !important; margin-bottom:6px !important; }
+            #fairy_items_diagram svg { min-height:150px; }
             @media (max-width: 560px) { .fairy-items-main { grid-template-columns: 1fr; } }
             .fairy-items-opt { display:flex; gap:8px; align-items:flex-start; margin:0 0 4px; padding:6px 8px; border-radius:8px; cursor:pointer;
               font-weight:normal; border:1.5px solid transparent; }
@@ -7391,6 +7394,7 @@ server <- shinyServer(function(input, output, session) {
               tags$div(id = "fairy_items_chips", style = "display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;"),
               tags$div(id = "fairy_items_sets", style = "margin:4px 0 2px;"))),
           qh(3, "Your model holds \u2026", id = "fairy_items_q3_text"),
+          tags$div(id = "fairy_items_pairs_hint", style = "margin:-2px 0 8px 28px; font-size:11.5px; color:var(--fairy-text-muted);"),
           tags$div(class = "fairy-items-main",
             tags$div(
               opt("joint", "for each item separately", "item 1 with item 1, item 2 with item 2, \u2026"),
@@ -7989,6 +7993,11 @@ server <- shinyServer(function(input, output, session) {
             if (R[0].n <= 4) { var fp = []; for (var q3 = 1; q3 <= R[0].n; q3++) fp.push('1/' + R[0].n + ' ' + midDot + ' item ' + q3); avgFormula = fp.join(' + '); }
             else avgFormula = '(item 1 + ... + item ' + R[0].n + ') / ' + R[0].n;
             var cmpTxt = realPairs ? pairs0.map(function(p) { return chipRowName(p[0]) + ' > ' + (p[2] ? p[2] + ' ' + String.fromCharCode(183) + ' ' : '') + chipRowName(p[1]); }) : null;
+            var hintEl = document.getElementById('fairy_items_pairs_hint'), bmEl = document.getElementById('items_base_model'), bmName = bmEl ? bmEl.value : '';
+            if (hintEl) hintEl.textContent = realPairs
+              ? ('The comparisons and the picture are taken from your model' + (bmName ? ' ' + bmName : '') + '.')
+              : (Array.isArray(P0) ? 'Your model has no direct comparison between two probabilities, so the picture is only an example.'
+                : 'Example only. Run your model once with Go first, then the question and the picture show the comparisons of your own model.');
             var q3t = document.getElementById('fairy_items_q3_text');
             if (q3t) q3t.textContent = cmpTxt ? ('Your model (' + cmpTxt.slice(0, 4).join(', ') + (cmpTxt.length > 4 ? ', ...' : '') + ') holds ' + String.fromCharCode(8230)) : ('Your model holds ' + String.fromCharCode(8230));
             var pair = realPairs ? (cmpTxt.length === 1 ? ('the two probabilities in ' + cmpTxt[0]) : ('two of its probabilities (here ' + cmpTxt.slice(0, 2).join(' and ') + ')')) : 'two probabilities (for example ' + a + ' > ' + b + ')';
