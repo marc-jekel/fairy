@@ -7456,9 +7456,10 @@ server <- shinyServer(function(input, output, session) {
             ),
             tags$div(class = "fairy-items-viz",
               tags$div(id = "fairy_items_diagram", `aria-hidden` = "true"),
+              tags$div(id = "fairy_items_stmts", style = "margin-top:10px; padding:8px 10px; border:1px solid var(--ct-border, #d9dedb); border-radius:6px; background:var(--ct-default, #fff); font-size:12px;"),
               tags$div(id = "fairy_items_caption", style = "font-size:12px; margin-top:6px;"),
               tags$div(style = "font-size:11px; color:var(--fairy-text-muted); margin-top:6px;",
-                HTML("<b>Rows</b>: your probabilities. <b>Columns</b>: your items (e.g. jokes). <b>Dot</b>: the probability for one item. <b style='color:var(--fairy-primary, #3a6df0);'>Line</b>: a comparison that your model makes between two probabilities.<span id='fairy_items_sq_legend' hidden> <b>Square</b>: a sum of probabilities, e.g. p1+p2; its parts join into it (+).</span>")))),
+                HTML("<b>Rows</b>: your probabilities. <b>Columns</b>: your items (e.g. jokes). <b>Dot</b>: the probability for one item. <b style='color:var(--fairy-primary, #3a6df0);'>Line</b>: a comparison that your model makes between two probabilities.<span id='fairy_items_sq_legend' hidden> <b>Square</b>: a sum of probabilities, e.g. p1+p2; its parts join into it (+). A long <b>bar</b> instead of squares means: one item for each part, in every combination.</span>")))),
           tags$div(id = "fairy_items_quick_eps_wrap", style = paste0(if (identical(q_type, "identical")) "" else "display:none;"),
             qh(4, "Are the items of a probability exactly equal, or only approximately?"),
             tags$div(style = "margin-left:28px; font-size:12.5px;",
@@ -8092,6 +8093,10 @@ server <- shinyServer(function(input, output, session) {
                 if (same && r0.type === r1.type && (r0.type === 'joint' || r0.type === 'identical')) {
                   for (k = 0; k < Math.min(c0, c1); k++) el('line', { x1: X(k), y1: y0 + 7, x2: X(k), y2: y1 - 7 }, g);
                   for (k = 0; k < Math.min(c0, c1); k++) sign(X(k), (y0 + y1) / 2, ch);
+                } else if ((r0.virt && r0.type === 'substitutable') || (r1.virt && r1.type === 'substitutable')) {
+                  // a bar stands for every combination: straight lines, no crossing grid
+                  for (k = 0; k < Math.min(c0, c1); k++) el('line', { x1: X(k), y1: y0 + 7, x2: X(k), y2: y1 - 7 }, g);
+                  for (k = 0; k < Math.min(c0, c1); k++) sign(X(k), (y0 + y1) / 2, ch);
                 } else {
                   var many = c0 * c1 > 9;
                   for (k = 0; k < c0; k++) for (m = 0; m < c1; m++) el('line', { x1: X(k), y1: y0 + 7, x2: X(m), y2: y1 - 7, opacity: many ? '0.55' : '0.9', 'stroke-width': many ? '1' : '1.6' }, g);
@@ -8114,6 +8119,10 @@ server <- shinyServer(function(input, output, session) {
             });
             var gd = el('g', {}, svg);
             R.forEach(function(r, i) {
+              if (r.virt && r.type === 'substitutable' && cnt[i] > 0) {
+                el('rect', { x: X(0) - 9, y: ys[i] - 6.5, width: X(cnt[i] - 1) - X(0) + 18, height: 13, rx: 6.5, fill: 'var(--ct-default, #fff)', stroke: r.color || 'currentColor', 'stroke-width': '2' }, gd);
+                return;
+              }
               for (var q2 = 0; q2 < cols; q2++) {
                 if (q2 < cnt[i] && r.virt) el('rect', { x: X(q2) - 5.5, y: ys[i] - 5.5, width: 11, height: 11, rx: 2, fill: 'var(--ct-default, #fff)', stroke: r.color || 'currentColor', 'stroke-width': '2' }, gd);
                 else if (q2 < cnt[i]) el('circle', { cx: X(q2), cy: ys[i], r: 5, fill: r.color || 'currentColor' }, gd);
@@ -8153,7 +8162,58 @@ server <- shinyServer(function(input, output, session) {
               var hidden = []; for (var hz = 0; hz < nProb; hz++) if (idxs.indexOf(hz) < 0) hidden.push(chipRowName(hz));
               if (hidden.length) txt += ' Not shown: ' + hidden.join(', ') + ' (not compared directly by your model).';
             }
-            if (vN.length) txt += ' A sum such as ' + vN[0] + ' is drawn as a square: its parts join into it (+), and the square is compared as a whole.';
+            if (vN.length) txt += R.some(function(r) { return r.virt && r.type === 'substitutable'; })
+              ? ' A sum such as ' + vN[0] + ' is drawn as a bar: its parts join into it (+). The bar means one item for each part, in every combination.'
+              : ' A sum such as ' + vN[0] + ' is drawn as a square: its parts join into it (+), and the square is compared as a whole.';
+            // the statements that this setting makes out of the model, in plain notation
+            var stEl = document.getElementById('fairy_items_stmts');
+            if (stEl) {
+              var PPs = (Array.isArray(P0) && P0.length) ? P0 : [[0, 1, '', '', '']];
+              var LET = ['i', 'j', 'k', 'l', 'm', 'n'], OS = String.fromCharCode(216), DOT = String.fromCharCode(183), ELL = String.fromCharCode(8230);
+              var sRows = [], total = 0, shownAny = false;
+              PPs.slice(0, 5).forEach(function(p) {
+                var sides = [0, 1].map(function(si) {
+                  var sd = p[si], w = p[si + 3], ids = Array.isArray(sd) ? sd : [sd], ws = Array.isArray(w) ? w : [w];
+                  return ids.map(function(r, kk) { return { r: r, w: (ids.length > 1 && ws[kk] && ws[kk] !== '1') ? ws[kk] : '' }; });
+                });
+                var terms = sides[0].concat(sides[1]);
+                if (terms.some(function(t) { return t.r >= nProb; })) return;
+                var perList = {}, nextL = 0, count = 1, vars = [];
+                terms.forEach(function(t) { t.s = spec(t.r); (perList[t.s.list] = perList[t.s.list] || []).push(t); });
+                Object.keys(perList).forEach(function(lk) {
+                  var sl = perList[lk], ty = sl[0].s.type, n = sl[0].s.n;
+                  if (ty === 'joint') { var l1 = LET[nextL++]; sl.forEach(function(t) { t.ix = l1; }); count *= n; vars.push({ l: l1, n: n }); }
+                  else if (ty === 'substitutable') sl.forEach(function(t) { var l2 = LET[nextL++]; t.ix = l2; count *= n; vars.push({ l: l2, n: n }); });
+                  else if (ty === 'average') sl.forEach(function(t) { t.avg = true; });
+                });
+                var fmt = function(t) { return (t.w ? t.w + DOT : '') + (t.avg ? OS + ' ' : '') + nm(t.r) + (t.ix ? '(' + t.ix + ')' : ''); };
+                var hiT = sides[0].map(fmt).join(' + '), loT = sides[1].map(fmt).join(' + ');
+                if (p[2]) loT = p[2] + DOT + (sides[1].length > 1 ? '(' + loT + ')' : loT);
+                var allN = vars.every(function(v) { return v.n === vars[0].n; });
+                var forT = !vars.length ? (terms.some(function(t) { return t.avg; }) ? 'averages over the items' : 'all items of a probability equal')
+                  : (allN ? vars.map(function(v) { return v.l; }).join(', ') + ' = 1' + ELL + vars[0].n : vars.map(function(v) { return v.l + ' = 1' + ELL + v.n; }).join(', '));
+                total += count; shownAny = true;
+                sRows.push([hiT + ' > ' + loT, forT + ' ' + String.fromCharCode(8212) + ' ' + count + (count === 1 ? ' statement' : ' statements')]);
+              });
+              stEl.textContent = '';
+              stEl.hidden = !shownAny;
+              if (shownAny) {
+                var stH = document.createElement('div'); stH.style.cssText = 'font-weight:600; margin-bottom:4px;';
+                stH.textContent = (realPairs ? 'What this makes of your model' : 'What this would make of a model like p1 > p2');
+                stEl.appendChild(stH);
+                sRows.forEach(function(r) {
+                  var d = document.createElement('div'); d.style.cssText = 'margin:3px 0;';
+                  var a1 = document.createElement('div'); a1.style.cssText = 'font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px;'; a1.textContent = r[0];
+                  var b1 = document.createElement('div'); b1.style.cssText = 'font-size:11px; color:var(--fairy-text-muted);'; b1.textContent = r[1];
+                  d.appendChild(a1); d.appendChild(b1); stEl.appendChild(d);
+                });
+                if (sRows.length > 1 || PPs.length > 5) {
+                  var tt = document.createElement('div'); tt.style.cssText = 'margin-top:4px; font-size:11px; color:var(--fairy-text-muted);';
+                  tt.textContent = 'Together ' + total + ' statements' + (PPs.length > 5 ? ' (and more, ' + ELL + ')' : '') + (total > 1000 ? '. That is a lot, the model may become slow.' : '.');
+                  stEl.appendChild(tt);
+                }
+              }
+            }
             if (cap) cap.textContent = txt;
             var sqL = document.getElementById('fairy_items_sq_legend'); if (sqL) sqL.hidden = !vN.length;
           }
