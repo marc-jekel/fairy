@@ -7965,6 +7965,13 @@ server <- shinyServer(function(input, output, session) {
                     ordP.forEach(function(p) {
                       var u = arr.indexOf(p[0]), w = arr.indexOf(p[1]);
                       if (u < 0 || w < 0) return;
+                      if (p[3]) {
+                        // part of a sum: the parts sit together right above the sum, nothing else in between
+                        var parts = vM[p[1] - nProb] || [];
+                        if (u > w) cost += 3;
+                        for (var bb = Math.min(u, w) + 1; bb < Math.max(u, w); bb++) if (parts.indexOf(arr[bb]) < 0) cost += 10;
+                        return;
+                      }
                       if (Math.abs(u - w) > 1) cost += 10;
                       if (u > w) cost += 1;
                     });
