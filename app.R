@@ -7381,7 +7381,7 @@ server <- shinyServer(function(input, output, session) {
               tags$div(style = "font-size:11px; color:var(--fairy-text-muted); margin-top:6px;",
                 HTML("<b>Rows</b>: your probabilities. <b>Columns</b>: your items (e.g. jokes). <b>Dot</b>: the probability for one item. <b style='color:var(--fairy-primary, #3a6df0);'>Line</b>: two probabilities are compared here, as your model says (e.g. p1 &gt; p2).")))),
           tags$div(id = "fairy_items_quick_eps_wrap", style = paste0(if (identical(q_type, "identical")) "" else "display:none;"),
-            qh(4, "Exactly the same, or only roughly?", "e.g. 0.05 means: two items may be up to 0.05 apart"),
+            qh(4, "Exactly the same, or only approximately?", "e.g. 0.05 means: two items may be up to 0.05 apart"),
             tags$div(style = "margin-left:28px; font-size:12.5px;",
               "Allowed difference between items: ",
               tags$input(id = "fairy_items_quick_eps", type = "number", min = 0, max = 1, step = 0.01, value = q_eps,
