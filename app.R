@@ -7373,7 +7373,9 @@ server <- shinyServer(function(input, output, session) {
               opt("joint", "Item by item", "Each item is checked on its own."),
               opt("substitutable", "Any item with any item", "Every combination of items is checked."),
               opt("identical", "All items the same", "A probability has the same value in every item."),
-              opt("average", "Only the average", "Only the average over the items is checked.")
+              opt("average", "Only the average", "Only the average over the items is checked."),
+              tags$div(id = "fairy_items_perlist_wrap", style = "display:none;",
+                opt("perlist", "Different for each list", "Choose it separately for every item list in question 2."))
             ),
             tags$div(class = "fairy-items-viz",
               tags$div(id = "fairy_items_diagram", `aria-hidden` = "true"),
@@ -7647,11 +7649,11 @@ server <- shinyServer(function(input, output, session) {
               var sel = document.createElement('select'); sel.className = 'form-control fairy-set-type'; sel.style.cssText = 'width:auto; height:28px; padding:2px 6px;'; sel.setAttribute('data-set', k);
               CHIP_TYPES.forEach(function(t) { var o = document.createElement('option'); o.value = t[0]; o.textContent = t[1]; if (t[0] === st.type) o.selected = true; sel.appendChild(o); });
               var parts = [dot, lab, mem, inp, it];
-              if (chipState.sets.some(function(x) { return x.over; })) {
+              var curT = document.querySelector('.fairy-items-quick-type:checked');
+              if (curT && curT.value === 'perlist') {
                 var ov = document.createElement('select'); ov.className = 'form-control fairy-set-over'; ov.style.cssText = 'width:auto; height:28px; padding:2px 6px; font-size:12px;'; ov.setAttribute('data-set', k);
                 ov.setAttribute('aria-label', 'How the model is applied to list ' + chipLetter(k));
-                var o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'applied as in 3 below'; ov.appendChild(o0);
-                CHIP_TYPES.forEach(function(t) { var o = document.createElement('option'); o.value = t[0]; o.textContent = t[1]; if (t[0] === st.over) o.selected = true; ov.appendChild(o); });
+                CHIP_TYPES.forEach(function(t) { var o = document.createElement('option'); o.value = t[0]; o.textContent = t[1]; if (t[0] === (st.over || 'joint')) o.selected = true; ov.appendChild(o); });
                 parts.push(ov);
               }
               parts.forEach(function(e) { row.appendChild(e); });
@@ -7705,7 +7707,8 @@ server <- shinyServer(function(input, output, session) {
             var two = twoKinds(), p = document.getElementById('fairy_items_two_panel'), nEl = document.getElementById('fairy_items_quick_n');
             if (p) p.style.display = two ? '' : 'none';
             if (nEl) { nEl.disabled = two; nEl.parentNode.style.opacity = two ? '0.45' : ''; }
-            if (two) { chipsFromRows(); chipsRender(); chipsApply(); } else quickApply();
+            if (!two) { var cur = document.querySelector('.fairy-items-quick-type:checked'); if (cur && cur.value === 'perlist') { var jr2 = document.querySelector('.fairy-items-quick-type[value=joint]'); if (jr2) jr2.checked = true; } }
+            if (two) { chipsFromRows(); chipsRender(); quickChrome(); chipsApply(); } else quickApply();
           });
           $(document).on('click', '.fairy-chip', function() {
             var i = parseInt(this.getAttribute('data-p'), 10), cur = chipState.asg[i], mx = 0;
@@ -7721,7 +7724,7 @@ server <- shinyServer(function(input, output, session) {
             var k = parseInt(this.getAttribute('data-set'), 10); chipState.sets[k].type = this.value; chipsApply();
           });
           $(document).on('change', '.fairy-set-over', function() {
-            var k = parseInt(this.getAttribute('data-set'), 10); chipState.sets[k].over = this.value; chipsApply();
+            var k = parseInt(this.getAttribute('data-set'), 10); chipState.sets[k].over = this.value; quickChrome(); chipsApply();
           });
           // Picture of the table below: one row per probability, one dot per item, same colour = same item set.
           function drawRowsDiagram() {
@@ -7834,7 +7837,7 @@ server <- shinyServer(function(input, output, session) {
             var tEl = document.querySelector('.fairy-items-quick-type:checked');
             var nEl = document.getElementById('fairy_items_quick_n');
             if (!host || !tEl) return;
-            var gType = tEl.value;
+            var gType = tEl.value === 'perlist' ? 'joint' : tEl.value;
             var two = twoKinds() && chipState.sets && chipState.sets.length > 1 && chipState.asg.length > 1;
             var n0 = Math.max(1, Math.min(50, parseInt(nEl && nEl.value, 10) || 1));
             function spec(i) {
@@ -7927,6 +7930,7 @@ server <- shinyServer(function(input, output, session) {
           // Quick setup -> fills the per-probability rows (Group / Items / Model holds) under Advanced.
           var itemsApplying = false;
           function markItemsCustom(on) { }
+          var lastGlobalType = 'joint';
           function twoKinds() { var r = document.querySelector('.fairy-items-two-choice:checked'); return !!r && r.value === 'two'; }
           function itemsSummary() {
             var el = document.getElementById('fairy_items_summary'), tEl = document.querySelector('.fairy-items-quick-type:checked'), nEl = document.getElementById('fairy_items_quick_n');
@@ -7939,7 +7943,7 @@ server <- shinyServer(function(input, output, session) {
                 return mem + ': ' + st.n + ' items' + (st.over ? ' (' + words[st.over] + ')' : '');
               }).join('; ');
             } else parts = (parseInt(nEl && nEl.value, 10) || 1) + ' items';
-            el.textContent = 'Summary: your model is applied to ' + parts + ', ' + words[tEl.value] + (tEl.value === 'identical' && epsV > 0 ? ' (may differ by up to ' + epsV + ')' : '') + '.';
+            el.textContent = 'Summary: your model is applied to ' + parts + (tEl.value === 'perlist' ? '' : ', ' + words[tEl.value]) + (tEl.value === 'identical' && epsV > 0 ? ' (may differ by up to ' + epsV + ')' : '') + '.';
           }
           function quickChrome() {
             document.querySelectorAll('.fairy-items-opt').forEach(function(t) {
@@ -7947,10 +7951,22 @@ server <- shinyServer(function(input, output, session) {
             });
             drawItemsDiagram();
             var tEl = document.querySelector('.fairy-items-quick-type:checked'), wrap = document.getElementById('fairy_items_quick_eps_wrap');
-            if (wrap && tEl) wrap.style.display = tEl.value === 'identical' ? '' : 'none';
+            var anyIdent = tEl && (tEl.value === 'identical' || (tEl.value === 'perlist' && chipState.sets.some(function(x) { return x.over === 'identical'; })));
+            if (wrap) wrap.style.display = anyIdent ? '' : 'none';
+            var pw = document.getElementById('fairy_items_perlist_wrap');
+            if (pw) pw.style.display = twoKinds() ? '' : 'none';
           }
           function quickDispatch() {
-            if (twoKinds()) { quickChrome(); chipsApply(); } else quickApply();
+            var tv = document.querySelector('.fairy-items-quick-type:checked');
+            tv = tv ? tv.value : 'joint';
+            if (twoKinds()) {
+              chipState.sets.forEach(function(st) { if (tv === 'perlist') { if (!st.over) st.over = lastGlobalType; } else st.over = ''; });
+              if (tv !== 'perlist') lastGlobalType = tv;
+              chipsRender(); quickChrome(); chipsApply();
+            } else {
+              if (tv === 'perlist') { var jr = document.querySelector('.fairy-items-quick-type[value=joint]'); if (jr) jr.checked = true; }
+              quickApply();
+            }
           }
           function quickApply() {
             itemsApplying = true;
@@ -8006,7 +8022,7 @@ server <- shinyServer(function(input, output, session) {
           // a new dialog starts from the defaults shown above (edit mode keeps the saved values)
           setTimeout(function() {
             var q = document.querySelector('.fairy-items-quick');
-            if (q && q.getAttribute('data-edit') !== '1') quickApply(); else { drawItemsDiagram(); chipsFromRows(); chipsRender(); var two = chipState.sets.length > 1; if (two) { var rr = document.querySelector('.fairy-items-two-choice[value=two]'); if (rr) rr.checked = true; var pn = document.getElementById('fairy_items_two_panel'); if (pn) pn.style.display = ''; var n1 = document.getElementById('fairy_items_quick_n'); if (n1) { n1.disabled = true; n1.parentNode.style.opacity = '0.45'; } } quickChrome(); itemsSummary(); }
+            if (q && q.getAttribute('data-edit') !== '1') quickApply(); else { drawItemsDiagram(); chipsFromRows(); chipsRender(); var two = chipState.sets.length > 1; if (two) { var rr = document.querySelector('.fairy-items-two-choice[value=two]'); if (rr) rr.checked = true; var pn = document.getElementById('fairy_items_two_panel'); if (pn) pn.style.display = ''; var n1 = document.getElementById('fairy_items_quick_n'); if (n1) { n1.disabled = true; n1.parentNode.style.opacity = '0.45'; } } if (chipState.sets.some(function(x) { return x.over; })) { var pr = document.querySelector('.fairy-items-quick-type[value=perlist]'); if (pr) pr.checked = true; } chipsRender(); quickChrome(); itemsSummary(); }
           }, 200);
           // Selectize finishes initializing asynchronously after this
           // script runs, so the very first pass (before it exists yet)
