@@ -7365,7 +7365,9 @@ server <- shinyServer(function(input, output, session) {
             .fairy-items-opt:hover { background:rgba(120,140,200,.10); }
             .fairy-items-opt.fairy-items-opt-sel { background:var(--ct-default, #fff); border-color:var(--fairy-primary, #3a6df0); }
             .fairy-items-viz { background:var(--ct-default, #fff); border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px; padding:8px 10px; }
+            #fairy_items_diagram { max-height:520px; overflow-y:auto; }
             #fairy_items_diagram svg { display:block; max-width:100%; height:auto; color:var(--fairy-text-muted); }
+            .modal:has(#submit_items_multi) .modal-dialog { width:95vw; max-width:1100px; }
             .modal:has(#submit_items_multi) .modal-footer { display:flex; justify-content:flex-end; align-items:center; }
             .modal:has(#submit_items_multi) #submit_items_multi { position:static; top:0; transform:none; }
             .modal:has(#submit_items_multi) .modal-footer button { height:38px; box-sizing:border-box; padding:0 18px; margin:0 0 0 8px; display:inline-flex; align-items:center; justify-content:center; line-height:1; }
@@ -7878,7 +7880,6 @@ server <- shinyServer(function(input, output, session) {
             if (realPairs) {
               var inv = [];
               pairs0.forEach(function(p) { [p[0], p[1]].forEach(function(v) { if (inv.indexOf(v) < 0) inv.push(v); }); });
-              inv = inv.slice(0, 12);
               // order the rows so that compared probabilities sit next to each other, larger ones on top where possible
               var best = null, bestCost = Infinity;
               if (inv.length <= 7) {
@@ -7910,14 +7911,15 @@ server <- shinyServer(function(input, output, session) {
                 best = order;
               }
               inv = best || inv;
-              idxs = inv.slice(0, 12);
+              idxs = inv.slice();
+              for (var zz = 0; zz < nProb; zz++) if (idxs.indexOf(zz) < 0) idxs.push(zz);
               pdisp = pairs0.map(function(p) { return [idxs.indexOf(p[0]), idxs.indexOf(p[1])]; }).filter(function(q) { return q[0] >= 0 && q[1] >= 0; });
             } else {
               idxs = []; for (var z = 0; z < Math.min(2, nProb); z++) idxs.push(z);
               pdisp = [[0, 1]];
             }
             var nRows = idxs.length, R = idxs.map(function(i) { return spec(i); });
-            var MAXC = 5, dx = 46, x0 = 92, rowGap = R.length > 6 ? 34 : 52, ys = R.map(function(r, i) { return 44 + i * rowGap; }), H = ys[ys.length - 1] + 40;
+            var MAXC = 5, dx = 46, x0 = 92, rowGap = R.length > 6 ? Math.max(26, Math.round(300 / R.length)) : 52, ys = R.map(function(r, i) { return 44 + i * rowGap; }), H = ys[ys.length - 1] + 40;
             var cnt = R.map(function(r) { return Math.min(r.n, MAXC); });
             var cols = Math.max.apply(null, cnt), more = R.some(function(r) { return r.n > MAXC; });
             var hasAvg = R.some(function(r) { return r.type === 'average'; });
@@ -7968,7 +7970,7 @@ server <- shinyServer(function(input, output, session) {
               var q = Math.min(pp[0], pp[1]), q2 = Math.max(pp[0], pp[1]), ch = pp[0] > pp[1] ? '<' : '>';
               var r0 = R[q], r1 = R[q2], same = r0.list === r1.list, y0 = ys[q], y1 = ys[q2], c0 = cnt[q], c1 = cnt[q2];
               if (q2 - q > 1) {
-                var xr = X(cols - 1) + 30 + 8 * (q2 - q);
+                var xr = X(cols - 1) + 30 + Math.min(8 * (q2 - q), 60);
                 el('path', { d: 'M' + (X(cnt[q] - 1) + 7) + ' ' + y0 + ' C ' + xr + ' ' + y0 + ' ' + xr + ' ' + y1 + ' ' + (X(cnt[q2] - 1) + 7) + ' ' + y1, 'stroke-dasharray': '4 3' }, g);
                 sign(xr - 4, (y0 + y1) / 2, ch);
               } else if (anchor[q].grid && anchor[q2].grid) {
