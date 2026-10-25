@@ -7878,32 +7878,46 @@ server <- shinyServer(function(input, output, session) {
             if (realPairs) {
               var inv = [];
               pairs0.forEach(function(p) { [p[0], p[1]].forEach(function(v) { if (inv.indexOf(v) < 0) inv.push(v); }); });
-              inv = inv.slice(0, 5);
+              inv = inv.slice(0, 12);
               // order the rows so that compared probabilities sit next to each other, larger ones on top where possible
               var best = null, bestCost = Infinity;
-              (function perm(arr, rest) {
-                if (!rest.length) {
-                  var cost = 0;
-                  pairs0.forEach(function(p) {
-                    var u = arr.indexOf(p[0]), w = arr.indexOf(p[1]);
-                    if (u < 0 || w < 0) return;
-                    if (Math.abs(u - w) > 1) cost += 10;
-                    if (u > w) cost += 1;
-                  });
-                  if (cost < bestCost) { bestCost = cost; best = arr.slice(); }
-                  return;
+              if (inv.length <= 7) {
+                (function perm(arr, rest) {
+                  if (!rest.length) {
+                    var cost = 0;
+                    pairs0.forEach(function(p) {
+                      var u = arr.indexOf(p[0]), w = arr.indexOf(p[1]);
+                      if (u < 0 || w < 0) return;
+                      if (Math.abs(u - w) > 1) cost += 10;
+                      if (u > w) cost += 1;
+                    });
+                    if (cost < bestCost) { bestCost = cost; best = arr.slice(); }
+                    return;
+                  }
+                  for (var ii = 0; ii < rest.length; ii++) perm(arr.concat([rest[ii]]), rest.slice(0, ii).concat(rest.slice(ii + 1)));
+                })([], inv);
+              } else {
+                // many probabilities: larger ones first (topological order), ties by position in the model
+                var indeg = {}, left = inv.slice(), order = [];
+                inv.forEach(function(v) { indeg[v] = 0; });
+                pairs0.forEach(function(p) { if (indeg[p[1]] !== undefined) indeg[p[1]]++; });
+                while (left.length) {
+                  var pick = left.filter(function(v) { return indeg[v] === 0; })[0];
+                  if (pick === undefined) pick = left[0];
+                  order.push(pick); left = left.filter(function(v) { return v !== pick; });
+                  pairs0.forEach(function(p) { if (p[0] === pick && indeg[p[1]] !== undefined) indeg[p[1]]--; });
                 }
-                for (var ii = 0; ii < rest.length; ii++) perm(arr.concat([rest[ii]]), rest.slice(0, ii).concat(rest.slice(ii + 1)));
-              })([], inv);
+                best = order;
+              }
               inv = best || inv;
-              idxs = inv.slice(0, 5);
+              idxs = inv.slice(0, 12);
               pdisp = pairs0.map(function(p) { return [idxs.indexOf(p[0]), idxs.indexOf(p[1])]; }).filter(function(q) { return q[0] >= 0 && q[1] >= 0; });
             } else {
               idxs = []; for (var z = 0; z < Math.min(2, nProb); z++) idxs.push(z);
               pdisp = [[0, 1]];
             }
             var nRows = idxs.length, R = idxs.map(function(i) { return spec(i); });
-            var MAXC = 5, dx = 46, x0 = 92, ys = R.map(function(r, i) { return 44 + i * 52; }), H = ys[ys.length - 1] + 40;
+            var MAXC = 5, dx = 46, x0 = 92, rowGap = R.length > 6 ? 34 : 52, ys = R.map(function(r, i) { return 44 + i * rowGap; }), H = ys[ys.length - 1] + 40;
             var cnt = R.map(function(r) { return Math.min(r.n, MAXC); });
             var cols = Math.max.apply(null, cnt), more = R.some(function(r) { return r.n > MAXC; });
             var hasAvg = R.some(function(r) { return r.type === 'average'; });
