@@ -7394,8 +7394,8 @@ server <- shinyServer(function(input, output, session) {
               checked = if (identical(value, q_type)) "checked" else NULL),
             tags$span(tags$b(label), tags$span(expl)))
         qh <- function(num, text, hint = NULL, id = NULL)
-          tags$div(style = "display:flex; align-items:baseline; gap:8px; margin:14px 0 6px;",
-            tags$span(style = "flex:none; width:20px; height:20px; border-radius:50%; background:var(--fairy-primary, #3a6df0); color:#fff; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; justify-content:center;", num),
+          tags$div(class = "fairy-items-q", style = "display:flex; align-items:baseline; gap:8px; margin:14px 0 6px;",
+            tags$span(class = "fairy-items-num", style = "flex:none; width:20px; height:20px; border-radius:50%; background:var(--fairy-primary, #3a6df0); color:#fff; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; justify-content:center;", num),
             tags$span(tags$strong(id = id, text, style = "font-size:13px;"),
               if (!is.null(hint)) tags$span(HTML(hint), style = "display:block; font-size:11.5px; color:var(--fairy-text-muted);")))
         tags$div(class = "fairy-items-quick", `data-edit` = if (is_edit) "1" else "0", `data-custom` = if (adv_diff) "1" else "0", style = "margin-top:8px; padding:12px; border-radius:8px; background:var(--ct-diag);",
@@ -7420,6 +7420,20 @@ server <- shinyServer(function(input, output, session) {
             .modal:has(#submit_items_multi) #submit_items_multi { position:static; top:0; transform:none; }
             .modal:has(#submit_items_multi) .modal-footer button { height:38px; box-sizing:border-box; padding:0 18px; margin:0 0 0 8px; display:inline-flex; align-items:center; justify-content:center; line-height:1; }
             .fairy-items-custom .fairy-items-main, .fairy-items-custom .fairy-items-nrow { opacity:.4; }
+            /* calm look: one plain surface, no boxes inside boxes */
+            .fairy-items-quick { background:transparent !important; padding:0 !important; margin-top:4px !important; }
+            .fairy-items-quick .fairy-items-q { margin:26px 0 10px !important; }
+            .fairy-items-quick > .fairy-items-q:first-of-type { margin-top:10px !important; }
+            .fairy-items-quick .fairy-items-q strong { font-size:14px !important; font-weight:600; }
+            .fairy-items-quick .fairy-items-num { background:transparent !important; color:var(--fairy-primary, #3a6df0) !important; border:1.5px solid var(--fairy-primary, #3a6df0); width:19px !important; height:19px !important; font-size:11px !important; }
+            .fairy-items-main { gap:30px; }
+            .fairy-items-opt { border-color:transparent !important; padding:9px 12px !important; margin-bottom:4px !important; }
+            .fairy-items-opt.fairy-items-opt-sel { background:rgba(58,109,240,.09) !important; border-color:transparent !important; }
+            .fairy-items-viz { background:transparent !important; border:0 !important; padding:0 !important; }
+            #fairy_items_stmts { border:0 !important; border-top:1px solid var(--fairy-border, #d5d9e4) !important; border-radius:0 !important; background:transparent !important; padding:12px 0 0 !important; margin-top:16px !important; }
+            #fairy_items_caption { color:var(--fairy-text-muted); margin-top:10px !important; }
+            #fairy_items_summary { border-left:0 !important; background:transparent !important; padding:0 !important; color:var(--fairy-text-muted); font-size:12px !important; margin-top:22px !important; }
+            .modal:has(#submit_items_multi) .modal-body { padding:20px 30px !important; }
           ")),
           qh(1, "Do all probabilities use the same items?"),
           tags$div(style = "margin-left:28px;",
@@ -7459,7 +7473,7 @@ server <- shinyServer(function(input, output, session) {
               tags$div(id = "fairy_items_stmts", style = "margin-top:10px; padding:8px 10px; border:1px solid var(--ct-border, #d9dedb); border-radius:6px; background:var(--ct-default, #fff); font-size:12px;"),
               tags$div(id = "fairy_items_caption", style = "font-size:12px; margin-top:6px;"),
               tags$div(style = "font-size:11px; color:var(--fairy-text-muted); margin-top:6px;",
-                HTML("&#9679; one probability for one item &nbsp;&middot;&nbsp; <b style='color:var(--fairy-primary, #3a6df0);'>&#8593;</b> arrow points to the larger probability<span id='fairy_items_sq_legend' hidden> &nbsp;&middot;&nbsp; &#9645; a sum; its parts join into it</span>")))),
+                HTML("&#9679; one probability for one item &nbsp;&middot;&nbsp; <b style='color:var(--fairy-primary, #3a6df0);'>&#8593;</b> arrow points to the larger probability<span id='fairy_items_sq_legend' hidden> &nbsp;&middot;&nbsp; grey line: part of a sum</span>")))),
           tags$div(id = "fairy_items_quick_eps_wrap", style = paste0(if (identical(q_type, "identical")) "" else "display:none;"),
             qh(4, "Are the items of a probability exactly equal, or only approximately?"),
             tags$div(style = "margin-left:28px; font-size:12.5px;",
@@ -8003,7 +8017,19 @@ server <- shinyServer(function(input, output, session) {
               pdisp = [[0, 1]];
             }
             var nRows = idxs.length, R = idxs.map(function(i) { return spec(i); });
-            var MAXC = 3, dx = 46, x0 = Math.max(92, Math.round(14 + 6.3 * Math.max.apply(null, R.map(function(r) { return r.name.length; })))), rowGap = R.length > 6 ? Math.max(26, Math.round(300 / R.length)) : 52, ys = R.map(function(r, i) { return 44 + i * rowGap; }), H = ys[ys.length - 1] + 40;
+            // rows that are parts of a sum read as a calculation: p1, + 3x p2, = 2*p1+3*p2
+            var partOf = {};
+            vM.forEach(function(ms, vi) { ms.forEach(function(mm, kk) { if (partOf[mm] === undefined) partOf[mm] = { v: vi, w: vW[vi][kk] }; else partOf[mm].amb = true; }); });
+            var labs = R.map(function(r, i) {
+              if (r.virt) return '= ' + r.name;
+              var po = partOf[idxs[i]];
+              if (!po || po.amb) return r.name;
+              var wtxt = (po.w && po.w !== '1') ? po.w + String.fromCharCode(215) + ' ' : '';
+              var first = true;
+              for (var t = 0; t < i; t++) { var pj = partOf[idxs[t]]; if (pj && !pj.amb && pj.v === po.v) { first = false; break; } }
+              return (first ? '' : '+ ') + wtxt + r.name;
+            });
+            var MAXC = 3, dx = 58, x0 = Math.max(96, Math.round(18 + 7 * Math.max.apply(null, labs.map(function(l) { return l.length; })))), rowGap = R.length > 6 ? Math.max(30, Math.round(300 / R.length)) : 46, ys = R.map(function(r, i) { return 46 + i * rowGap; }), H = ys[ys.length - 1] + 34;
             var cnt = R.map(function(r) { return Math.min(r.n, MAXC); });
             var cols = Math.max.apply(null, cnt), more = R.some(function(r) { return r.n > MAXC; });
             var hasAvg = R.some(function(r) { return r.type === 'average'; });
@@ -8018,15 +8044,18 @@ server <- shinyServer(function(input, output, session) {
             }
             function X(j) { return x0 + j * dx; }
             host.textContent = '';
-            var svg = el('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H }, host);
+            var svg = el('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, style: 'display:block; margin:0 auto; max-width:100%;' }, host);
             var defs = el('defs', {}, svg), mkr = el('marker', { id: 'fairyArrow', markerWidth: 9, markerHeight: 9, refX: 8, refY: 4.5, orient: 'auto-start-reverse', markerUnits: 'userSpaceOnUse' }, defs);
             el('path', { d: 'M1 1 L8 4.5 L1 8 Z', fill: 'var(--fairy-primary, #3a6df0)', stroke: 'none' }, mkr);
-            var gt = el('g', { fill: 'currentColor', 'font-size': '10.5' }, svg);
-            for (var j = 0; j < cols; j++) { var th = el('text', { x: X(j), y: 14, 'text-anchor': 'middle' }, gt); th.textContent = 'item ' + (j + 1); }
+            R.forEach(function(r, i) {
+              el('rect', { x: 0, y: ys[i] - 19, width: W, height: 38, rx: 10, fill: r.virt ? 'var(--fairy-primary, #3a6df0)' : 'currentColor', opacity: r.virt ? '0.09' : '0.05' }, svg);
+            });
+            var gt = el('g', { fill: 'currentColor', 'font-size': '11' }, svg);
+            for (var j = 0; j < cols; j++) { var th = el('text', { x: X(j), y: 15, 'text-anchor': 'middle', opacity: '0.7' }, gt); th.textContent = 'item ' + (j + 1); }
             if (more) ys.concat([0]).slice(0, -1).forEach(function(yy) { var d = el('text', { x: X(cols - 1) + 30, y: yy + 4, 'text-anchor': 'middle' }, gt); d.textContent = String.fromCharCode(8230); });
             R.forEach(function(r, i) {
-              var l = el('text', { x: 0, y: ys[i] + 4, 'font-weight': '600' }, gt); l.textContent = r.name;
-              if (r.tag) { var l2 = el('text', { x: 0, y: ys[i] + 17, 'font-size': '9.5', fill: r.color }, svg); l2.textContent = r.tag.replace(' - ', ''); }
+              var l = el('text', { x: 12, y: ys[i] + (r.tag ? 0 : 4), 'font-weight': '600', 'font-size': '12.5' }, gt); l.textContent = labs[i];
+              if (r.tag) { var l2 = el('text', { x: 12, y: ys[i] + 13, 'font-size': '9.5', fill: r.color }, svg); l2.textContent = r.tag.replace(' - ', ''); }
             });
             var BL = 'var(--fairy-primary, #3a6df0)';
             var g = el('g', { fill: 'none', stroke: BL, 'stroke-width': '2', 'stroke-linecap': 'round' }, svg);
@@ -8058,15 +8087,13 @@ server <- shinyServer(function(input, output, session) {
               var r0 = R[q], r1 = R[q2], same = r0.list === r1.list, y0 = ys[q], y1 = ys[q2], c0 = cnt[q], c1 = cnt[q2];
               if (pp[3] && !anchor[q].grid && !anchor[q2].grid) {
                 // average mode: the averages of the parts join straight into the average of the sum
-                el('line', { x1: anchor[q].x, y1: y0 + 8, x2: anchor[q2].x, y2: y1 - 8 }, g);
-                sign(anchor[q].x, y0 + (ys[q + 1] - ys[q]) / 2, pp[2] || '+');
+                el('line', { x1: anchor[q].x, y1: y0 + 8, x2: anchor[q2].x, y2: y1 - 8, stroke: 'currentColor', opacity: '0.35', 'stroke-width': '1.6' }, g);
                 return;
               }
               if (pp[3] && anchor[q].grid && anchor[q2].grid) {
                 // parts of a sum: one straight line down from each part to the square, in every column (dots sit on the line)
                 for (k = 0; k < Math.min(c0, c1); k++) {
-                  el('line', { x1: X(k), y1: y0 + 7, x2: X(k), y2: y1 - 7 }, g);
-                  sign(X(k), y0 + (ys[q + 1] - ys[q]) / 2, pp[2] || '+');
+                  el('line', { x1: X(k), y1: y0 + 8, x2: X(k), y2: y1 - 8, stroke: 'currentColor', opacity: '0.35', 'stroke-width': '1.6' }, g);
                 }
                 return;
               }
@@ -8137,9 +8164,9 @@ server <- shinyServer(function(input, output, session) {
                 return;
               }
               for (var q2 = 0; q2 < cols; q2++) {
-                if (q2 < cnt[i] && r.virt) el('rect', { x: X(q2) - 5.5, y: ys[i] - 5.5, width: 11, height: 11, rx: 2, fill: 'var(--ct-default, #fff)', stroke: r.color || 'currentColor', 'stroke-width': '2' }, gd);
-                else if (q2 < cnt[i]) el('circle', { cx: X(q2), cy: ys[i], r: 5, fill: r.color || 'currentColor' }, gd);
-                else el('circle', { cx: X(q2), cy: ys[i], r: 4.5, fill: 'none', stroke: 'currentColor', 'stroke-dasharray': '2 2', opacity: '0.35' }, gd);
+                if (q2 < cnt[i] && r.virt) el('rect', { x: X(q2) - 6.5, y: ys[i] - 6.5, width: 13, height: 13, rx: 3, fill: 'var(--ct-default, #fff)', stroke: r.color || 'currentColor', 'stroke-width': '2' }, gd);
+                else if (q2 < cnt[i]) el('circle', { cx: X(q2), cy: ys[i], r: 6.5, fill: r.color || 'currentColor' }, gd);
+                else el('circle', { cx: X(q2), cy: ys[i], r: 5.5, fill: 'none', stroke: 'currentColor', 'stroke-dasharray': '2 2', opacity: '0.35' }, gd);
               }
             });
             var a = R[0].name, b = R[1].name, cap = document.getElementById('fairy_items_caption');
@@ -8162,7 +8189,7 @@ server <- shinyServer(function(input, output, session) {
               var hidden = []; for (var hz = 0; hz < nProb; hz++) if (idxs.indexOf(hz) < 0) hidden.push(chipRowName(hz));
               if (hidden.length) txt += ' Not shown: ' + hidden.join(', ') + ' (not compared).';
             }
-            if (R.some(function(r) { return r.virt && r.type === 'substitutable'; })) txt += ' Bar: one item for each part, in any combination.';
+            if (R.some(function(r) { return r.virt && r.type === 'substitutable'; })) txt += ' The bar means one item for each part, in any combination.';
             // the statements that this setting makes out of the model, in plain notation
             var stEl = document.getElementById('fairy_items_stmts');
             if (stEl) {
