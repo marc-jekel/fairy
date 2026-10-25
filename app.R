@@ -8014,7 +8014,7 @@ server <- shinyServer(function(input, output, session) {
                 } else {
                   var many = c0 * c1 > 9;
                   for (k = 0; k < c0; k++) for (m = 0; m < c1; m++) el('line', { x1: X(k), y1: y0 + 7, x2: X(m), y2: y1 - 7, opacity: many ? '0.55' : '0.9', 'stroke-width': many ? '1' : '1.6' }, g);
-                  if (c0 <= 2 && c1 <= 2) sign((X(0) + X(c0 - 1)) / 4 + (X(0) + X(c1 - 1)) / 4, (y0 + y1) / 2, ch);
+                  sign((X(0) + X(c0 - 1)) / 4 + (X(0) + X(c1 - 1)) / 4, (y0 + y1) / 2, ch);
                 }
               } else {
                 var avgUp = r0.type === 'average', avgDn = r1.type === 'average';
@@ -8024,10 +8024,10 @@ server <- shinyServer(function(input, output, session) {
                 } else if (avgDn) {
                   // every item of the upper row is compared with the average of the lower row
                   for (k = 0; k < c0; k++) el('line', { x1: X(k), y1: y0 + 7, x2: avgX, y2: y1 - 8, opacity: c0 > 4 ? '0.6' : '0.9', 'stroke-width': c0 > 4 ? '1' : '1.6' }, g);
-                  if (c0 <= 3) sign((X(0) + avgX) / 2 * 0.5 + avgX * 0.5, (y0 + y1) / 2 + 6, ch);
+                  sign((X(0) + avgX) / 2 * 0.5 + avgX * 0.5, (y0 + y1) / 2 + 6, ch);
                 } else {
                   for (k = 0; k < c1; k++) el('line', { x1: avgX, y1: y0 + 8, x2: X(k), y2: y1 - 7, opacity: c1 > 4 ? '0.6' : '0.9', 'stroke-width': c1 > 4 ? '1' : '1.6' }, g);
-                  if (c1 <= 3) sign((X(0) + avgX) / 2 * 0.5 + avgX * 0.5, (y0 + y1) / 2 - 6, ch);
+                  sign((X(0) + avgX) / 2 * 0.5 + avgX * 0.5, (y0 + y1) / 2 - 6, ch);
                 }
               }
             });
