@@ -7291,8 +7291,41 @@ server <- shinyServer(function(input, output, session) {
     }
     unique(pairs)
   }
+  # comparisons exactly as typed: "p1 > p2 < p3; p1 > 1/5 * p3" gives (1,2), (3,2), (1,3, "1/5"), also redundant ones
+  items_spec_pairs <- function(model_name) {
+    n <- isolate(counter_input$n)
+    nm <- vapply(seq_len(n), function(i) isolate(input[[paste0("textin_relations_name", i)]]) %||% paste0("m", i), character(1))
+    idx <- which(nm == model_name)[1]
+    if (is.na(idx)) return(NULL)
+    spec <- paste(isolate(input[["add_for_all_models"]]) %||% "", isolate(input[[paste0("textin_relations_", idx)]]) %||% "", sep = ";")
+    spec <- gsub("\u2265", ">=", gsub("\u2264", "<=", spec, fixed = TRUE), fixed = TRUE)
+    pairs <- list()
+    for (cl in strsplit(spec, "[;,\n]")[[1]]) {
+      ops <- regmatches(cl, gregexpr("<=|>=|<|>|=", cl))[[1]]
+      opd <- trimws(strsplit(cl, "<=|>=|<|>|=")[[1]])
+      if (length(ops) == 0 || length(opd) != length(ops) + 1) next
+      parse_op <- function(x) {
+        m <- regmatches(x, regexec("^(?:([0-9]*\\.?[0-9]+(?:/[0-9]*\\.?[0-9]+)?)\\s*\\*\\s*)?p([0-9]+)$", x, perl = TRUE))[[1]]
+        if (length(m) == 0) return(NULL)
+        cf <- if (nzchar(m[2])) { v <- as.numeric(strsplit(m[2], "/", fixed = TRUE)[[1]]); if (length(v) == 2) v[1] / v[2] else v } else 1
+        list(p = as.integer(m[3]), cf = cf)
+      }
+      for (i in seq_along(ops)) {
+        if (ops[i] == "=") next
+        a1 <- parse_op(opd[i]); b1 <- parse_op(opd[i + 1])
+        if (is.null(a1) || is.null(b1) || a1$p == b1$p) next
+        gt <- substr(ops[i], 1, 1) == ">"
+        hi <- if (gt) a1 else b1; lo <- if (gt) b1 else a1
+        ratio <- lo$cf / hi$cf
+        lab <- if (abs(ratio - 1) < 1e-9) "" else tryCatch(frac_str(ratio), error = function(e) format(round(ratio, 3)))
+        pairs[[length(pairs) + 1L]] <- list(as.integer(hi$p - 1L), as.integer(lo$p - 1L), lab)
+      }
+    }
+    if (length(pairs)) unique(pairs) else NULL
+  }
   items_pairs_json <- function(model_name) {
-    pr <- items_pairs_for(model_name)
+    pr <- items_spec_pairs(model_name)
+    if (is.null(pr)) pr <- items_pairs_for(model_name)
     if (is.null(pr)) return("null")
     as.character(jsonlite::toJSON(pr, auto_unbox = TRUE))
   }
