@@ -7282,11 +7282,15 @@ server <- shinyServer(function(input, output, session) {
     for (r in seq_len(nrow(hn))) {
       if (hn[r, 1] != 0 || abs(hn[r, 2]) > 1e-12) next
       nz <- which(abs(A[r, ]) > 1e-12)
-      if (length(nz) == 2 && prod(A[r, nz]) < 0) {
-        hi <- nz[A[r, nz] > 0]; lo <- nz[A[r, nz] < 0]
+      hi <- nz[A[r, nz] > 0]; lo <- nz[A[r, nz] < 0]
+      if (length(nz) == 2 && length(hi) == 1 && length(lo) == 1) {
         ratio <- abs(A[r, lo]) / A[r, hi]
         lab <- if (abs(ratio - 1) < 1e-9) "" else tryCatch(frac_str(ratio), error = function(e) format(round(ratio, 3)))
         pairs[[length(pairs) + 1L]] <- list(as.integer(hi - 1L), as.integer(lo - 1L), lab)
+      } else if (length(nz) %in% 3:5 && length(hi) >= 1 && length(lo) >= 1 && (length(hi) == 1 || length(lo) == 1) &&
+                 max(abs(A[r, nz])) - min(abs(A[r, nz])) < 1e-9) {
+        # a sum of equally weighted probabilities on one side, e.g. p1 + p2 > p3
+        pairs[[length(pairs) + 1L]] <- list(as.integer(hi - 1L), as.integer(lo - 1L), "")
       }
     }
     unique(pairs)
@@ -7305,20 +7309,26 @@ server <- shinyServer(function(input, output, session) {
       opd <- trimws(strsplit(cl, "<=|>=|<|>|=")[[1]])
       if (length(ops) == 0 || length(opd) != length(ops) + 1) next
       parse_op <- function(x) {
-        m <- regmatches(x, regexec("^(?:([0-9]*\\.?[0-9]+(?:/[0-9]*\\.?[0-9]+)?)\\s*\\*\\s*)?p([0-9]+)$", x, perl = TRUE))[[1]]
-        if (length(m) == 0) return(NULL)
-        cf <- if (nzchar(m[2])) { v <- as.numeric(strsplit(m[2], "/", fixed = TRUE)[[1]]); if (length(v) == 2) v[1] / v[2] else v } else 1
-        list(p = as.integer(m[3]), cf = cf)
+        terms <- trimws(strsplit(x, "+", fixed = TRUE)[[1]])
+        if (!length(terms) || any(!nzchar(terms))) return(NULL)
+        ps <- integer(0); cf <- 1
+        for (tm in terms) {
+          m <- regmatches(tm, regexec("^(?:([0-9]*\\.?[0-9]+(?:/[0-9]*\\.?[0-9]+)?)\\s*\\*\\s*)?p([0-9]+)$", tm, perl = TRUE))[[1]]
+          if (length(m) == 0) return(NULL)
+          cf <- if (nzchar(m[2])) { v <- as.numeric(strsplit(m[2], "/", fixed = TRUE)[[1]]); if (length(v) == 2) v[1] / v[2] else v } else 1
+          ps <- c(ps, as.integer(m[3]))
+        }
+        list(ps = ps, p = ps[1], cf = if (length(ps) == 1L) cf else 1)
       }
       for (i in seq_along(ops)) {
         if (ops[i] == "=") next
         a1 <- parse_op(opd[i]); b1 <- parse_op(opd[i + 1])
-        if (is.null(a1) || is.null(b1) || a1$p == b1$p) next
+        if (is.null(a1) || is.null(b1) || length(intersect(a1$ps, b1$ps)) > 0) next
         gt <- substr(ops[i], 1, 1) == ">"
         hi <- if (gt) a1 else b1; lo <- if (gt) b1 else a1
         ratio <- lo$cf / hi$cf
         lab <- if (abs(ratio - 1) < 1e-9) "" else tryCatch(frac_str(ratio), error = function(e) format(round(ratio, 3)))
-        pairs[[length(pairs) + 1L]] <- list(as.integer(hi$p - 1L), as.integer(lo$p - 1L), lab)
+        pairs[[length(pairs) + 1L]] <- list(as.integer(hi$ps - 1L), as.integer(lo$ps - 1L), lab)
       }
     }
     if (length(pairs)) unique(pairs) else NULL
@@ -7903,24 +7913,46 @@ server <- shinyServer(function(input, output, session) {
             var gType = tEl.value === 'perlist' ? 'joint' : tEl.value;
             var two = twoKinds() && chipState.sets && chipState.sets.length > 1 && chipState.asg.length > 1;
             var n0 = Math.max(1, Math.min(50, parseInt(nEl && nEl.value, 10) || 1));
-            function spec(i) {
-              if (two) { var k = chipState.asg[i], st = chipState.sets[k - 1]; return { name: chipRowName(i), n: st.n, list: k, color: chipColor(k - 1), type: st.over || gType, tag: ' - list ' + chipLetter(k - 1) }; }
-              return { name: chipRowName(i), n: n0, list: 1, color: null, type: gType, tag: '' };
-            }
             var nProb = document.querySelectorAll('.fairy-items-row').length || 2;
-            var P0 = window.fairyItemsPairs, pairs0 = null;
-            if (Array.isArray(P0)) pairs0 = P0.filter(function(p) { return p.length >= 2 && p[0] < nProb && p[1] < nProb; });
+            var vK = [], vS = [], vN = [], vM = [];
+            function nm(i) { return i >= nProb ? vN[i - nProb] : chipRowName(i); }
+            function spec(i) {
+              var si = i >= nProb ? vS[i - nProb] : i, vt = i >= nProb;
+              if (two) { var k = chipState.asg[si], st = chipState.sets[k - 1]; return { name: nm(i), virt: vt, n: st.n, list: k, color: chipColor(k - 1), type: st.over || gType, tag: vt ? '' : ' - list ' + chipLetter(k - 1) }; }
+              return { name: nm(i), virt: vt, n: n0, list: 1, color: null, type: gType, tag: '' };
+            }
+            var P0 = window.fairyItemsPairs, pairs0 = null, mlinks = [];
+            if (Array.isArray(P0)) {
+              // a sum such as p1+p2 becomes a row of its own (a square); its parts join into it
+              var tmpP = [];
+              P0.forEach(function(p) {
+                if (p.length < 2) return;
+                var ends = [p[0], p[1]].map(function(sd) {
+                  if (!Array.isArray(sd)) return sd < nProb ? sd : null;
+                  if (sd.length === 1) return sd[0] < nProb ? sd[0] : null;
+                  if (!sd.every(function(v) { return v < nProb; })) return null;
+                  var key = sd.join('+'), vi = vK.indexOf(key);
+                  if (vi < 0) { vK.push(key); vS.push(sd[0]); vM.push(sd); vN.push(sd.map(function(v) { return chipRowName(v); }).join('+')); vi = vK.length - 1; }
+                  return nProb + vi;
+                });
+                if (ends[0] === null || ends[1] === null || ends[0] === ends[1]) return;
+                tmpP.push([ends[0], ends[1], p[2] || '']);
+              });
+              pairs0 = tmpP;
+              vM.forEach(function(ms, vi) { ms.forEach(function(mm) { mlinks.push([mm, nProb + vi, '', '+']); }); });
+            }
+            var ordP = pairs0 ? pairs0.concat(mlinks) : [];
             var realPairs = !!(pairs0 && pairs0.length), idxs, pdisp;
             if (realPairs) {
               var inv = [];
-              pairs0.forEach(function(p) { [p[0], p[1]].forEach(function(v) { if (inv.indexOf(v) < 0) inv.push(v); }); });
+              ordP.forEach(function(p) { [p[0], p[1]].forEach(function(v) { if (inv.indexOf(v) < 0) inv.push(v); }); });
               // order the rows so that compared probabilities sit next to each other, larger ones on top where possible
               var best = null, bestCost = Infinity;
               if (inv.length <= 7) {
                 (function perm(arr, rest) {
                   if (!rest.length) {
                     var cost = 0;
-                    pairs0.forEach(function(p) {
+                    ordP.forEach(function(p) {
                       var u = arr.indexOf(p[0]), w = arr.indexOf(p[1]);
                       if (u < 0 || w < 0) return;
                       if (Math.abs(u - w) > 1) cost += 10;
@@ -7935,19 +7967,19 @@ server <- shinyServer(function(input, output, session) {
                 // many probabilities: larger ones first (topological order), ties by position in the model
                 var indeg = {}, left = inv.slice(), order = [];
                 inv.forEach(function(v) { indeg[v] = 0; });
-                pairs0.forEach(function(p) { if (indeg[p[1]] !== undefined) indeg[p[1]]++; });
+                ordP.forEach(function(p) { if (indeg[p[1]] !== undefined) indeg[p[1]]++; });
                 while (left.length) {
                   var pick = left.filter(function(v) { return indeg[v] === 0; })[0];
                   if (pick === undefined) pick = left[0];
                   order.push(pick); left = left.filter(function(v) { return v !== pick; });
-                  pairs0.forEach(function(p) { if (p[0] === pick && indeg[p[1]] !== undefined) indeg[p[1]]--; });
+                  ordP.forEach(function(p) { if (p[0] === pick && indeg[p[1]] !== undefined) indeg[p[1]]--; });
                 }
                 best = order;
               }
               inv = best || inv;
               idxs = inv.slice();
               for (var zz = 0; zz < nProb; zz++) if (idxs.indexOf(zz) < 0) idxs.push(zz);
-              pdisp = pairs0.map(function(p) { return [idxs.indexOf(p[0]), idxs.indexOf(p[1])]; }).filter(function(q) { return q[0] >= 0 && q[1] >= 0; });
+              pdisp = ordP.map(function(p) { return [idxs.indexOf(p[0]), idxs.indexOf(p[1]), p[3] || '']; }).filter(function(q) { return q[0] >= 0 && q[1] >= 0; });
             } else {
               idxs = []; for (var z = 0; z < Math.min(2, nProb); z++) idxs.push(z);
               pdisp = [[0, 1]];
@@ -8001,7 +8033,7 @@ server <- shinyServer(function(input, output, session) {
             });
             // one link per comparison of the model; the larger probability sits on top where possible
             pdisp.forEach(function(pp) {
-              var q = Math.min(pp[0], pp[1]), q2 = Math.max(pp[0], pp[1]), ch = pp[0] > pp[1] ? '<' : '>';
+              var q = Math.min(pp[0], pp[1]), q2 = Math.max(pp[0], pp[1]), ch = pp[2] || (pp[0] > pp[1] ? '<' : '>');
               var r0 = R[q], r1 = R[q2], same = r0.list === r1.list, y0 = ys[q], y1 = ys[q2], c0 = cnt[q], c1 = cnt[q2];
               if (q2 - q > 1 && same && r0.type === r1.type && (r0.type === 'joint' || r0.type === 'identical')) {
                 // item by item: the comparison holds in every column, so curve it in every column
@@ -8045,7 +8077,8 @@ server <- shinyServer(function(input, output, session) {
             var gd = el('g', {}, svg);
             R.forEach(function(r, i) {
               for (var q2 = 0; q2 < cols; q2++) {
-                if (q2 < cnt[i]) el('circle', { cx: X(q2), cy: ys[i], r: 5, fill: r.color || 'currentColor' }, gd);
+                if (q2 < cnt[i] && r.virt) el('rect', { x: X(q2) - 5.5, y: ys[i] - 5.5, width: 11, height: 11, rx: 2, fill: 'var(--ct-default, #fff)', stroke: r.color || 'currentColor', 'stroke-width': '2' }, gd);
+                else if (q2 < cnt[i]) el('circle', { cx: X(q2), cy: ys[i], r: 5, fill: r.color || 'currentColor' }, gd);
                 else el('circle', { cx: X(q2), cy: ys[i], r: 4.5, fill: 'none', stroke: 'currentColor', 'stroke-dasharray': '2 2', opacity: '0.35' }, gd);
               }
             });
@@ -8053,7 +8086,7 @@ server <- shinyServer(function(input, output, session) {
             var midDot = String.fromCharCode(183), avgFormula;
             if (R[0].n <= 4) { var fp = []; for (var q3 = 1; q3 <= R[0].n; q3++) fp.push('1/' + R[0].n + ' ' + midDot + ' item ' + q3); avgFormula = fp.join(' + '); }
             else avgFormula = '(item 1 + ... + item ' + R[0].n + ') / ' + R[0].n;
-            var cmpTxt = realPairs ? pairs0.map(function(p) { return chipRowName(p[0]) + ' > ' + (p[2] ? p[2] + ' ' + String.fromCharCode(183) + ' ' : '') + chipRowName(p[1]); }) : null;
+            var cmpTxt = realPairs ? pairs0.map(function(p) { return nm(p[0]) + ' > ' + (p[2] ? p[2] + ' ' + String.fromCharCode(183) + ' ' : '') + nm(p[1]); }) : null;
             var hintEl = document.getElementById('fairy_items_pairs_hint'), bmEl = document.getElementById('items_base_model'), bmName = bmEl ? bmEl.value : '';
             if (hintEl) hintEl.textContent = realPairs
               ? ('The comparisons and the picture are taken from your model' + (bmName ? ' ' + bmName : '') + '.')
@@ -8082,6 +8115,7 @@ server <- shinyServer(function(input, output, session) {
               var hidden = []; for (var hz = 0; hz < nProb; hz++) if (idxs.indexOf(hz) < 0) hidden.push(chipRowName(hz));
               if (hidden.length) txt += ' Not shown: ' + hidden.join(', ') + ' (not compared directly by your model).';
             }
+            if (vN.length) txt += ' A sum such as ' + vN[0] + ' is drawn as a square: its parts join into it (+), and the square is compared as a whole.';
             if (cap) cap.textContent = txt;
           }
           if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_items_pairs', function(msg) { window.fairyItemsPairs = (msg && msg.pairs) || null; drawItemsDiagram(); });
