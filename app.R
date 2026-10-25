@@ -8003,9 +8003,20 @@ server <- shinyServer(function(input, output, session) {
             pdisp.forEach(function(pp) {
               var q = Math.min(pp[0], pp[1]), q2 = Math.max(pp[0], pp[1]), ch = pp[0] > pp[1] ? '<' : '>';
               var r0 = R[q], r1 = R[q2], same = r0.list === r1.list, y0 = ys[q], y1 = ys[q2], c0 = cnt[q], c1 = cnt[q2];
-              if (q2 - q > 1) {
-                var xr = X(cols - 1) + 30 + Math.min(8 * (q2 - q), 60);
-                el('path', { d: 'M' + (X(cnt[q] - 1) + 7) + ' ' + y0 + ' C ' + xr + ' ' + y0 + ' ' + xr + ' ' + y1 + ' ' + (X(cnt[q2] - 1) + 7) + ' ' + y1, 'stroke-dasharray': '4 3' }, g);
+              if (q2 - q > 1 && same && r0.type === r1.type && (r0.type === 'joint' || r0.type === 'identical')) {
+                // item by item: the comparison holds in every column, so curve it in every column
+                var bulge = Math.min(12 + 4 * (q2 - q - 1), 24);
+                for (k = 0; k < Math.min(c0, c1); k++) {
+                  var bx = X(k) + 6, bxe = X(k) + bulge;
+                  el('path', { d: 'M' + bx + ' ' + y0 + ' C ' + bxe + ' ' + y0 + ' ' + bxe + ' ' + y1 + ' ' + bx + ' ' + y1, 'stroke-dasharray': '4 3' }, g);
+                  sign(X(k) + bulge - 2, (y0 + y1) / 2, ch);
+                }
+              } else if (q2 - q > 1) {
+                // compared rows that are not neighbours: one curve to the side, starting at the dots (or at the average point)
+                var baseR = hasAvg ? avgX : X(cols - 1);
+                var xr = baseR + 30 + Math.min(8 * (q2 - q), 60);
+                var sx0 = r0.type === 'average' ? avgX + 8 : X(cnt[q] - 1) + 7, sx1 = r1.type === 'average' ? avgX + 8 : X(cnt[q2] - 1) + 7;
+                el('path', { d: 'M' + sx0 + ' ' + y0 + ' C ' + xr + ' ' + y0 + ' ' + xr + ' ' + y1 + ' ' + sx1 + ' ' + y1, 'stroke-dasharray': '4 3' }, g);
                 sign(xr - 4, (y0 + y1) / 2, ch);
               } else if (anchor[q].grid && anchor[q2].grid) {
                 if (same && r0.type === r1.type && (r0.type === 'joint' || r0.type === 'identical')) {
