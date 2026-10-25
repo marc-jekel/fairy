@@ -7945,8 +7945,18 @@ server <- shinyServer(function(input, output, session) {
                   if (c0 <= 2 && c1 <= 2) sign((X(0) + X(c0 - 1)) / 4 + (X(0) + X(c1 - 1)) / 4, (y0 + y1) / 2, ch);
                 }
               } else {
-                el('line', { x1: anchor[q].x, y1: y0 + 8, x2: anchor[q2].x, y2: y1 - 8 }, g);
-                sign((anchor[q].x + anchor[q2].x) / 2, (y0 + y1) / 2, ch);
+                var avgUp = r0.type === 'average', avgDn = r1.type === 'average';
+                if (avgUp && avgDn) {
+                  el('line', { x1: anchor[q].x, y1: y0 + 8, x2: anchor[q2].x, y2: y1 - 8 }, g);
+                  sign(anchor[q].x, (y0 + y1) / 2, ch);
+                } else if (avgDn) {
+                  // every item of the upper row is compared with the average of the lower row
+                  for (k = 0; k < c0; k++) el('line', { x1: X(k), y1: y0 + 7, x2: avgX, y2: y1 - 8, opacity: c0 > 4 ? '0.6' : '0.9', 'stroke-width': c0 > 4 ? '1' : '1.6' }, g);
+                  if (c0 <= 3) sign((X(0) + avgX) / 2 * 0.5 + avgX * 0.5, (y0 + y1) / 2 + 6, ch);
+                } else {
+                  for (k = 0; k < c1; k++) el('line', { x1: avgX, y1: y0 + 8, x2: X(k), y2: y1 - 7, opacity: c1 > 4 ? '0.6' : '0.9', 'stroke-width': c1 > 4 ? '1' : '1.6' }, g);
+                  if (c1 <= 3) sign((X(0) + avgX) / 2 * 0.5 + avgX * 0.5, (y0 + y1) / 2 - 6, ch);
+                }
               }
             });
             var gd = el('g', {}, svg);
@@ -7972,7 +7982,14 @@ server <- shinyServer(function(input, output, session) {
               else txt = 'The model compares the averages over the items, e.g. ' + a + ' = ' + avgFormula + '. Single items may break it.';
             } else if (allType && (t0 === 'joint' || t0 === 'substitutable')) {
               txt = 'Probabilities with different item lists have different items, so whenever the model compares them, every item of one is compared with every item of the other. Within one list: ' + (t0 === 'joint' ? 'item 1 with item 1, item 2 with item 2, and so on.' : 'every item with every item.');
-            } else txt = 'Each list is treated as chosen above. Probabilities from different lists are compared for every combination of items.';
+            } else {
+              var wd = { joint: 'for each item separately', substitutable: 'for every combination of items', identical: 'for the shared value of each probability', average: 'for the average over the items' };
+              var descr = (two ? chipState.sets : []).map(function(st, kk) {
+                var mem = chipState.asg.map(function(g, ii) { return g === kk + 1 ? chipRowName(ii) : null; }).filter(Boolean).join(', ');
+                return 'list ' + chipLetter(kk) + ' (' + mem + '): ' + wd[st.over || gType];
+              });
+              txt = (descr.length ? 'The model holds ' + descr.join('; ') + '. ' : '') + 'When probabilities from different lists are compared, each item (or shared value, or average) of one is compared with each item (or shared value, or average) of the other.';
+            }
             if (realPairs && nProb > nRows) {
               var hidden = []; for (var hz = 0; hz < nProb; hz++) if (idxs.indexOf(hz) < 0) hidden.push(chipRowName(hz));
               if (hidden.length) txt += ' Not shown: ' + hidden.join(', ') + ' (not compared directly by your model).';
