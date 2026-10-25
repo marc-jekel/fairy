@@ -7678,6 +7678,7 @@ server <- shinyServer(function(input, output, session) {
             updateAllItemsRows();
             itemsApplying = false;
             itemsSummary();
+            drawItemsDiagram();
           }
           function chipsApplyCounts() {
             itemsApplying = true;
