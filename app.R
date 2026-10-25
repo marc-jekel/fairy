@@ -7914,7 +7914,7 @@ server <- shinyServer(function(input, output, session) {
             var anchor = [], avgX = X(cols - 1) + dx;
             R.forEach(function(r, i) {
               var c = cnt[i], cx = (X(0) + X(c - 1)) / 2;
-              anchor[i] = { x: cx, y: ys[i], grid: r.type === 'joint' || r.type === 'substitutable' };
+              anchor[i] = { x: cx, y: ys[i], grid: r.type !== 'average' };
               if (r.type === 'identical') {
                 for (k = 0; k < c - 1; k++) {
                   el('line', { x1: X(k) + 8, y1: ys[i], x2: X(k + 1) - 8, y2: ys[i] }, g);
@@ -7936,7 +7936,7 @@ server <- shinyServer(function(input, output, session) {
                 el('path', { d: 'M' + (X(cnt[q] - 1) + 7) + ' ' + y0 + ' C ' + xr + ' ' + y0 + ' ' + xr + ' ' + y1 + ' ' + (X(cnt[q2] - 1) + 7) + ' ' + y1, 'stroke-dasharray': '4 3' }, g);
                 sign(xr - 4, (y0 + y1) / 2, ch);
               } else if (anchor[q].grid && anchor[q2].grid) {
-                if (same && r0.type === 'joint' && r1.type === 'joint') {
+                if (same && r0.type === r1.type && (r0.type === 'joint' || r0.type === 'identical')) {
                   for (k = 0; k < Math.min(c0, c1); k++) el('line', { x1: X(k), y1: y0 + 7, x2: X(k), y2: y1 - 7 }, g);
                   if (cols <= 3) for (k = 0; k < Math.min(c0, c1); k++) sign(X(k), (y0 + y1) / 2, ch);
                 } else {
