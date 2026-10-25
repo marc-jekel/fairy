@@ -7872,9 +7872,26 @@ server <- shinyServer(function(input, output, session) {
             if (Array.isArray(P0)) pairs0 = P0.filter(function(p) { return p.length >= 2 && p[0] < nProb && p[1] < nProb; });
             var realPairs = !!(pairs0 && pairs0.length), idxs, pdisp;
             if (realPairs) {
-              var inv = [], outd = {}, ind = {};
-              pairs0.forEach(function(p) { [p[0], p[1]].forEach(function(v) { if (inv.indexOf(v) < 0) { inv.push(v); outd[v] = 0; ind[v] = 0; } }); outd[p[0]]++; ind[p[1]]++; });
-              inv.sort(function(x, y) { return ((outd[y] - ind[y]) - (outd[x] - ind[x])) || (x - y); });
+              var inv = [];
+              pairs0.forEach(function(p) { [p[0], p[1]].forEach(function(v) { if (inv.indexOf(v) < 0) inv.push(v); }); });
+              inv = inv.slice(0, 5);
+              // order the rows so that compared probabilities sit next to each other, larger ones on top where possible
+              var best = null, bestCost = Infinity;
+              (function perm(arr, rest) {
+                if (!rest.length) {
+                  var cost = 0;
+                  pairs0.forEach(function(p) {
+                    var u = arr.indexOf(p[0]), w = arr.indexOf(p[1]);
+                    if (u < 0 || w < 0) return;
+                    if (Math.abs(u - w) > 1) cost += 10;
+                    if (u > w) cost += 1;
+                  });
+                  if (cost < bestCost) { bestCost = cost; best = arr.slice(); }
+                  return;
+                }
+                for (var ii = 0; ii < rest.length; ii++) perm(arr.concat([rest[ii]]), rest.slice(0, ii).concat(rest.slice(ii + 1)));
+              })([], inv);
+              inv = best || inv;
               idxs = inv.slice(0, 5);
               pdisp = pairs0.map(function(p) { return [idxs.indexOf(p[0]), idxs.indexOf(p[1])]; }).filter(function(q) { return q[0] >= 0 && q[1] >= 0; });
             } else {
@@ -7886,7 +7903,8 @@ server <- shinyServer(function(input, output, session) {
             var cnt = R.map(function(r) { return Math.min(r.n, MAXC); });
             var cols = Math.max.apply(null, cnt), more = R.some(function(r) { return r.n > MAXC; });
             var hasAvg = R.some(function(r) { return r.type === 'average'; });
-            var W = x0 + (cols - 1) * dx + 30 + (more ? 22 : 0) + (hasAvg ? dx : 0);
+            var nonAdj = pdisp.some(function(pp) { return Math.abs(pp[0] - pp[1]) > 1; });
+            var W = x0 + (cols - 1) * dx + 30 + (more ? 22 : 0) + (hasAvg ? dx : 0) + (nonAdj ? 70 : 0);
             var NS = 'http://www.w3.org/2000/svg';
             function el(tag, attrs, parent) {
               var e = document.createElementNS(NS, tag);
