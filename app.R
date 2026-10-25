@@ -7287,10 +7287,12 @@ server <- shinyServer(function(input, output, session) {
         ratio <- abs(A[r, lo]) / A[r, hi]
         lab <- if (abs(ratio - 1) < 1e-9) "" else tryCatch(frac_str(ratio), error = function(e) format(round(ratio, 3)))
         pairs[[length(pairs) + 1L]] <- list(as.integer(hi - 1L), as.integer(lo - 1L), lab)
-      } else if (length(nz) %in% 3:5 && length(hi) >= 1 && length(lo) >= 1 && (length(hi) == 1 || length(lo) == 1) &&
-                 max(abs(A[r, nz])) - min(abs(A[r, nz])) < 1e-9) {
-        # a sum of equally weighted probabilities on one side, e.g. p1 + p2 > p3
-        pairs[[length(pairs) + 1L]] <- list(as.integer(hi - 1L), as.integer(lo - 1L), "")
+      } else if (length(nz) %in% 3:5 && length(hi) >= 1 && length(lo) >= 1 && (length(hi) == 1 || length(lo) == 1)) {
+        # a (weighted) sum on one side, e.g. 2 * p1 + p2 > p3: weights relative to the single probability
+        sg <- if (length(hi) == 1) hi else lo
+        wv <- function(ix) vapply(abs(A[r, ix]) / abs(A[r, sg]), function(v) if (abs(v - 1) < 1e-9) "1" else tryCatch(frac_str(v), error = function(e) format(round(v, 3))), character(1))
+        pairs[[length(pairs) + 1L]] <- list(as.integer(hi - 1L), as.integer(lo - 1L), "",
+                                            if (length(hi) > 1L) wv(hi) else "", if (length(lo) > 1L) wv(lo) else "")
       }
     }
     unique(pairs)
@@ -7311,14 +7313,14 @@ server <- shinyServer(function(input, output, session) {
       parse_op <- function(x) {
         terms <- trimws(strsplit(x, "+", fixed = TRUE)[[1]])
         if (!length(terms) || any(!nzchar(terms))) return(NULL)
-        ps <- integer(0); cf <- 1
+        ps <- integer(0); cf <- 1; cfs <- numeric(0)
         for (tm in terms) {
           m <- regmatches(tm, regexec("^(?:([0-9]*\\.?[0-9]+(?:/[0-9]*\\.?[0-9]+)?)\\s*\\*\\s*)?p([0-9]+)$", tm, perl = TRUE))[[1]]
           if (length(m) == 0) return(NULL)
           cf <- if (nzchar(m[2])) { v <- as.numeric(strsplit(m[2], "/", fixed = TRUE)[[1]]); if (length(v) == 2) v[1] / v[2] else v } else 1
-          ps <- c(ps, as.integer(m[3]))
+          ps <- c(ps, as.integer(m[3])); cfs <- c(cfs, cf)
         }
-        list(ps = ps, p = ps[1], cf = if (length(ps) == 1L) cf else 1)
+        list(ps = ps, p = ps[1], cf = if (length(ps) == 1L) cf else 1, cfs = cfs)
       }
       for (i in seq_along(ops)) {
         if (ops[i] == "=") next
@@ -7328,7 +7330,9 @@ server <- shinyServer(function(input, output, session) {
         hi <- if (gt) a1 else b1; lo <- if (gt) b1 else a1
         ratio <- lo$cf / hi$cf
         lab <- if (abs(ratio - 1) < 1e-9) "" else tryCatch(frac_str(ratio), error = function(e) format(round(ratio, 3)))
-        pairs[[length(pairs) + 1L]] <- list(as.integer(hi$ps - 1L), as.integer(lo$ps - 1L), lab)
+        wl <- function(a) vapply(a$cfs, function(v) if (abs(v - 1) < 1e-9) "1" else tryCatch(frac_str(v), error = function(e) format(round(v, 3))), character(1))
+        pairs[[length(pairs) + 1L]] <- list(as.integer(hi$ps - 1L), as.integer(lo$ps - 1L), lab,
+                                            if (length(hi$ps) > 1L) wl(hi) else "", if (length(lo$ps) > 1L) wl(lo) else "")
       }
     }
     if (length(pairs)) unique(pairs) else NULL
@@ -7914,7 +7918,7 @@ server <- shinyServer(function(input, output, session) {
             var two = twoKinds() && chipState.sets && chipState.sets.length > 1 && chipState.asg.length > 1;
             var n0 = Math.max(1, Math.min(50, parseInt(nEl && nEl.value, 10) || 1));
             var nProb = document.querySelectorAll('.fairy-items-row').length || 2;
-            var vK = [], vS = [], vN = [], vM = [];
+            var vK = [], vS = [], vN = [], vM = [], vW = [];
             function nm(i) { return i >= nProb ? vN[i - nProb] : chipRowName(i); }
             function spec(i) {
               var si = i >= nProb ? vS[i - nProb] : i, vt = i >= nProb;
@@ -7927,19 +7931,25 @@ server <- shinyServer(function(input, output, session) {
               var tmpP = [];
               P0.forEach(function(p) {
                 if (p.length < 2) return;
-                var ends = [p[0], p[1]].map(function(sd) {
+                var ends = [0, 1].map(function(si) {
+                  var sd = p[si], wv = p[si + 3];
                   if (!Array.isArray(sd)) return sd < nProb ? sd : null;
                   if (sd.length === 1) return sd[0] < nProb ? sd[0] : null;
                   if (!sd.every(function(v) { return v < nProb; })) return null;
-                  var key = sd.join('+'), vi = vK.indexOf(key);
-                  if (vi < 0) { vK.push(key); vS.push(sd[0]); vM.push(sd); vN.push(sd.map(function(v) { return chipRowName(v); }).join('+')); vi = vK.length - 1; }
+                  var w = Array.isArray(wv) ? wv : [wv];
+                  var key = sd.join('+') + '|' + w.join(','), vi = vK.indexOf(key);
+                  if (vi < 0) {
+                    vK.push(key); vS.push(sd[0]); vM.push(sd); vW.push(w);
+                    vN.push(sd.map(function(v, kk) { return (w[kk] && w[kk] !== '1' ? w[kk] + String.fromCharCode(183) : '') + chipRowName(v); }).join('+'));
+                    vi = vK.length - 1;
+                  }
                   return nProb + vi;
                 });
                 if (ends[0] === null || ends[1] === null || ends[0] === ends[1]) return;
                 tmpP.push([ends[0], ends[1], p[2] || '']);
               });
               pairs0 = tmpP;
-              vM.forEach(function(ms, vi) { ms.forEach(function(mm) { mlinks.push([mm, nProb + vi, '', '+']); }); });
+              vM.forEach(function(ms, vi) { ms.forEach(function(mm, kk) { var wk = vW[vi][kk]; mlinks.push([mm, nProb + vi, '', (wk && wk !== '1') ? wk + String.fromCharCode(215) : '+']); }); });
             }
             var ordP = pairs0 ? pairs0.concat(mlinks) : [];
             var realPairs = !!(pairs0 && pairs0.length), idxs, pdisp;
