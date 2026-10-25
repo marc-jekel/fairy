@@ -7995,7 +7995,7 @@ server <- shinyServer(function(input, output, session) {
               pdisp = [[0, 1]];
             }
             var nRows = idxs.length, R = idxs.map(function(i) { return spec(i); });
-            var MAXC = 5, dx = 46, x0 = 92, rowGap = R.length > 6 ? Math.max(26, Math.round(300 / R.length)) : 52, ys = R.map(function(r, i) { return 44 + i * rowGap; }), H = ys[ys.length - 1] + 40;
+            var MAXC = 5, dx = 46, x0 = Math.max(92, Math.round(14 + 6.3 * Math.max.apply(null, R.map(function(r) { return r.name.length; })))), rowGap = R.length > 6 ? Math.max(26, Math.round(300 / R.length)) : 52, ys = R.map(function(r, i) { return 44 + i * rowGap; }), H = ys[ys.length - 1] + 40;
             var cnt = R.map(function(r) { return Math.min(r.n, MAXC); });
             var cols = Math.max.apply(null, cnt), more = R.some(function(r) { return r.n > MAXC; });
             var hasAvg = R.some(function(r) { return r.type === 'average'; });
@@ -8045,6 +8045,12 @@ server <- shinyServer(function(input, output, session) {
             pdisp.forEach(function(pp) {
               var q = Math.min(pp[0], pp[1]), q2 = Math.max(pp[0], pp[1]), ch = pp[2] || (pp[0] > pp[1] ? '<' : '>');
               var r0 = R[q], r1 = R[q2], same = r0.list === r1.list, y0 = ys[q], y1 = ys[q2], c0 = cnt[q], c1 = cnt[q2];
+              if (pp[3] && !anchor[q].grid && !anchor[q2].grid) {
+                // average mode: the averages of the parts join straight into the average of the sum
+                el('line', { x1: anchor[q].x, y1: y0 + 8, x2: anchor[q2].x, y2: y1 - 8 }, g);
+                sign(anchor[q].x, y0 + (ys[q + 1] - ys[q]) / 2, pp[2] || '+');
+                return;
+              }
               if (pp[3] && anchor[q].grid && anchor[q2].grid) {
                 // parts of a sum: one straight line down from each part to the square, in every column (dots sit on the line)
                 for (k = 0; k < Math.min(c0, c1); k++) {
