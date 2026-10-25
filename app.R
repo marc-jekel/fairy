@@ -7373,9 +7373,9 @@ server <- shinyServer(function(input, output, session) {
         )
       },
       tags$details(open = if (adv_diff) NA else NULL, style = "margin-top:8px;",
-        tags$summary(style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
+        tags$summary(id = "fairy_items_adv_summary", style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
           "Do all probabilities use the same items?"),
-        tags$p(class = "fairy-eq-tol-help", style = "margin-top:6px;",
+        tags$p(id = "fairy_items_adv_help", class = "fairy-eq-tol-help", style = "margin-top:6px;",
           HTML("If yes, you are done. If some probabilities use <b>other items</b> than the rest, sort them into groups: probabilities in one group use the same items. Click a probability to move it to the next group.<br><i>Example: p1 and p2 use 3 jokes, p3 and p4 use 5 puns. Put p3 and p4 into group B and give each group its number of items.</i>")),
         tags$div(id = "fairy_items_chips", style = "display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;"),
         tags$div(id = "fairy_items_sets", style = "margin:6px 0 10px;"),
@@ -7578,7 +7578,7 @@ server <- shinyServer(function(input, output, session) {
               if (!(key in keyIdx)) { keyIdx[key] = Math.min(sets.length + 1, 6); if (sets.length < 6) sets.push({ n: x.n, type: x.t }); }
               asg.push(keyIdx[key]);
             });
-            chipState = { asg: asg, sets: sets };
+            chipState = { asg: asg, sets: sets, counts: info.map(function(x) { return x.n; }) };
           }
           function chipsCompact() {
             var used = [];
@@ -7589,7 +7589,34 @@ server <- shinyServer(function(input, output, session) {
             chipState.asg = chipState.asg.map(function(s) { return map[s]; });
             chipState.sets = ns;
           }
+          function itemsCountsMode() {
+            var t = document.querySelector('.fairy-items-quick-type:checked');
+            return !!t && (t.value === 'substitutable' || t.value === 'average');
+          }
           function chipsRender() {
+            var sum = document.getElementById('fairy_items_adv_summary'), hp = document.getElementById('fairy_items_adv_help');
+            var counts = itemsCountsMode();
+            if (sum) sum.textContent = counts ? 'Do all probabilities have the same number of items?' : 'Do all probabilities use the same items?';
+            if (hp) hp.innerHTML = counts
+              ? 'If yes, you are done. If not, enter the number of items for each probability.'
+              : 'If yes, you are done. If some probabilities use <b>other items</b> than the rest, sort them into groups: probabilities in one group use the same items. Click a probability to move it to the next group.<br><i>Example: p1 and p2 use 3 jokes, p3 and p4 use 5 puns. Put p3 and p4 into group B and give each group its number of items.</i>';
+            if (counts) chipsRenderCounts(); else chipsRenderGroups();
+          }
+          function chipsRenderCounts() {
+            var ch = document.getElementById('fairy_items_chips'), sl = document.getElementById('fairy_items_sets');
+            if (!ch || !sl) return;
+            ch.textContent = ''; sl.textContent = '';
+            chipState.counts.forEach(function(n, i) {
+              var row = document.createElement('div'); row.style.cssText = 'display:flex; align-items:center; gap:8px; margin:4px 0;';
+              var lab = document.createElement('b'); lab.style.cssText = 'font-size:12.5px; min-width:48px;'; lab.textContent = chipRowName(i);
+              var inp = document.createElement('input'); inp.type = 'number'; inp.min = 1; inp.max = 50; inp.value = n; inp.className = 'form-control fairy-count-n';
+              inp.style.cssText = 'width:70px; height:28px; padding:2px 6px;'; inp.setAttribute('data-p', i); inp.setAttribute('aria-label', 'Items of ' + chipRowName(i));
+              var it = document.createElement('span'); it.style.fontSize = '12.5px'; it.textContent = 'items';
+              [lab, inp, it].forEach(function(e) { row.appendChild(e); });
+              sl.appendChild(row);
+            });
+          }
+          function chipsRenderGroups() {
             var ch = document.getElementById('fairy_items_chips'), sl = document.getElementById('fairy_items_sets');
             if (!ch || !sl) return;
             ch.textContent = ''; sl.textContent = '';
@@ -7609,10 +7636,12 @@ server <- shinyServer(function(input, output, session) {
               var mem = document.createElement('span'); mem.style.cssText = 'font-size:12px; color:var(--fairy-text-muted);'; mem.textContent = '(' + members + ')';
               var inp = document.createElement('input'); inp.type = 'number'; inp.min = 1; inp.max = 50; inp.value = st.n; inp.className = 'form-control fairy-set-n';
               inp.style.cssText = 'width:70px; height:28px; padding:2px 6px;'; inp.setAttribute('data-set', k); inp.setAttribute('aria-label', 'Items in group ' + chipLet[k]);
-              var it = document.createElement('span'); it.style.fontSize = '12.5px'; it.textContent = 'items; the model holds';
+              var it = document.createElement('span'); it.style.fontSize = '12.5px'; it.textContent = chipState.sets.length > 1 ? 'items; the model holds' : 'items';
               var sel = document.createElement('select'); sel.className = 'form-control fairy-set-type'; sel.style.cssText = 'width:auto; height:28px; padding:2px 6px;'; sel.setAttribute('data-set', k);
               CHIP_TYPES.forEach(function(t) { var o = document.createElement('option'); o.value = t[0]; o.textContent = t[1]; if (t[0] === st.type) o.selected = true; sel.appendChild(o); });
-              [dot, lab, mem, inp, it, sel].forEach(function(e) { row.appendChild(e); });
+              var parts = [dot, lab, mem, inp, it];
+              if (chipState.sets.length > 1) parts.push(sel);
+              parts.forEach(function(e) { row.appendChild(e); });
               sl.appendChild(row);
             });
           }
@@ -7636,6 +7665,27 @@ server <- shinyServer(function(input, output, session) {
             itemsApplying = false;
             markItemsCustom(chipState.sets.length > 1);
           }
+          function chipsApplyCounts() {
+            itemsApplying = true;
+            var rows = document.querySelectorAll('.fairy-items-row'), tEl = document.querySelector('.fairy-items-quick-type:checked'), type = tEl ? tEl.value : 'substitutable';
+            rows.forEach(function(row, i) {
+              var gIn = row.querySelector('input[id^=items_multi_group_]'), nIn = row.querySelector('input[id^=items_multi_n_]');
+              var sel = row.querySelector('select[id^=items_multi_type_]'), eIn = row.querySelector('input[id^=items_multi_eps_]');
+              if (gIn) { gIn.value = ''; $(gIn).trigger('input'); }
+              if (nIn) { nIn.value = chipState.counts[i]; $(nIn).trigger('change'); }
+              if (sel && chipState.counts[i] > 1) { if (sel.selectize) sel.selectize.setValue(type); else { sel.value = type; $(sel).trigger('change'); } }
+              if (eIn) { eIn.value = 0; $(eIn).trigger('change'); }
+            });
+            updateAllItemsRows();
+            itemsApplying = false;
+            var same = chipState.counts.every(function(c) { return c === chipState.counts[0]; });
+            markItemsCustom(!same);
+          }
+          $(document).on('input change', '.fairy-count-n', function() {
+            var i = parseInt(this.getAttribute('data-p'), 10);
+            chipState.counts[i] = Math.max(1, Math.min(50, parseInt(this.value, 10) || 1));
+            chipsApplyCounts();
+          });
           $(document).on('click', '.fairy-chip', function() {
             var i = parseInt(this.getAttribute('data-p'), 10), cur = chipState.asg[i], mx = 0;
             chipState.asg.forEach(function(s, j) { if (j !== i && s > mx) mx = s; });
