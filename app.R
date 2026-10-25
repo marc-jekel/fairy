@@ -8010,7 +8010,7 @@ server <- shinyServer(function(input, output, session) {
               } else if (anchor[q].grid && anchor[q2].grid) {
                 if (same && r0.type === r1.type && (r0.type === 'joint' || r0.type === 'identical')) {
                   for (k = 0; k < Math.min(c0, c1); k++) el('line', { x1: X(k), y1: y0 + 7, x2: X(k), y2: y1 - 7 }, g);
-                  if (cols <= 3) for (k = 0; k < Math.min(c0, c1); k++) sign(X(k), (y0 + y1) / 2, ch);
+                  for (k = 0; k < Math.min(c0, c1); k++) sign(X(k), (y0 + y1) / 2, ch);
                 } else {
                   var many = c0 * c1 > 9;
                   for (k = 0; k < c0; k++) for (m = 0; m < c1; m++) el('line', { x1: X(k), y1: y0 + 7, x2: X(m), y2: y1 - 7, opacity: many ? '0.55' : '0.9', 'stroke-width': many ? '1' : '1.6' }, g);
