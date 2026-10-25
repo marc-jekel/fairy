@@ -7360,11 +7360,11 @@ server <- shinyServer(function(input, output, session) {
             tags$label(style = "display:block; font-weight:normal; font-size:13px; margin:0 0 4px; cursor:pointer;",
               tags$input(type = "radio", name = "fairy_items_two_choice", value = "two", class = "fairy-items-two-choice",
                 checked = if (adv_diff) "checked" else NULL, style = "margin-right:6px;"),
-              "No, they come in two kinds ",
-              tags$span(style = "color:var(--fairy-text-muted); font-size:11.5px;", "(e.g. p1 and p2 use 3 jokes, p3 and p4 use 5 puns)")),
+              "No, they use different item lists ",
+              tags$span(style = "color:var(--fairy-text-muted); font-size:11.5px;", "(e.g. p1, p2 use a list of 3 jokes, p3, p4 a list of 5 puns)")),
             tags$div(id = "fairy_items_two_panel", style = paste0("margin-top:6px; padding:8px 10px; border-radius:8px; background:var(--ct-default, #fff); border:1px solid var(--fairy-border, #d5d9e4); ", if (adv_diff) "" else "display:none;"),
               tags$div(style = "font-size:12px; color:var(--fairy-text-muted);",
-                "Click a probability to switch it between kind A and kind B. Each kind has its own number of items."),
+                "Every probability uses one list of items (e.g. the 3 jokes). Click a probability to move it to the next list (A, B, C, \u2026). Probabilities with the same list use the same items; each list has its own number of items."),
               tags$div(id = "fairy_items_chips", style = "display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;"),
               tags$div(id = "fairy_items_sets", style = "margin:4px 0 2px;"))),
           qh(3, "How should your model's comparisons (like p1 > p2) be applied to the items?"),
@@ -7567,7 +7567,8 @@ server <- shinyServer(function(input, output, session) {
           // ---- item sets as coloured chips: click a probability to move it to the next set ----
           var chipState = { asg: [], sets: [] };
           var chipPal = ['#3a6df0', '#e07b00', '#2a9d6f', '#b04fd0', '#c2385a', '#7a7f8c'];
-          var chipLet = ['A', 'B', 'C', 'D', 'E', 'F'];
+          function chipLetter(k) { return k < 26 ? String.fromCharCode(65 + k) : String(k + 1); }
+          function chipColor(k) { return chipPal[k % chipPal.length]; }
           var CHIP_TYPES = [['joint', 'Item by item'], ['substitutable', 'Any item with any item'], ['identical', 'All items the same'], ['average', 'Only the average']];
           function chipRowName(i) {
             var rows = document.querySelectorAll('.fairy-items-row'), sp = rows[i] && rows[i].querySelector('span');
@@ -7587,9 +7588,11 @@ server <- shinyServer(function(input, output, session) {
             var asg = [], sets = [], keyIdx = {};
             info.forEach(function(x, i) {
               var key = uniform ? 'all' : (x.g ? 'g:' + x.g : 's:' + i);
-              if (!(key in keyIdx)) { keyIdx[key] = Math.min(sets.length + 1, 6); if (sets.length < 6) sets.push({ n: x.n, type: x.t }); }
+              if (!(key in keyIdx)) { keyIdx[key] = sets.length + 1; sets.push({ n: x.n, type: x.t }); }
               asg.push(keyIdx[key]);
             });
+            var diffT = sets.some(function(x) { return x.type !== sets[0].type; });
+            sets.forEach(function(x) { x.over = diffT ? x.type : ''; });
             chipState = { asg: asg, sets: sets, counts: info.map(function(x) { return x.n; }) };
           }
           function chipsCompact() {
@@ -7597,7 +7600,7 @@ server <- shinyServer(function(input, output, session) {
             chipState.asg.forEach(function(s) { if (used.indexOf(s) < 0) used.push(s); });
             used.sort(function(a, b) { return a - b; });
             var map = {}, ns = [];
-            used.forEach(function(s, k) { map[s] = k + 1; ns.push(chipState.sets[s - 1] || { n: chipState.sets[0].n, type: chipState.sets[0].type }); });
+            used.forEach(function(s, k) { map[s] = k + 1; ns.push(chipState.sets[s - 1] || { n: chipState.sets[0].n, type: chipState.sets[0].type, over: '' }); });
             chipState.asg = chipState.asg.map(function(s) { return map[s]; });
             chipState.sets = ns;
           }
@@ -7627,23 +7630,30 @@ server <- shinyServer(function(input, output, session) {
             chipState.asg.forEach(function(s, i) {
               var b = document.createElement('button');
               b.type = 'button'; b.className = 'fairy-chip'; b.setAttribute('data-p', i);
-              b.textContent = chipRowName(i) + ' ' + String.fromCharCode(183) + ' kind ' + chipLet[s - 1];
-              b.style.cssText = 'border:1.5px solid ' + chipPal[s - 1] + '; background:' + chipPal[s - 1] + '22; color:inherit; border-radius:14px; padding:3px 11px; font-size:12.5px; cursor:pointer;';
+              b.textContent = chipRowName(i) + ' ' + String.fromCharCode(183) + ' list ' + chipLetter(s - 1);
+              b.style.cssText = 'border:1.5px solid ' + chipColor(s - 1) + '; background:' + chipColor(s - 1) + '22; color:inherit; border-radius:14px; padding:3px 11px; font-size:12.5px; cursor:pointer;';
               ch.appendChild(b);
             });
             chipState.sets.forEach(function(st, k) {
               var row = document.createElement('div');
               row.style.cssText = 'display:flex; align-items:center; gap:8px; margin:5px 0; flex-wrap:wrap;';
-              var dot = document.createElement('span'); dot.style.cssText = 'width:12px; height:12px; border-radius:50%; background:' + chipPal[k] + '; display:inline-block;';
-              var lab = document.createElement('b'); lab.style.fontSize = '12.5px'; lab.textContent = 'Kind ' + chipLet[k];
+              var dot = document.createElement('span'); dot.style.cssText = 'width:12px; height:12px; border-radius:50%; background:' + chipColor(k) + '; display:inline-block;';
+              var lab = document.createElement('b'); lab.style.fontSize = '12.5px'; lab.textContent = 'Item list ' + chipLetter(k);
               var members = chipState.asg.map(function(s, i) { return s === k + 1 ? chipRowName(i) : null; }).filter(Boolean).join(', ');
               var mem = document.createElement('span'); mem.style.cssText = 'font-size:12px; color:var(--fairy-text-muted);'; mem.textContent = '(' + members + ')';
               var inp = document.createElement('input'); inp.type = 'number'; inp.min = 1; inp.max = 50; inp.value = st.n; inp.className = 'form-control fairy-set-n';
-              inp.style.cssText = 'width:70px; height:28px; padding:2px 6px;'; inp.setAttribute('data-set', k); inp.setAttribute('aria-label', 'Items of kind ' + chipLet[k]);
+              inp.style.cssText = 'width:70px; height:28px; padding:2px 6px;'; inp.setAttribute('data-set', k); inp.setAttribute('aria-label', 'Items of list ' + chipLetter(k));
               var it = document.createElement('span'); it.style.fontSize = '12.5px'; it.textContent = 'items';
               var sel = document.createElement('select'); sel.className = 'form-control fairy-set-type'; sel.style.cssText = 'width:auto; height:28px; padding:2px 6px;'; sel.setAttribute('data-set', k);
               CHIP_TYPES.forEach(function(t) { var o = document.createElement('option'); o.value = t[0]; o.textContent = t[1]; if (t[0] === st.type) o.selected = true; sel.appendChild(o); });
               var parts = [dot, lab, mem, inp, it];
+              if (chipState.sets.length > 1) {
+                var ov = document.createElement('select'); ov.className = 'form-control fairy-set-over'; ov.style.cssText = 'width:auto; height:28px; padding:2px 6px; font-size:12px;'; ov.setAttribute('data-set', k);
+                ov.setAttribute('aria-label', 'How the model is applied to list ' + chipLetter(k));
+                var o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'applied as in 3 below'; ov.appendChild(o0);
+                CHIP_TYPES.forEach(function(t) { var o = document.createElement('option'); o.value = t[0]; o.textContent = t[1]; if (t[0] === st.over) o.selected = true; ov.appendChild(o); });
+                parts.push(ov);
+              }
               parts.forEach(function(e) { row.appendChild(e); });
               sl.appendChild(row);
             });
@@ -7656,11 +7666,11 @@ server <- shinyServer(function(input, output, session) {
             rows.forEach(function(row, i) { var st = chipState.sets[chipState.asg[i] - 1], nIn = row.querySelector('input[id^=items_multi_n_]'); if (nIn) { nIn.value = st.n; $(nIn).trigger('change'); } });
             var gT = document.querySelector('.fairy-items-quick-type:checked'); gT = gT ? gT.value : 'joint';
             rows.forEach(function(row, i) {
-              var k = chipState.asg[i], st = { n: chipState.sets[k - 1].n, type: gT };
+              var k = chipState.asg[i], st = { n: chipState.sets[k - 1].n, type: chipState.sets[k - 1].over || gT };
               var gIn = row.querySelector('input[id^=items_multi_group_]'), sel = row.querySelector('select[id^=items_multi_type_]'), eIn = row.querySelector('input[id^=items_multi_eps_]');
               if (st.n > 1) {
                 if (sel) { if (sel.selectize) sel.selectize.setValue(st.type); else { sel.value = st.type; $(sel).trigger('change'); } }
-                if (gIn && (st.type === 'joint' || st.type === 'identical')) { gIn.value = 'group ' + chipLet[k - 1]; $(gIn).trigger('input'); }
+                if (gIn && (st.type === 'joint' || st.type === 'identical')) { gIn.value = 'group ' + chipLetter(k - 1); $(gIn).trigger('input'); }
               }
               if (eIn) { eIn.value = st.type === 'identical' ? epsV : 0; $(eIn).trigger('change'); }
             });
@@ -7699,8 +7709,8 @@ server <- shinyServer(function(input, output, session) {
           $(document).on('click', '.fairy-chip', function() {
             var i = parseInt(this.getAttribute('data-p'), 10), cur = chipState.asg[i], mx = 0;
             chipState.asg.forEach(function(s, j) { if (j !== i && s > mx) mx = s; });
-            var lim = Math.max(2, chipState.sets.length), nxt = cur + 1; if (nxt > mx + 1 || nxt > lim) nxt = 1;
-            if (!chipState.sets[nxt - 1]) chipState.sets[nxt - 1] = { n: chipState.sets[0].n, type: chipState.sets[0].type };
+            var nxt = cur + 1; if (nxt > mx + 1) nxt = 1;
+            if (!chipState.sets[nxt - 1]) chipState.sets[nxt - 1] = { n: chipState.sets[0].n, type: chipState.sets[0].type, over: '' };
             chipState.asg[i] = nxt; chipsCompact(); chipsRender(); chipsApply();
           });
           $(document).on('input change', '.fairy-set-n', function() {
@@ -7708,6 +7718,9 @@ server <- shinyServer(function(input, output, session) {
           });
           $(document).on('change', '.fairy-set-type', function() {
             var k = parseInt(this.getAttribute('data-set'), 10); chipState.sets[k].type = this.value; chipsApply();
+          });
+          $(document).on('change', '.fairy-set-over', function() {
+            var k = parseInt(this.getAttribute('data-set'), 10); chipState.sets[k].over = this.value; chipsApply();
           });
           // Picture of the table below: one row per probability, one dot per item, same colour = same item set.
           function drawRowsDiagram() {
@@ -7814,21 +7827,25 @@ server <- shinyServer(function(input, output, session) {
               }
             }
           }
-          // One diagram that follows the choice: rows = probabilities, columns = items, lines = where the rule is checked.
+          // One diagram that follows the choice: the first two probabilities, each with its own list of items.
           function drawItemsDiagram() {
             var host = document.getElementById('fairy_items_diagram');
             var tEl = document.querySelector('.fairy-items-quick-type:checked');
             var nEl = document.getElementById('fairy_items_quick_n');
             if (!host || !tEl) return;
-            var type = tEl.value, n = Math.max(1, Math.min(50, parseInt(nEl && nEl.value, 10) || 1));
-            var rows = document.querySelectorAll('.fairy-items-row');
-            function nm(i) {
-              var sp = rows[i] && rows[i].querySelector('span');
-              var t = sp ? sp.textContent.replace(/[_{}]/g, '').trim() : '';
-              return t || ('p' + (i + 1));
+            var gType = tEl.value;
+            var two = twoKinds() && chipState.sets && chipState.sets.length > 1 && chipState.asg.length > 1;
+            var n0 = Math.max(1, Math.min(50, parseInt(nEl && nEl.value, 10) || 1));
+            function spec(i) {
+              if (two) { var k = chipState.asg[i], st = chipState.sets[k - 1]; return { name: chipRowName(i), n: st.n, list: k, color: chipColor(k - 1), type: st.over || gType, tag: ' - list ' + chipLetter(k - 1) }; }
+              return { name: chipRowName(i), n: n0, list: 1, color: null, type: gType, tag: '' };
             }
-            var cols = Math.min(n, 4), more = n > 4;
-            var x0 = 46, dx = 52, y1 = 40, y2 = 96, W = x0 + (cols - 1) * dx + 34 + (more ? 22 : 0) + (type === 'average' ? dx + 14 : 0), H = 118;
+            var R = [spec(0), spec(1)], same = R[0].list === R[1].list;
+            var MAXC = 5, dx = 46, x0 = 92, ys = [44, 98], H = 124;
+            var cnt = R.map(function(r) { return Math.min(r.n, MAXC); });
+            var cols = Math.max(cnt[0], cnt[1]), more = R[0].n > MAXC || R[1].n > MAXC;
+            var hasAvg = R.some(function(r) { return r.type === 'average'; });
+            var W = x0 + (cols - 1) * dx + 30 + (more ? 22 : 0) + (hasAvg ? dx : 0);
             var NS = 'http://www.w3.org/2000/svg';
             function el(tag, attrs, parent) {
               var e = document.createElementNS(NS, tag);
@@ -7840,66 +7857,68 @@ server <- shinyServer(function(input, output, session) {
             host.textContent = '';
             var svg = el('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H }, host);
             var gt = el('g', { fill: 'currentColor', 'font-size': '10.5' }, svg);
-            for (var j = 0; j < cols; j++) {
-              var th = el('text', { x: X(j), y: 14, 'text-anchor': 'middle' }, gt); th.textContent = 'item ' + (j + 1);
-            }
-            if (more) {
-              [14, y1 + 4, y2 + 4].forEach(function(yy) { var d = el('text', { x: X(cols - 1) + 34, y: yy, 'text-anchor': 'middle' }, gt); d.textContent = String.fromCharCode(8230); });
-            }
-            var l1 = el('text', { x: 0, y: y1 + 4, 'font-weight': '600' }, gt); l1.textContent = nm(0);
-            var l2 = el('text', { x: 0, y: y2 + 4, 'font-weight': '600' }, gt); l2.textContent = nm(1);
-            var g = el('g', { fill: 'none', stroke: 'var(--fairy-primary, #3a6df0)', 'stroke-width': '2', 'stroke-linecap': 'round' }, svg);
+            for (var j = 0; j < cols; j++) { var th = el('text', { x: X(j), y: 14, 'text-anchor': 'middle' }, gt); th.textContent = 'item ' + (j + 1); }
+            if (more) [14, ys[0] + 4, ys[1] + 4].forEach(function(yy) { var d = el('text', { x: X(cols - 1) + 30, y: yy, 'text-anchor': 'middle' }, gt); d.textContent = String.fromCharCode(8230); });
+            R.forEach(function(r, i) {
+              var l = el('text', { x: 0, y: ys[i] + 4, 'font-weight': '600' }, gt); l.textContent = r.name;
+              if (r.tag) { var l2 = el('text', { x: 0, y: ys[i] + 17, 'font-size': '9.5', fill: r.color }, svg); l2.textContent = r.tag.replace(' - ', ''); }
+            });
+            var BL = 'var(--fairy-primary, #3a6df0)';
+            var g = el('g', { fill: 'none', stroke: BL, 'stroke-width': '2', 'stroke-linecap': 'round' }, svg);
             var k, m;
-            if (type === 'joint') {
-              for (k = 0; k < cols; k++) el('line', { x1: X(k), y1: y1 + 7, x2: X(k), y2: y2 - 7 }, g);
-            } else if (type === 'substitutable') {
-              for (k = 0; k < cols; k++) for (m = 0; m < cols; m++) el('line', { x1: X(k), y1: y1 + 7, x2: X(m), y2: y2 - 7, opacity: '0.85' }, g);
-            } else if (type === 'identical') {
-              for (k = 0; k < cols - 1; k++) {
-                el('line', { x1: X(k) + 8, y1: y1, x2: X(k + 1) - 8, y2: y1 }, g);
-                el('line', { x1: X(k) + 8, y1: y2, x2: X(k + 1) - 8, y2: y2 }, g);
-                var e1 = el('text', { x: (X(k) + X(k + 1)) / 2, y: y1 - 5, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12' }, svg); e1.textContent = '=';
-                var e2 = el('text', { x: (X(k) + X(k + 1)) / 2, y: y2 + 16, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12' }, svg); e2.textContent = '=';
-              }
-              // the shared values of p1 and p2 are then compared as the model says
-              for (k = 0; k < cols; k++) el('line', { x1: X(k), y1: y1 + 7, x2: X(k), y2: y2 - 7 }, g);
-            } else {
-              // every row collapses into ONE average point; only the two averages are compared
-              var ax = X(cols - 1) + dx + (more ? 22 : 0);
-              var ah = el('text', { x: ax, y: 14, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '10.5', 'font-weight': '600' }, svg);
-              ah.textContent = 'average';
-              [y1, y2].forEach(function(yy) {
-                for (k = 0; k < cols; k++) el('line', { x1: X(k) + 6, y1: yy, x2: ax - 8, y2: yy, stroke: 'currentColor', 'stroke-width': '1', opacity: '0.4', 'stroke-dasharray': '2 3' }, svg);
-                el('circle', { cx: ax, cy: yy, r: 7, fill: 'var(--ct-default, #fff)' }, g);
-              });
-              el('line', { x1: ax, y1: y1 + 8, x2: ax, y2: y2 - 8 }, g);
-            }
-            // the comparison sign of the example (p1 > p2) on the lines, as long as the picture stays readable
             function sign(x, y) {
-              var t = el('text', { x: x, y: y + 4, 'text-anchor': 'middle', 'font-size': '13', 'font-weight': '700',
-                fill: 'var(--fairy-primary, #3a6df0)', stroke: 'var(--ct-default, #fff)', 'stroke-width': '3', 'paint-order': 'stroke' }, svg);
+              var t = el('text', { x: x, y: y + 4, 'text-anchor': 'middle', 'font-size': '13', 'font-weight': '700', fill: BL, stroke: 'var(--ct-default, #fff)', 'stroke-width': '3', 'paint-order': 'stroke' }, svg);
               t.textContent = '>';
             }
-            if (type === 'average') sign(X(cols - 1) + dx + (more ? 22 : 0), (y1 + y2) / 2);
-            if (cols <= (type === 'substitutable' ? 2 : 3)) {
-              if (type === 'joint' || type === 'identical') for (k = 0; k < cols; k++) sign(X(k), (y1 + y2) / 2);
-              else if (type === 'substitutable') for (k = 0; k < cols; k++) for (m = 0; m < cols; m++) {
-                var f = k === m ? 0.5 : 0.28;
-                sign(X(k) + (X(m) - X(k)) * f, y1 + 7 + (y2 - y1 - 14) * f);
+            // within a row: equal items get equals-sign links, an average gets its own point
+            var anchor = [], avgX = X(cols - 1) + dx;
+            R.forEach(function(r, i) {
+              var c = cnt[i], cx = (X(0) + X(c - 1)) / 2;
+              anchor[i] = { x: cx, y: ys[i], grid: r.type === 'joint' || r.type === 'substitutable' };
+              if (r.type === 'identical') {
+                for (k = 0; k < c - 1; k++) {
+                  el('line', { x1: X(k) + 8, y1: ys[i], x2: X(k + 1) - 8, y2: ys[i] }, g);
+                  var e = el('text', { x: (X(k) + X(k + 1)) / 2, y: ys[i] + (i === 0 ? -5 : 16), 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12' }, svg); e.textContent = '=';
+                }
+              } else if (r.type === 'average') {
+                var ah = (i === 0) ? el('text', { x: avgX, y: 14, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '10.5', 'font-weight': '600' }, svg) : null;
+                if (ah) ah.textContent = 'average';
+                for (k = 0; k < c; k++) el('line', { x1: X(k) + 6, y1: ys[i], x2: avgX - 8, y2: ys[i], stroke: 'currentColor', 'stroke-width': '1', opacity: '0.4', 'stroke-dasharray': '2 3' }, svg);
+                el('circle', { cx: avgX, cy: ys[i], r: 7, fill: 'var(--ct-default, #fff)' }, g);
+                anchor[i] = { x: avgX, y: ys[i], grid: false };
               }
+            });
+            // the comparison between the two probabilities
+            var both = anchor[0].grid && anchor[1].grid;
+            if (both) {
+              if (same && R[0].type === 'joint' && R[1].type === 'joint') {
+                for (k = 0; k < Math.min(cnt[0], cnt[1]); k++) el('line', { x1: X(k), y1: ys[0] + 7, x2: X(k), y2: ys[1] - 7 }, g);
+                if (cols <= 3) for (k = 0; k < Math.min(cnt[0], cnt[1]); k++) sign(X(k), (ys[0] + ys[1]) / 2);
+              } else {
+                for (k = 0; k < cnt[0]; k++) for (m = 0; m < cnt[1]; m++) el('line', { x1: X(k), y1: ys[0] + 7, x2: X(m), y2: ys[1] - 7, opacity: cnt[0] * cnt[1] > 9 ? '0.55' : '0.9', 'stroke-width': cnt[0] * cnt[1] > 9 ? '1' : '1.6' }, g);
+                if (cnt[0] <= 2 && cnt[1] <= 2) sign((X(0) + X(cnt[0] - 1)) / 2 * 0.5 + (X(0) + X(cnt[1] - 1)) / 2 * 0.5, (ys[0] + ys[1]) / 2);
+              }
+            } else {
+              el('line', { x1: anchor[0].x, y1: ys[0] + 8, x2: anchor[1].x, y2: ys[1] - 8 }, g);
+              sign((anchor[0].x + anchor[1].x) / 2, (ys[0] + ys[1]) / 2);
             }
-            var gd = el('g', { fill: 'currentColor' }, svg);
-            for (k = 0; k < cols; k++) { el('circle', { cx: X(k), cy: y1, r: 5 }, gd); el('circle', { cx: X(k), cy: y2, r: 5 }, gd); }
-            var a = nm(0), b = nm(1), cap = document.getElementById('fairy_items_caption');
+            var gd = el('g', {}, svg);
+            R.forEach(function(r, i) {
+              for (var q = 0; q < cols; q++) {
+                if (q < cnt[i]) el('circle', { cx: X(q), cy: ys[i], r: 5, fill: r.color || 'currentColor' }, gd);
+                else el('circle', { cx: X(q), cy: ys[i], r: 4.5, fill: 'none', stroke: 'currentColor', 'stroke-dasharray': '2 2', opacity: '0.35' }, gd);
+              }
+            });
+            var a = R[0].name, b = R[1].name, cap = document.getElementById('fairy_items_caption');
             var midDot = String.fromCharCode(183), avgFormula;
-            if (n <= 4) { var fp = []; for (var q2 = 1; q2 <= n; q2++) fp.push('1/' + n + ' ' + midDot + ' item ' + q2); avgFormula = fp.join(' + '); }
-            else avgFormula = '(item 1 + ... + item ' + n + ') / ' + n;
-            if (cap) cap.textContent = {
-              joint: a + ' is compared with ' + b + ' within every item: in item 1, in item 2, and so on.',
-              substitutable: a + ' is compared with ' + b + ' for every combination of items, e.g. ' + a + ' in item 1 with ' + b + ' in item 2.',
-              identical: 'Each probability has the same value in all items. Your comparisons then apply to these shared values.',
-              average: 'Average of ' + a + ' = ' + avgFormula + ' (same for ' + b + '). The comparison is made between the averages. Single items may break it.'
-            }[type];
+            if (R[0].n <= 4) { var fp = []; for (var q2 = 1; q2 <= R[0].n; q2++) fp.push('1/' + R[0].n + ' ' + midDot + ' item ' + q2); avgFormula = fp.join(' + '); }
+            else avgFormula = '(item 1 + ... + item ' + R[0].n + ') / ' + R[0].n;
+            var txt;
+            if (!both) txt = 'The comparison is made between ' + a + ' and ' + b + (R[0].type === 'average' || R[1].type === 'average' ? ' using the average over the items (' + a + ' = ' + avgFormula + ').' : ' using their shared value.') + ' Single items may break it.';
+            else if (!same) txt = a + ' (' + R[0].n + ' items) and ' + b + ' (' + R[1].n + ' items) use different items, so ' + a + ' is compared with ' + b + ' for every combination of items.';
+            else if (R[0].type === 'joint') txt = a + ' is compared with ' + b + ' within every item: in item 1, in item 2, and so on.';
+            else txt = a + ' is compared with ' + b + ' for every combination of items, e.g. ' + a + ' in item 1 with ' + b + ' in item 2.';
+            if (cap) cap.textContent = txt;
           }
           // Quick setup -> fills the per-probability rows (Group / Items / Model holds) under Advanced.
           var itemsApplying = false;
@@ -7913,7 +7932,7 @@ server <- shinyServer(function(input, output, session) {
             if (twoKinds() && chipState.sets.length > 1) {
               parts = chipState.sets.map(function(st, k) {
                 var mem = chipState.asg.map(function(g, i) { return g === k + 1 ? chipRowName(i) : null; }).filter(Boolean).join(', ');
-                return mem + ': ' + st.n + ' items';
+                return mem + ': ' + st.n + ' items' + (st.over ? ' (' + words[st.over] + ')' : '');
               }).join('; ');
             } else parts = (parseInt(nEl && nEl.value, 10) || 1) + ' items';
             el.textContent = 'Summary: your model is applied to ' + parts + ', ' + words[tEl.value] + (tEl.value === 'identical' && epsV > 0 ? ' (may differ by up to ' + epsV + ')' : '') + '.';
