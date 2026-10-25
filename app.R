@@ -7301,7 +7301,7 @@ server <- shinyServer(function(input, output, session) {
       class = "fairy-eq-tol-modal",
       tags$div(class = "fairy-eq-tol-header", tags$strong(if (is_edit) "Edit unpacking across items" else "Unpack across items")),
       tags$p(class = "fairy-eq-tol-help",
-        HTML("Use this if every probability of your model was measured on <b>several items</b>, e.g. several different jokes. The model is then applied to the items.")
+        HTML("Use this if your study has <b>several items</b> for each probability, e.g. several different jokes, stimuli or trials. The model is then applied to the items.")
       ),
       selectInput("items_base_model", "Base model", choices = model_choices,
         selected = prefill_base %||% model_choices[1], width = "100%"),
@@ -7374,9 +7374,9 @@ server <- shinyServer(function(input, output, session) {
       },
       tags$details(open = if (adv_diff) NA else NULL, style = "margin-top:8px;",
         tags$summary(style = "cursor:pointer;font-size:12.5px;color:var(--fairy-primary);font-weight:600;user-select:none;",
-          "Were some probabilities measured on different items?"),
+          "Do some probabilities come from different parts of your study?"),
         tags$p(class = "fairy-eq-tol-help", style = "margin-top:6px;",
-          HTML("Click a probability to move it into another <b>item set</b>. A set is a group of probabilities that were measured on the same items (e.g. the same jokes). Each set can have its own number of items.")),
+          HTML("Usually all probabilities have the same items. But some may come from a different condition or stimulus type with its own items (e.g. jokes versus puns). Click such a probability to move it into another <b>item set</b>. Probabilities in one set share their items. Each set can have its own number of items.")),
         tags$div(id = "fairy_items_chips", style = "display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;"),
         tags$div(id = "fairy_items_sets", style = "margin:6px 0 10px;"),
         tags$div(style = "display:none;",
@@ -7830,11 +7830,14 @@ server <- shinyServer(function(input, output, session) {
             var gd = el('g', { fill: 'currentColor' }, svg);
             for (k = 0; k < cols; k++) { el('circle', { cx: X(k), cy: y1, r: 5 }, gd); el('circle', { cx: X(k), cy: y2, r: 5 }, gd); }
             var a = nm(0), b = nm(1), cap = document.getElementById('fairy_items_caption');
+            var midDot = String.fromCharCode(183), avgFormula;
+            if (n <= 4) { var fp = []; for (var q2 = 1; q2 <= n; q2++) fp.push('1/' + n + ' ' + midDot + ' item ' + q2); avgFormula = fp.join(' + '); }
+            else avgFormula = '(item 1 + ... + item ' + n + ') / ' + n;
             if (cap) cap.textContent = {
               joint: a + ' is compared with ' + b + ' within every item: in item 1, in item 2, and so on.',
               substitutable: a + ' is compared with ' + b + ' for every combination of items, e.g. ' + a + ' in item 1 with ' + b + ' in item 2.',
               identical: 'Each probability has the same value in all items. Your comparisons then apply to these shared values.',
-              average: 'The comparison is made between the averages over the items. Single items may break it.'
+              average: 'Average of ' + a + ' = ' + avgFormula + ' (same for ' + b + '). The comparison is made between the averages. Single items may break it.'
             }[type];
           }
           // Quick setup -> fills the per-probability rows (Group / Items / Model holds) under Advanced.
