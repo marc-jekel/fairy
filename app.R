@@ -7989,7 +7989,7 @@ server <- shinyServer(function(input, output, session) {
               inv = best || inv;
               idxs = inv.slice();
               for (var zz = 0; zz < nProb; zz++) if (idxs.indexOf(zz) < 0) idxs.push(zz);
-              pdisp = ordP.map(function(p) { return [idxs.indexOf(p[0]), idxs.indexOf(p[1]), p[3] || '']; }).filter(function(q) { return q[0] >= 0 && q[1] >= 0; });
+              pdisp = ordP.map(function(p) { return [idxs.indexOf(p[0]), idxs.indexOf(p[1]), p[3] || '', !!p[3]]; }).filter(function(q) { return q[0] >= 0 && q[1] >= 0; });
             } else {
               idxs = []; for (var z = 0; z < Math.min(2, nProb); z++) idxs.push(z);
               pdisp = [[0, 1]];
@@ -8045,11 +8045,11 @@ server <- shinyServer(function(input, output, session) {
             pdisp.forEach(function(pp) {
               var q = Math.min(pp[0], pp[1]), q2 = Math.max(pp[0], pp[1]), ch = pp[2] || (pp[0] > pp[1] ? '<' : '>');
               var r0 = R[q], r1 = R[q2], same = r0.list === r1.list, y0 = ys[q], y1 = ys[q2], c0 = cnt[q], c1 = cnt[q2];
-              if (pp[2] === '+' && anchor[q].grid && anchor[q2].grid) {
+              if (pp[3] && anchor[q].grid && anchor[q2].grid) {
                 // parts of a sum: one straight line down from each part to the square, in every column (dots sit on the line)
                 for (k = 0; k < Math.min(c0, c1); k++) {
                   el('line', { x1: X(k), y1: y0 + 7, x2: X(k), y2: y1 - 7 }, g);
-                  sign(X(k), y0 + (ys[q + 1] - ys[q]) / 2, '+');
+                  sign(X(k), y0 + (ys[q + 1] - ys[q]) / 2, pp[2] || '+');
                 }
                 return;
               }
