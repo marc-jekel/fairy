@@ -1517,7 +1517,7 @@ ui <- shinyUI(fluidPage(
       }
       .model-card .fairy-handle:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 16%, transparent); }
       .model-card .fairy-handle:active { cursor: grabbing; }
-      .model-card .fairy-handle-grip { color: #566075; font-size: 13px; letter-spacing: 2px; line-height: 1; }
+      .model-card .fairy-handle-grip { color: #566075; font-size: 13px; letter-spacing: 2px; line-height: 1; position: absolute; left: 12px; }
       .model-card .fairy-handle-kind {
         position: absolute;
         right: 12px;
@@ -1640,6 +1640,25 @@ ui <- shinyUI(fluidPage(
       .fairy-h-cards-wrap.fairy-free, .fairy-h-cards-wrap.fairy-packed { position: relative; display: block !important; }
       .fairy-h-cards-wrap.fairy-packed .model-card, .fairy-h-cards-wrap.fairy-free .model-card { position: absolute; margin: 0 !important; box-sizing: border-box; }
       .fairy-h-cards-wrap.fairy-free .model-card .fairy-handle { cursor: move; touch-action: none; }
+      .model-card .fairy-resize, .model-card .fairy-card-expand { display: none; }
+      .fairy-h-cards-wrap.fairy-free .model-card .fairy-resize, .fairy-h-cards-wrap.fairy-packed .model-card .fairy-resize { display: block; position: absolute; touch-action: none; z-index: 3; }
+      .fairy-resize[data-dir=x] { top: 30px; right: 0; bottom: 14px; width: 8px; cursor: ew-resize; }
+      .fairy-resize[data-dir=y] { left: 0; bottom: 0; right: 14px; height: 8px; cursor: ns-resize; }
+      .fairy-resize[data-dir=xy] { right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; border-radius: 0 0 11px 0;
+        background: linear-gradient(135deg, transparent 0 55%, color-mix(in srgb, var(--fairy-text-muted, #667085) 55%, transparent) 55% 62%, transparent 62% 76%, color-mix(in srgb, var(--fairy-text-muted, #667085) 55%, transparent) 76% 83%, transparent 83%); }
+      .fairy-h-cards-wrap .model-card .fairy-resize:hover, .fairy-h-cards-wrap .model-card .fairy-resize.fairy-resizing { background-color: color-mix(in srgb, var(--fairy-primary, #3a6df0) 22%, transparent); }
+      .model-card.fairy-has-handle::after { content: none; }
+      #v_rep table.dataTable td:first-child { white-space: nowrap; }
+      #v_rep table.dataTable tbody tr.fairy-v-unique > td { background-color: color-mix(in srgb, #f59e0b 16%, transparent) !important; }
+      .fairy-v-meta { margin: -6px 0 8px; font-size: 12px; color: var(--fairy-text-muted, #667085); }
+      .fairy-v-shared { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 9px; font-size: 11px; color: var(--fairy-primary, #3a6df0);
+        background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 12%, transparent); }
+      .fairy-toolbar-iconbtn.active { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 22%, transparent) !important; color: var(--fairy-primary, #3a6df0) !important; }
+      .fairy-h-cards-wrap .model-card .fairy-card-expand { display: flex; align-items: center; justify-content: center; position: absolute; top: 2px; right: 6px; width: 20px; height: 20px; padding: 0; z-index: 4;
+        border: 0; border-radius: 5px; background: transparent; color: var(--fairy-text-muted, #667085); cursor: pointer; }
+      .fairy-h-cards-wrap .model-card .fairy-card-expand:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 18%, transparent); color: var(--fairy-primary, #3a6df0); }
+      .fairy-h-cards-wrap.fairy-stacked .model-card .fairy-card-expand { display: flex; position: absolute; top: 2px; right: 6px; }
+      .model-card.fairy-has-handle .fairy-handle-kind { right: 36px; }
       .fairy-drop-before { box-shadow: -6px 0 0 0 var(--fairy-primary, #3a6df0) !important; }
       .fairy-drop-after  { box-shadow:  6px 0 0 0 var(--fairy-primary, #3a6df0) !important; }
       /* Large run window (see #fairy-run-overlay in the UI) */
@@ -1893,6 +1912,7 @@ ui <- shinyUI(fluidPage(
            did. */
         overflow-x: auto;
       }
+      .model-card.fairy-sized .fairy-h-table-scroll { max-height: none; overflow-y: visible; }
       #fairy-card-overlay-content .fairy-h-table-scroll {
         max-height: none;
         overflow-y: visible;
@@ -4481,6 +4501,25 @@ ui <- shinyUI(fluidPage(
           });
         }
         function save() { try { sessionStorage.setItem('fairyCardOrder', JSON.stringify(order)); } catch (e) {} }
+        // widths the user dragged a card to (height follows the content), per tab and title
+        var widths = {}, heights = {}, resizing = false;
+        try { widths = JSON.parse(sessionStorage.getItem('fairyCardW') || '{}'); heights = JSON.parse(sessionStorage.getItem('fairyCardH') || '{}'); } catch (e) { widths = {}; heights = {}; }
+        function saveWidths() { try { sessionStorage.setItem('fairyCardW', JSON.stringify(widths)); sessionStorage.setItem('fairyCardH', JSON.stringify(heights)); } catch (e) {} }
+        function clearSize(c) { c.style.height = c.style.overflow = ''; c.classList.remove('fairy-sized'); }
+        // DataTables lays its columns out once: let it re-measure after a tile changed size
+        function refitCard(c) {
+          setTimeout(function() {
+            try { if (window.jQuery && jQuery.fn.dataTable) jQuery(c).find('table.dataTable').each(function() { jQuery(this).DataTable().columns.adjust(); }); } catch (e) {}
+          }, 120);
+        }
+        // the content (H description, tables) scales with the tile's width; nat = width of the tile at its natural size
+        var nat = {};
+        function applyZoom(c, z) {
+          Array.prototype.forEach.call(c.children, function(ch) {
+            if (/fairy-handle|fairy-resize|fairy-card-expand/.test(ch.className)) return;
+            ch.style.zoom = (!z || Math.abs(z - 1) < 0.02) ? '' : z;
+          });
+        }
         function applyOrder() {
           // the touch reorder script writes the shared order straight to sessionStorage
           try { var st = JSON.parse(sessionStorage.getItem('fairyCardOrder') || '[]'); if (st.length) order = st; } catch (e) {}
@@ -4532,16 +4571,25 @@ ui <- shinyUI(fluidPage(
           if (isNarrow()) {                       // phones: one column, no absolute positioning
             wrap.classList.remove('fairy-packed', 'fairy-free'); wrap.classList.add('fairy-stacked');
             wrap.style.height = '';
-            wrapCards(wrap).forEach(function(c) { c.style.left = c.style.top = c.style.width = ''; });
+            wrapCards(wrap).forEach(function(c) { c.style.left = c.style.top = c.style.width = ''; clearSize(c); applyZoom(c, 1); });
             return;
           }
           wrap.classList.remove('fairy-stacked');
-          if (packing || wrap.classList.contains('fairy-free')) return;
+          if (packing || resizing || wrap.classList.contains('fairy-free')) return;
           var cards = wrapCards(wrap);
           if (!cards.length) return;
           packing = true;
           wrap.classList.remove('fairy-packed'); wrap.style.height = '';
-          cards.forEach(function(c) { c.style.left = c.style.top = c.style.width = ''; });
+          cards.forEach(function(c) { c.style.left = c.style.top = c.style.width = ''; clearSize(c); });
+          cards.forEach(function(c) { applyZoom(c, 1); });
+          cards.forEach(function(c) { nat[pkey(c)] = c.offsetWidth; });
+          cards.forEach(function(c) {
+            var uw = widths[pkey(c)], uh = heights[pkey(c)];
+            if (uw && nat[pkey(c)]) applyZoom(c, Math.max(0.6, Math.min(3, Math.min(uw, wrap.clientWidth) / nat[pkey(c)])));
+            if (uw) c.style.width = Math.min(uw, wrap.clientWidth) + 'px';
+            if (uh) { c.style.height = uh + 'px'; c.style.overflow = 'auto'; }
+            if (uw || uh) c.classList.add('fairy-sized');
+          });
           // the H tables size themselves to their view (Aligned / Compact); let them do that before measuring
           if (window.fitHTablesToWidth) { try { window.fitHTablesToWidth(); } catch (e) {} }
           var W = wrap.clientWidth, G = 16, Q = 4, n = Math.ceil(W / Q), sky = [], i;
@@ -4603,12 +4651,13 @@ ui <- shinyUI(fluidPage(
             return (Math.round(a.offsetTop / 40) - Math.round(b.offsetTop / 40)) || (a.offsetLeft - b.offsetLeft);
           });
           wrap.classList.remove('fairy-free'); wrap.style.height = '';
-          cards.forEach(function(c) { c.style.left = c.style.top = c.style.width = c.style.zIndex = ''; if (parent) parent.insertBefore(c, ref); });
+          cards.forEach(function(c) { c.style.left = c.style.top = c.style.width = c.style.zIndex = ''; clearSize(c); if (parent) parent.insertBefore(c, ref); });
           if (cards.length) setOrderFrom(wrap);
           packLater();
         }
         function syncButtons() {
           document.querySelectorAll('.fairy-card-layout-group button').forEach(function(b) {
+            if (b.getAttribute('data-state') === 'reset') return;
             b.classList.toggle('active', (b.getAttribute('data-state') === 'free') === freeMode);
           });
         }
@@ -4617,6 +4666,16 @@ ui <- shinyUI(fluidPage(
           if (!on) pos = {};
           savePos(); syncButtons();
           document.querySelectorAll('.fairy-h-cards-wrap').forEach(function(w) { if (on) enterFree(w); else leaveFree(w); });
+        }
+        // back to the start: model order, no free positions, natural sizes (also the content scale)
+        function resetLayout() {
+          widths = {}; heights = {}; nat = {}; saveWidths();
+          setMode(false);   // also forgets the free positions
+          var names = [];
+          document.querySelectorAll('textarea[id^=textin_relations_name]').forEach(function(t) { var v = (t.value || '').trim(); if (v) names.push(v); });
+          order = names; save();
+          document.querySelectorAll('.fairy-h-cards-wrap .model-card').forEach(function(c) { applyZoom(c, 1); clearSize(c); c.style.width = ''; });
+          applyOrder(); packLater();
         }
         function kindOf(title) {
           var k = (window.fairyKinds || {})[title];
@@ -4638,10 +4697,54 @@ ui <- shinyUI(fluidPage(
             h.appendChild(g); h.appendChild(k);
             card.insertBefore(h, card.firstChild);
             card.classList.add('fairy-has-handle');
+            // resize: right edge (width), bottom edge (height), corner (both)
+            ['x', 'y', 'xy'].forEach(function(dir) {
+              var rz = document.createElement('div'); rz.className = 'fairy-resize'; rz.setAttribute('data-dir', dir);
+              rz.setAttribute('title', (dir === 'x' ? 'Drag to change the width' : dir === 'y' ? 'Drag to change the height' : 'Drag to resize') + ' (double-click: reset)');
+              card.appendChild(rz);
+              rz.addEventListener('pointerdown', function(e) {
+                if (e.button !== undefined && e.button !== 0) return;
+                e.preventDefault(); e.stopPropagation();
+                var wrap = card.closest('.fairy-h-cards-wrap'), w0 = card.offsetWidth, h0 = card.offsetHeight, x0 = e.clientX, y0 = e.clientY, max = wrap ? wrap.clientWidth : 2000;
+                var nw = nat[pkey(card)] || w0;
+                resizing = true; rz.classList.add('fairy-resizing');
+                try { rz.setPointerCapture(e.pointerId); } catch (err) {}
+                function mv(ev) {
+                  card.classList.add('fairy-sized');
+                  if (dir !== 'y') {
+                    var nwid = Math.max(260, Math.min(max, w0 + ev.clientX - x0));
+                    card.style.width = nwid + 'px'; applyZoom(card, Math.max(0.6, Math.min(3, nwid / nw)));
+                  }
+                  if (dir !== 'x') { card.style.height = Math.max(120, h0 + ev.clientY - y0) + 'px'; card.style.overflow = 'auto'; }
+                  if (wrap && wrap.classList.contains('fairy-free')) fitWrap(wrap);
+                }
+                function up() {
+                  rz.removeEventListener('pointermove', mv); rz.removeEventListener('pointerup', up); rz.removeEventListener('pointercancel', up);
+                  rz.classList.remove('fairy-resizing'); resizing = false;
+                  if (dir !== 'y') widths[pkey(card)] = Math.round(card.offsetWidth);
+                  if (dir !== 'x') heights[pkey(card)] = Math.round(card.offsetHeight);
+                  saveWidths(); packLater(); refitCard(card);
+                }
+                rz.addEventListener('pointermove', mv); rz.addEventListener('pointerup', up); rz.addEventListener('pointercancel', up);
+              });
+              rz.addEventListener('dblclick', function(e) {
+                e.preventDefault();
+                var wrap = card.closest('.fairy-h-cards-wrap'), free = wrap && wrap.classList.contains('fairy-free');
+                if (dir !== 'y') { delete widths[pkey(card)]; applyZoom(card, 1); if (free) card.style.width = ''; }
+                if (dir !== 'x') { delete heights[pkey(card)]; if (free) clearSize(card); }
+                card.classList.toggle('fairy-sized', !!(widths[pkey(card)] || heights[pkey(card)]));
+                saveWidths(); refitCard(card);
+                if (free) { packing = false; fitWrap(wrap); } else packLater();
+              });
+            });
+            // expand button (a click on the tile itself no longer expands it)
+            var xb = document.createElement('button'); xb.type = 'button'; xb.className = 'fairy-card-expand'; xb.setAttribute('title', 'Expand'); xb.setAttribute('aria-label', 'Expand this tile');
+            xb.innerHTML = '<svg width=13 height=13 viewBox=\\'0 0 14 14\\' fill=none stroke=currentColor stroke-width=1.6 stroke-linecap=round stroke-linejoin=round aria-hidden=true><path d=\\'M8.5 1.5h4v4M5.5 12.5h-4v-4M12.5 1.5L8 6M1.5 12.5L6 8\\'/></svg>';
+            card.appendChild(xb);
           }
           h.setAttribute('aria-label', titleOf(card) + ': drag to move, or press Option/Alt and an arrow key');
           var kind = kindOf(titleOf(card)), kl = h.querySelector('.fairy-handle-kind');
-          kl.textContent = kind === 'model' ? '' : kind;
+          kl.textContent = kind === 'model' ? '' : (kind === 'items' ? 'unpacked items' : kind);
           kl.className = 'fairy-handle-kind fairy-kind-' + kind;
         }
         function decorate() {
@@ -4754,7 +4857,8 @@ ui <- shinyUI(fluidPage(
         document.addEventListener('pointercancel', endFree);
         document.addEventListener('click', function(e) {
           var b = e.target.closest && e.target.closest('.fairy-card-layout-group button');
-          if (b) setMode(b.getAttribute('data-state') === 'free');
+          if (!b) return;
+          if (b.getAttribute('data-state') === 'reset') resetLayout(); else setMode(b.getAttribute('data-state') === 'free');
         });
         // DT measures column widths while its tab is still hidden, so V tables came out collapsed
         function refit() {
@@ -4824,6 +4928,8 @@ ui <- shinyUI(fluidPage(
           copyText(url).then(function() { toast('Link copied to the clipboard'); })
             .catch(function() { window.prompt('Copy this link:', url); });
         });
+        // pasting a link into a tab where the app is already open only changes the hash: reload so it gets restored
+        window.addEventListener('hashchange', function() { if (/^#s=[A-Za-z0-9_-]+$/.test(location.hash || '')) location.reload(); });
         // opening a link with #s=... restores that input once the app is up
         $(document).one('shiny:connected', function() {
           var m = /^#s=([A-Za-z0-9_-]+)$/.exec(location.hash || '');
@@ -5036,6 +5142,26 @@ ui <- shinyUI(fluidPage(
         $(document).on('shiny:value shiny:idle', function() { clearTimeout(timer); timer = setTimeout(scan, 500); });
       })();
 
+      // ---- Ctrl+Alt+Left/Right moves to the neighbouring tab ----
+      (function() {
+        document.addEventListener('keydown', function(e) {
+          // Ctrl+Alt+arrow, or Alt+Shift+arrow (Safari / macOS swallow the first); not while typing in a field
+          var combo = (e.ctrlKey && e.altKey && !e.shiftKey) || (e.altKey && e.shiftKey && !e.ctrlKey);
+          if (!combo || e.metaKey) return;
+          var tg = e.target, tn = tg && tg.tagName;
+          if (e.shiftKey && tg && (tn === 'INPUT' || tn === 'TEXTAREA' || tn === 'SELECT' || tg.isContentEditable)) return;
+          var tabs = Array.prototype.slice.call(document.querySelectorAll('#tabs a[data-toggle=tab]')).filter(function(a) { return a.offsetParent !== null; });
+          if (!tabs.length) return;
+          var cur = tabs.findIndex(function(a) { return a.parentNode.classList.contains('active'); });
+          var target = -1;
+          if (e.code === 'ArrowRight' || e.key === 'ArrowRight') target = Math.min(tabs.length - 1, cur + 1);
+          else if (e.code === 'ArrowLeft' || e.key === 'ArrowLeft') target = Math.max(0, cur - 1);
+          if (target < 0 || target >= tabs.length) return;
+          e.preventDefault();
+          tabs[target].click();
+        });
+      })();
+
       // ---- Keyboard shortcut help (press ? or use the link in the bottom bar) ----
       (function() {
         var rows = [
@@ -5043,6 +5169,7 @@ ui <- shinyUI(fluidPage(
           ['Ctrl + Shift + +  /  \\u2212', 'Add / remove a model (on a Mac: the Control key, Safari keeps \\u2318)'],
           ['\\u2325/Alt + Enter  /  \\u2325/Alt + Shift + Enter', 'Add a model and jump into its specification / remove the last model'],
           ['Ctrl + \\u2325/Alt + +  /  \\u2212', 'Add / remove a probability'],
+          ['Ctrl + \\u2325/Alt + \\u2190  /  \\u2192   or   \\u2325/Alt + Shift + \\u2190  /  \\u2192', 'Previous / next tab'],
           ['\\u2325/Alt + arrow keys', 'Move a model tile (focus its top bar first)'],
           ['Esc', 'Close a full-screen tile or dialog'],
           ['?', 'Show this list']
@@ -5251,7 +5378,8 @@ ui <- shinyUI(fluidPage(
 
          function openOverlay(card) {
            var content = $(card).clone();
-           content.find('.model-card-expand-hint, .fairy-handle').remove();
+           content.find('.model-card-expand-hint, .fairy-handle, .fairy-resize, .fairy-card-expand').remove();
+           content.children().css('zoom', '');
            // A cloned DataTable is inert markup holding only the current page's rows, so
            // its Show / Search / paging did nothing: rebuild each one from the live table's data
            var dtJobs = [];
@@ -5362,6 +5490,7 @@ ui <- shinyUI(fluidPage(
 
          $(document).on('click', '.model-card', function(e) {
            if ($(e.target).closest('table, textarea, input, .btn, button').length) return;
+           if ($(this).hasClass('fairy-has-handle')) return;   // tiles expand with their own button
            // The parsimony volume plot has its own full-screen expand
            // (openParsimonyPlotFull(), reparenting the real plot node,
            // see its own comment above) rather than the generic clone-
@@ -5371,6 +5500,11 @@ ui <- shinyUI(fluidPage(
            // clicking anywhere else on this specific card.
            if ($(this).find('#expand_parsimony_plot_btn').length) { openParsimonyPlotFull(); return; }
            openOverlay(this);
+         });
+         $(document).on('click', '.fairy-card-expand', function(e) {
+           e.stopPropagation();
+           var c = $(this).closest('.model-card')[0];
+           if (c) openOverlay(c);
          });
          $(document).on('click', '#expand_parsimony_plot_btn', function(e) {
            e.stopPropagation();
@@ -6006,7 +6140,8 @@ ui <- shinyUI(fluidPage(
           ),
           tags$div(class = "fairy-segmented fairy-card-layout-group",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", icon("table-cells-large")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Free layout: drag the cards anywhere", `data-state` = "free", icon("up-down-left-right"))
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Free layout: drag the cards anywhere", `data-state` = "free", icon("up-down-left-right")),
+            tags$button(type = "button", class = "fairy-tooltip fairy-card-reset", `data-tooltip` = "Reset order, positions and sizes", `data-state` = "reset", icon("rotate-left"))
           ),
           # Separates the display toggles above (Trivial bounds, Layout,
           # Color — all affect how the SAME data looks) from the
@@ -6125,8 +6260,13 @@ ui <- shinyUI(fluidPage(
           style = "display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding:4px; flex:0 0 auto;",
           tags$div(class = "fairy-segmented fairy-card-layout-group",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", icon("table-cells-large")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Free layout: drag the cards anywhere", `data-state` = "free", icon("up-down-left-right"))
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Free layout: drag the cards anywhere", `data-state` = "free", icon("up-down-left-right")),
+            tags$button(type = "button", class = "fairy-tooltip fairy-card-reset", `data-tooltip` = "Reset order, positions and sizes", `data-state` = "reset", icon("rotate-left"))
           ),
+          tags$span(class = "fairy-tooltip", `data-tooltip` = "Mark vertices that other models share (vertices only this model has are tinted)",
+            tags$button(id = "v_shared_btn", type = "button", class = "fairy-toolbar-iconbtn", `aria-pressed` = "false", `aria-label` = "Mark shared vertices", icon("link"))),
+          tags$span(class = "fairy-tooltip", `data-tooltip` = "Show only the vertices that no other model has",
+            tags$button(id = "v_unique_btn", type = "button", class = "fairy-toolbar-iconbtn", `aria-pressed` = "false", `aria-label` = "Show only unique vertices", icon("filter"))),
           tags$hr(class = "fairy-toolbar-divider"),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "V-representation for QTEST",
             downloadButton("d_v", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
@@ -6154,6 +6294,16 @@ ui <- shinyUI(fluidPage(
         )),
         tags$script(
           '
+         $(document).on("click", "#v_unique_btn", function() {
+           var on = !$(this).hasClass("active");
+           $(this).toggleClass("active", on).attr("aria-pressed", on ? "true" : "false");
+           Shiny.setInputValue("v_unique", on);
+         });
+         $(document).on("click", "#v_shared_btn", function() {
+           var on = !$(this).hasClass("active");
+           $(this).toggleClass("active", on).attr("aria-pressed", on ? "true" : "false");
+           Shiny.setInputValue("v_shared", on);
+         });
          $("#go_v_h").click(function(){
                             $("#v_rep").removeClass("grey-out");
                         });
@@ -7166,13 +7316,14 @@ server <- shinyServer(function(input, output, session) {
       if (length(members) == 0) members <- factors[[fi]]$name
       ev <- member_eps_for_factor(param_factors, eps_per_param, fi)
       kind <- switch(factor_types[fi],
-        joint = "per item",
+        joint = "item by item",
         substitutable = "all combinations",
         average = "average",
         identical = {
-          if (length(ev) == 0 || all(ev == 0)) "equal"
-          else if (length(unique(round(ev, 10))) == 1) paste0("equal \u00b1", frac_str(ev[1]))
-          else paste0("equal \u00b1", paste(vapply(ev, frac_str, character(1)), collapse = ","))
+          dec <- function(x) as.character(round(x, 4))
+          if (length(ev) == 0 || all(ev == 0)) "same value"
+          else if (length(unique(round(ev, 10))) == 1) paste0("same value \u00b1", dec(ev[1]))
+          else paste0("same value \u00b1", paste(vapply(ev, dec, character(1)), collapse = "/"))
         })
       list(members = vapply(members, plain_p_name, character(1)), n = factors[[fi]]$n, kind = kind,
            solo = length(members) == 1)
@@ -7190,8 +7341,8 @@ server <- shinyServer(function(input, output, session) {
     one_kind <- length(kinds) == 1L
     body <- vapply(out, function(sg)
       paste0(if (all_in_one) "" else paste0(paste(sg$members, collapse = ", "), ": "),
-             if (one_kind) paste0(sg$n, " items") else paste0(sg$n, "\u00d7 ", sg$kind)), character(1))
-    paste0(if (one_kind) paste0(kinds, " \u00b7 ") else "", paste(body, collapse = "; "))
+             paste0(sg$n, " items", if (one_kind) "" else paste0(", ", sg$kind))), character(1))
+    paste0(paste(body, collapse = "; "), if (one_kind) paste0(" \u00b7 ", kinds) else "")
   }
 
   items_spec_names <- function(spec) {
@@ -7430,7 +7581,7 @@ server <- shinyServer(function(input, output, session) {
             .fairy-items-opt { border-color:transparent !important; padding:9px 12px !important; margin-bottom:4px !important; }
             .fairy-items-opt.fairy-items-opt-sel { background:rgba(58,109,240,.09) !important; border-color:transparent !important; }
             .fairy-items-viz { background:transparent !important; border:0 !important; padding:0 !important; }
-            #fairy_items_stmts { border:0 !important; border-top:1px solid var(--fairy-border, #d5d9e4) !important; border-radius:0 !important; background:transparent !important; padding:12px 0 0 !important; margin-top:16px !important; }
+            #fairy_items_stmts { border:0 !important; border-top:1px solid var(--fairy-border, #d5d9e4) !important; border-radius:0 !important; background:transparent !important; padding:12px 0 0 !important; margin-top:18px !important; }
             #fairy_items_caption { color:var(--fairy-text-muted); margin-top:10px !important; }
             #fairy_items_summary { border-left:0 !important; background:transparent !important; padding:0 !important; color:var(--fairy-text-muted); font-size:12px !important; margin-top:22px !important; }
             .modal:has(#submit_items_multi) .modal-body { padding:20px 30px !important; }
@@ -7466,12 +7617,12 @@ server <- shinyServer(function(input, output, session) {
               opt("identical", "for the shared value of each probability", "all items of a probability are equal"),
               opt("average", "for the average over the items", "single items may break it"),
               tags$div(id = "fairy_items_perlist_wrap", style = "display:none;",
-                opt("perlist", "differently for each list", "choose it for every list in question 2"))
+                opt("perlist", "differently for each list", "choose it for every list in question 2")),
+              tags$div(id = "fairy_items_stmts", style = "font-size:12px;"),
+              tags$div(id = "fairy_items_caption", style = "font-size:12px; margin-top:6px;")
             ),
             tags$div(class = "fairy-items-viz",
               tags$div(id = "fairy_items_diagram", `aria-hidden` = "true"),
-              tags$div(id = "fairy_items_stmts", style = "margin-top:10px; padding:8px 10px; border:1px solid var(--ct-border, #d9dedb); border-radius:6px; background:var(--ct-default, #fff); font-size:12px;"),
-              tags$div(id = "fairy_items_caption", style = "font-size:12px; margin-top:6px;"),
               tags$div(style = "font-size:11px; color:var(--fairy-text-muted); margin-top:6px;",
                 HTML("&#9679; one probability for one item &nbsp;&middot;&nbsp; <b style='color:var(--fairy-primary, #3a6df0);'>&#8593;</b> arrow points to the larger probability<span id='fairy_items_sq_legend' hidden> &nbsp;&middot;&nbsp; grey line: part of a sum</span>")))),
           tags$div(id = "fairy_items_quick_eps_wrap", style = paste0(if (identical(q_type, "identical")) "" else "display:none;"),
@@ -7764,7 +7915,7 @@ server <- shinyServer(function(input, output, session) {
               var gIn = row.querySelector('input[id^=items_multi_group_]'), sel = row.querySelector('select[id^=items_multi_type_]'), eIn = row.querySelector('input[id^=items_multi_eps_]');
               if (st.n > 1) {
                 if (sel) { if (sel.selectize) sel.selectize.setValue(st.type); else { sel.value = st.type; $(sel).trigger('change'); } }
-                if (gIn && (st.type === 'joint' || st.type === 'identical')) { gIn.value = 'group ' + chipLetter(k - 1); $(gIn).trigger('input'); }
+                if (gIn) { gIn.value = 'group ' + chipLetter(k - 1); $(gIn).trigger('input'); }
               }
               if (eIn) { eIn.value = st.type === 'identical' ? epsV : 0; $(eIn).trigger('change'); }
             });
@@ -8070,9 +8221,10 @@ server <- shinyServer(function(input, output, session) {
               var c = cnt[i], cx = (X(0) + X(c - 1)) / 2;
               anchor[i] = { x: cx, y: ys[i], grid: r.type !== 'average' };
               if (r.type === 'identical') {
+                var epsD = document.getElementById('fairy_items_quick_eps'), eqCh = (parseFloat(epsD && epsD.value) || 0) > 0 ? String.fromCharCode(8776) : '=';
                 for (k = 0; k < c - 1; k++) {
                   el('line', { x1: X(k) + 8, y1: ys[i], x2: X(k + 1) - 8, y2: ys[i] }, g);
-                  var e = el('text', { x: (X(k) + X(k + 1)) / 2, y: ys[i] - 5, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12' }, svg); e.textContent = '=';
+                  var e = el('text', { x: (X(k) + X(k + 1)) / 2, y: ys[i] - 5, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12' }, svg); e.textContent = eqCh;
                 }
               } else if (r.type === 'average') {
                 if (i === 0) { var ah = el('text', { x: avgX, y: 14, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '10.5', 'font-weight': '600' }, svg); ah.textContent = 'average'; }
@@ -8166,7 +8318,6 @@ server <- shinyServer(function(input, output, session) {
               for (var q2 = 0; q2 < cols; q2++) {
                 if (q2 < cnt[i] && r.virt) el('rect', { x: X(q2) - 6.5, y: ys[i] - 6.5, width: 13, height: 13, rx: 3, fill: 'var(--ct-default, #fff)', stroke: r.color || 'currentColor', 'stroke-width': '2' }, gd);
                 else if (q2 < cnt[i]) el('circle', { cx: X(q2), cy: ys[i], r: 6.5, fill: r.color || 'currentColor' }, gd);
-                else el('circle', { cx: X(q2), cy: ys[i], r: 5.5, fill: 'none', stroke: 'currentColor', 'stroke-dasharray': '2 2', opacity: '0.35' }, gd);
               }
             });
             var a = R[0].name, b = R[1].name, cap = document.getElementById('fairy_items_caption');
@@ -8211,7 +8362,7 @@ server <- shinyServer(function(input, output, session) {
                   else if (ty === 'substitutable') sl.forEach(function(t) { var l2 = LET[nextL++]; t.ix = l2; count *= n; vars.push({ l: l2, n: n }); });
                   else if (ty === 'average') sl.forEach(function(t) { t.avg = true; });
                 });
-                var fmt = function(t) { return (t.w ? t.w + DOT : '') + (t.avg ? OS + ' ' : '') + nm(t.r) + (t.ix ? '(' + t.ix + ')' : ''); };
+                var fmt = function(t) { return (t.w ? t.w + DOT : '') + (t.avg ? 'mean(' + nm(t.r) + ')' : nm(t.r) + (t.ix ? '(' + t.ix + ')' : '')); };
                 var hiT = sides[0].map(fmt).join(' + '), loT = sides[1].map(fmt).join(' + ');
                 if (p[2]) loT = p[2] + DOT + (sides[1].length > 1 ? '(' + loT + ')' : loT);
                 var allN = vars.every(function(v) { return v.n === vars[0].n; });
@@ -8417,7 +8568,8 @@ server <- shinyServer(function(input, output, session) {
               m_eps <- if (!is.null(eps_pp) && !is.na(eps_pp[m])) unname(eps_pp[m]) else 0
               prefill_rows[[m]] <- list(
                 n = spec$factors[[fi]]$n, type = spec$factor_types[fi], eps = m_eps,
-                group = if (length(members) > 1) spec$factors[[fi]]$name else ""
+                group = if (!is.null(spec$lists) && !is.na(spec$lists[m])) unname(spec$lists[m])
+                        else if (length(members) > 1) spec$factors[[fi]]$name else ""
               )
             }
           }
@@ -8523,6 +8675,7 @@ server <- shinyServer(function(input, output, session) {
             pending_relations_name_restore(c(rep(NA_character_, n), new_model_name))
           }
 
+          vtab_carry(orig_name, new_model_name)
           counter_input$n <- new_n
         }, ignoreInit = TRUE)
       })
@@ -8668,6 +8821,10 @@ server <- shinyServer(function(input, output, session) {
     # unmodified.
     spec <- list(base = base_m, factors = factors, param_factors = param_factors,
       factor_types = factor_types, eps_per_param = eps_per_param)
+    # Which probabilities share an item list, as typed. Display only (reopening the dialog, share links):
+    # substitutable/average groups are split into single factors above, so the spec itself loses this.
+    lists_typed <- setNames(vapply(raw_rows, function(rr) as.character(rr$group), character(1)), p_names)
+    if (any(nzchar(lists_typed))) spec$lists <- lists_typed
 
     # Must match EXACTLY the name the Go pipeline generates for a
     # factor_types spec (see items_name there) so this Input-tab row and
@@ -8695,7 +8852,12 @@ server <- shinyServer(function(input, output, session) {
       cur_specs[[edit_info$spec_idx]] <- spec
       mytable_items_reactive$value <- cur_specs
 
-      if (!identical(old_name, items_name)) purge_model_cache(old_name)
+      # the V flag follows the renamed row (before the old name's cache entry is purged below)
+      vtab_carry(isolate(input[[paste0("textin_relations_name", edit_info$row_idx)]]), items_name, move = TRUE)
+      # another row (an untouched copy) may still carry the old name: its H/V data and V flag must stay
+      other_rows_old_name <- sum(vapply(setdiff(seq_len(isolate(counter_input$n)), edit_info$row_idx), function(k)
+        identical(isolate(input[[paste0("textin_relations_name", k)]]), old_name), logical(1)))
+      if (!identical(old_name, items_name) && other_rows_old_name == 0) purge_model_cache(old_name)
       updateTextAreaInput(session, inputId = paste0("textin_relations_name", edit_info$row_idx), value = items_name)
       mixture_model_flags$value[[as.character(edit_info$row_idx)]] <- description
       # The Unique Model Specification box's placeholder was set once at
@@ -9548,6 +9710,89 @@ server <- shinyServer(function(input, output, session) {
     specs <- isolate(mytable_items_reactive$value)
     !is.null(idx) && !is.null(specs) && idx <= length(specs)
   }
+  # An unpacked row, or an intersection of unpacked rows: its H-representation lives in the item space.
+  is_h_only_row <- function(i) {
+    is_items_row(i) || isTRUE(isolate(derived_model_sources$value[[as.character(i)]])$by_h)
+  }
+  # The V-representation on/off flag is kept per model NAME. A copied or edited row gets a new name, so its flag
+  # has to follow: copy = the new name inherits the old name's flag, move = the old name's flag is handed over.
+  vtab_carry <- function(from, to, move = FALSE) {
+    if (is.null(from) || is.null(to) || identical(from, to)) return(invisible())
+    vtab <- isolate(mytable_v_reactive$value)
+    if (is.null(vtab) || ncol(vtab) < 2 || nrow(vtab) == 0) return(invisible())
+    on <- isTRUE(any(vtab[[2]][vtab[[1]] == from] == TRUE))
+    if (!on) return(invisible())
+    if (move) {
+      same_name_rows <- sum(vapply(seq_len(isolate(counter_input$n)), function(k) identical(isolate(input[[paste0("textin_relations_name", k)]]), from), logical(1)))
+      if (same_name_rows <= 1) vtab <- vtab[vtab[[1]] != from, , drop = FALSE]   # another row may still carry the old name
+    }
+    if (!(to %in% vtab[[1]])) {
+      vtab <- rbind(vtab, setNames(data.frame(to, TRUE, stringsAsFactors = FALSE), colnames(vtab)))
+    } else vtab[vtab[[1]] == to, 2] <- TRUE
+    mytable_v_reactive$value <- vtab
+    n_total_v <- sum(vtab[[2]] == TRUE)
+    updateActionButton(session, "show_v_rep", label = if (n_total_v > 0) paste0("V-representations (n=", n_total_v, ")") else "V-representations")
+    invisible()
+  }
+
+  # Name of a combination of unpacked rows: "m1 [3 items \u00b7 average AND all combinations]" / "m1 [3 items \u00b7 mix of average, all combinations]" when they unpack the same base
+  # model and differ only in how the model holds (the base model has the details), else NA (caller falls back).
+  combo_label_h <- function(sel_names, op) {
+    if (!all(grepl("^.*? \\[.*\\]$", sel_names))) return(NA_character_)
+    base <- sub("^(.*?) \\[.*\\]$", "\\1", sel_names, perl = TRUE)
+    inner <- sub("^.*? \\[(.*)\\]$", "\\1", sel_names, perl = TRUE)
+    if (length(unique(base)) != 1) return(NA_character_)
+    sep <- " \u00b7 "
+    cut_at <- vapply(gregexpr(sep, inner, fixed = TRUE), function(m) if (m[1] < 0) NA_integer_ else max(m), integer(1))
+    if (any(is.na(cut_at))) return(NA_character_)
+    pre  <- substr(inner, 1, cut_at - 1)
+    kind <- substr(inner, cut_at + nchar(sep), nchar(inner))
+    if (length(unique(pre)) != 1) return(NA_character_)
+    kinds_u <- unique(kind)
+    kind_txt <- if (identical(op, "mix")) paste0("mix of ", paste(kinds_u, collapse = ", ")) else paste(kinds_u, collapse = " AND ")
+    paste0(base[1], " [", pre[1], sep, kind_txt, "]")
+  }
+  # Names of the rows that are intersections / mixtures of other rows (they share vertices with their sources by construction).
+  derived_row_names <- function() {
+    ks <- names(isolate(derived_model_sources$value))
+    if (!length(ks)) return(character(0))
+    nm <- vapply(ks, function(k) isolate(input[[paste0("textin_relations_name", k)]]) %||% "", character(1))
+    unname(nm[nzchar(nm)])
+  }
+  # Short form of a model name for labels: long names are cut, the full name stays in the tooltip.
+  # An unpacked model "m1 [3 items \u00b7 average]" is shown as "m1 [average]" (the item count is in the model itself).
+  short_model_name <- function(x, n = 24) {
+    has_br <- grepl("\\[.*\\]$", x)
+    base   <- ifelse(has_br, sub("^(.*?) ?\\[.*\\]$", "\\1", x, perl = TRUE), x)
+    inner  <- ifelse(has_br, sub("^.*\\[(.*)\\]$", "\\1", x), "")
+    kind   <- ifelse(grepl(" \u00b7 ", inner, fixed = TRUE), sub("^.* \u00b7 ", "", inner), inner)
+    out    <- ifelse(has_br, paste0(base, " [", kind, "]"), x)
+    ifelse(nchar(out) > n, paste0(substr(out, 1, n - 1), "\u2026"), out)
+  }
+
+  # Which item space a row lives in: "base" (the ordinary probabilities) or "items:<items per probability>".
+  row_space_sig <- function(i, depth = 0) {
+    key <- as.character(i)
+    src <- isolate(derived_model_sources$value[[key]])
+    if (isTRUE(src$by_h) && depth < 10) return(row_space_sig(src$source_idx[1], depth + 1))
+    idx <- isolate(item_model_spec_idx$value[[key]])
+    specs <- isolate(mytable_items_reactive$value)
+    if (!is.null(idx) && !is.null(specs) && idx <= length(specs)) {
+      sp <- specs[[idx]]; pf <- sp$param_factors
+      cnt <- vapply(seq_along(pf), function(k) if (pf[[k]] > 0) as.integer(sp$factors[[pf[[k]]]]$n) else 1L, integer(1))
+      return(paste0("items:", paste(cnt, collapse = ",")))
+    }
+    "base"
+  }
+  # Text shown in the intersection / mixture dialog when the picked models cannot be combined (NULL = fine).
+  combo_warning <- function(sel) {
+    sel <- suppressWarnings(as.integer(sel)); sel <- sel[!is.na(sel)]
+    if (length(sel) < 2) return(NULL)
+    sigs <- vapply(sel, row_space_sig, character(1))
+    if (length(unique(sigs)) == 1) return(NULL)
+    if ("base" %in% sigs) "These models cannot be combined: models unpacked across items have one probability per item, so they live in a different space than the ordinary models."
+    else "These models cannot be combined: they do not have the same number of items for every probability."
+  }
   items_combine_msg <- paste0(
     "Models unpacked across items have one probability per item, so they live in a different parameter space ",
     "than the other models (and than models with other items). They cannot be combined with those.")
@@ -9567,11 +9812,12 @@ server <- shinyServer(function(input, output, session) {
       class = "fairy-combo-modal",
       tags$div(class = "fairy-combo-header", tags$strong("Add intersection model")),
       tags$p(class = "fairy-combo-help", "Pick two or more models — the new model's Unique Model Specification will be all of their constraints combined."),
-      if (any(vapply(seq_len(n), is_items_row, logical(1))))
+      if (any(vapply(seq_len(n), is_h_only_row, logical(1))))
         tags$p(class = "fairy-combo-help", style = "font-style:italic;",
-          "Models unpacked across items are not listed: they live in a different parameter space (one probability per item)."),
+          "Models unpacked across items can only be combined with other unpacked models that have the same number of items for every probability. The app only checks that; you decide that item k of a probability means the same thing in both models."),
       checkboxGroupInput("intersection_model_picker", NULL,
-        choices = setNames(seq_len(n), model_names)[!vapply(seq_len(n), is_items_row, logical(1))]),
+        choices = setNames(seq_len(n), model_names)),
+      uiOutput("combo_warn_int"),
       footer = tagList(
         modalButton("Cancel"),
         actionBttn("submit_intersection_model", "Add", style = "material-flat", color = "primary", size = "sm")
@@ -9580,14 +9826,46 @@ server <- shinyServer(function(input, output, session) {
     ))
   })
 
+  output$combo_warn_int <- renderUI({
+    w <- combo_warning(input$intersection_model_picker)
+    if (is.null(w)) NULL else tags$p(class = "fairy-combo-help", style = "color:#b45309; font-weight:600;", w)
+  })
+  output$combo_warn_mix <- renderUI({
+    w <- combo_warning(input$mixture_model_picker)
+    if (is.null(w)) NULL else tags$p(class = "fairy-combo-help", style = "color:#b45309; font-weight:600;", w)
+  })
+  observeEvent(input$intersection_model_picker, {
+    shinyjs::toggleState("submit_intersection_model", condition = is.null(combo_warning(input$intersection_model_picker)))
+  }, ignoreNULL = FALSE)
+  observeEvent(input$mixture_model_picker, {
+    shinyjs::toggleState("submit_mixture_model", condition = is.null(combo_warning(input$mixture_model_picker)))
+  }, ignoreNULL = FALSE)
+
   observeEvent(input$submit_intersection_model, {
     selected_idx <- suppressWarnings(as.integer(input$intersection_model_picker))
     selected_idx <- selected_idx[!is.na(selected_idx)]
     if (length(selected_idx) < 2) {
       return()
     }
-    if (any(vapply(selected_idx, is_items_row, logical(1)))) {
+    h_only_sel <- vapply(selected_idx, is_h_only_row, logical(1))
+    if (any(h_only_sel) && !all(h_only_sel)) {
       showModal(modalDialog(title = "Cannot intersect", items_combine_msg, easyClose = TRUE))
+      return()
+    }
+
+    if (all(h_only_sel)) {
+      # unpacked models with the same items: the intersection is computed from their H-representations when Go runs
+      n <- isolate(counter_input$n)
+      sel_names <- vapply(selected_idx, function(i) isolate(input[[paste0("textin_relations_name", i)]]) %||% paste0("m", i), character(1))
+      new_n <- n + 1
+      pending_relations_restore(c(rep(NA_character_, n), ""))
+      int_label <- combo_label_h(sel_names, "and")
+      if (is.na(int_label)) int_label <- paste0("inters_", paste(sel_names, collapse = "_"))
+      pending_relations_name_restore(c(rep(NA_character_, n), int_label))
+      derived_model_sources$value[[as.character(new_n)]] <- list(type = "intersection", source_idx = selected_idx, by_h = TRUE)
+      mixture_model_flags$value[[as.character(new_n)]] <- paste0("Intersection of ", paste(sel_names, collapse = ", "))
+      counter_input$n <- new_n
+      removeModal()
       return()
     }
 
@@ -9663,11 +9941,12 @@ server <- shinyServer(function(input, output, session) {
       class = "fairy-combo-modal",
       tags$div(class = "fairy-combo-header", tags$strong("Add mixture model")),
       tags$p(class = "fairy-combo-help", "Pick two or more models for a mixture."),
-      if (any(vapply(seq_len(n), is_items_row, logical(1))))
+      if (any(vapply(seq_len(n), is_h_only_row, logical(1))))
         tags$p(class = "fairy-combo-help", style = "font-style:italic;",
-          "Models unpacked across items are not listed: they live in a different parameter space (one probability per item)."),
+          "Models unpacked across items can only be combined with other unpacked models that have the same number of items for every probability. The app only checks that; you decide that item k of a probability means the same thing in both models."),
       checkboxGroupInput("mixture_model_picker", NULL,
-        choices = setNames(seq_len(n), model_names)[!vapply(seq_len(n), is_items_row, logical(1))]),
+        choices = setNames(seq_len(n), model_names)),
+      uiOutput("combo_warn_mix"),
       footer = tagList(
         modalButton("Cancel"),
         actionBttn("submit_mixture_model", "Add", style = "material-flat", color = "primary", size = "sm")
@@ -9682,8 +9961,8 @@ server <- shinyServer(function(input, output, session) {
     if (length(selected_idx) < 2) {
       return()
     }
-    its <- vapply(selected_idx, is_items_row, logical(1))
-    if (any(its)) {
+    its <- vapply(selected_idx, is_h_only_row, logical(1))
+    if (any(its) && !all(its)) {
       showModal(modalDialog(title = "Cannot mix", items_combine_msg, easyClose = TRUE))
       return()
     }
@@ -9694,12 +9973,16 @@ server <- shinyServer(function(input, output, session) {
     }, character(1))
 
     combined_name <- paste0("mix_", paste(selected_names, collapse = "_"))
+    if (all(its)) {
+      mix_lab <- combo_label_h(selected_names, "mix")
+      if (!is.na(mix_lab)) combined_name <- mix_lab
+    }
     new_n <- n + 1
 
     pending_relations_restore(c(rep(NA_character_, n), ""))
     pending_relations_name_restore(c(rep(NA_character_, n), combined_name))
     mixture_model_flags$value[[as.character(new_n)]] <- paste0("Mixture of ", paste(selected_names, collapse = ", "))
-    derived_model_sources$value[[as.character(new_n)]] <- list(type = "mixture", source_idx = selected_idx)
+    derived_model_sources$value[[as.character(new_n)]] <- if (all(its)) list(type = "mixture", source_idx = selected_idx, by_h = TRUE) else list(type = "mixture", source_idx = selected_idx)
     counter_input$n <- new_n
 
     removeModal()
@@ -10587,6 +10870,7 @@ server <- shinyServer(function(input, output, session) {
       items_for_json <- lapply(mytable_items_reactive$value, function(s) {
         s$param_factors <- as.list(s$param_factors)
         if (!is.null(s$eps_per_param)) s$eps_per_param <- as.list(s$eps_per_param)
+        if (!is.null(s$lists)) s$lists <- as.list(s$lists)
         s
       })
       items_json <- toJSON(items_for_json, auto_unbox = TRUE, null = "null")
@@ -10682,7 +10966,8 @@ server <- shinyServer(function(input, output, session) {
         factors = lapply(s$factors, function(f) list(name = f$name, n = as.integer(f$n))),
         param_factors = setNames(as.integer(unlist(pf)), names(pf)),
         factor_types = unlist(s$factor_types),
-        eps_per_param = if (is.null(eps_pp)) NULL else setNames(as.numeric(unlist(eps_pp)), names(eps_pp))
+        eps_per_param = if (is.null(eps_pp)) NULL else setNames(as.numeric(unlist(eps_pp)), names(eps_pp)),
+        lists = if (is.null(s$lists)) NULL else unlist(s$lists)
       )
     })
   }
@@ -10696,7 +10981,11 @@ server <- shinyServer(function(input, output, session) {
   derived_sources_from_json <- function(json_str) {
     raw <- tryCatch(fromJSON(json_str, simplifyVector = FALSE), error = function(e) NULL)
     if (is.null(raw) || length(raw) == 0) return(list())
-    lapply(raw, function(s) list(type = s$type, source_idx = as.integer(unlist(s$source_idx))))
+    lapply(raw, function(s) {
+      out <- list(type = s$type, source_idx = as.integer(unlist(s$source_idx)))
+      if (isTRUE(s$by_h)) out$by_h <- TRUE
+      out
+    })
   }
 
   # mixture_model_flags$value: list, keyed by row index as a string, of a
@@ -11053,6 +11342,9 @@ server <- shinyServer(function(input, output, session) {
             i = hull_faces[, 1] - 1, j = hull_faces[, 2] - 1, k = hull_faces[, 3] - 1,
             opacity = if (shape_cube == 1) mesh_opacity else mesh_opacity_hull,
             color = I(model_col),
+            # flat faces: with smooth vertex shading the two triangles of one flat side look like separate shapes
+            flatshading = TRUE,
+            lighting = list(ambient = 0.85, diffuse = 0.35, specular = 0, roughness = 1, fresnel = 0),
             name = name_model,
             legendgroup = name_model,
             showlegend = FALSE
@@ -11183,6 +11475,8 @@ server <- shinyServer(function(input, output, session) {
             x = int_pl[, 1], y = int_pl[, 2], z = int_pl[, 3],
             i = hull_faces[, 1] - 1, j = hull_faces[, 2] - 1, k = hull_faces[, 3] - 1,
             opacity = 0.45, color = I(ov_col),
+            flatshading = TRUE,
+            lighting = list(ambient = 0.85, diffuse = 0.35, specular = 0, roughness = 1, fresnel = 0),
             name = ov$name, legendgroup = ov$name, showlegend = FALSE
           )
         }
@@ -11336,6 +11630,32 @@ server <- shinyServer(function(input, output, session) {
           p <- add_model_trace(p, matrix_pl, model_col, name_model, mesh_opacity, mesh_opacity_hull)
         }
 
+        # vertices that two or more of the plotted models have in common: larger white markers, one legend entry per set of models
+        mpl_ord <- matrix_pl_all[!(as.character(matrix_pl_all[, 1]) %in% derived_row_names()), , drop = FALSE]   # intersections / mixtures share vertices with their sources by construction
+        if (length(unique(as.character(mpl_ord[, 1]))) > 1) {
+          cm_all <- matrix(as.numeric(as.matrix(mpl_ord[, -1, drop = FALSE])), nrow = nrow(mpl_ord))
+          v_keys <- apply(cm_all, 1, function(r) paste(round(r, 6), collapse = ","))
+          mods_all <- as.character(mpl_ord[, 1])
+          set_of_key <- tapply(mods_all, v_keys, function(m) paste(sort(unique(m)), collapse = " | "))
+          n_in_key <- tapply(mods_all, v_keys, function(m) length(unique(m)))
+          multi <- names(n_in_key)[n_in_key >= 2]
+          sets_found <- unique(unname(set_of_key[multi]))
+          shapes <- c("diamond", "square", "circle", "cross", "x")
+          fills <- c("#FFFFFF", "#FFFFFF", "#FFFFFF", "#000000", "#000000")   # cross / x are drawn in the marker colour
+          for (si in seq_along(sets_found)) {
+            rows_si <- which(v_keys %in% multi & unname(set_of_key[v_keys]) == sets_found[si] & !duplicated(v_keys))
+            if (length(rows_si) == 0) next
+            p <- add_trace(p,
+              type = "scatter3d", mode = "markers",
+              x = cm_all[rows_si, select_plot[1]], y = cm_all[rows_si, select_plot[2]], z = cm_all[rows_si, select_plot[3]],
+              marker = list(size = 8, symbol = shapes[((si - 1) %% length(shapes)) + 1], color = fills[((si - 1) %% length(fills)) + 1], line = list(color = "#000000", width = 3)),
+              text = paste("shared by", gsub(" | ", " + ", sets_found[si], fixed = TRUE)), hoverinfo = "text+x+y+z",
+              name = paste("shared:", paste(short_model_name(strsplit(sets_found[si], " | ", fixed = TRUE)[[1]], 22), collapse = " + ")),
+              legendgroup = paste("shared:", sets_found[si]), showlegend = TRUE
+            )
+          }
+        }
+
         overlap_note <- NULL
         p <- add_overlap_traces(p, select_models_to_plot, select_plot, dim_names)
 
@@ -11478,6 +11798,9 @@ server <- shinyServer(function(input, output, session) {
   plain_axis_name <- function(nm) {
     vapply(nm, function(x) {
       if (!grepl("\\^\\{", x)) return(gsub("[{}]", "", x))
+      # current items columns: "p_{1}^{(2)}" -> "p1 (2)"
+      if (grepl("^.*\\^\\{\\([0-9]+\\)\\}$", x))
+        return(paste0(gsub("[_{}]", "", sub("\\^\\{.*$", "", x)), " (", sub("^.*\\^\\{\\(([0-9]+)\\)\\}$", "\\1", x), ")"))
       base_of    <- sub("\\^\\{.*$", "", x)
       base_plain <- gsub("[{}]", "", base_of)
       # Strip the fixed "^{(\text{" prefix and ")}" suffix that wrap
@@ -13139,7 +13462,7 @@ server <- shinyServer(function(input, output, session) {
         name_m <- mytable_input[loop_numb_models, 1]
         # A mixture row gets its real H and V together in the mixture step further down; its trivial
         # placeholder H here must not show up in the run window as a separate calculation.
-        run_row_here <- function(...) if (!identical(kinds_run[loop_numb_models], "mixture")) fairy_run_row(...)
+        run_row_here <- function(...) if (!identical(kinds_run[loop_numb_models], "mixture") && !isTRUE(dms_run[[as.character(loop_numb_models)]]$by_h)) fairy_run_row(...)
 
         model_snap <- list(
           spec    = mytable_input[loop_numb_models, 2],
@@ -13517,7 +13840,7 @@ server <- shinyServer(function(input, output, session) {
 
       mixture_names <- character()
       mix_fail_notes <- character()
-      mixture_specs <- Filter(function(x) x$type == "mixture", isolate(derived_model_sources$value))
+      mixture_specs <- Filter(function(x) x$type == "mixture" && !isTRUE(x$by_h), isolate(derived_model_sources$value))
 
       if (length(mixture_specs) > 0) {
         mix_feedback <- character()
@@ -13785,6 +14108,107 @@ server <- shinyServer(function(input, output, session) {
 
       items_reactive$names <- items_names
 
+      ####* Intersections of unpacked models ####
+      # An intersection row built from unpacked rows that share the same items has no constraint text: its
+      # H-representation is the stack of its sources' H-representations (same item space, same columns).
+      hint_specs <- Filter(function(x) x$type %in% c("intersection", "mixture") && isTRUE(x$by_h), isolate(derived_model_sources$value))
+      hint_mix_names <- character()
+      hint_notes <- character()
+      for (hk in names(hint_specs)[order(suppressWarnings(as.integer(names(hint_specs))))]) {
+        info <- hint_specs[[hk]]
+        h_row_idx <- suppressWarnings(as.integer(hk))
+        if (is.na(h_row_idx) || h_row_idx > nrow(mytable_input)) next
+        h_row_name <- mytable_input[h_row_idx, 1]
+        src_nm <- mytable_input[info$source_idx[info$source_idx <= nrow(mytable_input)], 1]
+        is_mix_h <- identical(info$type, "mixture")
+        fairy_run_row(h_row_name, if (is_mix_h) "mixture" else "intersection", h = "run")
+        H_src <- lapply(src_nm, function(m) isolate(h_reactive[[m]]))
+        if (length(H_src) < 2 || any(vapply(H_src, is.null, logical(1)))) {
+          fairy_run_row(h_row_name, h = "fail"); next
+        }
+        # same item space = same set of probability/item columns; the order depends on how the items were grouped
+        ref_cn <- colnames(H_src[[1]])
+        same_space <- all(vapply(H_src, function(h) ncol(h) == length(ref_cn) && !anyDuplicated(colnames(h)[-(1:2)]) &&
+          setequal(colnames(h)[-(1:2)], ref_cn[-(1:2)]), logical(1)))
+        if (same_space) H_src <- lapply(H_src, function(h) {
+          if (identical(colnames(h), ref_cn)) return(h)
+          h2 <- h[, c(1:2, 2L + match(ref_cn[-(1:2)], colnames(h)[-(1:2)])), drop = FALSE]
+          colnames(h2) <- ref_cn
+          h2
+        })
+        if (!same_space) {
+          fairy_run_row(h_row_name, h = "fail")
+          hint_notes <- c(hint_notes, paste0(h_row_name, ": its models do not have the same number of items for every probability, so they live in different spaces"))
+          next
+        }
+        if (is_mix_h) {
+          # mixture: convex hull of the union of the sources' vertices (inside the unit cube)
+          n_p_h <- ncol(H_src[[1]]) - 2L
+          cube_h_i <- d2q(rbind(makeH(a1 = -diag(n_p_h), b1 = rep(0, n_p_h)), makeH(a1 = diag(n_p_h), b1 = rep(1, n_p_h))))
+          V_src <- lapply(H_src, function(h) {
+            h_full <- rbind(h, cube_h_i); attr(h_full, "representation") <- "H"
+            v_out <- tryCatch(scdd(h_full)$output, error = function(e) NULL)
+            if (is.null(v_out)) NULL else v_out[v_out[, 2] == "1", , drop = FALSE]
+          })
+          V_src <- Filter(function(v) !is.null(v) && nrow(v) > 0, V_src)
+          if (length(V_src) == 0) {
+            fairy_run_row(h_row_name, h = "fail", v = "fail")
+            hint_notes <- c(hint_notes, paste0(h_row_name, ": its models have no extreme cases to combine"))
+            next
+          }
+          h_cn_mix <- colnames(H_src[[1]])
+          mix_res <- tryCatch({
+            V_comb <- do.call(rbind, V_src); attr(V_comb, "representation") <- "V"
+            hh <- scdd(V_comb)$output
+            if (nrow(hh) > 1) { hh <- redundant(hh)$output; attr(hh, "representation") <- "H" }
+            colnames(hh) <- h_cn_mix
+            vv <- scdd(hh)
+            if (ncol(vv$output) == length(h_cn_mix)) colnames(vv$output) <- h_cn_mix
+            list(h = hh, v = vv)
+          }, error = function(e) NULL)
+          if (is.null(mix_res)) {
+            fairy_run_row(h_row_name, h = "fail", v = "fail")
+            hint_notes <- c(hint_notes, paste0(h_row_name, ": the mixture could not be computed"))
+            next
+          }
+          h_reactive[[h_row_name]] <- mix_res$h
+          v_reactive[[h_row_name]] <- mix_res$v
+          recomputed_models <- c(recomputed_models, h_row_name)
+          hint_mix_names <- c(hint_mix_names, h_row_name)
+          fairy_run_row(h_row_name, h = "done", v = "done")
+          next
+        }
+        H_comb <- do.call(rbind, lapply(H_src, function(h) { attr(h, "type_assignment") <- NULL; h }))
+        attr(H_comb, "representation") <- "H"
+        feasible <- tryCatch(lpcdd(H_comb, rep("0", ncol(H_comb) - 2))$solution.type != "Inconsistent", error = function(e) TRUE)
+        if (!feasible) {
+          fairy_run_row(h_row_name, h = "warn")
+          hint_notes <- c(hint_notes, paste0(h_row_name, ": the models have nothing in common (empty set)"))
+          next
+        }
+        h_cn_int <- colnames(H_src[[1]])
+        hh <- tryCatch({
+          if (nrow(H_comb) > 1) H_comb <- redundant(H_comb)$output
+          attr(H_comb, "representation") <- "H"
+          colnames(H_comb) <- h_cn_int
+          H_comb
+        }, error = function(e) NULL)
+        if (is.null(hh)) { fairy_run_row(h_row_name, h = "fail"); next }
+        h_reactive[[h_row_name]] <- hh
+        recomputed_models <- c(recomputed_models, h_row_name)
+        fairy_run_row(h_row_name, h = "done", v = "run")
+        vv <- tryCatch(scdd(hh), error = function(e) NULL)
+        if (!is.null(vv) && nrow(vv$output) > 0) {
+          if (ncol(vv$output) == length(h_cn_int)) colnames(vv$output) <- h_cn_int
+          v_reactive[[h_row_name]] <- vv
+          fairy_run_row(h_row_name, v = "done")
+        } else {
+          fairy_run_row(h_row_name, v = "fail")
+        }
+      }
+
+      if (length(hint_mix_names)) mixtures_reactive$names <- unique(c(isolate(mixtures_reactive$names), hint_mix_names))
+
       ####* V-representation ####
       # Runs after items so all H-reps are available.
 
@@ -13892,13 +14316,15 @@ server <- shinyServer(function(input, output, session) {
         }
 
         fairy_run_end(paste0(fairy_empty_set_note(empty_set),
-          if (length(mix_fail_notes)) paste0("<br><b>Mixture failed</b> - ", paste(htmltools::htmlEscape(mix_fail_notes), collapse = "; ")) else ""))
+          if (length(mix_fail_notes)) paste0("<br><b>Mixture failed</b> - ", paste(htmltools::htmlEscape(mix_fail_notes), collapse = "; ")) else "",
+          if (length(hint_notes)) paste0("<br><b>Intersection failed</b> - ", paste(htmltools::htmlEscape(hint_notes), collapse = "; ")) else ""))
       } else {
         hideTab(inputId = "tabs", target = "V-representation")
         hideTab(inputId = "tabs", target = "Plot Polytope(s)")
         hideTab(inputId = "tabs", target = "Plot Edge Cases")
         fairy_run_end(paste0(fairy_empty_set_note(empty_set),
-          if (length(mix_fail_notes)) paste0("<br><b>Mixture failed</b> - ", paste(htmltools::htmlEscape(mix_fail_notes), collapse = "; ")) else ""))
+          if (length(mix_fail_notes)) paste0("<br><b>Mixture failed</b> - ", paste(htmltools::htmlEscape(mix_fail_notes), collapse = "; ")) else "",
+          if (length(hint_notes)) paste0("<br><b>Intersection failed</b> - ", paste(htmltools::htmlEscape(hint_notes), collapse = "; ")) else ""))
       }
 
       ####* Display Formula H-Representation ####
@@ -14338,10 +14764,23 @@ server <- shinyServer(function(input, output, session) {
               div(
                 class = "model-card",
                 if (nzchar(model_nm)) div(class = "model-card-title", model_nm),
+                {
+                  vt <- v_table_list[[i]]
+                  if (!is.null(vt)) div(class = "fairy-v-meta", sprintf("%d vertices \u00b7 %d probabilities", nrow(vt), ncol(vt) - 1L))
+                },
                 DT::dataTableOutput(id)
               )
             })
           )
+        })
+
+        # every model's vertices as comparable keys (for "mark vertices that other models share")
+        derived_names_now <- derived_row_names()
+        vkey_tab <- lapply(v_table_list, function(t) {
+          if (is.null(t) || nrow(t) == 0) return(NULL)
+          m <- matrix(q2d(unlist(t[, 2:ncol(t)])), nrow = nrow(t))
+          nm_t <- as.character(t[1, 1])
+          list(name = nm_t, derived = nm_t %in% derived_names_now, keys = apply(m, 1, function(r) paste(round(r, 6), collapse = ",")))
         })
 
         for (loop_table in seq_len(length(v_table_list))) {
@@ -14350,6 +14789,8 @@ server <- shinyServer(function(input, output, session) {
               id <- paste0("v_representation_table", loop_table)
               pl_t <- v_table_list[[loop_table]]
               colnames_pl_t <- colnames(pl_t)
+              num_v <- matrix(q2d(unlist(pl_t[, 2:ncol(pl_t)])), nrow = nrow(pl_t))
+              my_i <- loop_table
               pl_t <- cbind(pl_t[, 1], matrix(as.character(fractions(q2d(unlist(pl_t[, 2:ncol(pl_t)])))), ncol = ncol(pl_t) - 1))
               colnames(pl_t) <- colnames_pl_t
               colnames(pl_t)[1] <- "Model Name"
@@ -14377,8 +14818,38 @@ server <- shinyServer(function(input, output, session) {
                   display_t[, -1][display_t[, -1] == "0"] <- "none"
                   display_t[, -1][display_t[, -1] == "1"] <- "all"
                 }
+                # Show N entries / Search only earn their place with more than one page of vertices
+                many_rows <- nrow(display_t) > 10
+                # first column numbers the vertices (the model name is the card's title);
+                # optional tag: this vertex is shared with another plotted model
+                v_lab <- paste0("V", seq_len(nrow(display_t)))
+                uniq_flags <- rep(FALSE, nrow(display_t)); n_other <- 0
+                if ((isTRUE(input$v_shared) || isTRUE(input$v_unique)) && !is.null(vkey_tab[[my_i]]) && !isTRUE(vkey_tab[[my_i]]$derived)) {
+                  mine <- vkey_tab[[my_i]]$keys
+                  # compared with the other ordinary models only (intersections and mixtures share vertices with their sources by construction)
+                  comp <- Filter(function(o) o != my_i && !is.null(vkey_tab[[o]]) && !isTRUE(vkey_tab[[o]]$derived), seq_along(vkey_tab))
+                  n_other <- length(comp)
+                  if (n_other > 0) uniq_flags <- !(mine %in% unlist(lapply(comp, function(o) vkey_tab[[o]]$keys)))
+                  if (isTRUE(input$v_shared)) v_lab <- vapply(seq_along(v_lab), function(j) {
+                    others <- unlist(lapply(comp, function(o) if (mine[j] %in% vkey_tab[[o]]$keys) vkey_tab[[o]]$name))
+                    if (!length(others)) return(v_lab[j])
+                    lab <- if (length(others) == 1) paste("also in", short_model_name(others)) else paste("shared by", length(others) + 1L)
+                    paste0(v_lab[j], " <span class='fairy-v-shared' title='", htmltools::htmlEscape(paste("also in:", paste(others, collapse = " | ")), attribute = TRUE), "'>", htmltools::htmlEscape(lab), "</span>")
+                  }, character(1))
+                }
+                display_t[, 1] <- v_lab
+                # optional: only the vertices that no other plotted model has
+                if (isTRUE(input$v_unique) && n_other > 0) {
+                  display_t <- display_t[uniq_flags, , drop = FALSE]
+                  uniq_flags <- uniq_flags[uniq_flags]
+                  many_rows <- nrow(display_t) > 10
+                }
+                colnames(display_t)[1] <- "Vertex"
                 DT::datatable(display_t, escape = FALSE, options = list(
                   scrollX = TRUE,
+                  rowCallback = DT::JS(sprintf("function(row, data, index) { var u = %s; if (u[index]) $(row).addClass('fairy-v-unique'); }", jsonlite::toJSON(as.logical(uniq_flags & isTRUE(input$v_shared))))),
+                  dom = if (many_rows) "lfrtip" else "t",
+                  paging = many_rows,
                   drawCallback = DT::JS(
                     "function() { if (window.MathJax && MathJax.Hub) {",
                     "setTimeout(function() { MathJax.Hub.Queue(['Typeset', MathJax.Hub]); }, 30); } }"
@@ -16308,7 +16779,10 @@ server <- shinyServer(function(input, output, session) {
           type = "scatter", mode = "markers", marker = list(size = 10)
         ) %>%
           animation_opts(transition = 0) %>%
-          animation_slider(currentvalue = list(prefix = "Vertex "))
+          animation_slider(currentvalue = list(prefix = "Vertex "),
+            # with many vertices the step labels (1, 2, 3, ...) run into each other and into the axis title
+            font = list(color = if (n_vert > 12) "rgba(0,0,0,0)" else "#444444"),
+            ticklen = if (n_vert > 12) 0 else 7)
       } else {
         p <- plot_ly(v_pl,
           x = ~parameter_names, y = ~parameters,
@@ -16319,6 +16793,7 @@ server <- shinyServer(function(input, output, session) {
       # every parameter gets its own tick, tilted and smaller when there are many, so none is skipped
       n_par <- length(parameter_names)
       p %>% layout(
+        margin = list(b = if (n_vert > 1) 150 else 90),
         xaxis = list(
           title = "Parameters", type = "category",
           categoryorder = "array", categoryarray = parameter_names,

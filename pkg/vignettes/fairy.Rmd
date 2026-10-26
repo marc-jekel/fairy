@@ -131,6 +131,33 @@ fairy_info(fairy_replicate(h2, r = 3, type = "joint"))
 model independently, `"substitutable"` requires every constraint to hold whichever lab's probability is plugged in for each
 term.
 
+# Unpacking across items
+
+`fairy_replicate()` repeats the whole model the same way for every lab. `fairy_unpack()` is the general form: probabilities can have
+different numbers of items, can share an item list, and each list says in its own way how the theory holds across its items
+(`"joint"` item by item, `"substitutable"` for every combination, `"identical"` for a shared value, within a tolerance `eps`, or
+`"average"` for the average over the items).
+
+```{r unpack}
+# p1 and p2 share a list of 2 items, p3 has its own list of 3 items
+h3 <- fairy_unpack("p3 > p1 + p2", items = c(2, 2, 3), lists = c("A", "A", "B"),
+                   type = c(A = "substitutable", B = "average"), n_p = 3)
+colnames(h3)[-(1:2)]
+```
+
+Unpacked models with the same number of items for every probability live in the same space, also when the items are grouped
+differently, and can be combined. `fairy_intersect()`, `fairy_mixture()`, `fairy_nested()` and `fairy_compare()` match their
+columns by name. The package only checks that the numbers of items fit; that item *k* of one probability means the same thing as
+item *k* of another is up to you.
+
+```{r unpack-combine}
+m <- fairy_h("p1 > p2; p2 > p3", n_p = 3)
+avg  <- fairy_unpack(m, items = 2, type = "average")
+subs <- fairy_unpack(m, items = 2, lists = c("A", "B", "C"), type = "substitutable")
+fairy_nested(subs, avg)                # every combination of items implies the average
+fairy_info(fairy_intersect(avg, subs), volume = FALSE)
+```
+
 # Export
 
 `fairy_write_qtest()` and `fairy_write_multinomineq()` write the models as input files for QTest and for the R package
@@ -157,6 +184,7 @@ multinomineq (one `.tar` archive with one file per model).
 | `fairy_nested()` | is one model nested in another? |
 | `fairy_compare()` | comparison table of a set of models (Table 3 of the paper) |
 | `fairy_replicate()` | replication across labs: identical, joint, substitutable |
+| `fairy_unpack()` | unpacking across items: lists, joint / substitutable / identical (with tolerance) / average |
 | `fairy_write_qtest()` | write input files for QTest |
 | `fairy_write_multinomineq()` | write input files for multinomineq |
 

@@ -12,7 +12,7 @@
 
 <meta name="author" content="Marc Jekel" />
 
-<meta name="date" content="2026-10-24" />
+<meta name="date" content="2026-10-26" />
 
 <title>fairy: an overview of all functions</title>
 
@@ -341,7 +341,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 <h1 class="title toc-ignore">fairy: an overview of all functions</h1>
 <h4 class="author">Marc Jekel</h4>
-<h4 class="date">2026-10-24</h4>
+<h4 class="date">2026-10-26</h4>
 
 
 
@@ -537,6 +537,38 @@ probabilities, <code>&quot;joint&quot;</code> lets each lab satisfy the model
 independently, <code>&quot;substitutable&quot;</code> requires every constraint to
 hold whichever lab’s probability is plugged in for each term.</p>
 </div>
+<div id="unpacking-across-items" class="section level1">
+<h1>Unpacking across items</h1>
+<p><code>fairy_replicate()</code> repeats the whole model the same way
+for every lab. <code>fairy_unpack()</code> is the general form:
+probabilities can have different numbers of items, can share an item
+list, and each list says in its own way how the theory holds across its
+items (<code>&quot;joint&quot;</code> item by item, <code>&quot;substitutable&quot;</code>
+for every combination, <code>&quot;identical&quot;</code> for a shared value,
+within a tolerance <code>eps</code>, or <code>&quot;average&quot;</code> for the
+average over the items).</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># p1 and p2 share a list of 2 items, p3 has its own list of 3 items</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>h3 <span class="ot">&lt;-</span> <span class="fu">fairy_unpack</span>(<span class="st">&quot;p3 &gt; p1 + p2&quot;</span>, <span class="at">items =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">3</span>), <span class="at">lists =</span> <span class="fu">c</span>(<span class="st">&quot;A&quot;</span>, <span class="st">&quot;A&quot;</span>, <span class="st">&quot;B&quot;</span>),</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>                   <span class="at">type =</span> <span class="fu">c</span>(<span class="at">A =</span> <span class="st">&quot;substitutable&quot;</span>, <span class="at">B =</span> <span class="st">&quot;average&quot;</span>), <span class="at">n_p =</span> <span class="dv">3</span>)</span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="fu">colnames</span>(h3)[<span class="sc">-</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>)]</span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="co">#&gt; [1] &quot;p_{1}^(1)&quot; &quot;p_{2}^(1)&quot; &quot;p_{1}^(2)&quot; &quot;p_{2}^(2)&quot; &quot;p_{3}^(1)&quot; &quot;p_{3}^(2)&quot; &quot;p_{3}^(3)&quot;</span></span></code></pre></div>
+<p>Unpacked models with the same number of items for every probability
+live in the same space, also when the items are grouped differently, and
+can be combined. <code>fairy_intersect()</code>,
+<code>fairy_mixture()</code>, <code>fairy_nested()</code> and
+<code>fairy_compare()</code> match their columns by name. The package
+only checks that the numbers of items fit; that item <em>k</em> of one
+probability means the same thing as item <em>k</em> of another is up to
+you.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>m <span class="ot">&lt;-</span> <span class="fu">fairy_h</span>(<span class="st">&quot;p1 &gt; p2; p2 &gt; p3&quot;</span>, <span class="at">n_p =</span> <span class="dv">3</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>avg  <span class="ot">&lt;-</span> <span class="fu">fairy_unpack</span>(m, <span class="at">items =</span> <span class="dv">2</span>, <span class="at">type =</span> <span class="st">&quot;average&quot;</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>subs <span class="ot">&lt;-</span> <span class="fu">fairy_unpack</span>(m, <span class="at">items =</span> <span class="dv">2</span>, <span class="at">lists =</span> <span class="fu">c</span>(<span class="st">&quot;A&quot;</span>, <span class="st">&quot;B&quot;</span>, <span class="st">&quot;C&quot;</span>), <span class="at">type =</span> <span class="st">&quot;substitutable&quot;</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="fu">fairy_nested</span>(subs, avg)                <span class="co"># every combination of items implies the average</span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="co">#&gt; [1] FALSE</span></span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a><span class="fu">fairy_info</span>(<span class="fu">fairy_intersect</span>(avg, subs), <span class="at">volume =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="co">#&gt;   dim vertices inequalities equalities volume max_bf</span></span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a><span class="co">#&gt; 1   6       10           12          0     NA     NA</span></span></code></pre></div>
+</div>
 <div id="export" class="section level1">
 <h1>Export</h1>
 <p><code>fairy_write_qtest()</code> and
@@ -634,10 +666,15 @@ paper)</td>
 substitutable</td>
 </tr>
 <tr class="even">
+<td align="left"><code>fairy_unpack()</code></td>
+<td align="left">unpacking across items: lists, joint / substitutable /
+identical (with tolerance) / average</td>
+</tr>
+<tr class="odd">
 <td align="left"><code>fairy_write_qtest()</code></td>
 <td align="left">write input files for QTest</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>fairy_write_multinomineq()</code></td>
 <td align="left">write input files for multinomineq</td>
 </tr>

@@ -34,7 +34,7 @@ are entered as constraint strings in the vignette, the package does not store th
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/marc-jekel/fairy}
+  \item \url{https://github.com/marc-jekel/fairy/tree/main/pkg}
   \item Report bugs at \url{https://github.com/marc-jekel/fairy/issues}
 }
 

@@ -55,6 +55,7 @@ A verbal hypothesis about proportions, "category A is more common than B, which 
 | `fairy_nested()` | is one model nested in another? |
 | `fairy_compare()` | comparison table of a set of models |
 | `fairy_replicate()` | replication across labs: identical, joint, substitutable |
+| `fairy_unpack()` | unpacking across items: lists, joint / substitutable / identical (with tolerance) / average |
 | `fairy_write_qtest()`, `fairy_write_multinomineq()` | write input files for QTest and multinomineq |
 
 ## Quick start

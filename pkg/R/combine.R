@@ -23,7 +23,7 @@ fairy_intersect <- function(..., n_p = NULL, reduce = TRUE) {
   ms <- list(...)
   if (length(ms) < 2L) stop("Give at least two models.")
   if (is.null(n_p)) n_p <- infer_n_p(ms)
-  hs <- lapply(ms, resolve_h, n_p = n_p)
+  hs <- align_h(lapply(ms, resolve_h, n_p = n_p))
   cn <- colnames(hs[[1]])
   h <- do.call(rbind, hs)
   colnames(h) <- cn
@@ -58,7 +58,7 @@ fairy_mixture <- function(..., n_p = NULL) {
   ms <- list(...)
   if (length(ms) < 2L) stop("Give at least two models.")
   if (is.null(n_p)) n_p <- infer_n_p(ms)
-  hs <- lapply(ms, resolve_h, n_p = n_p)
+  hs <- align_h(lapply(ms, resolve_h, n_p = n_p))
   cn <- colnames(hs[[1]])
   # exact rational vertices, so that decimals such as .8 stay 4/5
   vq <- function(h) { o <- scdd(h)$output; o[o[, 1] == "0" & o[, 2] == "1", -(1:2), drop = FALSE] }
@@ -68,6 +68,31 @@ fairy_mixture <- function(..., n_p = NULL) {
   h <- redundant(h)$output
   colnames(h) <- cn
   h
+}
+
+# Models can only be combined when they live in the same space: the same
+# probabilities, in any order. Models of the same unpacking with differently
+# grouped items have the same columns in a different order, so the columns
+# are matched by name.
+align_h <- function(hs) {
+  if (length(hs) < 2L) return(hs)
+  nc <- vapply(hs, ncol, integer(1))
+  if (length(unique(nc)) > 1L)
+    stop("The models do not live in the same space: they have ", paste(nc - 2L, collapse = " and "),
+         " probabilities. Unpacked models can only be combined if they have the same number of items for every probability.")
+  ref <- colnames(hs[[1]])
+  lapply(hs, function(h) {
+    cn <- colnames(h)
+    if (is.null(cn) || is.null(ref) || identical(cn, ref)) return(h)
+    a <- cn[-(1:2)]; b <- ref[-(1:2)]
+    if (any(!nzchar(a)) || any(!nzchar(b))) return(h)
+    if (anyDuplicated(a) || !setequal(a, b))
+      stop("The models do not have the same probabilities (columns), so they cannot be combined.")
+    h2 <- h[, c(1:2, 2L + match(b, a)), drop = FALSE]
+    colnames(h2) <- ref
+    attr(h2, "representation") <- "H"
+    h2
+  })
 }
 
 infer_n_p <- function(ms) {

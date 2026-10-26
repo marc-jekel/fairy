@@ -1,6 +1,6 @@
 Package: fairy
 Title: Formalize and Analyze Order-Constrained Hypotheses About Proportions
-Version: 0.2.0
+Version: 0.3.0
 Authors@R: c(
     person("Marc", "Jekel", email = "mjekel@uni-koeln.de", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-9146-0306")),
@@ -16,7 +16,7 @@ Description: Provides tools to formalize verbal hypotheses about proportions
     and V-representation (extreme cases), and derive parsimony (the volume of
     a model) and the largest possible Bayes factor against the unconstrained
     model. Also builds intersections and mixtures of models, three kinds of
-    replication models, and compares sets of models. Reproduces the examples
+    replication models, unpacks models across items (item lists, joint, substitutable, identical or averaged), and compares sets of models. Reproduces the examples
     of Jekel, Regenwetter, Chen, and Line (in preparation), "Wait, what are
     you saying, exactly?", and of its online supplement.
 License: GPL (>= 3)
