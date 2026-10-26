@@ -14764,10 +14764,7 @@ server <- shinyServer(function(input, output, session) {
               div(
                 class = "model-card",
                 if (nzchar(model_nm)) div(class = "model-card-title", model_nm),
-                {
-                  vt <- v_table_list[[i]]
-                  if (!is.null(vt)) div(class = "fairy-v-meta", sprintf("%d vertices \u00b7 %d probabilities", nrow(vt), ncol(vt) - 1L))
-                },
+                uiOutput(paste0("v_meta_", i)),
                 DT::dataTableOutput(id)
               )
             })
@@ -14800,6 +14797,19 @@ server <- shinyServer(function(input, output, session) {
               # to retypeset after DT (re)draws, or these show as literal
               # LaTeX source ("{p_{1}}^{(1)}") instead of rendering.
               colnames(pl_t)[-1] <- paste0("\\(", tex_name(colnames_pl_t[-1]), "\\)")
+              # line under the title: size of the model; with the sharing marks on, how many vertices are shared with
+              # another model and how many are unique to this one
+              output[[paste0("v_meta_", my_i)]] <- renderUI({
+                txt <- sprintf("%d vertices \u00b7 %d probabilities", nrow(num_v), ncol(num_v))
+                if ((isTRUE(input$v_shared) || isTRUE(input$v_unique)) && !is.null(vkey_tab[[my_i]]) && !isTRUE(vkey_tab[[my_i]]$derived)) {
+                  comp <- Filter(function(o) o != my_i && !is.null(vkey_tab[[o]]) && !isTRUE(vkey_tab[[o]]$derived), seq_along(vkey_tab))
+                  if (length(comp) > 0) {
+                    uniq <- !(vkey_tab[[my_i]]$keys %in% unlist(lapply(comp, function(o) vkey_tab[[o]]$keys)))
+                    txt <- paste0(txt, sprintf(" \u00b7 %d shared, %d unique", sum(!uniq), sum(uniq)))
+                  }
+                }
+                div(class = "fairy-v-meta", txt)
+              })
               output[[id]] <- DT::renderDataTable({
                 # Reads input$v_rep_words live, inside the render expression
                 # (not baked in once at Go-time) — same trap as the earlier
