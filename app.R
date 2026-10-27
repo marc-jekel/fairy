@@ -7485,12 +7485,13 @@ server <- shinyServer(function(input, output, session) {
         if (is.null(a1) || is.null(b1) || length(intersect(a1$ps, b1$ps)) > 0) next
         gt <- substr(ops[i], 1, 1) == ">"
         hi <- if (gt) a1 else b1; lo <- if (gt) b1 else a1
-        ratio <- lo$cf / hi$cf
-        lab <- if (abs(ratio - 1) < 1e-9) "" else tryCatch(frac_str(ratio), error = function(e) format(round(ratio, 3)))
+        # weights as typed: p1/3 > .2 + p3 is written "1/3 * p1 > .2 + p3", and that is how it is shown
+        cf_txt <- function(v) if (abs(v - 1) < 1e-9) "" else tryCatch(frac_str(v), error = function(e) format(round(v, 3)))
+        lab <- cf_txt(lo$cf); hcf <- cf_txt(hi$cf)
         wl <- function(a) vapply(a$cfs, function(v) if (abs(v - 1) < 1e-9) "1" else tryCatch(frac_str(v), error = function(e) format(round(v, 3))), character(1))
         pairs[[length(pairs) + 1L]] <- list(as.integer(hi$ps - 1L), as.integer(lo$ps - 1L), lab,
                                             if (length(hi$ps) > 1L || nzchar(hi$cst)) wl(hi) else "", if (length(lo$ps) > 1L || nzchar(lo$cst)) wl(lo) else "",
-                                            hi$cst, lo$cst)
+                                            hi$cst, lo$cst, hcf)
       }
     }
     if (length(pairs)) unique(pairs) else NULL
@@ -8148,7 +8149,7 @@ server <- shinyServer(function(input, output, session) {
                   return nProb + vi;
                 });
                 if (ends[0] === null || ends[1] === null || ends[0] === ends[1]) return;
-                tmpP.push([ends[0], ends[1], p[2] || '']);
+                tmpP.push([ends[0], ends[1], p[2] || '', '', p[7] || '']);
               });
               pairs0 = tmpP;
               vM.forEach(function(ms, vi) { ms.forEach(function(mm, kk) { var wk = vW[vi][kk]; mlinks.push([mm, nProb + vi, '', (wk && wk !== '1') ? wk + String.fromCharCode(215) : '+']); }); });
@@ -8198,7 +8199,7 @@ server <- shinyServer(function(input, output, session) {
               inv = best || inv;
               idxs = inv.slice();
               for (var zz = 0; zz < nProb; zz++) if (idxs.indexOf(zz) < 0) idxs.push(zz);
-              pdisp = ordP.map(function(p) { return [idxs.indexOf(p[0]), idxs.indexOf(p[1]), p[3] || p[2] || '', !!p[3]]; }).filter(function(q) { return q[0] >= 0 && q[1] >= 0; });
+              pdisp = ordP.map(function(p) { return [idxs.indexOf(p[0]), idxs.indexOf(p[1]), p[3] || p[2] || '', !!p[3], p[4] || '']; }).filter(function(q) { return q[0] >= 0 && q[1] >= 0; });
             } else {
               idxs = []; for (var z = 0; z < Math.min(2, nProb); z++) idxs.push(z);
               pdisp = [[0, 1]];
@@ -8215,7 +8216,11 @@ server <- shinyServer(function(input, output, session) {
             };
             // p1 > 2*p2: the weight stands in the row it multiplies, like a number comparison, not on the arrow
             var ratioTxt = function(i) {
-              var rs = []; pdisp.forEach(function(pp) { if (!pp[3] && pp[2] && pp[2] !== '>' && pp[2] !== '<' && pp[1] === i && rs.indexOf(pp[2]) < 0) rs.push(pp[2]); });
+              var rs = []; pdisp.forEach(function(pp) {
+                if (pp[3]) return;
+                if (pp[2] && pp[2] !== '>' && pp[2] !== '<' && pp[1] === i && rs.indexOf(pp[2]) < 0) rs.push(pp[2]);
+                if (pp[4] && pp[0] === i && rs.indexOf(pp[4]) < 0) rs.push(pp[4]);
+              });
               return rs;
             };
             var labs = R.map(function(r, i) {
@@ -8373,7 +8378,8 @@ server <- shinyServer(function(input, output, session) {
             var midDot = String.fromCharCode(183), avgFormula;
             if (R[0].n <= 4) { var fp = []; for (var q3 = 1; q3 <= R[0].n; q3++) fp.push('1/' + R[0].n + ' ' + midDot + ' item ' + q3); avgFormula = fp.join(' + '); }
             else avgFormula = '(item 1 + ... + item ' + R[0].n + ') / ' + R[0].n;
-            var cmpTxt = realPairs ? pairs0.map(function(p) { return nm(p[0]) + ' > ' + (p[2] ? p[2] + ' ' + String.fromCharCode(183) + ' ' + (nm(p[1]).indexOf('+') >= 0 ? '(' + nm(p[1]) + ')' : nm(p[1])) : nm(p[1])); }) : null;
+            var cmpTxt = realPairs ? pairs0.map(function(p) { var dt = ' ' + String.fromCharCode(183) + ' ', wrap = function(x) { return x.indexOf('+') >= 0 ? '(' + x + ')' : x; };
+              return (p[4] ? p[4] + dt + wrap(nm(p[0])) : nm(p[0])) + ' > ' + (p[2] ? p[2] + dt + wrap(nm(p[1])) : nm(p[1])); }) : null;
             var hintEl = document.getElementById('fairy_items_pairs_hint'), bmEl = document.getElementById('items_base_model'), bmName = bmEl ? bmEl.value : '';
             if (hintEl) hintEl.textContent = realPairs
               ? ('Taken from your model' + (bmName ? ' ' + bmName : '') + '.')
@@ -8415,6 +8421,7 @@ server <- shinyServer(function(input, output, session) {
                 var fmt = function(t) { return (t.w ? t.w + DOT : '') + (t.avg ? 'mean(' + nm(t.r) + ')' : nm(t.r) + (t.ix ? '(' + t.ix + ')' : '')); };
                 var hiT = (cT[0] ? cT[0] + ' + ' : '') + sides[0].map(fmt).join(' + '), loT = (cT[1] ? cT[1] + ' + ' : '') + sides[1].map(fmt).join(' + ');
                 if (p[2]) loT = p[2] + DOT + (sides[1].length > 1 || cT[1] ? '(' + loT + ')' : loT);
+                if (p[7]) hiT = p[7] + DOT + (sides[0].length > 1 || cT[0] ? '(' + hiT + ')' : hiT);
                 var allN = vars.every(function(v) { return v.n === vars[0].n; });
                 var forT = !vars.length ? (terms.some(function(t) { return t.avg; }) ? 'averages over the items' : 'all items of a probability equal')
                   : (allN ? vars.map(function(v) { return v.l; }).join(', ') + ' = 1' + ELL + vars[0].n : vars.map(function(v) { return v.l + ' = 1' + ELL + v.n; }).join(', '));
