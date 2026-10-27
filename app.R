@@ -8162,7 +8162,7 @@ server <- shinyServer(function(input, output, session) {
               inv = best || inv;
               idxs = inv.slice();
               for (var zz = 0; zz < nProb; zz++) if (idxs.indexOf(zz) < 0) idxs.push(zz);
-              pdisp = ordP.map(function(p) { return [idxs.indexOf(p[0]), idxs.indexOf(p[1]), p[3] || '', !!p[3]]; }).filter(function(q) { return q[0] >= 0 && q[1] >= 0; });
+              pdisp = ordP.map(function(p) { return [idxs.indexOf(p[0]), idxs.indexOf(p[1]), p[3] || p[2] || '', !!p[3]]; }).filter(function(q) { return q[0] >= 0 && q[1] >= 0; });
             } else {
               idxs = []; for (var z = 0; z < Math.min(2, nProb); z++) idxs.push(z);
               pdisp = [[0, 1]];
