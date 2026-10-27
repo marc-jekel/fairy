@@ -7659,8 +7659,7 @@ server <- shinyServer(function(input, output, session) {
             ),
             tags$div(class = "fairy-items-viz",
               tags$div(id = "fairy_items_diagram", `aria-hidden` = "true"),
-              tags$div(style = "font-size:11px; color:var(--fairy-text-muted); margin-top:6px;",
-                HTML("&#9679; one probability for one item &nbsp;&middot;&nbsp; <b style='color:var(--fairy-primary, #3a6df0);'>&#8593;</b> arrow points to the larger probability<span id='fairy_items_sq_legend' hidden> &nbsp;&middot;&nbsp; grey line: part of a sum</span>")))),
+              tags$div(id = "fairy_items_legend", style = "font-size:11px; color:var(--fairy-text-muted); margin-top:8px; line-height:1.7;"))),
           tags$div(id = "fairy_items_quick_eps_wrap", style = paste0(if (identical(q_type, "identical")) "" else "display:none;"),
             qh(4, "Are the items of a probability exactly equal, or only approximately?"),
             tags$div(style = "margin-left:28px; font-size:12.5px;",
@@ -8257,7 +8256,7 @@ server <- shinyServer(function(input, output, session) {
               var l = el('text', { x: 12, y: ys[i] + (r.tag ? 0 : 4), 'font-weight': '600', 'font-size': '12.5' }, gt); l.textContent = labs[i];
               if (r.tag) { var l2 = el('text', { x: 12, y: ys[i] + 13, 'font-size': '9.5', fill: r.color }, svg); l2.textContent = r.tag.replace(' - ', ''); }
             });
-            var BL = 'var(--fairy-primary, #3a6df0)';
+            var BL = 'var(--fairy-primary, #3a6df0)', hubDrawn = false;
             var g = el('g', { fill: 'none', stroke: BL, 'stroke-width': '2', 'stroke-linecap': 'round' }, svg);
             var k, m;
             function sign(x, y, ch) {
@@ -8318,7 +8317,7 @@ server <- shinyServer(function(input, output, session) {
                 if (thin) { ga.opacity = '0.6'; ga['stroke-width'] = '1.3'; }
                 st0.forEach(function(sx, ix) { var a0 = Object.assign({ d: 'M' + sx + ' ' + y0 + ' C ' + xr + ' ' + y0 + ' ' + xr + ' ' + ym + ' ' + xr + ' ' + ym }, ga); if (thin && ix > 0) a0.opacity = '0.2'; el('path', a0, g); });
                 st1.forEach(function(sx) { var a1 = Object.assign({ d: 'M' + xr + ' ' + ym + ' C ' + xr + ' ' + y1 + ' ' + xr + ' ' + y1 + ' ' + sx + ' ' + y1 }, ga); el('path', a1, g); });
-                el('circle', { cx: xr, cy: ym, r: 3.2, fill: BL, stroke: 'none' }, g);
+                el('circle', { cx: xr, cy: ym, r: 3.2, fill: BL, stroke: 'none' }, g); hubDrawn = true;
                 sign(xr + 12, ym, ch);
               } else if (anchor[q].grid && anchor[q2].grid) {
                 if (same && r0.type === r1.type && (r0.type === 'joint' || r0.type === 'identical')) {
@@ -8450,7 +8449,33 @@ server <- shinyServer(function(input, output, session) {
               }
             }
             if (cap) cap.textContent = txt;
-            var sqL = document.getElementById('fairy_items_sq_legend'); if (sqL) sqL.hidden = !vN.length;
+            // legend: only what is drawn in this picture
+            var legEl = document.getElementById('fairy_items_legend');
+            if (legEl) {
+              var C9 = String.fromCharCode(9679), UP = String.fromCharCode(8593), MD = String.fromCharCode(183), NB = String.fromCharCode(160);
+              var hasDash = !!svg.querySelector('path[stroke-dasharray]'), hasFade = Array.prototype.some.call(svg.querySelectorAll('line, path'), function(nd) { return nd.getAttribute('opacity') === '0.2'; }), hasTol = R.some(function(r) { return r.type === 'identical' && cnt[R.indexOf(r)] > 1; });
+              var wLab = labs.some(function(l) { return l.indexOf(String.fromCharCode(215)) >= 0; });
+              var cLab = !!(realPairs && (window.fairyItemsConsts || []).length);
+              var entries = [[C9, 'one probability for one item', null], [UP, 'arrow points to the larger probability', BL]];
+              if (vN.length) entries.push([null, 'square or bar: the sum, its parts join it with a grey line', null]);
+              if (hasAvg) entries.push([String.fromCharCode(9675), 'average over the items (dotted lines from the items)', BL]);
+              if (hasTol) entries.push(['=', 'the items of a probability are equal (' + String.fromCharCode(8776) + ': within the tolerance)', null]);
+              if (hasDash) entries.push([null, 'dashed line: the comparison holds in every column or goes around rows in between', null]);
+              if (hubDrawn) entries.push([C9, 'small blue dot: where comparisons between rows that are not next to each other meet', BL]);
+              if (hasFade) entries.push([null, 'faded: the same holds for the other items (item 1 is shown in full)', null]);
+              if (wLab) entries.push([null, 'label such as 2' + String.fromCharCode(215) + ' p2: the probability is multiplied by that weight', null]);
+              if (cLab) entries.push([null, 'label such as p5 < 0.1: compared with a number', null]);
+              if (more) entries.push([String.fromCharCode(8230), 'more items, not drawn', null]);
+              if (two) entries.push([C9, 'colour: the item list the probability belongs to', null]);
+              legEl.textContent = '';
+              entries.forEach(function(en, ei) {
+                var sp = document.createElement('span'); sp.style.cssText = 'white-space:nowrap; margin-right:2px;';
+                if (en[0]) { var sy = document.createElement('b'); sy.textContent = en[0] + NB; if (en[2]) sy.style.color = en[2]; sp.appendChild(sy); }
+                sp.appendChild(document.createTextNode(en[1]));
+                legEl.appendChild(sp);
+                if (ei < entries.length - 1) legEl.appendChild(document.createTextNode(' ' + MD + ' '));
+              });
+            }
           }
           if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_items_pairs', function(msg) { window.fairyItemsPairs = (msg && msg.pairs) || null; window.fairyItemsConsts = (msg && msg.consts) || []; drawItemsDiagram(); });
           // Quick setup -> fills the per-probability rows (Group / Items / Model holds) under Advanced.
