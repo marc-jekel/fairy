@@ -7488,6 +7488,36 @@ server <- shinyServer(function(input, output, session) {
     }
     if (length(pairs)) unique(pairs) else NULL
   }
+  # comparisons of one probability with a number, as typed: "p5 < .2" gives (4, "<", "0.2"); "0.1 < p5 < .2" gives two
+  items_spec_consts <- function(model_name) {
+    n <- isolate(counter_input$n)
+    nm <- vapply(seq_len(n), function(i) isolate(input[[paste0("textin_relations_name", i)]]) %||% paste0("m", i), character(1))
+    idx <- which(nm == model_name)[1]
+    if (is.na(idx)) return(list())
+    spec <- paste(isolate(input[["add_for_all_models"]]) %||% "", isolate(input[[paste0("textin_relations_", idx)]]) %||% "", sep = ";")
+    spec <- gsub("\u2265", ">=", gsub("\u2264", "<=", spec, fixed = TRUE), fixed = TRUE)
+    num_of <- function(x) {
+      x <- trimws(x)
+      if (!grepl("^[0-9]*\\.?[0-9]+(/[0-9]*\\.?[0-9]+)?$", x)) return(NA_real_)
+      v <- as.numeric(strsplit(x, "/", fixed = TRUE)[[1]]); if (length(v) == 2) v[1] / v[2] else v
+    }
+    p_of <- function(x) { m <- regmatches(trimws(x), regexec("^p([0-9]+)$", trimws(x), perl = TRUE))[[1]]; if (length(m)) as.integer(m[2]) else NA_integer_ }
+    flip <- c("<" = ">", ">" = "<", "<=" = ">=", ">=" = "<=", "=" = "=")
+    out <- list()
+    for (cl in strsplit(spec, "[;,\n]")[[1]]) {
+      ops <- regmatches(cl, gregexpr("<=|>=|<|>|=", cl))[[1]]
+      opd <- trimws(strsplit(cl, "<=|>=|<|>|=")[[1]])
+      if (length(ops) == 0 || length(opd) != length(ops) + 1) next
+      for (i in seq_along(ops)) {
+        a <- opd[i]; b <- opd[i + 1]
+        if (!is.na(p_of(a)) && !is.na(num_of(b))) { pp <- p_of(a); op <- ops[i]; v <- num_of(b) }
+        else if (!is.na(num_of(a)) && !is.na(p_of(b))) { pp <- p_of(b); op <- unname(flip[ops[i]]); v <- num_of(a) }
+        else next
+        out[[length(out) + 1L]] <- list(as.integer(pp - 1L), op, as.character(round(v, 4)))
+      }
+    }
+    unique(out)
+  }
   items_pairs_json <- function(model_name) {
     pr <- items_spec_pairs(model_name)
     if (is.null(pr)) pr <- items_pairs_for(model_name)
@@ -8320,6 +8350,16 @@ server <- shinyServer(function(input, output, session) {
                 else if (q2 < cnt[i]) el('circle', { cx: X(q2), cy: ys[i], r: 6.5, fill: r.color || 'currentColor' }, gd);
               }
             });
+            // comparisons of one probability with a number (p5 < .2): a small label right of each dot of that row
+            var opSym = function(o) { return o === '<=' ? String.fromCharCode(8804) : (o === '>=' ? String.fromCharCode(8805) : o); };
+            if (realPairs) (window.fairyItemsConsts || []).forEach(function(cc) {
+              var ri = idxs.indexOf(cc[0]); if (ri < 0 || ri >= nRows) return;
+              var rr = R[ri], xs = []; if (rr.type === 'average') xs.push(avgX); else for (k = 0; k < cnt[ri]; k++) xs.push(X(k));
+              xs.forEach(function(xx) {
+                var ct = el('text', { x: xx + 11, y: ys[ri] + 4, 'text-anchor': 'start', 'font-size': '11', 'font-weight': '700', fill: BL, stroke: 'var(--ct-default, #fff)', 'stroke-width': '3', 'paint-order': 'stroke' }, svg);
+                ct.textContent = opSym(cc[1]) + ' ' + cc[2];
+              });
+            });
             var a = R[0].name, b = R[1].name, cap = document.getElementById('fairy_items_caption');
             var midDot = String.fromCharCode(183), avgFormula;
             if (R[0].n <= 4) { var fp = []; for (var q3 = 1; q3 <= R[0].n; q3++) fp.push('1/' + R[0].n + ' ' + midDot + ' item ' + q3); avgFormula = fp.join(' + '); }
@@ -8371,6 +8411,15 @@ server <- shinyServer(function(input, output, session) {
                 total += count; shownAny = true;
                 sRows.push([hiT + ' > ' + loT, forT + ' ' + String.fromCharCode(8212) + ' ' + count + (count === 1 ? ' statement' : ' statements')]);
               });
+              if (realPairs) (window.fairyItemsConsts || []).forEach(function(cc) {
+                if (cc[0] >= nProb) return;
+                var sc = spec(cc[0]), sy = opSym(cc[1]), cnt1 = 1, lhs, forC;
+                if (sc.type === 'average') { lhs = 'mean(' + nm(cc[0]) + ')'; forC = 'average over the items'; }
+                else if (sc.type === 'identical') { lhs = nm(cc[0]); forC = 'all items of a probability equal'; }
+                else { lhs = nm(cc[0]) + '(i)'; forC = 'i = 1' + ELL + sc.n; cnt1 = sc.n; }
+                total += cnt1; shownAny = true;
+                sRows.push([lhs + ' ' + sy + ' ' + cc[2], forC + ' ' + String.fromCharCode(8212) + ' ' + cnt1 + (cnt1 === 1 ? ' statement' : ' statements')]);
+              });
               stEl.textContent = '';
               stEl.hidden = !shownAny;
               if (shownAny) {
@@ -8393,7 +8442,7 @@ server <- shinyServer(function(input, output, session) {
             if (cap) cap.textContent = txt;
             var sqL = document.getElementById('fairy_items_sq_legend'); if (sqL) sqL.hidden = !vN.length;
           }
-          if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_items_pairs', function(msg) { window.fairyItemsPairs = (msg && msg.pairs) || null; drawItemsDiagram(); });
+          if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_items_pairs', function(msg) { window.fairyItemsPairs = (msg && msg.pairs) || null; window.fairyItemsConsts = (msg && msg.consts) || []; drawItemsDiagram(); });
           // Quick setup -> fills the per-probability rows (Group / Items / Model holds) under Advanced.
           var itemsApplying = false;
           function markItemsCustom(on) { }
@@ -8511,7 +8560,8 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$items_base_model, {
     nm <- input$items_base_model
     if (is.null(nm) || !nzchar(nm)) return()
-    session$sendCustomMessage("fairy_items_pairs", list(pairs = jsonlite::fromJSON(items_pairs_json(nm), simplifyVector = FALSE)))
+    session$sendCustomMessage("fairy_items_pairs", list(pairs = jsonlite::fromJSON(items_pairs_json(nm), simplifyVector = FALSE),
+                                                        consts = items_spec_consts(nm)))
   }, ignoreInit = TRUE)
 
   observeEvent(input$show_items_modal, {
