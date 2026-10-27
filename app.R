@@ -8207,14 +8207,21 @@ server <- shinyServer(function(input, output, session) {
               var c = realPairs ? (window.fairyItemsConsts || []).filter(function(cc) { return cc[0] === pi; }) : [];
               return c.length ? '  ' + c.map(function(cc) { return opSym(cc[1]) + ' ' + cc[2]; }).join(', ') : '';
             };
+            // p1 > 2*p2: the weight stands in the row it multiplies, like a number comparison, not on the arrow
+            var ratioTxt = function(i) {
+              var rs = []; pdisp.forEach(function(pp) { if (!pp[3] && pp[2] && pp[2] !== '>' && pp[2] !== '<' && pp[1] === i && rs.indexOf(pp[2]) < 0) rs.push(pp[2]); });
+              return rs;
+            };
             var labs = R.map(function(r, i) {
               if (r.virt) return '= ' + r.name;
+              var rt = ratioTxt(i), X2 = String.fromCharCode(215);
+              var nmTxt = rt.length === 1 ? rt[0] + X2 + ' ' + r.name : (rt.length > 1 ? r.name + ' (' + rt.join(X2 + ', ') + X2 + ')' : r.name);
               var po = partOf[idxs[i]];
-              if (!po || po.amb) return r.name + constTxt(idxs[i]);
+              if (!po || po.amb) return nmTxt + constTxt(idxs[i]);
               var wtxt = (po.w && po.w !== '1') ? po.w + String.fromCharCode(215) + ' ' : '';
               var first = true;
               for (var t = 0; t < i; t++) { var pj = partOf[idxs[t]]; if (pj && !pj.amb && pj.v === po.v) { first = false; break; } }
-              return (first ? '' : '+ ') + wtxt + r.name + constTxt(idxs[i]);
+              return (first ? '' : '+ ') + wtxt + nmTxt + constTxt(idxs[i]);
             });
             var MAXC = 3, dx = 58, x0 = Math.max(96, Math.round(18 + 7 * Math.max.apply(null, labs.map(function(l) { return l.length; })))), rowGap = R.length > 6 ? Math.max(30, Math.round(300 / R.length)) : 46, ys = R.map(function(r, i) { return 46 + i * rowGap; }), H = ys[ys.length - 1] + 34;
             var cnt = R.map(function(r) { return Math.min(r.n, MAXC); });
@@ -8248,7 +8255,7 @@ server <- shinyServer(function(input, output, session) {
             var g = el('g', { fill: 'none', stroke: BL, 'stroke-width': '2', 'stroke-linecap': 'round' }, svg);
             var k, m;
             function sign(x, y, ch) {
-              if (ch === '>' || ch === '<') return;
+              return;   // weights are written in the row labels, not on the arrows
               var t = el('text', { x: x + 7, y: y + 4, 'text-anchor': 'start', 'font-size': '12', 'font-weight': '700', fill: BL, stroke: 'none' }, svg);   // beside the line, never on top of it
               t.textContent = ch || '>';
             }
