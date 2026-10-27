@@ -8225,7 +8225,7 @@ server <- shinyServer(function(input, output, session) {
             };
             var labs = R.map(function(r, i) {
               var rt = ratioTxt(i), X2 = String.fromCharCode(215);
-              if (r.virt) return '= ' + (rt.length === 1 ? rt[0] + X2 + ' (' + r.name + ')' : r.name);
+              if (r.virt) return (rt.length === 1 ? rt[0] + X2 + ' (' + r.name + ')' : r.name);   // the sum row: the blue band and the square mark it, no leading sign
               var nmTxt = rt.length === 1 ? rt[0] + X2 + ' ' + r.name : (rt.length > 1 ? r.name + ' (' + rt.join(X2 + ', ') + X2 + ')' : r.name);
               var po = partOf[idxs[i]];
               if (!po || po.amb) return nmTxt + constTxt(idxs[i]);
