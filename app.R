@@ -8201,14 +8201,20 @@ server <- shinyServer(function(input, output, session) {
             // rows that are parts of a sum read as a calculation: p1, + 3x p2, = 2*p1+3*p2
             var partOf = {};
             vM.forEach(function(ms, vi) { ms.forEach(function(mm, kk) { if (partOf[mm] === undefined) partOf[mm] = { v: vi, w: vW[vi][kk] }; else partOf[mm].amb = true; }); });
+            // a comparison of one probability with a number (p5 < .2) goes into the label of its row, where nothing else is drawn
+            var opSym = function(o) { return o === '<=' ? String.fromCharCode(8804) : (o === '>=' ? String.fromCharCode(8805) : o); };
+            var constTxt = function(pi) {
+              var c = realPairs ? (window.fairyItemsConsts || []).filter(function(cc) { return cc[0] === pi; }) : [];
+              return c.length ? '  ' + c.map(function(cc) { return opSym(cc[1]) + ' ' + cc[2]; }).join(', ') : '';
+            };
             var labs = R.map(function(r, i) {
               if (r.virt) return '= ' + r.name;
               var po = partOf[idxs[i]];
-              if (!po || po.amb) return r.name;
+              if (!po || po.amb) return r.name + constTxt(idxs[i]);
               var wtxt = (po.w && po.w !== '1') ? po.w + String.fromCharCode(215) + ' ' : '';
               var first = true;
               for (var t = 0; t < i; t++) { var pj = partOf[idxs[t]]; if (pj && !pj.amb && pj.v === po.v) { first = false; break; } }
-              return (first ? '' : '+ ') + wtxt + r.name;
+              return (first ? '' : '+ ') + wtxt + r.name + constTxt(idxs[i]);
             });
             var MAXC = 3, dx = 58, x0 = Math.max(96, Math.round(18 + 7 * Math.max.apply(null, labs.map(function(l) { return l.length; })))), rowGap = R.length > 6 ? Math.max(30, Math.round(300 / R.length)) : 46, ys = R.map(function(r, i) { return 46 + i * rowGap; }), H = ys[ys.length - 1] + 34;
             var cnt = R.map(function(r) { return Math.min(r.n, MAXC); });
@@ -8243,7 +8249,7 @@ server <- shinyServer(function(input, output, session) {
             var k, m;
             function sign(x, y, ch) {
               if (ch === '>' || ch === '<') return;
-              var t = el('text', { x: x, y: y + 4, 'text-anchor': 'middle', 'font-size': '13', 'font-weight': '700', fill: BL, stroke: 'var(--ct-default, #fff)', 'stroke-width': '3', 'paint-order': 'stroke' }, svg);
+              var t = el('text', { x: x + 7, y: y + 4, 'text-anchor': 'start', 'font-size': '12', 'font-weight': '700', fill: BL, stroke: 'none' }, svg);   // beside the line, never on top of it
               t.textContent = ch || '>';
             }
             var anchor = [], avgX = X(cols - 1) + dx;
@@ -8349,16 +8355,6 @@ server <- shinyServer(function(input, output, session) {
                 if (q2 < cnt[i] && r.virt) el('rect', { x: X(q2) - 6.5, y: ys[i] - 6.5, width: 13, height: 13, rx: 3, fill: 'var(--ct-default, #fff)', stroke: r.color || 'currentColor', 'stroke-width': '2' }, gd);
                 else if (q2 < cnt[i]) el('circle', { cx: X(q2), cy: ys[i], r: 6.5, fill: r.color || 'currentColor' }, gd);
               }
-            });
-            // comparisons of one probability with a number (p5 < .2): a small label right of each dot of that row
-            var opSym = function(o) { return o === '<=' ? String.fromCharCode(8804) : (o === '>=' ? String.fromCharCode(8805) : o); };
-            if (realPairs) (window.fairyItemsConsts || []).forEach(function(cc) {
-              var ri = idxs.indexOf(cc[0]); if (ri < 0 || ri >= nRows) return;
-              var rr = R[ri], xs = []; if (rr.type === 'average') xs.push(avgX); else for (k = 0; k < cnt[ri]; k++) xs.push(X(k));
-              xs.forEach(function(xx) {
-                var ct = el('text', { x: xx + 11, y: ys[ri] + 4, 'text-anchor': 'start', 'font-size': '11', 'font-weight': '700', fill: BL, stroke: 'var(--ct-default, #fff)', 'stroke-width': '3', 'paint-order': 'stroke' }, svg);
-                ct.textContent = opSym(cc[1]) + ' ' + cc[2];
-              });
             });
             var a = R[0].name, b = R[1].name, cap = document.getElementById('fairy_items_caption');
             var midDot = String.fromCharCode(183), avgFormula;
