@@ -4517,7 +4517,8 @@ ui <- shinyUI(fluidPage(
         function applyZoom(c, z) {
           Array.prototype.forEach.call(c.children, function(ch) {
             if (/fairy-handle|fairy-resize|fairy-card-expand/.test(ch.className)) return;
-            ch.style.zoom = (!z || Math.abs(z - 1) < 0.02) ? '' : z;
+            // font size, not CSS zoom: zoom makes MathJax and the aligned tables measure their columns wrongly (seen in Safari)
+            ch.style.zoom = ''; ch.style.fontSize = (!z || Math.abs(z - 1) < 0.02) ? '' : (Math.round(z * 100) + '%');
           });
         }
         function applyOrder() {
@@ -5379,7 +5380,7 @@ ui <- shinyUI(fluidPage(
          function openOverlay(card) {
            var content = $(card).clone();
            content.find('.model-card-expand-hint, .fairy-handle, .fairy-resize, .fairy-card-expand').remove();
-           content.children().css('zoom', '');
+           content.children().css({ 'zoom': '', 'font-size': '' });
            // A cloned DataTable is inert markup holding only the current page's rows, so
            // its Show / Search / paging did nothing: rebuild each one from the live table's data
            var dtJobs = [];
@@ -8456,17 +8457,16 @@ server <- shinyServer(function(input, output, session) {
               var hasDash = !!svg.querySelector('path[stroke-dasharray]'), hasFade = Array.prototype.some.call(svg.querySelectorAll('line, path'), function(nd) { return nd.getAttribute('opacity') === '0.2'; }), hasTol = R.some(function(r) { return r.type === 'identical' && cnt[R.indexOf(r)] > 1; });
               var wLab = labs.some(function(l) { return l.indexOf(String.fromCharCode(215)) >= 0; });
               var cLab = !!(realPairs && (window.fairyItemsConsts || []).length);
-              var entries = [[C9, 'one probability for one item', null], [UP, 'arrow points to the larger probability', BL]];
-              if (vN.length) entries.push([null, 'square or bar: the sum, its parts join it with a grey line', null]);
-              if (hasAvg) entries.push([String.fromCharCode(9675), 'average over the items (dotted lines from the items)', BL]);
-              if (hasTol) entries.push(['=', 'the items of a probability are equal (' + String.fromCharCode(8776) + ': within the tolerance)', null]);
-              if (hasDash) entries.push([null, 'dashed line: the comparison holds in every column or goes around rows in between', null]);
-              if (hubDrawn) entries.push([C9, 'small blue dot: where comparisons between rows that are not next to each other meet', BL]);
-              if (hasFade) entries.push([null, 'faded: the same holds for the other items (item 1 is shown in full)', null]);
-              if (wLab) entries.push([null, 'label such as 2' + String.fromCharCode(215) + ' p2: the probability is multiplied by that weight', null]);
-              if (cLab) entries.push([null, 'label such as p5 < 0.1: compared with a number', null]);
-              if (more) entries.push([String.fromCharCode(8230), 'more items, not drawn', null]);
-              if (two) entries.push([C9, 'colour: the item list the probability belongs to', null]);
+              var SQ = String.fromCharCode(9633), AP = String.fromCharCode(8776);
+              var entries = [[C9, 'one item', null], [UP, 'larger one', BL]];
+              if (vN.length) entries.push([SQ, 'sum (grey lines: its parts)', null]);
+              if (hasAvg) entries.push([String.fromCharCode(9675), 'average over the items', BL]);
+              if (hasTol) entries.push(['=', 'items equal (' + AP + ': roughly)', null]);
+              if (hasDash || hasFade) entries.push([null, 'dashed or faded: the same for the other items', null]);
+              if (hubDrawn) entries.push([C9, 'lines meet here', BL]);
+              if (wLab || cLab) entries.push([null, 'labels: ' + (wLab ? 'weight (2' + String.fromCharCode(215) + ' p2)' : '') + (wLab && cLab ? ', ' : '') + (cLab ? 'compared with a number (p5 < 0.1)' : ''), null]);
+              if (more) entries.push([String.fromCharCode(8230), 'more items', null]);
+              if (two) entries.push([C9, 'colour: item list', null]);
               legEl.textContent = '';
               entries.forEach(function(en, ei) {
                 var sp = document.createElement('span'); sp.style.cssText = 'white-space:nowrap; margin-right:2px;';
