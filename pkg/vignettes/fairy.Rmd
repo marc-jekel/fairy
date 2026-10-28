@@ -30,7 +30,7 @@ equivalent ways:
 * the **H-representation**: the shortest list of constraints (equalities and facet-defining inequalities);
 * the **V-representation**: the extreme cases (vertices) of the model.
 
-Its **volume** is the share of all conceivable proportions the model allows; its inverse is the
+Its **volume** is the share of all conceivable proportions the model allows (the smaller, the more restrictive and more precise the model); its inverse is the
 largest Bayes factor the model can reach against the unconstrained model.
 
 # Writing a model

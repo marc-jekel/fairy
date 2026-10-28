@@ -111,7 +111,7 @@ volume_from_vertices <- function(v) {
 #' Volume (parsimony) of an order-constrained model
 #'
 #' The volume of the model polytope inside the unit hypercube of all
-#' probability vectors. A small volume means a parsimonious, easily falsified
+#' probability vectors. A small volume means a restrictive, parsimonious, easily falsified
 #' model. Its inverse is the largest Bayes factor the model can reach against
 #' the unconstrained model (uniform prior, unbounded sample size); see
 #' [fairy_max_bf()].

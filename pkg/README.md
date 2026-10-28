@@ -108,7 +108,7 @@ fairy_info(fairy_replicate(m$M4, 3, "joint"))
 
 ## Parsimony is a volume
 
-The parsimony of a model is its volume inside the unit hypercube, so the share of all families of Binomial parameters the model allows. `1 / volume` is the largest Bayes factor in favor of the model against the unconstrained model (uniform prior, unbounded sample size). It is `Inf` for models with an equality constraint. Volumes are exact (convex hull) up to about nine dimensions; above that the package uses `volesti` if installed, otherwise Monte Carlo. Joint replication models use the product formula.
+The parsimony of a model is its volume inside the unit hypercube, so the share of all families of Binomial parameters the model allows. A smaller volume means a more restrictive, more precise model. `1 / volume` is the largest Bayes factor in favor of the model against the unconstrained model (uniform prior, unbounded sample size). It is `Inf` for models with an equality constraint. Volumes are exact (convex hull) up to about nine dimensions; above that the package uses `volesti` if installed, otherwise Monte Carlo. Joint replication models use the product formula.
 
 ## Export
 

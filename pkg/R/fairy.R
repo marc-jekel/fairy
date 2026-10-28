@@ -112,7 +112,7 @@ fairy_v <- function(h) {
 #' Parsimony is the volume of the model polytope inside the unit hypercube
 #' of all probability vectors \eqn{[0, 1]^n}: the share of all conceivable
 #' families of Binomial parameters that the model permits. The smaller the
-#' volume, the more parsimonious and the more easily falsified the model.
+#' volume, the more restrictive, the more parsimonious and the more easily falsified the model.
 #' Its inverse is the largest Bayes factor the model can reach against the
 #' unconstrained model. This is a thin wrapper around [fairy_volume()], kept
 #' for compatibility; the volume is exact where feasible and otherwise
