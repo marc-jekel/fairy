@@ -10682,8 +10682,7 @@ server <- shinyServer(function(input, output, session) {
       paste0("# Session exported from the Fairy app on ", format(Sys.Date()), "."),
       "# It rebuilds every model of the session with the R package 'fairy' and reports dimension, vertices, constraints, volume and largest Bayes factor.",
       "# install.packages(\"remotes\"); remotes::install_github(\"marc-jekel/fairy\", subdir = \"pkg\", upgrade = \"always\")",
-      "library(fairy)",
-      "if (packageVersion(\"fairy\") < \"0.5.0\") stop(\"This script needs fairy >= 0.5.0 (installed: \", packageVersion(\"fairy\"), \"). Run the install line above, then restart R.\")", "",
+      "library(fairy)", "",
       paste0("n_p <- ", n_p, "   # number of probabilities"), ""
     )
     pn <- vapply(seq_len(n_p), function(i) trimws(isolate(input[[paste0("textin_name_", i)]]) %||% ""), character(1))
