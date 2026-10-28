@@ -11238,7 +11238,7 @@ server <- shinyServer(function(input, output, session) {
       "plots <- list()",
       "for (d in unique(space)) {",
       "  grp <- models[space == d]",
-      "  if (d - 2 >= 2) plots[[paste0(d - 2, \"D space\")]] <- fairy_plot(grp, dims = seq_len(min(d - 2, 3)))",
+      "  if (d - 2 >= 1) plots[[paste0(d - 2, \"D space\")]] <- fairy_plot(grp, dims = seq_len(min(d - 2, 3)))",
       "}",
       "plots   # in RStudio: use plots[[1]], plots[[2]], ... to show a figure",
       "",
