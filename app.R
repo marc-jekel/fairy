@@ -9981,7 +9981,11 @@ server <- shinyServer(function(input, output, session) {
     # involves one — so an intersection built from either kind of source
     # can't be shown as real constraint text either, only described. This
     # checks both directly-mixture sources and transitively (an
-    # intersection-of-a-mixture used as a source here).
+    # intersection-of-a-mixture used as a source here). Such a row is not
+    # computed from text: when Go runs, it is built from the H-representations
+    # of its sources (block "Intersections of unpacked models", which also
+    # covers intersections that involve a mixture). The text box only shows
+    # the description.
     involves_mixture <- any(vapply(selected_idx, function(i) {
       !is.null(isolate(mixture_model_flags$value[[as.character(i)]]))
     }, logical(1)))
@@ -16660,7 +16664,8 @@ server <- shinyServer(function(input, output, session) {
           # recompute: its Unique Model Specification box is a
           # placeholder, not live constraint text, and must stay that way
           # rather than getting overwritten with a partial/misleading
-          # concatenation of just its non-mixture sources.
+          # concatenation of just its non-mixture sources. (Its H-representation
+          # comes from the sources' H-representations when Go runs.)
           is_text_only <- isolate(!is.null(mixture_model_flags$value[[as.character(ii)]]))
           if (is_text_only) {
             return()
