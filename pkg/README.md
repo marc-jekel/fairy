@@ -12,7 +12,7 @@ and it reproduces the examples of that paper and of its online supplement (see t
 
 ```r
 # install.packages("remotes")
-remotes::install_github("marc-jekel/fairy", subdir = "pkg", build_vignettes = TRUE)
+remotes::install_github("marc-jekel/fairy", subdir = "pkg", upgrade = "never", build_vignettes = TRUE)
 ```
 
 The package lives in the folder `pkg` of this repository, next to the Shiny app. Building the vignettes on install takes about a minute; rendered copies are in `pkg/doc/` (HTML and PDF), no R required. Or from a local copy: `R CMD INSTALL pkg`. **Dependencies:** `rcdd`, `geometry`, `stringr`, `MASS`; `volesti` is optional (volume estimates in very high dimensions).

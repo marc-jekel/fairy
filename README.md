@@ -52,7 +52,7 @@ reproducible analyses. It lives in the folder [`pkg/`](pkg) of this repository:
 
 ```r
 # install.packages("remotes")
-remotes::install_github("marc-jekel/fairy", subdir = "pkg", build_vignettes = TRUE)
+remotes::install_github("marc-jekel/fairy", subdir = "pkg", upgrade = "never", build_vignettes = TRUE)
 library(fairy)
 
 fairy_constraints("p1 > p2 > p3")   # H-representation as readable constraints

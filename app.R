@@ -11105,7 +11105,7 @@ server <- shinyServer(function(input, output, session) {
     out <- c(
       paste0("# Session exported from the Fairy app on ", format(Sys.Date()), "."),
       "# It rebuilds every model of the session with the R package 'fairy' and reports dimension, vertices, constraints, volume and largest Bayes factor.",
-      "# install.packages(\"remotes\"); remotes::install_github(\"marc-jekel/fairy\", subdir = \"pkg\")",
+      "# install.packages(\"remotes\"); remotes::install_github(\"marc-jekel/fairy\", subdir = \"pkg\", upgrade = \"never\")",
       "library(fairy)", "",
       paste0("n_p <- ", n_p, "   # number of probabilities"), ""
     )
