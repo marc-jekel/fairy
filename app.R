@@ -11635,6 +11635,9 @@ server <- shinyServer(function(input, output, session) {
             # the view the user had turned the plot to (set from the browser, read without a dependency)
             camera = isolate(input$plot_camera) %||% list(eye = list(x = 2, y = 2, z = 2))
           ),
+          # inside the plot area (top left): a legend outside would take width away from the cube, which then
+          # moved sideways whenever a model was added or removed
+          legend = list(x = 0.01, y = 0.99, xanchor = "left", yanchor = "top", bgcolor = "rgba(255,255,255,0.6)"),
           margin = list(t = 30, b = 50)
         )
       } else {
