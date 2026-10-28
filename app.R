@@ -4246,6 +4246,32 @@ ui <- shinyUI(fluidPage(
     )),
     tags$script(HTML(
       "
+      // keep the 3D view: when the plot is drawn again (a model added to it, other axes), the camera the user
+      // had turned it to is put back instead of the default view
+      (function() {
+        var cam = null;
+        function remember(gd) {
+          return function() {
+            var c = gd._fullLayout && gd._fullLayout.scene && gd._fullLayout.scene.camera;
+            if (c) cam = JSON.parse(JSON.stringify(c));
+          };
+        }
+        function restore() {
+          var gd = document.getElementById('plot');
+          if (!gd || !window.Plotly || !gd.on || !gd.layout || !gd.layout.scene) return;
+          if (gd.__fairyRemember && gd.removeListener) gd.removeListener('plotly_relayout', gd.__fairyRemember);
+          if (cam) { gd.__fairyCam = true; Plotly.relayout(gd, {'scene.camera': cam}); }
+          gd.__fairyRemember = remember(gd);
+          gd.on('plotly_relayout', gd.__fairyRemember);
+        }
+        if (window.jQuery) jQuery(document).on('shiny:value', function(ev) {
+          if (ev.name === 'plot') { setTimeout(restore, 800); }
+        });
+      })();
+      "
+    )),
+    tags$script(HTML(
+      "
       // narrow screens: move the 3D camera back once per drawn plot so the whole cube is visible
       (function() {
         function fit() {
