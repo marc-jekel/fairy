@@ -9945,8 +9945,11 @@ server <- shinyServer(function(input, output, session) {
       return()
     }
 
-    if (all(h_only_sel)) {
-      # unpacked models with the same items: the intersection is computed from their H-representations when Go runs
+    # a mixture (or an intersection that involves one) has no constraint text: its intersection has to be built from H-representations too
+    src_is_textless <- vapply(selected_idx, function(i)
+      !is.null(isolate(mixture_model_flags$value[[as.character(i)]])) && is.null(isolate(item_model_spec_idx$value[[as.character(i)]])), logical(1))
+    if (all(h_only_sel) || (!any(h_only_sel) && any(src_is_textless))) {
+      # the intersection is computed from the H-representations of its models when Go runs
       n <- isolate(counter_input$n)
       sel_names <- vapply(selected_idx, function(i) isolate(input[[paste0("textin_relations_name", i)]]) %||% paste0("m", i), character(1))
       new_n <- n + 1
@@ -14203,7 +14206,16 @@ server <- shinyServer(function(input, output, session) {
       ####* Intersections of unpacked models ####
       # An intersection row built from unpacked rows that share the same items has no constraint text: its
       # H-representation is the stack of its sources' H-representations (same item space, same columns).
-      hint_specs <- Filter(function(x) x$type %in% c("intersection", "mixture") && isTRUE(x$by_h), isolate(derived_model_sources$value))
+      dms_h <- isolate(derived_model_sources$value)
+      src_needs_h <- function(si, depth = 0) {
+        sx <- dms_h[[as.character(si)]]
+        if (is.null(sx) || depth > 10) return(FALSE)
+        identical(sx$type, "mixture") || isTRUE(sx$by_h) ||
+          (identical(sx$type, "intersection") && any(vapply(sx$source_idx, src_needs_h, logical(1), depth = depth + 1)))
+      }
+      # an intersection that involves a mixture (also one saved by an earlier version) is built from its sources' H-representations
+      hint_specs <- Filter(function(x) (x$type == "mixture" && isTRUE(x$by_h)) ||
+        (x$type == "intersection" && (isTRUE(x$by_h) || any(vapply(x$source_idx, src_needs_h, logical(1))))), dms_h)
       hint_mix_names <- character()
       hint_notes <- character()
       for (hk in names(hint_specs)[order(suppressWarnings(as.integer(names(hint_specs))))]) {
