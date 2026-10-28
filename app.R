@@ -5264,7 +5264,9 @@ ui <- shinyUI(fluidPage(
          function openOverlay(card) {
            var content = $(card).clone();
            content.find('.model-card-expand-hint, .fairy-handle, .fairy-resize, .fairy-card-expand').remove();
-           content.children().css({ 'zoom': '', 'font-size': '' });
+           // a tile the user has enlarged scales its content (transform + width + margin on the children):
+           // the expanded view starts from the natural size, not from that scaling
+           content.children().css({ 'zoom': '', 'font-size': '', 'transform': '', 'transform-origin': '', 'width': '', 'margin-bottom': '' });
            // A cloned DataTable is inert markup holding only the current page's rows, so
            // its Show / Search / paging did nothing: rebuild each one from the live table's data
            var dtJobs = [];
