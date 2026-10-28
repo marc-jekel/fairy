@@ -6518,11 +6518,46 @@ ui <- shinyUI(fluidPage(
         fluidRow(column(12, uiOutput("h_stale_note_poly"))),
         fluidRow(column(
           12, div(
-
+            id = "polytope_plot_wrap", style = "position:relative;",
+            tags$button(
+              id = "polytope_plot_expand", type = "button", title = "Expand the plot (Esc to close)", `aria-label` = "Expand the plot",
+              HTML("<svg width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M9.5 2.5h4v4M13.5 2.5l-4.5 4.5M6.5 13.5h-4v-4M2.5 13.5l4.5-4.5'/></svg>")
+            ),
             plotlyOutput("plot", width = "100%", height = "800px"),
             align = "center"
           )
         )),
+        tags$style(HTML("
+          #polytope_plot_expand { position:absolute; top:6px; right:8px; z-index:5; width:28px; height:28px; padding:0; display:flex; align-items:center; justify-content:center;
+            border:0; border-radius:6px; background:transparent; color:var(--fairy-text-muted, #667085); cursor:pointer; }
+          #polytope_plot_expand:hover { background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 18%, transparent); color:var(--fairy-primary, #3a6df0); }
+          #polytope_plot_wrap.fairy-plot-full { position:fixed !important; inset:0; z-index:2000; background:var(--fairy-panel, #fff); padding:8px; }
+          #polytope_plot_wrap.fairy-plot-full #plot { height:calc(100vh - 16px) !important; }
+        ")),
+        tags$script(HTML("
+          (function() {
+            function resizePlot() { var gd = document.getElementById('plot'); if (gd && window.Plotly) { try { Plotly.Plots.resize(gd); } catch (e) {} } }
+            function setFull(on) {
+              var w = document.getElementById('polytope_plot_wrap'); if (!w) return;
+              // an ancestor of the tab can trap position:fixed, so the plot moves to the body while it is expanded
+              var ph = document.getElementById('polytope_plot_ph');
+              if (on && !ph) { ph = document.createElement('div'); ph.id = 'polytope_plot_ph'; w.parentNode.insertBefore(ph, w); document.body.appendChild(w); }
+              if (!on && ph) { ph.parentNode.insertBefore(w, ph); ph.parentNode.removeChild(ph); }
+              w.classList.toggle('fairy-plot-full', on);
+              document.body.style.overflow = on ? 'hidden' : '';
+              setTimeout(resizePlot, 60); setTimeout(resizePlot, 300);
+            }
+            document.addEventListener('click', function(e) {
+              if (e.target.closest && e.target.closest('#polytope_plot_expand')) {
+                var w = document.getElementById('polytope_plot_wrap'); setFull(!w.classList.contains('fairy-plot-full'));
+              }
+            });
+            document.addEventListener('keydown', function(e) {
+              var w = document.getElementById('polytope_plot_wrap');
+              if (e.key === 'Escape' && w && w.classList.contains('fairy-plot-full')) setFull(false);
+            });
+          })();
+        ")),
         tags$script(HTML(
           "
           (function() {
