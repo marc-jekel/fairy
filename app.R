@@ -7435,7 +7435,7 @@ server <- shinyServer(function(input, output, session) {
       ),
       icon("chart-column", style = "font-size:28px; color:var(--fairy-text-muted);"),
       p(style = "margin:10px 0 0 0; font-size:13.5px;",
-        "No results yet. Hover the floating panel — Cooling Bodies is preselected — and click ",
+        "No results yet. Hover the floating panel in the lower right — Cooling Bodies is preselected — and click ",
         strong("Go"), " (or press ⌘/Ctrl+Enter) to see volumes here."
       ),
       p(style = "margin:6px 0 0 0; font-size:12.5px;",
