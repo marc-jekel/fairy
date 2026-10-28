@@ -15626,7 +15626,7 @@ server <- shinyServer(function(input, output, session) {
       div(style = "margin-bottom:10px;",
         h5("Parsimony results", style = "margin:0 0 6px 0;"),
         HTML("<p style='font-size:13px; color:#555; margin:0;'>
-          <b>Volume</b> — proportion of the parameter space consistent with the model; smaller = more precise.
+          <b>Volume</b> — proportion of the parameter space consistent with the model; smaller = more restrictive and more precise.
           <b>Max BF</b> — the largest Bayes factor this model could achieve relative to the unconstrained model.
         </p>")
       )
