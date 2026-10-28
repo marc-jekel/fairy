@@ -4301,7 +4301,16 @@ ui <- shinyUI(fluidPage(
         function fitZoom(key, w, h, both) {
           var z = nat[key] ? w / nat[key] : 1;
           if (both && nath[key]) z = Math.min(z, h / nath[key]);
-          return Math.max(0.6, Math.min(3, z));
+          return Math.max(0.6, Math.min(6, z));
+        }
+        // natural size of a card (zoom 1, no user size): measured when the packing has not done it (free layout)
+        function ensureNat(card) {
+          var key = pkey(card);
+          if (nat[key] && nath[key]) return;
+          var sw = card.style.width, sh = card.style.height, sm = card.style.minHeight;
+          applyZoom(card, 1); card.style.width = ''; card.style.height = ''; card.style.minHeight = '';
+          nat[key] = card.offsetWidth; nath[key] = card.offsetHeight;
+          card.style.width = sw; card.style.height = sh; card.style.minHeight = sm;
         }
         function applyZoom(c, z) {
           var on = z && Math.abs(z - 1) >= 0.02;
@@ -4536,6 +4545,7 @@ ui <- shinyUI(fluidPage(
                 if (e.button !== undefined && e.button !== 0) return;
                 e.preventDefault(); e.stopPropagation();
                 var wrap = card.closest('.fairy-h-cards-wrap'), w0 = card.offsetWidth, h0 = card.offsetHeight, x0 = e.clientX, y0 = e.clientY, max = wrap ? wrap.clientWidth : 2000;
+                ensureNat(card);
                 var nw = nat[pkey(card)] || w0;
                 resizing = true; rz.classList.add('fairy-resizing');
                 try { rz.setPointerCapture(e.pointerId); } catch (err) {}
@@ -4708,8 +4718,17 @@ ui <- shinyUI(fluidPage(
               wrap.classList.remove('fairy-free'); packing = false; pack(wrap); packing = false;
               wrap.classList.add('fairy-free'); wrap.classList.remove('fairy-packed');
             } else {
-              cs.forEach(function(c) { c.style.width = ''; });
-              cs.forEach(function(c) { c.style.width = c.offsetWidth + 'px'; });
+              cs.forEach(function(c) {
+                var k = pkey(c);
+                if (widths[k]) {
+                  // a card the user has sized keeps that size, and its content keeps scaling with it
+                  ensureNat(c);
+                  c.style.width = Math.min(widths[k], wrap.clientWidth) + 'px';
+                  if (heights[k]) { c.style.height = heights[k] + 'px'; c.style.overflow = 'auto'; }
+                  applyZoom(c, fitZoom(k, c.offsetWidth, heights[k] || 0, !!heights[k]));
+                  c.classList.add('fairy-sized');
+                } else { c.style.width = ''; c.style.width = c.offsetWidth + 'px'; }
+              });
             }
             fitWrap(wrap);
           });
@@ -10669,6 +10688,18 @@ server <- shinyServer(function(input, output, session) {
   # ---- Export the session as an R script (package 'fairy') ----
   build_r_script <- function() {
     q <- function(x) encodeString(as.character(x), quote = '"')
+    # "  name = c(a, b, c)," broken over several lines so that no line gets long
+    fmt_c <- function(prefix, vals, last = FALSE, width = 74) {
+      open <- paste0("  ", prefix, " = c("); lines <- character(); cur <- open
+      for (k in seq_along(vals)) {
+        tok <- paste0(vals[k], if (k < length(vals)) ", " else ")")
+        if (nchar(cur) + nchar(tok) > width && cur != open) { lines <- c(lines, sub("\\s+$", "", cur)); cur <- "      " }
+        cur <- paste0(cur, tok)
+      }
+      c(lines, paste0(cur, if (!last) "," else ""))
+    }
+    # a comment paragraph, wrapped
+    cm <- function(x, width = 76) paste0("# ", strwrap(x, width = width))
     n_rows <- isolate(counter_input$n)
     n_p <- isolate(counter$n)
     shared <- trimws(isolate(input[["add_for_all_models"]]) %||% "")
@@ -10680,13 +10711,15 @@ server <- shinyServer(function(input, output, session) {
     tols <- isolate(equality_tolerances_reactive$value)
     out <- c(
       paste0("# Session exported from the Fairy app on ", format(Sys.Date()), "."),
-      "# It rebuilds every model of the session with the R package 'fairy' and reports dimension, vertices, constraints, volume and largest Bayes factor.",
-      "# install.packages(\"remotes\"); remotes::install_github(\"marc-jekel/fairy\", subdir = \"pkg\", upgrade = \"always\")",
+      cm("It rebuilds every model of the session with the R package 'fairy' and reports dimension, vertices, constraints, volume and largest Bayes factor."),
+      "# install.packages(\"remotes\")",
+      "# remotes::install_github(\"marc-jekel/fairy\", subdir = \"pkg\",",
+      "#                         upgrade = \"always\")",
       "library(fairy)", "",
       paste0("n_p <- ", n_p, "   # number of probabilities"), ""
     )
     pn <- vapply(seq_len(n_p), function(i) trimws(isolate(input[[paste0("textin_name_", i)]]) %||% ""), character(1))
-    if (any(nzchar(pn))) out <- c(out, paste0("# names given to the probabilities in the app: ", paste0("p", seq_len(n_p), " = ", ifelse(nzchar(pn), pn, paste0("p", seq_len(n_p))), collapse = ", ")), "")
+    if (any(nzchar(pn))) out <- c(out, cm(paste0("names given to the probabilities in the app: ", paste0("p", seq_len(n_p), " = ", ifelse(nzchar(pn), pn, paste0("p", seq_len(n_p))), collapse = ", "))), "")
     obj <- paste0("h", seq_len(n_rows))
     unpacked_rows <- integer(0)
     for (i in seq_len(n_rows)) {
@@ -10707,8 +10740,9 @@ server <- shinyServer(function(input, output, session) {
         lev <- unique(lst)
         ty <- vapply(lev, function(l) { k <- which(lst == l)[1]; as.character(sp$factor_types[[pf[[k]]]]) }, character(1))
         eps <- if (!is.null(sp$eps_per_param)) as.numeric(unname(sp$eps_per_param))[seq_along(pf)] else rep(0, length(pf))
-        out <- c(out, paste0(obj[i], " <- fairy_unpack(", obj[b], ", items = c(", paste(items, collapse = ", "), "), lists = c(", paste(q(lst), collapse = ", "),
-          "), type = c(", paste0(q(lev), " = ", q(ty), collapse = ", "), "), eps = c(", paste(eps, collapse = ", "), "))", com))
+        out <- c(out, paste0(obj[i], " <- fairy_unpack("), paste0("  ", obj[b], ","),
+          fmt_c("items", items), fmt_c("lists", q(lst)), fmt_c("type", paste0(q(lev), " = ", q(ty))),
+          fmt_c("eps", eps, last = TRUE), paste0(")", com))
         unpacked_rows <- c(unpacked_rows, i)
       } else if (!is.null(flags[[key]])) {
         out <- c(out, paste0("# ", row_name[i], ": a row without constraint text that could not be exported"))
@@ -10719,8 +10753,10 @@ server <- shinyServer(function(input, output, session) {
         txt <- gsub("≥", ">=", gsub("≤", "<=", txt, fixed = TRUE), fixed = TRUE)
         tv <- as.numeric(unlist(tols[[key]])); tv <- tv[!is.na(tv) & tv > 0]
         tol_arg <- if (length(tv) > 0 && length(unique(tv)) == 1) paste0(", approx_tol = ", tv[1]) else ""
-        out <- c(out, paste0(obj[i], " <- fairy_h(", q(txt), ", n_p = n_p", tol_arg, ")", com))
-        if (length(tv) > 0 && !nzchar(tol_arg)) out <- c(out, "# NOTE: this model has different tolerances for its approximate equalities; they are not part of this script")
+        one <- paste0(obj[i], " <- fairy_h(", q(txt), ", n_p = n_p", tol_arg, ")", com)
+        out <- c(out, if (nchar(one) <= 78) one else c(paste0(obj[i], " <- fairy_h("), paste0("  ", q(txt), ","),
+          paste0("  n_p = n_p", tol_arg), paste0(")", com)))
+        if (length(tv) > 0 && !nzchar(tol_arg)) out <- c(out, cm("NOTE: this model has different tolerances for its approximate equalities; they are not part of this script."))
       }
     }
     ok <- which(!is.na(obj))
@@ -10728,18 +10764,22 @@ server <- shinyServer(function(input, output, session) {
     vnames <- if (!is.null(vtab) && ncol(vtab) >= 2) as.character(vtab[[1]][vapply(vtab[[2]], isTRUE, logical(1))]) else character(0)
     vnames <- unique(vnames[vnames %in% row_name[ok]])
     out <- c(out, "", "# all models of the session",
-      paste0("models <- list(", paste0(q(row_name[ok]), " = ", obj[ok], collapse = ", "), ")"), "",
+      "models <- list(", paste0("  ", q(row_name[ok]), " = ", obj[ok], c(rep(",", length(ok) - 1), "")), ")", "",
       "# Summary table with one row per model:",
-      "#   dim           dimension of the model (number of probabilities, minus one for each equality)",
-      "#   vertices      number of extreme cases (rows of the V-description below)",
-      "#   inequalities, equalities   number of constraints of each kind (rows of the H-description below)",
-      "#   volume        share of all combinations of the probabilities (each between 0 and 1) that the model allows;",
-      "#                 smaller = more restrictive; 0 if the model contains an equality",
-      "#   max_bf        1 / volume: the largest Bayes factor in favour of the model against the unconstrained model",
-      "#                 that any data could produce (uniform prior); Inf if the volume is 0",
-      "# The volume is estimated with the R package volesti (its default settings). The seed makes the numbers",
-      "# reproducible; further volesti::volume() settings can be added to the list.",
-      "# For the exact value use fairy_info(h, method = \"exact\") (can be slow for many probabilities).",
+      "#   dim       dimension of the model (number of probabilities,",
+      "#             minus one for each equality)",
+      "#   vertices  number of extreme cases (rows of the V-description)",
+      "#   inequalities, equalities",
+      "#             number of constraints of each kind (rows of the",
+      "#             H-description)",
+      "#   volume    share of all combinations of the probabilities (each",
+      "#             between 0 and 1) that the model allows; smaller = more",
+      "#             restrictive; 0 if the model contains an equality",
+      "#   max_bf    1 / volume: the largest Bayes factor in favour of the",
+      "#             model against the unconstrained model that any data",
+      "#             could produce (uniform prior); Inf if the volume is 0",
+      cm("The volume is estimated with the R package volesti (its default settings). The seed makes the numbers reproducible; further volesti::volume() settings can be added to the list."),
+      cm("For the exact value use fairy_info(h, method = \"exact\") (can be slow for many probabilities)."),
       "vol_settings <- list(seed = 1)", "",
       "info <- do.call(rbind, lapply(names(models), function(nm) {",
       "  h <- models[[nm]]",
@@ -10747,29 +10787,28 @@ server <- shinyServer(function(input, output, session) {
       "}))",
       "print(info)", "",
       "# H-description of every model, one table per model.",
-      "# How to read it: each row is one constraint, and a model is the set of all combinations of the",
-      "# probabilities that satisfy ALL rows. 'p2 <= p1' means p2 is at most p1; a row of type 'equality' fixes a relation",
-      "# exactly. Redundant constraints are left out; the bounds 0 <= p <= 1 appear only where they restrict the model.",
+      cm("How to read it: each row is one constraint, and a model is the set of all combinations of the probabilities that satisfy ALL rows. 'p2 <= p1' means p2 is at most p1; a row of type 'equality' fixes a relation exactly. Redundant constraints are left out; the bounds 0 <= p <= 1 appear only where they restrict the model."),
       "h_tables <- lapply(models, fairy_h_table)",
-      "for (nm in names(h_tables)) { cat(\"\\nH-description of\", nm, \"\\n\"); print(h_tables[[nm]]) }",
-      "# fairy_h_table(h, style = \"paper\") writes the form of the paper (- p1 + p2 <= 0), style = \"matrix\" the coefficients;",
-      "# fairy_table_write(table, file = \"table.md\") writes any table as Markdown (or format = \"latex\" / \"csv\").", "",
-      "# The H-description of every model as LaTeX: a .tex file that compiles as it is (one align* block per model).",
-      "# trivial = \"hide\" leaves out the trivial bounds 0 <= p <= 1, \"gray\" grays them out.",
+      "for (nm in names(h_tables)) {",
+      "  cat(\"\\nH-description of\", nm, \"\\n\")",
+      "  print(h_tables[[nm]])",
+      "}",
+      cm("fairy_h_table(h, style = \"paper\") writes the form of the paper (- p1 + p2 <= 0), style = \"matrix\" the coefficients."),
+      cm("fairy_table_write(table, file = \"table.md\") writes any table as Markdown (or format = \"latex\" / \"csv\")."), "",
+      cm("The H-description of every model as LaTeX: a .tex file that compiles as it is (one align* block per model). trivial = \"hide\" leaves out the trivial bounds 0 <= p <= 1, \"gray\" grays them out."),
       "fairy_write_latex(models, file = \"h_representation.tex\", trivial = \"show\")", "",
       if (length(vnames) > 0) c(
-        "# V-description (extreme cases) of the models for which it was switched on in the app.",
-        "# How to read it: each row is a vertex, a combination of values of the probabilities that the model allows and",
-        "# that cannot be written as a mixture of two other allowed combinations. Every allowed combination is a",
-        "# weighted mixture of the rows. (words = TRUE writes 'none' and 'all' for 0 and 1.)",
+        cm("V-description (extreme cases) of the models for which it was switched on in the app. How to read it: each row is a vertex, a combination of values of the probabilities that the model allows and that cannot be written as a mixture of two other allowed combinations. Every allowed combination is a weighted mixture of the rows. (words = TRUE writes 'none' and 'all' for 0 and 1.)"),
         paste0("v_models <- c(", paste(q(vnames), collapse = ", "), ")"),
         "v_tables <- lapply(models[v_models], fairy_v_table)",
-        "for (nm in names(v_tables)) { cat(\"\\nV-description of\", nm, \"\\n\"); print(v_tables[[nm]]) }", ""),
-      "# Input files for other software, written to the working directory (one .tar archive each).",
-      "# QTEST: one .txt file per model with the H-representation (A and b, integer-scaled). QTEST cannot express",
-      "# equalities, so one probability is eliminated per equality; a *_substitutions.txt file says how to recover it.",
+        "for (nm in names(v_tables)) {",
+        "  cat(\"\\nV-description of\", nm, \"\\n\")",
+        "  print(v_tables[[nm]])",
+        "}", ""),
+      cm("Input files for other software, written to the working directory (one .tar archive each)."),
+      cm("QTEST: one .txt file per model with the H-representation (A and b, integer-scaled). QTEST cannot express equalities, so one probability is eliminated per equality; a *_substitutions.txt file says how to recover it."),
       "fairy_write_qtest(models, file = \"h_representation_qtest.tar\")",
-      "# multinomineq: A_<model>.csv and b_<model>.csv with A %*% p <= b (an equality is written in both directions).",
+      cm("multinomineq: A_<model>.csv and b_<model>.csv with A %*% p <= b (an equality is written in both directions)."),
       "fairy_write_multinomineq(models, file = \"h_representation_multinomineq.tar\")")
     out
   }
