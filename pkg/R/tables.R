@@ -8,20 +8,23 @@ tbl_num <- function(x) {
 
 # a . p <= b (or =) written without minus signs: positive terms left, negative terms right,
 # a constant on the side where it is positive ("p2 <= p1", "1/10 <= p3", "p1 + p2 <= 1 + p3")
-tbl_readable <- function(a, b, nm, eq, times = " * ") {
+tbl_sides <- function(a, b, nm, eq, times = " * ", num = tbl_num) {
   if (eq) {
     fi <- which(a != 0)[1]
     if (!is.na(fi) && a[fi] < 0) { a <- -a; b <- -b }
   }
   side <- function(coef, const) {
     terms <- vapply(which(coef != 0), function(j)
-      if (abs(coef[j] - 1) < 1e-12) nm[j] else paste0(tbl_num(coef[j]), times, nm[j]), character(1))
-    if (abs(const) > 1e-12) terms <- c(terms, tbl_num(const))
+      if (abs(coef[j] - 1) < 1e-12) nm[j] else paste0(num(coef[j]), times, nm[j]), character(1))
+    if (abs(const) > 1e-12) terms <- c(terms, num(const))
     if (length(terms) == 0) "0" else paste(terms, collapse = " + ")
   }
-  left <- side(pmax(a, 0), max(-b, 0))
-  right <- side(pmax(-a, 0), max(b, 0))
-  paste(left, if (eq) "=" else "<=", right)
+  list(lhs = side(pmax(a, 0), max(-b, 0)), rhs = side(pmax(-a, 0), max(b, 0)))
+}
+
+tbl_readable <- function(a, b, nm, eq, times = " * ") {
+  p <- tbl_sides(a, b, nm, eq, times)
+  paste(p$lhs, if (eq) "=" else "<=", p$rhs)
 }
 
 #' The H-description of a model as a table
@@ -165,6 +168,98 @@ fairy_table_write <- function(x, file = NULL, format = c("markdown", "latex", "c
     },
     csv = c(paste(cn, collapse = ","), apply(m, 1, function(r) paste(r, collapse = ",")))
   )
+  if (!is.null(file)) { writeLines(out, file); return(invisible(out)) }
+  out
+}
+
+
+# a number as LaTeX: fractions as \frac{a}{b}
+tex_num <- function(x) {
+  t <- tbl_num(x)
+  ifelse(grepl("/", t), sub("^(-?)([0-9]+)/([0-9]+)$", "\\1\\\\frac{\\2}{\\3}", t), t)
+}
+
+# probability names as LaTeX; "p_{1}^(2)" (item number in parentheses) becomes "p_{1}^{(2)}"
+tex_label <- function(nm) gsub("\\^\\(([^)]*)\\)", "^{(\\1)}", nm)
+
+#' The H-description of a model as LaTeX
+#'
+#' Writes each constraint as one line of an `align*` block, in the readable
+#' form of [fairy_h_table()] (no minus signs: `p_{2} &\\leq p_{1}`). The
+#' trivial bounds 0 <= p <= 1 (such as `p_{1} \\leq 1`) can be shown, grayed out
+#' or hidden, as in the Fairy app.
+#'
+#' @param h An H-representation from [fairy_h()] (or a model string).
+#' @param n_p Number of probabilities for model strings.
+#' @param labels Optional names for the probabilities (LaTeX, e.g. `"p_{1}"`).
+#'   Default: the column names of `h`.
+#' @param trivial `"show"` (default), `"gray"` or `"hide"` the trivial bounds.
+#'
+#' @return A character vector, one `align*` line per constraint.
+#' @examples
+#' fairy_h_latex("p1 > p2 > p3", n_p = 3)
+#' fairy_h_latex("p1 > p2 > p3", n_p = 3, trivial = "hide")
+#' @export
+fairy_h_latex <- function(h, n_p = NULL, labels = NULL, trivial = c("show", "gray", "hide")) {
+  trivial <- match.arg(trivial)
+  h <- resolve_h(h, n_p = n_p)
+  hn <- q2d(h)
+  k <- ncol(h) - 2L
+  nm <- if (!is.null(labels)) labels else {
+    cn <- colnames(h)[-(1:2)]
+    if (is.null(cn) || any(!nzchar(cn))) paste0("p_{", seq_len(k), "}") else tex_label(cn)
+  }
+  keep <- !(hn[, 1] == 0 & apply(hn[, -(1:2), drop = FALSE], 1, function(r) all(r == 0)))
+  hn <- hn[keep, , drop = FALSE]
+  A <- -hn[, -(1:2), drop = FALSE]
+  b <- hn[, 2]
+  eq <- hn[, 1] == 1
+  is_trivial <- vapply(seq_len(nrow(hn)), function(i) {
+    nz <- which(A[i, ] != 0)
+    !eq[i] && length(nz) == 1 && abs(abs(A[i, nz]) - 1) < 1e-12 && ((A[i, nz] > 0 && abs(b[i] - 1) < 1e-12) || (A[i, nz] < 0 && abs(b[i]) < 1e-12))
+  }, logical(1))
+  rows <- vapply(seq_len(nrow(hn)), function(i) {
+    p <- tbl_sides(A[i, ], b[i], nm, eq[i], times = "", num = tex_num)
+    op <- if (eq[i]) "=" else "\\leq"
+    if (trivial == "gray" && is_trivial[i]) {
+      paste0("\\textcolor{gray}{", p$lhs, "} &\\textcolor{gray}{", op, " ", p$rhs, "} \\\\")
+    } else paste0(p$lhs, " &", op, " ", p$rhs, " \\\\")
+  }, character(1))
+  if (trivial == "hide") rows <- rows[!is_trivial]
+  rows
+}
+
+#' Write the H-descriptions of several models as a LaTeX document
+#'
+#' One `align*` block per model (see [fairy_h_latex()]), in a small
+#' `article` document that compiles as it is.
+#'
+#' @param models A (named) list or character vector. Each element is a model
+#'   string or an H-representation.
+#' @param n_p Number of probabilities; only needed for model strings.
+#' @param file Optional file name (`.tex`). If `NULL` the lines are returned.
+#' @param trivial `"show"` (default), `"gray"` or `"hide"` the trivial bounds.
+#'
+#' @return The LaTeX lines, invisibly if written to a file.
+#' @examples
+#' fairy_write_latex(list(A = "p1 > p2", B = "p1 > p2 > p3"), n_p = 3)
+#' @export
+fairy_write_latex <- function(models, n_p = NULL, file = NULL, trivial = c("show", "gray", "hide")) {
+  trivial <- match.arg(trivial)
+  if (is.null(names(models))) names(models) <- paste0("M", seq_along(models))
+  esc <- function(x) gsub("([&%$#_{}])", "\\\\\\1", x)
+  out <- c("\\documentclass{article}", "\\usepackage{amsmath}", "\\usepackage{xcolor}", "\\begin{document}", "\\section*{Models}")
+  for (nm in names(models)) {
+    m <- models[[nm]]
+    h <- if (is.character(m) && !is.matrix(m)) {
+      if (is.null(n_p)) stop("'n_p' is needed for model strings.")
+      fairy_h(m, n_p = n_p)
+    } else as_h(m)
+    rows <- fairy_h_latex(h, trivial = trivial)
+    out <- c(out, paste0("\\subsection*{", esc(nm), "}"),
+             if (length(rows) > 0) c("\\begin{align*}", rows, "\\end{align*}") else "(no constraints)", "")
+  }
+  out <- c(out, "\\end{document}")
   if (!is.null(file)) { writeLines(out, file); return(invisible(out)) }
   out
 }

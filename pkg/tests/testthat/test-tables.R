@@ -28,3 +28,19 @@ test_that("fairy_table_write gives markdown, latex and csv", {
   f <- tempfile(fileext = ".csv"); fairy_table_write(v, file = f, format = "csv")
   expect_equal(length(readLines(f)), nrow(v) + 1)
 })
+
+test_that("H-description as LaTeX is readable and follows the trivial-bounds setting", {
+  h <- fairy_h("p1 > p2 > p3", n_p = 3)
+  all_rows <- fairy_h_latex(h)
+  expect_true(all(c("p_{2} &\\leq p_{1} \\\\", "p_{3} &\\leq p_{2} \\\\") %in% all_rows))
+  expect_equal(length(all_rows), 4)
+  expect_equal(length(fairy_h_latex(h, trivial = "hide")), 2)
+  expect_true(any(grepl("textcolor\\{gray\\}", fairy_h_latex(h, trivial = "gray"))))
+  # items: the item number in parentheses becomes a proper superscript
+  u <- fairy_unpack(h, items = c(2, 2, 2), lists = c("l1", "l2", "l3"), type = c(l1 = "average", l2 = "average", l3 = "average"), eps = c(0, 0, 0))
+  expect_true(any(grepl("p_{2}^{(1)}", fairy_h_latex(u), fixed = TRUE)))
+  tex <- fairy_write_latex(list(a = h, `b_c` = "p1 > p2"), n_p = 3)
+  expect_true(any(grepl("begin\\{document\\}", tex)) && any(grepl("subsection\\*\\{b\\\\_c\\}", tex)))
+  f <- tempfile(fileext = ".tex"); fairy_write_latex(list(a = h), file = f)
+  expect_true(any(grepl("align\\*", readLines(f))))
+})

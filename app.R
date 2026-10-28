@@ -10754,6 +10754,9 @@ server <- shinyServer(function(input, output, session) {
       "for (nm in names(h_tables)) { cat(\"\\nH-description of\", nm, \"\\n\"); print(h_tables[[nm]]) }",
       "# fairy_h_table(h, style = \"paper\") writes the form of the paper (- p1 + p2 <= 0), style = \"matrix\" the coefficients;",
       "# fairy_table_write(table, file = \"table.md\") writes any table as Markdown (or format = \"latex\" / \"csv\").", "",
+      "# The H-description of every model as LaTeX: a .tex file that compiles as it is (one align* block per model).",
+      "# trivial = \"hide\" leaves out the trivial bounds 0 <= p <= 1, \"gray\" grays them out.",
+      "fairy_write_latex(models, file = \"h_representation.tex\", trivial = \"show\")", "",
       if (length(vnames) > 0) c(
         "# V-description (extreme cases) of the models for which it was switched on in the app.",
         "# How to read it: each row is a vertex, a combination of values of the probabilities that the model allows and",

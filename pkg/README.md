@@ -46,6 +46,7 @@ A verbal hypothesis about proportions, "category A is more common than B, which 
 | `fairy_vertices()` | extreme cases as a numeric matrix |
 | `fairy_words()` | extreme cases in words ("all" / "none" / fractions) |
 | `fairy_h_table()`, `fairy_v_table()` | H- and V-description as tables; `fairy_table_write()` writes Markdown, LaTeX or CSV |
+| `fairy_h_latex()`, `fairy_write_latex()` | H-description as LaTeX (`align*`, readable form); a compilable `.tex` for several models |
 | `fairy_dim()` | dimension of a model |
 | `fairy_volume()` | parsimony: volume in the unit cube (exact, volesti, or Monte Carlo) |
 | `fairy_max_bf()` | largest possible Bayes factor against the unconstrained model (1 / volume) |
