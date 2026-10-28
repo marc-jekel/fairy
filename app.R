@@ -13870,22 +13870,23 @@ server <- shinyServer(function(input, output, session) {
           # same silent-rounds-tiny-numbers-to-0 issue as num2str_lin
           # was fixed for — go through num2str_lin on the plain numeric
           # instead of trusting the fractions formatter directly.
-          math_of <- function(co, j) {
+          # a term only gets a "+" when something already stands in front of it on its side of the row
+          math_of <- function(co, j, lead = FALSE) {
             aco <- abs(co)
             coef_str <- if (aco == 1) "" else num2str_lin(as.numeric(aco))
-            paste0(if (co > 0) "+" else "-", coef_str, tex_name(p_names_lt[j]))
+            paste0(if (co > 0) (if (lead) "" else "+") else "-", coef_str, tex_name(p_names_lt[j]))
           }
           # Plain (Aligned layout): column position ALREADY is the
           # same-parameter cue there, so an added color would be
           # redundant noise, not a second signal.
-          term_html <- function(co, j) paste0('\\(', math_of(co, j), '\\)')
+          term_html <- function(co, j, lead = FALSE) paste0('\\(', math_of(co, j, lead), '\\)')
           # Colored (Compact layout only): color by column (see
           # col_color/param_color_map), set before the \\(...\\) so
           # MathJax's rendered output inherits it (renders in
           # currentColor by default) — the substitute cue once Compact
           # has dropped column alignment.
-          term_html_colored <- function(co, j)
-            paste0('<span style="color:', col_color[j], ';">\\(', math_of(co, j), '\\)</span>')
+          term_html_colored <- function(co, j, lead = FALSE)
+            paste0('<span style="color:', col_color[j], ';">\\(', math_of(co, j, lead), '\\)</span>')
 
           # ---- Aligned layout: one <td> per parameter column, same
           # column top-to-bottom for the same parameter (see
@@ -13904,14 +13905,16 @@ server <- shinyServer(function(input, output, session) {
               d <- row_data[[ri]]
               lhs_empty <- d$lhs_const == 0 && length(d$move_idx) > 0 && length(d$move_idx) == length(d$nz_all)
               bg <- if (ri %% 2 == 0) 'background:var(--ct-default);' else 'background:var(--fairy-panel);'
+              lhs_first <- { l <- setdiff(d$nz_all, d$move_idx); if (length(l)) min(l) else NA }
+              rhs_first <- if (length(d$move_idx)) min(d$move_idx) else NA
               lhs_const_cell <- paste0('<td style="padding:3px ', if (d$lhs_const > 0) '4px' else '1px', ';text-align:right;">',
-                if (d$lhs_const > 0) paste0('\\(+', num2str_lin(as.numeric(d$lhs_const)), '\\)') else '',
+                if (d$lhs_const > 0) paste0('\\(', num2str_lin(as.numeric(d$lhs_const)), '\\)') else '',
                 '</td>')
               td_cells <- paste(vapply(seq_len(n_p_lt), function(j) {
                 co <- d$coeffs[j]
                 if (co == 0 || j %in% d$move_idx)
                   return('<td style="padding:3px 1px;"></td>')
-                paste0('<td style="padding:3px 4px;text-align:right;">', term_fn(co, j), '</td>')
+                paste0('<td style="padding:3px 4px;text-align:right;">', term_fn(co, j, lead = d$lhs_const == 0 && isTRUE(j == lhs_first)), '</td>')
               }, character(1)), collapse = "")
               td_cells <- paste0(lhs_const_cell, td_cells)
               op_math  <- if (d$is_eq) "=" else "\\leq"
@@ -13930,7 +13933,7 @@ server <- shinyServer(function(input, output, session) {
               rhs_td_cells <- paste(vapply(seq_len(n_p_lt), function(j) {
                 if (!(j %in% d$move_idx))
                   return('<td style="padding:3px 1px;"></td>')
-                paste0('<td style="padding:3px 4px;text-align:right;">', term_fn(abs(d$coeffs[j]), j), '</td>')
+                paste0('<td style="padding:3px 4px;text-align:right;">', term_fn(abs(d$coeffs[j]), j, lead = d$rhs_const == 0 && isTRUE(j == rhs_first)), '</td>')
               }, character(1)), collapse = "")
               rhs_empty <- d$rhs_const == 0 && length(d$move_idx) == 0
               rhs_cells <- paste0(rhs_const_cell, rhs_td_cells)
@@ -13979,13 +13982,13 @@ server <- shinyServer(function(input, output, session) {
               bg <- if (ri %% 2 == 0) 'background:var(--ct-default);' else 'background:var(--fairy-panel);'
               lhs_idx <- setdiff(d$nz_all, d$move_idx)
               lhs_parts <- c(
-                if (d$lhs_const > 0) paste0('\\(+', num2str_lin(as.numeric(d$lhs_const)), '\\)') else NULL,
-                vapply(lhs_idx, function(j) term_fn(d$coeffs[j], j), character(1))
+                if (d$lhs_const > 0) paste0('\\(', num2str_lin(as.numeric(d$lhs_const)), '\\)') else NULL,
+                vapply(seq_along(lhs_idx), function(k) term_fn(d$coeffs[lhs_idx[k]], lhs_idx[k], lead = d$lhs_const <= 0 && k == 1), character(1))
               )
               if (length(lhs_parts) == 0) lhs_parts <- '\\(0\\)'
               rhs_parts <- c(
                 if (d$rhs_const > 0) paste0('\\(', num2str_lin(as.numeric(d$rhs_const)), '\\)') else NULL,
-                vapply(d$move_idx, function(j) term_fn(abs(d$coeffs[j]), j), character(1))
+                vapply(seq_along(d$move_idx), function(k) term_fn(abs(d$coeffs[d$move_idx[k]]), d$move_idx[k], lead = d$rhs_const <= 0 && k == 1), character(1))
               )
               if (length(rhs_parts) == 0) rhs_parts <- '\\(0\\)'
               op_math <- if (d$is_eq) "=" else "\\leq"
@@ -14043,14 +14046,15 @@ server <- shinyServer(function(input, output, session) {
           latex_rows <- vapply(seq_along(row_data), function(ri) {
             if (trivial_vec[ri]) return(NA_character_)
             d <- row_data[[ri]]
+            lhs_set <- setdiff(d$nz_all, d$move_idx)
             lhs_terms <- c(
-              if (d$lhs_const > 0) paste0('+', num2str_lin(as.numeric(d$lhs_const))) else NULL,
-              vapply(setdiff(d$nz_all, d$move_idx), function(j) math_of(d$coeffs[j], j), character(1))
+              if (d$lhs_const > 0) num2str_lin(as.numeric(d$lhs_const)) else NULL,
+              vapply(seq_along(lhs_set), function(k) math_of(d$coeffs[lhs_set[k]], lhs_set[k], lead = d$lhs_const <= 0 && k == 1), character(1))
             )
             if (length(lhs_terms) == 0) lhs_terms <- "0"
             rhs_terms <- c(
               if (d$rhs_const > 0) num2str_lin(as.numeric(d$rhs_const)) else NULL,
-              vapply(d$move_idx, function(j) math_of(abs(d$coeffs[j]), j), character(1))
+              vapply(seq_along(d$move_idx), function(k) math_of(abs(d$coeffs[d$move_idx[k]]), d$move_idx[k], lead = d$rhs_const <= 0 && k == 1), character(1))
             )
             if (length(rhs_terms) == 0) rhs_terms <- "0"
             op_latex <- if (d$is_eq) "&=" else "&\\leq"
