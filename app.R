@@ -2651,14 +2651,14 @@ ui <- shinyUI(fluidPage(
       /* d_h/d_v (QTEST) and d_h_multinomineq/d_v_multinomineq
          (multinomineq) share the same plain download icon, with the
          format named only in the hover tooltip — easy to grab the wrong
-         one without hovering first. A small corner label badge (QTest / multinom)
+         one without hovering first. A small corner label badge (QTEST / multinom)
          makes the format visible at a glance instead. */
       #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq {
         position: relative !important;
       }
       #d_h::after, #d_v::after,
       #d_h_multinomineq::after, #d_v_multinomineq::after {
-        content: 'QTest';
+        content: 'QTEST';
         position: absolute;
         bottom: -6px;
         right: -6px;
@@ -8235,7 +8235,7 @@ server <- shinyServer(function(input, output, session) {
             var partOf = {};
             vM.forEach(function(ms, vi) { ms.forEach(function(mm, kk) { if (partOf[mm] === undefined) partOf[mm] = { v: vi, w: vW[vi][kk] }; else partOf[mm].amb = true; }); });
             // a comparison of one probability with a number (p5 < .2) goes into the label of its row, where nothing else is drawn
-            var opSym = function(o) { return o === '<=' ? String.fromCharCode(8804) : (o === '>=' ? String.fromCharCode(8805) : o); };
+            var opSym = function(o) { return (o === '<=' || o === '<') ? String.fromCharCode(8804) : ((o === '>=' || o === '>') ? String.fromCharCode(8805) : o); };
             var constTxt = function(pi) {
               var c = realPairs ? (window.fairyItemsConsts || []).filter(function(cc) { return cc[0] === pi; }) : [];
               return c.length ? '  ' + c.map(function(cc) { return opSym(cc[1]) + ' ' + cc[2]; }).join(', ') : '';
@@ -8276,8 +8276,8 @@ server <- shinyServer(function(input, output, session) {
             function X(j) { return x0 + j * dx; }
             host.textContent = '';
             var svg = el('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, style: 'display:block; margin:0 auto; max-width:100%;' }, host);
-            var defs = el('defs', {}, svg), mkr = el('marker', { id: 'fairyArrow', markerWidth: 9, markerHeight: 9, refX: 8, refY: 4.5, orient: 'auto-start-reverse', markerUnits: 'userSpaceOnUse' }, defs);
-            el('path', { d: 'M1 1 L8 4.5 L1 8 Z', fill: 'var(--fairy-primary, #3a6df0)', stroke: 'none' }, mkr);
+            var defs = el('defs', {}, svg), mkr = el('marker', { id: 'fairyArrow', markerWidth: 9, markerHeight: 9, refX: 6.4, refY: 4.5, orient: 'auto-start-reverse', markerUnits: 'userSpaceOnUse' }, defs);
+            el('path', { d: 'M1.6 1.4 L7.2 4.5 L1.6 7.6', fill: 'none', stroke: 'var(--fairy-primary, #3a6df0)', 'stroke-width': '1.7', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, mkr);   // an open chevron, like the greater-than sign
             R.forEach(function(r, i) {
               el('rect', { x: 0, y: ys[i] - 19, width: W, height: 38, rx: 10, fill: r.virt ? 'var(--fairy-primary, #3a6df0)' : 'currentColor', opacity: r.virt ? '0.09' : '0.05' }, svg);
             });
@@ -8405,7 +8405,7 @@ server <- shinyServer(function(input, output, session) {
             if (R[0].n <= 4) { var fp = []; for (var q3 = 1; q3 <= R[0].n; q3++) fp.push('1/' + R[0].n + ' ' + midDot + ' item ' + q3); avgFormula = fp.join(' + '); }
             else avgFormula = '(item 1 + ... + item ' + R[0].n + ') / ' + R[0].n;
             var cmpTxt = realPairs ? pairs0.map(function(p) { var dt = ' ' + String.fromCharCode(183) + ' ', wrap = function(x) { return x.indexOf('+') >= 0 ? '(' + x + ')' : x; };
-              return (p[4] ? p[4] + dt + wrap(nm(p[0])) : nm(p[0])) + ' > ' + (p[2] ? p[2] + dt + wrap(nm(p[1])) : nm(p[1])); }) : null;
+              return (p[4] ? p[4] + dt + wrap(nm(p[0])) : nm(p[0])) + ' ' + String.fromCharCode(8805) + ' ' + (p[2] ? p[2] + dt + wrap(nm(p[1])) : nm(p[1])); }) : null;
             var hintEl = document.getElementById('fairy_items_pairs_hint'), bmEl = document.getElementById('items_base_model'), bmName = bmEl ? bmEl.value : '';
             if (hintEl) hintEl.textContent = realPairs
               ? ('Taken from your model' + (bmName ? ' ' + bmName : '') + '.')
@@ -8452,7 +8452,7 @@ server <- shinyServer(function(input, output, session) {
                 var forT = !vars.length ? (terms.some(function(t) { return t.avg; }) ? 'averages over the items' : 'all items of a probability equal')
                   : (allN ? vars.map(function(v) { return v.l; }).join(', ') + ' = 1' + ELL + vars[0].n : vars.map(function(v) { return v.l + ' = 1' + ELL + v.n; }).join(', '));
                 total += count; shownAny = true;
-                sRows.push([hiT + ' > ' + loT, forT + ' ' + String.fromCharCode(8212) + ' ' + count + (count === 1 ? ' statement' : ' statements')]);
+                sRows.push([hiT + ' ' + String.fromCharCode(8805) + ' ' + loT, forT + ' ' + String.fromCharCode(8212) + ' ' + count + (count === 1 ? ' statement' : ' statements')]);
               });
               if (realPairs) (window.fairyItemsConsts || []).forEach(function(cc) {
                 if (cc[0] >= nProb) return;
@@ -15623,14 +15623,14 @@ server <- shinyServer(function(input, output, session) {
 
   #####* Download H-representation QTEST ####
 
-  # QTest's H-representation file format is a pure inequality system
+  # QTEST's H-representation file format is a pure inequality system
   # (A*p <= b) -- it has no notion of "=" at all. A model with
-  # equalities used to just be refused a QTest file outright ("Use
+  # equalities used to just be refused a QTEST file outright ("Use
   # V-representation instead"). This eliminates each equality by
   # Gaussian substitution -- solving it for one parameter in terms of
   # the others, substituting that into every remaining row (other
   # equalities and all inequalities), and dropping that parameter's
-  # column -- so what's left is a smaller pure-inequality system QTest
+  # column -- so what's left is a smaller pure-inequality system QTEST
   # can actually read. One parameter is eliminated per INDEPENDENT
   # equality; a redundant one (already implied, reduces to 0=0 once
   # prior eliminations are applied) is silently dropped, and a genuinely
@@ -15759,7 +15759,7 @@ server <- shinyServer(function(input, output, session) {
   # paths below -- same fraction/common-denominator formatting either
   # way, just fed a different (already numeric, already reduced-to-the-
   # right-columns) inequality matrix, so there's exactly one place that
-  # knows the actual QTest text layout.
+  # knows the actual QTEST text layout.
   format_qtest_ineq_file <- function(ineq_mat, n_p) {
     act_v_left  <- -ineq_mat[, 3L:(2L + n_p), drop = FALSE]
     act_v_right <- ineq_mat[, 2]
@@ -15797,15 +15797,15 @@ server <- shinyServer(function(input, output, session) {
     )
   }
 
-  # Human-readable companion note for a QTest file that went through
-  # eliminate_h_equalities -- QTest's own format has no room for
+  # Human-readable companion note for a QTEST file that went through
+  # eliminate_h_equalities -- QTEST's own format has no room for
   # comments, so this ships as a SEPARATE file in the same tar rather
   # than inline, explaining which reduced column is which original
   # parameter and how each eliminated one is recovered from the
   # survivors (e.g. to reconstruct a full result vector afterward).
   format_qtest_substitution_note <- function(elim, orig_names) {
     lines <- c(
-      "This model included equalities. QTest's H-representation format",
+      "This model included equalities. QTEST's H-representation format",
       "has no way to express \"=\", so one parameter was eliminated per",
       "independent equality (solved for and substituted out) instead --",
       "the accompanying .txt file is the resulting pure-inequality",
@@ -15813,7 +15813,7 @@ server <- shinyServer(function(input, output, session) {
       ""
     )
     kept_names <- orig_names[elim$remaining_idx]
-    lines <- c(lines, "Kept parameters (in the order they appear in the QTest file):")
+    lines <- c(lines, "Kept parameters (in the order they appear in the QTEST file):")
     lines <- c(lines, paste0("  ", seq_along(kept_names), ": ", kept_names))
     lines <- c(lines, "")
     if (length(elim$eliminated) > 0) {
@@ -15875,8 +15875,8 @@ server <- shinyServer(function(input, output, session) {
         if (nrow(act_v_eq) > 0) {
           elim <- eliminate_h_equalities(h_mat)
           if (elim$infeasible) {
-            total_file         <- "This model's equalities are contradictory (no assignment of probabilities satisfies all of them) -- no QTest file is possible."
-            file_name_addendum <- "_no_QTest_file_available"
+            total_file         <- "This model's equalities are contradictory (no assignment of probabilities satisfies all of them) -- no QTEST file is possible."
+            file_name_addendum <- "_no_QTEST_file_available"
           } else if (nrow(elim$ineq) == 0) {
             next
           } else {

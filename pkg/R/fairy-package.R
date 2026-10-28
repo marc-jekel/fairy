@@ -13,7 +13,7 @@
 #' * [fairy_intersect()], [fairy_mixture()], [fairy_nested()], [fairy_compare()]:
 #'   overlap, mixtures and model relationships.
 #' * [fairy_replicate()]: identical, joint, and substitutable replication models.
-#' * [fairy_write_qtest()], [fairy_write_multinomineq()]: export for QTest and multinomineq.
+#' * [fairy_write_qtest()], [fairy_write_multinomineq()]: export for QTEST and multinomineq.
 #'
 #' @section Vignettes:
 #' `vignette("fairy")` gives an overview of all functions with examples;

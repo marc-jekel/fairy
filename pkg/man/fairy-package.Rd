@@ -20,7 +20,7 @@ possible Bayes factor, and the numbers reported in the paper's tables.
 \item \code{\link[=fairy_intersect]{fairy_intersect()}}, \code{\link[=fairy_mixture]{fairy_mixture()}}, \code{\link[=fairy_nested]{fairy_nested()}}, \code{\link[=fairy_compare]{fairy_compare()}}:
 overlap, mixtures and model relationships.
 \item \code{\link[=fairy_replicate]{fairy_replicate()}}: identical, joint, and substitutable replication models.
-\item \code{\link[=fairy_write_qtest]{fairy_write_qtest()}}, \code{\link[=fairy_write_multinomineq]{fairy_write_multinomineq()}}: export for QTest and multinomineq.
+\item \code{\link[=fairy_write_qtest]{fairy_write_qtest()}}, \code{\link[=fairy_write_multinomineq]{fairy_write_multinomineq()}}: export for QTEST and multinomineq.
 }
 }
 

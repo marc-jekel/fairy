@@ -32,7 +32,7 @@ The package does what "the mathematics fairy" does in the paper (it does not sto
 | parsimony (volume) and the largest possible Bayes factor | `fairy_volume()`, `fairy_max_bf()`, `fairy_info()` |
 | overlap, nesting, mixture models | `fairy_intersect()`, `fairy_nested()`, `fairy_mixture()`, `fairy_compare()` |
 | replication models (identical, joint, substitutable) | `fairy_replicate()` |
-| input files for QTest and multinomineq | `fairy_write_qtest()`, `fairy_write_multinomineq()` |
+| input files for QTEST and multinomineq | `fairy_write_qtest()`, `fairy_write_multinomineq()` |
 
 # Part 1: The cringyness study
 
@@ -94,7 +94,7 @@ fairy_constraints(m$M4)
 ```
 
 The first line is the paper's `-1 x p1 + 1 x p2 <= 0`. The same constraints in the
-machine-readable format of QTest are written by `fairy_write_qtest()`
+machine-readable format of QTEST are written by `fairy_write_qtest()`
 (and for the R package multinomineq by `fairy_write_multinomineq()`):
 
 ```{r qtest, eval = FALSE}

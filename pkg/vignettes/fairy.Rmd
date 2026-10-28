@@ -160,7 +160,7 @@ fairy_info(fairy_intersect(avg, subs), volume = FALSE)
 
 # Export
 
-`fairy_write_qtest()` and `fairy_write_multinomineq()` write the models as input files for QTest and for the R package
+`fairy_write_qtest()` and `fairy_write_multinomineq()` write the models as input files for QTEST and for the R package
 multinomineq (one `.tar` archive with one file per model).
 
 # All functions
@@ -185,7 +185,7 @@ multinomineq (one `.tar` archive with one file per model).
 | `fairy_compare()` | comparison table of a set of models (Table 3 of the paper) |
 | `fairy_replicate()` | replication across labs: identical, joint, substitutable |
 | `fairy_unpack()` | unpacking across items: lists, joint / substitutable / identical (with tolerance) / average |
-| `fairy_write_qtest()` | write input files for QTest |
+| `fairy_write_qtest()` | write input files for QTEST |
 | `fairy_write_multinomineq()` | write input files for multinomineq |
 
 Help for any function: `?fairy_volume`; all of them: `help(package = "fairy")`.

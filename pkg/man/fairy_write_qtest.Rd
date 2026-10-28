@@ -2,7 +2,7 @@
 % Please edit documentation in R/export.R
 \name{fairy_write_qtest}
 \alias{fairy_write_qtest}
-\title{Write QTest input files for one or more models}
+\title{Write QTEST input files for one or more models}
 \usage{
 fairy_write_qtest(models, n_p, file = NULL, approx_tol = 0, reduce = TRUE)
 }
@@ -23,7 +23,7 @@ accepted by \code{\link[=fairy]{fairy()}}. Each element is one model.}
 Invisibly returns the path to the \code{.tar} file.
 }
 \description{
-Generates the plain-text input files expected by QTest (Regenwetter &
+Generates the plain-text input files expected by QTEST (Regenwetter &
 Davis-Stober, 2012). Each model produces one \code{.txt} file containing
 the integer-scaled A matrix and b vector (inequalities only; models
 with equalities get a notice file instead). All files are bundled in

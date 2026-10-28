@@ -1,6 +1,6 @@
-#' Write QTest input files for one or more models
+#' Write QTEST input files for one or more models
 #'
-#' Generates the plain-text input files expected by QTest (Regenwetter &
+#' Generates the plain-text input files expected by QTEST (Regenwetter &
 #' Davis-Stober, 2012). Each model produces one `.txt` file containing
 #' the integer-scaled A matrix and b vector (inequalities only; models
 #' with equalities get a notice file instead). All files are bundled in
@@ -49,7 +49,7 @@ fairy_write_qtest <- function(models, n_p, file = NULL, approx_tol = 0, reduce =
     file_name <- paste0(safe_nm, ".txt")
 
     if (nrow(eq_rows) > 0) {
-      content <- "The model includes equalities. Use V-representation of model for QTest."
+      content <- "The model includes equalities. Use V-representation of model for QTEST."
       write.table(content, file_name, quote = FALSE, col.names = FALSE, row.names = FALSE)
     } else {
       a_mat <- -ineq_rows[, 3:ncol(ineq_rows), drop = FALSE]

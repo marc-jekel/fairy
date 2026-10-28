@@ -26,7 +26,7 @@ A verbal hypothesis about proportions, "category A is more common than B, which 
 3. **measures parsimony**: the volume of the model, and its inverse, the largest Bayes factor the model can reach against the unconstrained model,
 4. **combines models**: intersections, mixtures, nesting, and a comparison table,
 5. **builds replication models** for several labs (identical, joint, substitutable parameters),
-6. **exports** input files for QTest and multinomineq.
+6. **exports** input files for QTEST and multinomineq.
 
 ## Documentation
 
@@ -56,7 +56,7 @@ A verbal hypothesis about proportions, "category A is more common than B, which 
 | `fairy_compare()` | comparison table of a set of models |
 | `fairy_replicate()` | replication across labs: identical, joint, substitutable |
 | `fairy_unpack()` | unpacking across items: lists, joint / substitutable / identical (with tolerance) / average |
-| `fairy_write_qtest()`, `fairy_write_multinomineq()` | write input files for QTest and multinomineq |
+| `fairy_write_qtest()`, `fairy_write_multinomineq()` | write input files for QTEST and multinomineq |
 
 ## Quick start
 
