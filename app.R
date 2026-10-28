@@ -8383,7 +8383,7 @@ server <- shinyServer(function(input, output, session) {
               var before = g.childNodes.length;
               drawPair(pp);
               if (pp[3]) return;
-              var mk2 = (pp[0] < pp[1]) ? 'marker-start' : 'marker-end';
+              var mk2 = (pp[0] < pp[1]) ? 'marker-end' : 'marker-start';   // the arrow points from the larger to the smaller probability, like the sign for greater than
               for (var ci = before; ci < g.childNodes.length; ci++) {
                 var nd = g.childNodes[ci];
                 if (nd.tagName === 'line' || nd.tagName === 'path') nd.setAttribute(mk2, 'url(#fairyArrow)');
@@ -8491,7 +8491,7 @@ server <- shinyServer(function(input, output, session) {
               var wLab = labs.some(function(l) { return l.indexOf(String.fromCharCode(215)) >= 0; });
               var cLab = !!(realPairs && (window.fairyItemsConsts || []).length);
               var SQ = String.fromCharCode(9633), AP = String.fromCharCode(8776);
-              var entries = [[C9, 'one item', null], [UP, 'larger one', BL]];
+              var entries = [[C9, 'one item', null], [String.fromCharCode(8594), 'points to the smaller one', BL]];
               if (vN.length) entries.push([SQ, 'sum (grey lines: its parts)', null]);
               if (hasAvg) entries.push([String.fromCharCode(9675), 'average over the items', BL]);
               if (hasTol) entries.push(['=', 'items equal (' + AP + ': roughly)', null]);
