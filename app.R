@@ -5617,15 +5617,6 @@ ui <- shinyUI(fluidPage(
            e.stopPropagation();
            openParsimonyPlotFull();
          });
-         // The comparison table is one big <table>, so the .model-card
-         // click-anywhere-to-expand behavior above would never fire (it
-         // deliberately excludes clicks landing on a <table>, since that's
-         // where users click to actually interact with model-card
-         // content elsewhere). An explicit button is needed here instead.
-         $(document).on('click', '#comparison-table-fullscreen-btn', function() {
-           var wrap = document.getElementById('comparison_table_wrap');
-           if (wrap) openOverlay(wrap);
-         });
          $(document).on('click', '#fairy-card-overlay', function(e) {
            if (e.target === this) closeOverlay();
          });
@@ -6731,8 +6722,6 @@ server <- shinyServer(function(input, output, session) {
     }
   }
 
-  par_lapply_cores <- function() max(1L, parallel::detectCores(logical = FALSE) - 1L)
-
   # ---- One large, persistent run window (replaces the small progress popups) ----
   # A Go click opens it once; every model is a table row with an H and a V
   # column whose state changes in place (wait / run / done / cached / warn /
@@ -6896,7 +6885,6 @@ server <- shinyServer(function(input, output, session) {
   v_reactive <- reactiveValues()
 
   h_pars_reactive     <- reactiveValues()
-  h_int_vol_reactive  <- reactiveValues()   # intersection volumes for Model Properties
   comp_int_reactive   <- reactiveValues(names = character())  # pairwise intersections auto-added for Parsimony
   # Row count of a model's H-representation BEFORE redundant() strips
   # implied clauses, captured where it's built (redundant()'s output is
@@ -6942,7 +6930,6 @@ server <- shinyServer(function(input, output, session) {
   items_reactive          <- reactiveValues(names = character())
   counter_mix             <- reactiveValues(n = 1)
   counter_items           <- reactiveValues(n = 1)
-  vrep_choices            <- reactiveVal(character(0))
 
   # S4 class for volesti (defined once here; Parsimony observer re-calls setClass
   # which is idempotent when the definition matches)
@@ -7316,70 +7303,12 @@ server <- shinyServer(function(input, output, session) {
     c(legend_shared, legend_factors)
   }
 
-  # Helper: build expanded colnames from factors + param_factors
-  items_colnames <- function(h_base, factors, param_factors) {
-    p_names <- colnames(h_base)[-(1:2)]
-    F       <- length(factors)
-    pf      <- as.integer(param_factors[p_names]); pf[is.na(pf)] <- 0L
-    shared_nm <- p_names[pf == 0L]
-    exp_nm <- unlist(lapply(seq_len(F), function(f) {
-      nm_f <- p_names[pf == f]
-      unlist(lapply(seq_len(factors[[f]]$n), function(lev)
-        items_superscript(nm_f, factors[[f]]$name, lev)))
-    }))
-    c("", "", shared_nm, exp_nm)
-  }
-
   get_name_models_reactive <- function() {
     nms <- character()
     for (ls in seq_len(counter_input$n)) {
       nms <- c(nms, isolate(input[[paste0("textin_relations_name", ls)]]))
     }
     nms[!is.na(nms) & nms != ""]
-  }
-
-  # All currently computed models: base + items
-  get_all_computed_models <- function() {
-    c(get_name_models_reactive(),
-      isolate(items_reactive$names))
-  }
-
-  model_type <- function(nm) {
-    if (nm %in% isolate(items_reactive$names))        return("multi-item")
-    return("base")  # base models, intersections, and mixtures all share the base parameter space
-  }
-
-  check_combinable <- function(sel) {
-    if (length(sel) < 2) return(NULL)
-    types <- vapply(sel, model_type, character(1))
-    if (length(unique(types)) == 1) return(NULL)
-    paste0("Cannot combine models of different types (",
-      paste(paste0(sel, " (", types, ")"), collapse = ", "),
-      "). Only base models, or only replication models, or only multi-item models can be combined — their dimensions represent different parameters.")
-  }
-
-  # Given the models already selected in an intersection/mixture picker row,
-  # which of the remaining `choices` would be incompatible if added — either
-  # a different model type (see model_type) or a different parameter count.
-  # Used to grey those out client-side (see the 'greyOutChoices' custom
-  # message handler) instead of only warning about it after the fact.
-  disabled_choices_for <- function(sel, choices) {
-    candidates <- setdiff(choices, sel)
-    if (length(sel) == 0 || length(candidates) == 0) return(character(0))
-    sel_types <- unique(vapply(sel, model_type, character(1)))
-    ncols_sel <- vapply(sel, function(m) {
-      h <- isolate(h_reactive[[m]])
-      if (is.null(h)) NA_integer_ else ncol(h)
-    }, integer(1))
-    ncols_sel <- ncols_sel[!is.na(ncols_sel)]
-    incompatible <- vapply(candidates, function(cand) {
-      if (length(sel_types) == 1 && model_type(cand) != sel_types[1]) return(TRUE)
-      if (length(ncols_sel) == 0) return(FALSE)
-      h_cand <- isolate(h_reactive[[cand]])
-      if (is.null(h_cand)) return(FALSE)
-      ncol(h_cand) != ncols_sel[1]
-    }, logical(1))
-    candidates[incompatible]
   }
 
   # Probability names are typically typed as LaTeX source (e.g. "p_{1}",
@@ -7392,46 +7321,6 @@ server <- shinyServer(function(input, output, session) {
   # into build_items_h_core for column-name generation, where it DOES
   # get properly MathJax-rendered.
   plain_p_name <- function(nm) gsub("[_{}]", "", nm)
-
-  # Compact-but-readable per-factor tag for an items-model's auto-
-  # generated name/description, e.g. "p1x3" (joint, the common case,
-  # gets no suffix at all), "p1x3 subst" (substitutable) or
-  # "p1x3 ident" / "p1x3 ident±0.05" (identical, exact or with a
-  # tolerance). The old spelled-out "p_{1}=3 joint" form got unreadably
-  # long fast once a model had more than one or two expanded
-  # probabilities, but a first attempt at shortening it (× ~ ≡ symbols
-  # with no legend anywhere) just traded "too long" for "cryptic" —
-  # short plain-English words are the middle ground. Used identically
-  # everywhere a name/description is built from a factor
-  # (items_spec_names, submit_items_multi, and the Go pipeline's own
-  # copy) so they keep matching.
-  # member_eps: one tolerance per MEMBER of this factor (not one for the
-  # whole factor — see build_items_h_mixed's own comment), in the same
-  # order as the factor's members. Uniform across members (the common
-  # case) collapses to the old single "same±0.05" tag; members that
-  # differ are spelled out so two specs that differ only in a member's
-  # tolerance still get distinct cache keys/display names.
-  items_factor_tag <- function(name, n, type, member_eps = 0) {
-    # joint is the common case and gets no suffix at all (see this
-    # function's own header comment) — everything else does.
-    # "substitutable" was abbreviated "swap" here, diverging from the
-    # header comment's own documented "subst" and from what the word
-    # actually means in this app (every level tried against every
-    # other, not two things trading places) — reported directly as
-    # confusing ("p4:2 swap? What does swap mean?").
-    kind <- switch(type,
-      joint = "",
-      substitutable = "subst",
-      average = "avg",
-      identical = {
-        ev <- member_eps
-        if (length(ev) == 0 || all(ev == 0)) "same"
-        else if (length(unique(round(ev, 10))) == 1) paste0("same±", frac_str(ev[1]))
-        else paste0("same±", paste(vapply(ev, frac_str, character(1)), collapse = ","))
-      }
-    )
-    paste0(plain_p_name(name), ":", n, if (nzchar(kind)) paste0(" ", kind) else "")
-  }
 
   # Items model names derived from specs — available before Parsimony runs
   # Name(s) a single items spec produces — kept in one place since both
@@ -9141,8 +9030,6 @@ server <- shinyServer(function(input, output, session) {
       label = if (n_total > 0) paste0("Unpacked across items (n=", n_total, ")") else "Unpack across items")
   })
 
-  model_sel_multiple_reactive <- reactiveValues(value = "None")
-
   equation_all_total_reactive <- reactiveValues(value = NULL)
   # Plain-LaTeX (no HTML) per-model align* blocks, built alongside
   # equation_all_total_reactive's HTML/MathJax cards for the on-screen
@@ -9151,8 +9038,6 @@ server <- shinyServer(function(input, output, session) {
   # <span style="color:..."> markup the on-screen cards use.
   equation_all_total_latex_reactive <- reactiveValues(value = NULL)
   parsim_wide_table_reactive <- reactiveValues(value = NULL)
-
-  input_multi_knob_reactive <- reactiveValues(value = 0)
 
   ineq_eq_left_reactive <- reactiveValues(value = NA)
   ineq_eq_right_reactive <- reactiveValues(value = NA)
@@ -10267,48 +10152,6 @@ server <- shinyServer(function(input, output, session) {
 
   #### Checkbox Events ####
 
-  textboxes_min <- reactive({
-    n <- counter$n
-
-    if (n > 0) {
-      isolate({
-        lapply(seq_len(n), function(i) {
-          numericInput(
-            min = 0,
-            max = 1,
-            step = .01,
-            inputId = paste0("textin_min_", i),
-            label = paste0("Minimum of p", i),
-            value = ifelse(is.null(AllInputs()[[paste0("textin_min_", i)]]) == TRUE,
-              0, AllInputs()[[paste0("textin_min_", i)]]
-            )
-          )
-        })
-      })
-    }
-  })
-
-  textboxes_max <- reactive({
-    n <- counter$n
-
-    if (n > 0) {
-      isolate({
-        lapply(seq_len(n), function(i) {
-          numericInput(
-            min = 0,
-            max = 1,
-            step = .01,
-            inputId = paste0("textin_max_", i),
-            label = paste0("Maximum of p", i),
-            value = ifelse(is.null(AllInputs()[[paste0("textin_max_", i)]]) == TRUE,
-              1, AllInputs()[[paste0("textin_max_", i)]]
-            )
-          )
-        })
-      })
-    }
-  })
-
   textboxes_names <- reactive({
     n <- counter$n
 
@@ -10731,49 +10574,6 @@ server <- shinyServer(function(input, output, session) {
   })
 
 
-  textboxes_check <- reactive({
-    n <- counter_input$n
-    if (n > 0) {
-      ({
-        lapply(seq_len(n), function(i) {
-          materialSwitch(paste0("textin_include_v_", i),
-            label = HTML(paste("Include V-repres. for ",
-              (AllInputs()[[paste("textin_relations_name", i, sep = "")]]),
-              sep = ""
-            )),
-            status = "primary",
-            value = AllInputs()[[paste0("textin_include_v_", i)]],
-            right = T
-          )
-        })
-      })
-    }
-  })
-
-  textboxes_inter_check <- reactive({
-    if ((input$show_inter) != 0) {
-      inters_models <- hot_to_r(input$mytable_inter)
-
-      n <- nrow(inters_models)
-
-      if (n > 0) {
-        ({
-          lapply(seq_len(n), function(i) {
-            materialSwitch(paste0("textin_include_inter_v_", i),
-              label = HTML(paste("Include V-repres. for ",
-                inters_models[i, 1],
-                sep = ""
-              )),
-              status = "primary",
-              value = AllInputs()[[paste0("textin_include_inter_v_", i)]],
-              right = T
-            )
-          })
-        })
-      }
-    }
-  })
-
 
   textboxes_relations_name <- reactive({
     n <- counter_input$n
@@ -11013,14 +10813,8 @@ server <- shinyServer(function(input, output, session) {
     }
   })
 
-  output$textbox_ui_min <- renderUI({
-    textboxes_min()
-  })
   output$textbox_ui_name <- renderUI({
     textboxes_names()
-  })
-  output$textbox_ui_max <- renderUI({
-    textboxes_max()
   })
   output$textbox_ui_rel <- renderUI({
     textboxes_relations()
@@ -11028,24 +10822,10 @@ server <- shinyServer(function(input, output, session) {
   output$textbox_ui_rel_complete <- renderUI({
     textboxes_relations_complete()
   })
-  output$textbox_ui_check <- renderUI({
-    textboxes_check()
-  })
 
-  output$textbox_ui_inter_check <- renderUI({
-    textboxes_inter_check()
-  })
-
-
-  output$textbox_ui_repl <- renderUI({
-    textboxes_repl()
-  })
 
   #### Display Intersection
 
-  output$checkbox_ui_row <- renderUI({
-    check_box_row()
-  })
   output$textbox_ui_name_rel <-
     renderUI({
       textboxes_relations_name()
@@ -11240,14 +11020,7 @@ server <- shinyServer(function(input, output, session) {
       "  grp <- models[space == d]",
       "  if (d - 2 >= 1) plots[[paste0(d - 2, \"D space\")]] <- fairy_plot(grp, dims = seq_len(min(d - 2, 3)))",
       "}",
-      "plots   # in RStudio: use plots[[1]], plots[[2]], ... to show a figure",
-      "",
-      "# comparison of models that live in the same space (here: all models with the same number of columns)",
-      "same_space <- vapply(models, function(h) ncol(h), numeric(1))",
-      "for (d in unique(same_space)) {",
-      "  grp <- models[same_space == d]",
-      "  if (length(grp) > 1) print(fairy_compare(grp, settings = vol_settings))",
-      "}")
+      "plots   # in RStudio: use plots[[1]], plots[[2]], ... to show a figure")
     out
   }
   output$download_rscript <- downloadHandler(
@@ -11564,61 +11337,6 @@ server <- shinyServer(function(input, output, session) {
   })
 
   #### Function LaTeX ####
-
-  latex <- function(latex_object) {
-    formula_h <- ""
-
-    latex_object[, 3:ncol(latex_object)] <- (-1 * latex_object[, 3:ncol(latex_object)])
-    h_representation_pl_minus <- latex_object
-
-    sign_p <- ifelse(data.frame(h_representation_pl_minus[, 3:ncol(h_representation_pl_minus)]) < 0, "-", "+")
-    sign_p <- ifelse(data.frame(h_representation_pl_minus[, 3:ncol(h_representation_pl_minus)]) == 0, "", sign_p)
-
-    h_representation_pl_minus[, 3:ncol(h_representation_pl_minus)] <-
-      abs(h_representation_pl_minus[, 3:ncol(h_representation_pl_minus)])
-
-    for (loop_pl in seq_len(nrow(latex_object))) {
-      formula_h_act <- ((as.character(h_representation_pl_minus[loop_pl, ])))
-
-      sign_p_act <- sign_p[loop_pl, ]
-
-      sign_pl <- ifelse(formula_h_act[1] == "1", "=", "\\leq")
-
-      col_names_p <- colnames(h_representation_pl_minus)[3:ncol(h_representation_pl_minus)]
-
-      p_with_factors <- paste(formula_h_act[3:(length(formula_h_act))], " \\times  ", col_names_p,
-        sep =
-          ""
-      )
-
-      p_with_factors[formula_h_act[3:(length(formula_h_act))] == "0"] <- ""
-
-
-
-      p_with_factors <- paste(sign_p_act, " & ", p_with_factors, sep = "")
-
-
-      p_with_factors <- ifelse(col_names_p == "", " & ", p_with_factors)
-
-
-      p_with_factors <- paste(p_with_factors, " & ", collapse = "")
-
-      p_with_factors <- paste(p_with_factors, sign_pl, " & ", formula_h_act[2],
-        collapse =
-          ""
-      )
-
-      p_with_factors <- paste(paste(p_with_factors, collapse = " "), " \\\\",
-        collapse =
-          " "
-      )
-
-
-      formula_h <- paste(c(formula_h, p_with_factors), collapse = " ")
-    }
-
-    formula_h
-  }
 
   #### Function Plot ####
 
@@ -12249,55 +11967,6 @@ server <- shinyServer(function(input, output, session) {
   # still preserving values down to ~1e-11.
   frac_str <- function(x) trimws(num2str_lin(round(x, 12)))
 
-  gloss_h_row <- function(row, p_names_lt) {
-    is_eq  <- row[1] == 1
-    rhs    <- row[2]
-    # rcdd stores coefficients as the negation of the constraint's true
-    # left-hand side (a = -v internally) — negate back before interpreting,
-    # or the direction (>/<) comes out backwards. Verified against rcdd
-    # directly: encoding "p1>p2" produces the stored row (+1,-1|<=0), but
-    # the polytope's actual vertices ((1,1),(1,0),(0,0), excluding (0,1))
-    # show the true region is p1>=p2, matching only after this negation.
-    coeffs <- -row[-(1:2)]
-    nz     <- which(coeffs != 0)
-    if (length(nz) == 2 && rhs == 0 && sum(coeffs[nz]) == 0) {
-      # Row means sum(coeffs*p) <= rhs (or = rhs). For two nonzero coeffs
-      # summing to 0 with rhs=0, e.g. -p1+p2<=0, that's p2<=p1, i.e. the
-      # NEGATIVE-coefficient variable is the larger one (moving it to the
-      # other side flips its sign) — not the positive one.
-      a <- nz[which(coeffs[nz] < 0)]; b <- nz[which(coeffs[nz] > 0)]
-      if (length(a) == 1 && length(b) == 1) {
-        rel <- if (is_eq) "equals" else "is greater than"
-        return(paste0(mathify(tex_name(p_names_lt[a])), " ", rel, " ", mathify(tex_name(p_names_lt[b]))))
-      }
-    }
-    if (length(nz) == 1) {
-      # co*p_j <= rhs (or = rhs). Dividing by a negative co flips an
-      # inequality's direction; for an equality the sign doesn't matter.
-      co <- coeffs[nz]
-      bound <- rhs / co
-      rel <- if (is_eq) "is exactly" else if (co > 0) "is at most" else "is at least"
-      return(paste0(mathify(tex_name(p_names_lt[nz])), " ", rel, " ", frac_str(bound)))
-    }
-    # Flip everything (coeffs and rhs) when negative terms dominate, so the
-    # combination reads with mostly/all positive coefficients — e.g.
-    # "-1/3p1-1/3p2-1/3p3 <= -4/5" is much harder to parse at a glance than
-    # its equivalent "1/3p1+1/3p2+1/3p3 >= 4/5".
-    flipped <- sum(coeffs[nz] < 0) > sum(coeffs[nz] > 0)
-    if (flipped) coeffs <- -coeffs
-    terms <- paste(vapply(nz, function(j) {
-      co <- coeffs[j]
-      mathify(paste0(if (co > 0) "+" else "-", if (abs(co) == 1) "" else frac_str(abs(co)), tex_name(p_names_lt[j])))
-    }, character(1)), collapse = " ")
-    display_rhs <- if (flipped) -rhs else rhs
-    # "Weighted" only means something when a coefficient isn't 1 — call it
-    # a plain sum otherwise, e.g. "p1+p2" isn't weighting anything.
-    all_unit <- all(abs(coeffs[nz]) == 1)
-    label <- if (all_unit) "the sum" else "a weighted combination"
-    rel <- if (is_eq) "exactly " else if (flipped) "at least " else "at most "
-    paste0(label, " (", trimws(terms), ") must be ", rel, frac_str(display_rhs))
-  }
-
   #### Model Properties Table ####
 
   # LP-based nesting: is every point of H_a also in H_b?
@@ -12325,394 +11994,6 @@ server <- shinyServer(function(input, output, session) {
       }
     }
     TRUE
-  }
-
-  # Shared helper: build comparison table HTML for a vector of model names.
-  # Must be called from within a reactive context (e.g. renderUI).
-  build_comp_html <- function(model_names) {
-    fmt_vol <- function(v) {
-      if (is.null(v) || is.na(v)) return("?")
-      if (v < 0) return("0")
-      if (v > 1) return(sprintf("<span style='color:#b05000;'>%.4f ⚠</span>", v))
-      if (v == 0 || sprintf("%.4f", v) == "0.0000" || v < 5e-5) {
-        if (v == 0) return("&lt; 10<sup>-5</sup>")
-        exp  <- floor(log10(v))
-        mant <- v / 10^exp
-        return(sprintf("%.2f &times; 10<sup>%d</sup>", mant, exp))
-      }
-      sprintf("%.4f", v)
-    }
-
-    # Max Bayes factor = 1/volume against the unconstrained model — same
-    # definition and formatting as the "Max BF" column on the Parsimony tab.
-    # exact=TRUE means the 0 volume is PROVEN (e.g. an equality-constrained
-    # subspace, checked directly from the H-representation) — infinity is
-    # mathematically justified there. exact=FALSE means the 0 came from a
-    # Monte Carlo volume ESTIMATE (h_pars_reactive) that simply never
-    # landed a sample inside — that does not prove the true volume is
-    # zero, only that it's too small to detect, so claiming "&infin;"
-    # there would overclaim certainty the estimate doesn't have.
-    fmt_bf <- function(v, exact = TRUE) {
-      if (is.null(v) || is.na(v)) return("?")
-      if (v <= 0) return(if (exact) "&infin;" else "very large<sup>*</sup>")
-      sprintf("%.2f", 1 / v)
-    }
-    bf_span <- function(v, exact = TRUE) paste0("<small style='color:#666;font-size:11px;'> &middot; max BF: ", fmt_bf(v, exact), "</small>")
-
-    H_list <- lapply(model_names, function(nm) isolate(h_reactive[[nm]]))
-    if (any(vapply(H_list, is.null, logical(1))))
-      return("<p style='color:#888;'>Click Formalize first to compute H-representations.</p>")
-
-    n_m     <- length(model_names)
-    cells   <- matrix("", nrow = n_m, ncol = n_m)
-    cls     <- matrix("ct-default", nrow = n_m, ncol = n_m)
-    tips    <- matrix("", nrow = n_m, ncol = n_m)
-    rel_log <- list()
-
-    # Detect non-full-dimensional models: any equality row (type "1") in H-rep
-    # means the model lives on a subspace → volume is exactly 0 in ambient space.
-    is_zero_vol <- vapply(H_list, function(H) any(H[, 1] == "1"), logical(1))
-
-    any_missing_pars <- FALSE
-    for (i in seq_len(n_m)) {
-      if (is_zero_vol[i]) {
-        cells[i, i] <- paste0("<small style='color:#666;font-size:11px;'>vol: </small>0", bf_span(0))
-        tips[i, i]  <- "Not full-dimensional: volume is exactly 0 in the ambient parameter space (model lives on a subspace defined by equality constraints)"
-        cls[i, i] <- "ct-diag"
-        next
-      }
-      pars <- h_pars_reactive[[model_names[i]]]
-      if (!is.null(pars) && !is.na(pars)) {
-        cells[i, i] <- paste0("<small style='color:#666;font-size:11px;'>vol: </small>", fmt_vol(pars), bf_span(pars))
-        tips[i, i]  <- if (pars > 1e-10)
-                          sprintf("parsimony ≈ %.2e (~1 in %.0f configurations)", pars, round(1/pars))
-                        else "parsimony is extremely small (near-zero volume polytope)"
-      } else {
-        cells[i, i] <- "?"
-        tips[i, i]  <- "Run the Parsimony tab first to compute this value"
-        any_missing_pars <- TRUE
-      }
-      cls[i, i] <- "ct-diag"
-    }
-
-    # Two models are compatible iff their H-rep column names (parameters)
-    # match exactly — same ncol is necessary but not sufficient. Item
-    # models can share both ncol AND column names while assigning
-    # different original parameters to the same stimulus type (see
-    # type_assignment attr, set where item-model H matrices are built) —
-    # comparing/intersecting those would mix designs that don't
-    # correspond to the same substantive quantities, so it's included in
-    # the compatibility key too.
-    comp_key <- function(h) {
-      key <- paste(colnames(h)[-(1:2)], collapse = "\n")
-      ta  <- attr(h, "type_assignment")
-      if (!is.null(ta)) key <- paste0(key, "||", ta)
-      key
-    }
-
-    for (i in seq_len(n_m)) {
-      for (j in seq_len(n_m)) {
-        if (i == j) next
-        H_i <- H_list[[i]]; H_j <- H_list[[j]]
-
-        if (ncol(H_i) != ncol(H_j) || comp_key(H_i) != comp_key(H_j)) {
-          cells[i, j] <- "≠dim"
-          tips[i, j]  <- if (ncol(H_i) != ncol(H_j))
-              sprintf("Different parameter spaces (%d vs %d params)", ncol(H_i) - 2L, ncol(H_j) - 2L)
-            else
-              "Same parameter count, but different parameters/design (e.g. items assigned to stimulus types differently) — not directly comparable."
-          cls[i, j] <- "ct-nodim"; next
-        }
-
-        H_comb <- rbind(H_i, H_j)
-        attr(H_comb, "representation") <- "H"
-        dvec0  <- rep("0", ncol(H_i) - 2L)
-        feasible <- tryCatch(
-          lpcdd(H_comb, dvec0)$solution.type != "Inconsistent",
-          error = function(e) NA
-        )
-        if (isTRUE(!feasible)) {
-          cells[i, j] <- "∅"; cls[i, j] <- "ct-disjoint"
-          tips[i, j]  <- "Disjoint: no parameter values satisfy both models"; next
-        }
-
-        ij <- tryCatch(nesting_lp(H_i, H_j), error = function(e) NA)
-        ji <- tryCatch(nesting_lp(H_j, H_i), error = function(e) NA)
-
-        pi <- if (is_zero_vol[i]) 0 else h_pars_reactive[[model_names[i]]]
-        pj <- if (is_zero_vol[j]) 0 else h_pars_reactive[[model_names[j]]]
-
-        ratio_str <- function(num, den) {
-          if (is.null(num) || is.null(den) || is.na(num) || is.na(den)) return("?×")
-          if (num <= 0 && den <= 0) return("1×")
-          if (num <= 0) return("∞×")
-          sprintf("%.1f×", den / num)
-        }
-        pct_str <- function(part, whole) {
-          if (is.null(part) || is.null(whole) || is.na(part) || is.na(whole)) return("?%")
-          if (whole <= 0) return("~100%")
-          pct <- 100 * part / whole
-          # An intersection is always a subset of each parent model, so its
-          # share of that model's space can never truly exceed 100% — a
-          # part/whole pair computed from two SEPARATE Monte Carlo volume
-          # estimates (fitted with independent random samples) can still
-          # come out above 100% from estimation noise alone. Clamp the
-          # display rather than show an impossible percentage.
-          if (pct > 100) return("~100%")
-          if (pct == 0) return("< 10<sup>-5</sup>%")
-          if (sprintf("%.0f", pct) == "0" || pct < 0.005) {
-            exp  <- floor(log10(pct))
-            mant <- pct / 10^exp
-            return(sprintf("%.1f&times;10<sup>%d</sup>%%", mant, exp))
-          }
-          sprintf("%.0f%%", pct)
-        }
-
-        # When LP says both are nested in each other ("="), sanity-check with
-        # volumes: if volumes are known and differ by >1%, the LP gave a false
-        # positive (common in high-dimensional models due to q2d float conversion).
-        # Override: the smaller-volume model is ⊂ the larger-volume model.
-        if (isTRUE(ij) && isTRUE(ji)) {
-          if (!is.null(pi) && !is.null(pj) && !is.na(pi) && !is.na(pj) && max(pi, pj) > 0) {
-            rel_diff <- abs(pi - pj) / max(pi, pj)
-            if (rel_diff > 0.01) {
-              if (pi < pj) { ji <- FALSE } else { ij <- FALSE }
-            }
-          }
-        }
-
-        if (isTRUE(ij) && isTRUE(ji)) {
-          vstr <- fmt_vol(pi)
-          cells[i, j] <- paste0("=<br><small style='color:#666;font-size:11px;'>vol: ", vstr, "</small>", bf_span(pi))
-          cls[i, j]   <- "ct-equiv"
-          tips[i, j]  <- paste0("Equivalent: same prediction region. Parsimony = ", vstr,
-            ". These models are empirically indistinguishable.")
-          if (i < j) rel_log[[length(rel_log)+1]] <- list(
-            type="eq", a=model_names[i], b=model_names[j], v=vstr, pi=pi, pj=pj)
-
-        } else if (isTRUE(ij)) {
-          vstr <- if (is_zero_vol[i]) "0" else fmt_vol(pi)
-          rstr <- ratio_str(pi, pj)
-          cells[i, j] <- paste0("⊂<br><small style='color:#666;font-size:11px;'>vol: ", vstr, "</small>", bf_span(pi))
-          cls[i, j]   <- "ct-nest"
-          tips[i, j]  <- paste0(model_names[i], " ⊂ ", model_names[j],
-            ": parsimony of ", model_names[i], " = ", vstr,
-            "; ", model_names[j], " is ", rstr, " less restrictive.")
-          if (i < j) rel_log[[length(rel_log)+1]] <- list(
-            type="nested", nested=model_names[i], broader=model_names[j],
-            v=vstr, ratio=rstr, pi=pi, pj=pj)
-
-        } else if (isTRUE(ji)) {
-          vstr <- if (is_zero_vol[j]) "0" else fmt_vol(pj)
-          rstr <- ratio_str(pj, pi)
-          cells[i, j] <- paste0("⊃<br><small style='color:#666;font-size:11px;'>vol: ", vstr, "</small>", bf_span(pj))
-          cls[i, j]   <- "ct-nest"
-          tips[i, j]  <- paste0(model_names[j], " ⊂ ", model_names[i],
-            ": parsimony of ", model_names[j], " = ", vstr,
-            "; ", model_names[i], " is ", rstr, " less restrictive.")
-          if (i < j) rel_log[[length(rel_log)+1]] <- list(
-            type="nested", nested=model_names[j], broader=model_names[i],
-            v=vstr, ratio=rstr, pi=pj, pj=pi)
-
-        } else {
-          # If either model is non-full-dimensional, the intersection also has
-          # volume exactly 0 — no need to store or compute it.
-          if (is_zero_vol[i] || is_zero_vol[j]) {
-            cells[i, j] <- paste0("∩<br><small style='color:#666;font-size:11px;'>vol: 0</small>", bf_span(0))
-            cls[i, j]   <- "ct-overlap"
-            tips[i, j]  <- paste0("Overlap — but intersection volume is exactly 0 because ",
-              if (is_zero_vol[i] && is_zero_vol[j]) "both models are" else
-              if (is_zero_vol[i]) model_names[i] else model_names[j],
-              " not full-dimensional (lives on a subspace).")
-            if (i < j) rel_log[[length(rel_log)+1]] <- list(
-              type="overlap", a=model_names[i], b=model_names[j],
-              v="0", ci="0%", cj="0%", pint=0, pi=pi, pj=pj)
-          } else {
-            int_key <- paste0("[", paste(sort(c(model_names[i], model_names[j])), collapse = " ∩ "), "]")
-            H_red <- tryCatch(redundant(H_comb)$output, error = function(e) H_comb)
-            if (is.null(isolate(h_reactive[[int_key]]))) {
-              h_reactive[[int_key]] <- H_red
-              cur_names <- isolate(comp_int_reactive$names)
-              if (!int_key %in% cur_names)
-                comp_int_reactive$names <- c(cur_names, int_key)
-            }
-            # Exact dimension check — same convention as Table 3 in the
-            # paper ("when neither model is nested in the other, [give]
-            # the dimension of their overlap"): the minimized H-rep's
-            # count of nonredundant EQUALITY rows is the intersection's
-            # codimension, computed directly from the H-representation,
-            # not estimated. When the overlap is lower-dimensional than
-            # the ambient space, its volume there is exactly 0 (not a
-            # sampling artifact) and a "volume"/"max BF" number would be
-            # meaningless — show the dimension instead, exactly like the
-            # paper does, rather than a volume estimate that can't
-            # distinguish "empty" from "just very thin."
-            n_p_full  <- ncol(H_i) - 2L
-            n_eq_int  <- sum(H_red[, 1] == "1")
-            dim_int   <- n_p_full - n_eq_int
-
-            if (n_eq_int > 0) {
-              cells[i, j] <- paste0("∩<br><small style='color:#666;font-size:11px;'>", dim_int, "D overlap</small>")
-              cls[i, j]   <- "ct-overlap"
-              tips[i, j]  <- paste0("Overlap confirmed (feasibility check passed), but the overlap is only ",
-                dim_int, "-dimensional in this ", n_p_full, "-dimensional space (", n_eq_int,
-                " equality constraint", if (n_eq_int == 1) "" else "s",
-                " emerge from combining the two models) — its volume in the full space is exactly 0, ",
-                "not merely small. Same convention as Table 3 in the paper: dimension is reported ",
-                "instead of a volume/BF number for overlaps that aren't full-dimensional.")
-              if (i < j) rel_log[[length(rel_log)+1]] <- list(
-                type="overlap_lowdim", a=model_names[i], b=model_names[j],
-                dim=dim_int, dim_full=n_p_full, pi=pi, pj=pj)
-            } else {
-              pint <- h_pars_reactive[[int_key]]
-              vstr <- fmt_vol(pint)
-              ci   <- pct_str(pint, pi)
-              cj   <- pct_str(pint, pj)
-              # This branch is only reached once BOTH the LP feasibility
-              # check above AND the exact dimension check just above have
-              # confirmed the overlap is genuinely full-dimensional. A
-              # pint of exactly 0 here can therefore only be a sampling
-              # detection-limit artifact, not a real empty/degenerate
-              # overlap (that case is now fully handled above) — hence
-              # exact = FALSE.
-              cells[i, j] <- paste0("∩<br><small style='color:#666;font-size:11px;'>vol: ", vstr, "</small>", bf_span(pint, exact = FALSE))
-              cls[i, j]   <- "ct-overlap"
-              tips[i, j]  <- if (vstr == "?")
-                paste0("Overlap — run Parsimony tab to compute intersection volume (", int_key, ")")
-              else if (!is.null(pint) && !is.na(pint) && pint <= 0)
-                paste0("Overlap confirmed (feasibility check passed, full-dimensional) — but the estimated ",
-                  "volume rounds to 0, most likely because the overlap region is too small for the ",
-                  "sampling algorithm to detect, not because it's truly empty or lower-dimensional.")
-              else
-                paste0("∩ parsimony = ", vstr, "; covers ", ci, " of ", model_names[i],
-                  "'s space and ", cj, " of ", model_names[j], "'s space.")
-              if (i < j) rel_log[[length(rel_log)+1]] <- list(
-                type="overlap", a=model_names[i], b=model_names[j],
-                v=vstr, ci=ci, cj=cj, pint=pint, pi=pi, pj=pj)
-            }
-          }
-        }
-
-        if (i < j && isTRUE(!feasible)) {
-          rel_log[[length(rel_log)+1]] <- list(type="disjoint", a=model_names[i], b=model_names[j])
-        }
-      }
-    }
-
-    pars_avail   <- !any_missing_pars
-    nested_rels  <- Filter(function(r) r$type == "nested",  rel_log)
-    overlap_rels <- Filter(function(r) r$type == "overlap", rel_log)
-    lowdim_rels  <- Filter(function(r) r$type == "overlap_lowdim", rel_log)
-    eq_rels      <- Filter(function(r) r$type == "eq",      rel_log)
-    disj_rels    <- Filter(function(r) r$type == "disjoint",rel_log)
-    all_bullets  <- character(0)
-
-    for (r in nested_rels) {
-      txt <- paste0("<b>", r$nested, " ⊂ ", r$broader, "</b>: ",
-        r$nested, " is a special case of ", r$broader,
-        " — every prediction of ", r$nested, " is also a prediction of ", r$broader, ", but not vice versa.")
-      if (pars_avail && !is.null(r$pi) && !is.null(r$pj) && !is.na(r$pi) && !is.na(r$pj) && r$pj > 0) {
-        ratio_num <- r$pj / r$pi
-        strength  <- if (ratio_num >= 10) "far more" else if (ratio_num >= 3) "considerably more" else "somewhat more"
-        txt <- paste0(txt, " ", r$broader, " is ", strength, " permissive (", r$ratio,
-          " less restrictive), so ", r$nested, " is the stronger, more falsifiable model.")
-      }
-      all_bullets <- c(all_bullets, txt)
-    }
-    for (r in overlap_rels) {
-      txt <- paste0("<b>", r$a, " ∩ ", r$b, "</b>: the models partially overlap.")
-      if (pars_avail && r$v != "?") {
-        ci_num <- if (!is.null(r$pi) && !is.na(r$pi) && r$pi > 0 && !is.null(r$pint) && !is.na(r$pint))
-                    100 * r$pint / r$pi else NA
-        cj_num <- if (!is.null(r$pj) && !is.na(r$pj) && r$pj > 0 && !is.null(r$pint) && !is.na(r$pint))
-                    100 * r$pint / r$pj else NA
-        disc <- if (!is.na(ci_num) && !is.na(cj_num)) {
-          avg <- (ci_num + cj_num) / 2
-          if (avg < 5)  " They are almost entirely discriminable — the shared region is negligibly small."
-          else if (avg < 40) " Meaningful room for empirical discrimination remains."
-          else " They overlap substantially and may be hard to discriminate empirically."
-        } else ""
-        txt <- paste0(txt, " Intersection parsimony: ", r$v,
-          " (", r$ci, " of ", r$a, "'s space; ", r$cj, " of ", r$b, "'s space).", disc)
-      }
-      all_bullets <- c(all_bullets, txt)
-    }
-    for (r in lowdim_rels) {
-      all_bullets <- c(all_bullets, paste0(
-        "<b>", r$a, " ∩ ", r$b, "</b>: they overlap, but only in a ", r$dim,
-        "-dimensional slice of the ", r$dim_full, "-dimensional space — combining the two models forces ",
-        r$dim_full - r$dim, " equalit", if (r$dim_full - r$dim == 1) "y" else "ies",
-        " among the parameters. Their shared region has zero volume in the full space (not merely small)."))
-    }
-    for (r in eq_rels) {
-      all_bullets <- c(all_bullets, paste0(
-        "<b>", r$a, " = ", r$b, "</b>: empirically identical — ",
-        "no observation can distinguish them despite potentially different constraint formulations."))
-    }
-    for (r in disj_rels) {
-      all_bullets <- c(all_bullets, paste0(
-        "<b>", r$a, " ∅ ", r$b, "</b>: mutually exclusive — ",
-        "any observation consistent with one is inconsistent with the other. Maximally discriminable."))
-    }
-
-    narrative_html <- if (length(all_bullets) > 0) {
-      items <- paste0("<li style='margin:4px 0;'>", all_bullets, "</li>", collapse = "")
-      paste0(
-        "<details style='margin-top:16px;'>",
-        "<summary style='cursor:pointer;font-size:13px;color:var(--fairy-primary);font-weight:600;user-select:none;'>",
-        "&#9432; What this means <span style='font-size:11px;font-weight:normal;color:var(--fairy-text-muted);'>(click to expand)</span></summary>",
-        "<div class='ct-infobox' style='margin-top:10px;padding:12px 16px;",
-        "border-left:3px solid var(--fairy-primary);border-radius:4px;font-size:13px;line-height:1.6;'>",
-        "<ul style='margin:0;padding-left:18px;'>", items, "</ul>",
-        if (!pars_avail) "<p style='margin:8px 0 0 0;color:#b05000;font-size:12px;'>⚠ Run the Parsimony tab to see quantitative details.</p>" else "",
-        "</div></details>"
-      )
-    } else ""
-
-    hdr <- paste0(
-      "<th class='ct-header' style='padding:8px 14px;font-weight:600;",
-      "border:1px solid var(--ct-border);font-size:13px;'>",
-      c("", model_names), "</th>", collapse = "")
-    rows <- paste0(vapply(seq_len(n_m), function(i) {
-      cols <- paste0(vapply(seq_len(n_m), function(j) {
-        paste0("<td title=\"", gsub('"', '&quot;', tips[i,j]), "\" class='", cls[i,j],
-               "' style='text-align:center;padding:9px 18px;",
-               "border:1px solid var(--ct-border);font-size:16px;",
-               "cursor:default;'>", cells[i,j], "</td>")
-      }, character(1)), collapse = "")
-      paste0("<tr><th class='ct-header' style='padding:8px 14px;font-weight:600;",
-             "border:1px solid var(--ct-border);text-align:left;font-size:13px;'>",
-             model_names[i], "</th>", cols, "</tr>")
-    }, character(1)), collapse = "")
-
-    paste0(
-      "<div style='overflow-x:auto;'>",
-      "<table style='border-collapse:collapse;font-family:inherit;'>",
-      "<thead><tr>", hdr, "</tr></thead><tbody>", rows, "</tbody></table></div>",
-      "<p style='margin-top:10px;font-size:12px;color:var(--fairy-text-muted);line-height:1.8;'>",
-      "<b>Read a cell as row [symbol] column</b> — ⊂ means the row model is a special case of (nested in) the column model; ",
-      "⊃ means the reverse, the row model is the broader one and the column model is nested in it. &nbsp;&nbsp;",
-      "<b>∩</b> overlap &nbsp;·&nbsp; <b>=</b> equivalent &nbsp;·&nbsp; <b>∅</b> disjoint &nbsp;·&nbsp; ",
-      "\"vol\" is two different quantities depending on the cell: ",
-      "on the <b>diag</b>onal it's that model's own parsimony &nbsp;·&nbsp; ",
-      "everywhere else (⊂/⊃/∩/=) it's the two models' overlap parsimony ",
-      "(for a nested ⊂/⊃ pair, that equals the narrower model's own parsimony, since it's fully contained in the broader one) &nbsp;·&nbsp; ",
-      "<b>≠dim</b> different parameter spaces, not comparable &nbsp;&nbsp;",
-      "<span style='color:#bbb;font-size:11px;'>? = run Parsimony tab first</span>",
-      "</p>",
-      narrative_html
-    )
-  }
-
-  # Helper: given a derived model name (intersection/mixture), classify it by
-  # checking whether any component name from the multi-item list appears as
-  # a substring.  Returns "multi-item" or "base".
-  derived_model_group <- function(nm) {
-    itm <- isolate(items_reactive$names)
-    itm <- itm[!is.na(itm) & nchar(itm) > 0]
-    if (length(itm) > 0 && any(vapply(itm, function(r) grepl(r, nm, fixed = TRUE), logical(1))))
-      return("multi-item")
-    "base"
   }
 
   # Combine every model the user has defined — base, replication, and
@@ -12743,49 +12024,6 @@ server <- shinyServer(function(input, output, session) {
     )
     unique(nms[!is.na(nms) & nchar(nms) > 0])
   }
-
-  output$comparison_section_ui <- renderUI({
-    model_names <- all_comparison_model_names()
-    if (length(model_names) < 2) return(NULL)
-
-    about <- HTML("
-    <details style='margin-bottom:14px;'>
-      <summary style='cursor:pointer;font-size:13px;color:var(--fairy-primary);font-weight:600;user-select:none;'>
-        &#9432; About this table <span style='font-size:11px;font-weight:normal;color:var(--fairy-text-muted);'>(click to expand)</span>
-      </summary>
-      <div class='ct-infobox' style='margin-top:10px;padding:12px 16px;border-left:3px solid var(--fairy-primary);border-radius:4px;font-size:13px;line-height:1.7;'>
-        <p style='margin:0 0 8px 0;'><b>What the table shows:</b> Every model you've defined — base models, replication models, multi-item models, and their intersections/mixtures — compared pairwise. Each cell describes the formal relationship between two models, determined purely from their mathematical definitions, before any data is collected.</p>
-        <ul style='margin:0 0 8px 0;padding-left:18px;'>
-          <li><b>⊂</b> — The row model is a special case of the column model (row is narrower). <b>⊃</b> — The row model is the broader one (column is the special case). Every prediction of the narrower model is also a prediction of the broader one, but not vice versa.</li>
-          <li><b>∩</b> — The models partially overlap. Some parameter values satisfy both; others satisfy only one. When the overlap is lower-dimensional than the full parameter space (combining the two models forces an equality), the cell shows that dimension (e.g. <b>4D overlap</b>) instead of a volume — its volume in the full space is exactly 0, not merely small.</li>
-          <li><b>∅</b> — The models are mutually exclusive. No observation can be consistent with both at once — maximally discriminable.</li>
-          <li><b>=</b> — The models are empirically identical. No observation can ever distinguish them, despite potentially different constraint formulations.</li>
-          <li><b>≠dim</b> — The two models live in different parameter spaces (different number of parameters, or the same number but a different design — e.g. items assigned to stimulus types differently, or a different number of replication labs) and aren't directly comparable.</li>
-          <li><b>diag</b> — The diagonal shows each model's own parsimony (volume).</li>
-        </ul>
-        <p style='margin:0 0 8px 0;'><b>vol</b> is the volume of the model's polytope — a measure of <b>parsimony</b>. A smaller volume means the model makes more precise predictions and is easier to falsify. A volume of 1 means the model places no constraints at all (the unconstrained model).</p>
-        <p style='margin:0 0 4px 0;'><b>Why are intersections and mixtures shown here?</b> Any model you defined — including intersections and mixtures — makes specific, formal predictions, just like a base model does. The table lets you evaluate those predictions: How parsimonious is the region where two theories simultaneously hold? Is that region a special case of a third model, or disjoint from it?</p>
-        <p style='margin:0;color:#888;font-size:12px;'>? means parsimony not yet computed — click Compute in the sidebar.</p>
-      </div>
-    </details>
-    ")
-
-    tagList(
-      about,
-      tags$button(id = "comparison-table-fullscreen-btn", type = "button",
-        title = "View this table fullscreen",
-        style = "margin-bottom:8px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:4px 10px;font-size:0.8rem;cursor:pointer;color:#334155;",
-        "⛶ Fullscreen"),
-      div(id = "comparison_table_wrap", uiOutput("comparison_table_ui"))
-    )
-  })
-
-  output$comparison_table_ui <- renderUI({
-    model_names <- all_comparison_model_names()
-    if (length(model_names) < 2)
-      return(p("Define at least two models and click Formalize to compare.", style = "color:#888;"))
-    HTML(build_comp_html(model_names))
-  })
 
   #### Normalise a linear in/equality ####
   # Rewrites ANY linear constraint into the canonical form
