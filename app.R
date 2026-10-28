@@ -11150,18 +11150,20 @@ server <- shinyServer(function(input, output, session) {
     ok <- which(!is.na(obj))
     out <- c(out, "", "# all models of the session",
       paste0("models <- list(", paste0(q(row_name[ok]), " = ", obj[ok], collapse = ", "), ")"), "",
+      "# volesti settings for the volume estimate; the seed makes the numbers reproducible (add further volesti::volume() settings here)",
+      "vol_settings <- list(seed = 1)", "",
       "# dimension, vertices, constraints, volume (parsimony) and largest Bayes factor of each model",
       "# (estimated with volesti and its default settings; use method = \"exact\" in fairy_info() for the exact convex-hull volume)",
       "info <- do.call(rbind, lapply(names(models), function(nm) {",
       "  h <- models[[nm]]",
-      "  cbind(model = nm, fairy_info(h))",
+      "  cbind(model = nm, fairy_info(h, settings = vol_settings))",
       "}))",
       "print(info)", "",
       "# comparison of models that live in the same space (here: all models with the same number of columns)",
       "same_space <- vapply(models, function(h) ncol(h), numeric(1))",
       "for (d in unique(same_space)) {",
       "  grp <- models[same_space == d]",
-      "  if (length(grp) > 1) print(fairy_compare(grp))",
+      "  if (length(grp) > 1) print(fairy_compare(grp, settings = vol_settings))",
       "}")
     out
   }
