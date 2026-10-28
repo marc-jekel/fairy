@@ -11105,7 +11105,7 @@ server <- shinyServer(function(input, output, session) {
     out <- c(
       paste0("# Session exported from the Fairy app on ", format(Sys.Date()), "."),
       "# It rebuilds every model of the session with the R package 'fairy' and reports dimension, vertices, constraints, volume and largest Bayes factor.",
-      "# install.packages(\"remotes\"); remotes::install_github(\"marc-jekel/fairy\", subdir = \"pkg\", upgrade = \"never\")",
+      "# install.packages(\"remotes\"); remotes::install_github(\"marc-jekel/fairy\", subdir = \"pkg\", upgrade = \"always\")",
       "library(fairy)", "",
       paste0("n_p <- ", n_p, "   # number of probabilities"), ""
     )
@@ -11148,6 +11148,9 @@ server <- shinyServer(function(input, output, session) {
       }
     }
     ok <- which(!is.na(obj))
+    vtab <- isolate(mytable_v_reactive$value)
+    vnames <- if (!is.null(vtab) && ncol(vtab) >= 2) as.character(vtab[[1]][vapply(vtab[[2]], isTRUE, logical(1))]) else character(0)
+    vnames <- unique(vnames[vnames %in% row_name[ok]])
     out <- c(out, "", "# all models of the session",
       paste0("models <- list(", paste0(q(row_name[ok]), " = ", obj[ok], collapse = ", "), ")"), "",
       "# volesti settings for the volume estimate; the seed makes the numbers reproducible (add further volesti::volume() settings here)",
@@ -11159,6 +11162,11 @@ server <- shinyServer(function(input, output, session) {
       "  cbind(model = nm, fairy_info(h, settings = vol_settings))",
       "}))",
       "print(info)", "",
+      if (length(vnames) > 0) c(
+        "# V-description (vertices) of the models for which it was switched on in the app",
+        paste0("v_models <- c(", paste(q(vnames), collapse = ", "), ")"),
+        "vertices <- lapply(models[v_models], fairy_vertices)",
+        "print(vertices)", ""),
       "# comparison of models that live in the same space (here: all models with the same number of columns)",
       "same_space <- vapply(models, function(h) ncol(h), numeric(1))",
       "for (d in unique(same_space)) {",
