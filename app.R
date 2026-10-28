@@ -11476,7 +11476,7 @@ server <- shinyServer(function(input, output, session) {
           x = trace1$x,
           y = trace1$y,
           z = trace1$z,
-          marker = list(color = model_col, size = 4),
+          marker = list(color = darker_col(model_col, 0.65), size = 5, line = list(color = darker_col(model_col, 0.4), width = 1)),
           name = name_model,
           legendgroup = name_model
         )
