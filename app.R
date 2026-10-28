@@ -38,6 +38,13 @@ if (!require("writexl")) install.packages("writexl")
 library("writexl")
 if (!require("readxl")) install.packages("readxl")
 library("readxl")
+
+# Icon for the V-representation: the corner points (extreme cases) of a small triangle
+vrep_icon <- function() {
+  tags$span(class = "fairy-vrep-icon", style = "display:inline-flex; align-items:center;",
+    HTML("<svg width='15' height='15' viewBox='0 0 16 16' aria-hidden='true' style='display:block'><polygon points='8,2.5 14,13 2,13' fill='none' stroke='currentColor' stroke-width='1.1' stroke-opacity='0.45'/><circle cx='8' cy='2.5' r='2.1' fill='currentColor'/><circle cx='14' cy='13' r='2.1' fill='currentColor'/><circle cx='2' cy='13' r='2.1' fill='currentColor'/></svg>"))
+}
+
 if (!require("shinybusy")) install.packages("shinybusy")
 library("shinybusy")
 if (!require("forstringr")) install.packages("forstringr")
@@ -4510,7 +4517,9 @@ ui <- shinyUI(fluidPage(
         function refitCard(c) {
           setTimeout(function() {
             try { if (window.jQuery && jQuery.fn.dataTable) jQuery(c).find('table.dataTable').each(function() { jQuery(this).DataTable().columns.adjust(); }); } catch (e) {}
-          }, 120);
+            // H tables: fit them to the tile's new width again, so nothing is cut off at the right edge
+            try { if (window.fitHTablesToWidth) window.fitHTablesToWidth(); } catch (e) {}
+          }, 250);
         }
         // the content (H description, tables) scales with the tile's width; nat = width of the tile at its natural size
         var nat = {};
@@ -10680,7 +10689,7 @@ server <- shinyServer(function(input, output, session) {
                   is.null(item_model_spec_idx$value[[as.character(ii)]])) {
                 return(shinyjs::disabled(
                   actionButton(
-                    paste0("vrep_toggle_btn_", ii), label = NULL, icon = icon("draw-polygon"),
+                    paste0("vrep_toggle_btn_", ii), label = vrep_icon(),
                     class = "btn action-button fairy-vrep-toggle-btn active fairy-tooltip",
                     `data-tooltip` = "Always included for mixtures",
                     style = "padding:2px 7px; font-size:11px; border-radius:6px; min-width:0;"
@@ -10692,7 +10701,7 @@ server <- shinyServer(function(input, output, session) {
               active <- !is.null(vtab) && nrow(vtab) > 0 &&
                 model_name %in% vtab[[1]][vtab[[2]] == TRUE]
               actionButton(
-                paste0("vrep_toggle_btn_", ii), label = NULL, icon = icon("draw-polygon"),
+                paste0("vrep_toggle_btn_", ii), label = vrep_icon(),
                 class = paste("btn action-button fairy-vrep-toggle-btn fairy-tooltip", if (active) "active" else ""),
                 `data-tooltip` = if (active) "Included in V-representation — click to remove" else "Include this model in V-representation computation",
                 style = "padding:2px 7px; font-size:11px; border-radius:6px; min-width:0;"
@@ -16535,7 +16544,7 @@ server <- shinyServer(function(input, output, session) {
     just_appeared <- cur_id > isolate(vrep_toggle_all_last_shown_id())
     if (just_appeared) vrep_toggle_all_last_shown_id(cur_id)
     btn <- actionButton(
-      "vrep_toggle_all_btn", label = NULL, icon = icon("draw-polygon"),
+      "vrep_toggle_all_btn", label = vrep_icon(),
       class = paste("btn action-button fairy-vrep-toggle-btn fairy-vrep-toggle-all-btn",
         if (all_included) "active" else ""),
       style = "padding:5px 12px; font-size:14px; border-radius:8px; min-width:0;"
