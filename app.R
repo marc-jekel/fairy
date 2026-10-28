@@ -5107,6 +5107,8 @@ ui <- shinyUI(fluidPage(
               Shiny.setInputValue('share_request', Date.now(), { priority: 'event' });
             } else if (item.id === 'fairy_share_file' && !item.classList.contains('fairy-share-muted') && p.dl) {
               p.dl.click();
+            } else if (item.id === 'fairy_share_rscript') {
+              var rd = document.getElementById('download_rscript'); if (rd) rd.click();
             }
             setOpen(false); if (p.btn) p.btn.focus(); return;
           }
@@ -5976,10 +5978,13 @@ ui <- shinyUI(fluidPage(
               tags$button(id = "fairy_share_link", type = "button", role = "menuitem", class = "fairy-share-item",
                 icon("link"), "Copy link"),
               tags$button(id = "fairy_share_file", type = "button", role = "menuitem", class = "fairy-share-item",
-                icon("download"), "Save file (.xlsx)")
+                icon("download"), "Save file (.xlsx)"),
+              tags$button(id = "fairy_share_rscript", type = "button", role = "menuitem", class = "fairy-share-item",
+                icon("file-code"), "Save R script (.R)")
             ),
             tags$span(class = "fairy-share-hidden",
-              downloadButton("download", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn fairy-btn-muted")
+              downloadButton("download", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn fairy-btn-muted"),
+              downloadButton("download_rscript", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")
             )
           ),
           # A hand-rolled <input type=file> here would NOT get Shiny's
@@ -11084,6 +11089,88 @@ server <- shinyServer(function(input, output, session) {
 
       out
   }
+
+  # ---- Export the session as an R script (package 'fairy') ----
+  build_r_script <- function() {
+    q <- function(x) encodeString(as.character(x), quote = '"')
+    n_rows <- isolate(counter_input$n)
+    n_p <- isolate(counter$n)
+    shared <- trimws(isolate(input[["add_for_all_models"]]) %||% "")
+    row_name <- vapply(seq_len(n_rows), function(i) isolate(input[[paste0("textin_relations_name", i)]]) %||% paste0("m", i), character(1))
+    dms <- isolate(derived_model_sources$value)
+    idx_map <- isolate(item_model_spec_idx$value)
+    specs <- isolate(mytable_items_reactive$value)
+    flags <- isolate(mixture_model_flags$value)
+    tols <- isolate(equality_tolerances_reactive$value)
+    out <- c(
+      paste0("# Session exported from the Fairy app on ", format(Sys.Date()), "."),
+      "# It rebuilds every model of the session with the R package 'fairy' and reports dimension, vertices, constraints, volume and largest Bayes factor.",
+      "# install.packages(\"remotes\"); remotes::install_github(\"marc-jekel/fairy\", subdir = \"pkg\")",
+      "library(fairy)", "",
+      paste0("n_p <- ", n_p, "   # number of probabilities"), ""
+    )
+    pn <- vapply(seq_len(n_p), function(i) trimws(isolate(input[[paste0("textin_name_", i)]]) %||% ""), character(1))
+    if (any(nzchar(pn))) out <- c(out, paste0("# names given to the probabilities in the app: ", paste0("p", seq_len(n_p), " = ", ifelse(nzchar(pn), pn, paste0("p", seq_len(n_p))), collapse = ", ")), "")
+    obj <- paste0("h", seq_len(n_rows))
+    unpacked_rows <- integer(0)
+    for (i in seq_len(n_rows)) {
+      key <- as.character(i); com <- paste0("   # ", gsub("[\r\n]+", " ", row_name[i]))
+      info <- dms[[key]]; ii <- idx_map[[key]]
+      if (!is.null(info)) {
+        srcs <- obj[info$source_idx[info$source_idx >= 1 & info$source_idx <= n_rows]]
+        fn <- if (identical(info$type, "mixture")) "fairy_mixture" else "fairy_intersect"
+        out <- c(out, paste0(obj[i], " <- ", fn, "(", paste(srcs, collapse = ", "), ")", com))
+      } else if (!is.null(ii) && !is.null(specs) && ii <= length(specs)) {
+        sp <- specs[[ii]]
+        b <- match(sp$base, row_name)
+        pf <- sp$param_factors; fcs <- sp$factors
+        if (is.na(b) || is.null(sp$factor_types)) { out <- c(out, paste0("# ", row_name[i], ": the unpacking of this model could not be exported")); obj[i] <- NA; next }
+        items <- vapply(seq_along(pf), function(k) if (pf[[k]] > 0) as.integer(fcs[[pf[[k]]]]$n) else 1L, integer(1))
+        lst <- if (!is.null(sp$lists)) as.character(unname(sp$lists))[seq_along(pf)] else rep("", length(pf))
+        lst[is.na(lst) | !nzchar(lst)] <- paste0("list", unname(pf)[is.na(lst) | !nzchar(lst)])
+        lev <- unique(lst)
+        ty <- vapply(lev, function(l) { k <- which(lst == l)[1]; as.character(sp$factor_types[[pf[[k]]]]) }, character(1))
+        eps <- if (!is.null(sp$eps_per_param)) as.numeric(unname(sp$eps_per_param))[seq_along(pf)] else rep(0, length(pf))
+        out <- c(out, paste0(obj[i], " <- fairy_unpack(", obj[b], ", items = c(", paste(items, collapse = ", "), "), lists = c(", paste(q(lst), collapse = ", "),
+          "), type = c(", paste0(q(lev), " = ", q(ty), collapse = ", "), "), eps = c(", paste(eps, collapse = ", "), "))", com))
+        unpacked_rows <- c(unpacked_rows, i)
+      } else if (!is.null(flags[[key]])) {
+        out <- c(out, paste0("# ", row_name[i], ": a row without constraint text that could not be exported"))
+        obj[i] <- NA
+      } else {
+        own <- trimws(isolate(input[[paste0("textin_relations_", i)]]) %||% "")
+        txt <- paste(c(if (nzchar(shared)) shared, if (nzchar(own)) own), collapse = "; ")
+        txt <- gsub("≥", ">=", gsub("≤", "<=", txt, fixed = TRUE), fixed = TRUE)
+        tv <- as.numeric(unlist(tols[[key]])); tv <- tv[!is.na(tv) & tv > 0]
+        tol_arg <- if (length(tv) > 0 && length(unique(tv)) == 1) paste0(", approx_tol = ", tv[1]) else ""
+        out <- c(out, paste0(obj[i], " <- fairy_h(", q(txt), ", n_p = n_p", tol_arg, ")", com))
+        if (length(tv) > 0 && !nzchar(tol_arg)) out <- c(out, "# NOTE: this model has different tolerances for its approximate equalities; they are not part of this script")
+      }
+    }
+    ok <- which(!is.na(obj))
+    out <- c(out, "", "# all models of the session",
+      paste0("models <- list(", paste0(q(row_name[ok]), " = ", obj[ok], collapse = ", "), ")"), "",
+      "# dimension, vertices, constraints, volume (parsimony) and largest Bayes factor of each model",
+      "# (the volume is skipped for models with more than 9 probabilities, where it can take very long)",
+      "info <- do.call(rbind, lapply(names(models), function(nm) {",
+      "  h <- models[[nm]]",
+      "  cbind(model = nm, fairy_info(h, volume = (ncol(h) - 2) <= 9))",
+      "}))",
+      "print(info)", "",
+      "# comparison of models that live in the same space (here: all models with the same number of columns)",
+      "same_space <- vapply(models, function(h) ncol(h), numeric(1))",
+      "for (d in unique(same_space)) {",
+      "  grp <- models[same_space == d]",
+      "  if (length(grp) > 1 && d - 2 <= 9) print(fairy_compare(grp))",
+      "}")
+    out
+  }
+  output$download_rscript <- downloadHandler(
+    filename = function() paste0("fairy_session_", Sys.Date(), ".R"),
+    content = function(file) writeLines(build_r_script(), file, useBytes = TRUE)
+  )
+  outputOptions(output, "download_rscript", suspendWhenHidden = FALSE)
+
   write_user_input <- function(file) write_xlsx(build_user_input(), file)
   output$download <- downloadHandler(
     filename = function() {
