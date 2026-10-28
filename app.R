@@ -4505,7 +4505,7 @@ ui <- shinyUI(fluidPage(
         var widths = {}, heights = {}, resizing = false;
         try { widths = JSON.parse(sessionStorage.getItem('fairyCardW') || '{}'); heights = JSON.parse(sessionStorage.getItem('fairyCardH') || '{}'); } catch (e) { widths = {}; heights = {}; }
         function saveWidths() { try { sessionStorage.setItem('fairyCardW', JSON.stringify(widths)); sessionStorage.setItem('fairyCardH', JSON.stringify(heights)); } catch (e) {} }
-        function clearSize(c) { c.style.height = c.style.overflow = ''; c.classList.remove('fairy-sized'); }
+        function clearSize(c) { c.style.height = c.style.minHeight = c.style.overflow = ''; c.classList.remove('fairy-sized'); }
         // DataTables lays its columns out once: let it re-measure after a tile changed size
         function refitCard(c) {
           setTimeout(function() {
@@ -4599,6 +4599,22 @@ ui <- shinyUI(fluidPage(
           wrap.classList.add('fairy-packed');
           cards.forEach(function(c, k) { c.style.left = '0px'; c.style.top = '0px'; c.style.width = sizes[k].w + 'px'; });
           sizes.forEach(function(z, k) { z.h = cards[k].offsetHeight; });   // heights as they are once absolutely placed
+          // tiles whose width or height is almost the same get exactly the same size (tiles the user resized keep theirs)
+          function snapSizes(prop, tol, skip) {
+            var idx = sizes.map(function(z, k) { return k; }).filter(function(k) { return !skip(cards[k]); }).sort(function(a, b) { return sizes[a][prop] - sizes[b][prop]; });
+            var i = 0;
+            while (i < idx.length) {
+              var j = i; while (j + 1 < idx.length && sizes[idx[j + 1]][prop] - sizes[idx[i]][prop] <= tol) j++;
+              var top = sizes[idx[j]][prop];
+              for (var q = i; q <= j; q++) sizes[idx[q]][prop] = top;
+              i = j + 1;
+            }
+          }
+          snapSizes('w', 30, function(c) { return !!widths[pkey(c)]; });
+          cards.forEach(function(c, k) { c.style.width = sizes[k].w + 'px'; });
+          sizes.forEach(function(z, k) { z.h = cards[k].offsetHeight; });
+          snapSizes('h', 30, function(c) { return !!heights[pkey(c)]; });
+          cards.forEach(function(c, k) { if (!heights[pkey(c)]) c.style.minHeight = sizes[k].h + 'px'; });
           cards.forEach(function(c, k) {
             var w = sizes[k].w, h = sizes[k].h, bx = 0, by = Infinity, x, j, y, cand = [];
             for (x = 0; x + w <= W + 0.5; x += Q) {
@@ -10664,7 +10680,7 @@ server <- shinyServer(function(input, output, session) {
                   is.null(item_model_spec_idx$value[[as.character(ii)]])) {
                 return(shinyjs::disabled(
                   actionButton(
-                    paste0("vrep_toggle_btn_", ii), label = NULL, icon = icon("cube"),
+                    paste0("vrep_toggle_btn_", ii), label = NULL, icon = icon("braille"),
                     class = "btn action-button fairy-vrep-toggle-btn active fairy-tooltip",
                     `data-tooltip` = "Always included for mixtures",
                     style = "padding:2px 7px; font-size:11px; border-radius:6px; min-width:0;"
@@ -10676,7 +10692,7 @@ server <- shinyServer(function(input, output, session) {
               active <- !is.null(vtab) && nrow(vtab) > 0 &&
                 model_name %in% vtab[[1]][vtab[[2]] == TRUE]
               actionButton(
-                paste0("vrep_toggle_btn_", ii), label = NULL, icon = icon("cube"),
+                paste0("vrep_toggle_btn_", ii), label = NULL, icon = icon("braille"),
                 class = paste("btn action-button fairy-vrep-toggle-btn fairy-tooltip", if (active) "active" else ""),
                 `data-tooltip` = if (active) "Included in V-representation — click to remove" else "Include this model in V-representation computation",
                 style = "padding:2px 7px; font-size:11px; border-radius:6px; min-width:0;"
@@ -16519,7 +16535,7 @@ server <- shinyServer(function(input, output, session) {
     just_appeared <- cur_id > isolate(vrep_toggle_all_last_shown_id())
     if (just_appeared) vrep_toggle_all_last_shown_id(cur_id)
     btn <- actionButton(
-      "vrep_toggle_all_btn", label = NULL, icon = icon("cube"),
+      "vrep_toggle_all_btn", label = NULL, icon = icon("braille"),
       class = paste("btn action-button fairy-vrep-toggle-btn fairy-vrep-toggle-all-btn",
         if (all_included) "active" else ""),
       style = "padding:5px 12px; font-size:14px; border-radius:8px; min-width:0;"
