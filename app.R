@@ -11477,6 +11477,10 @@ server <- shinyServer(function(input, output, session) {
           y = trace1$y,
           z = trace1$z,
           marker = list(color = darker_col(model_col, 0.65), size = 5, line = list(color = darker_col(model_col, 0.4), width = 1)),
+          # what the hover box shows: the model, the vertex number and its coordinates
+          text = vapply(seq_len(nrow(matrix_pl)), function(r_i) paste0(name_model, " \u00b7 vertex ", r_i, "<br>",
+            paste(paste0(gsub("[_{}]", "", colnames(matrix_pl)), " = ", format(round(as.numeric(matrix_pl[r_i, ]), 3), trim = TRUE)), collapse = "<br>")), character(1)),
+          hoverinfo = "text",
           name = name_model,
           legendgroup = name_model
         )
@@ -11504,6 +11508,7 @@ server <- shinyServer(function(input, output, session) {
             opacity = if (shape_cube == 1) mesh_opacity else mesh_opacity_hull,
             color = I(model_col),
             # flat faces: with smooth vertex shading the two triangles of one flat side look like separate shapes
+            hoverinfo = "skip",
             flatshading = TRUE,
             lighting = list(ambient = 0.85, diffuse = 0.35, specular = 0, roughness = 1, fresnel = 0),
             name = name_model,
@@ -11514,7 +11519,7 @@ server <- shinyServer(function(input, output, session) {
         edges <- tryCatch(hull_edge_lines(as.matrix(matrix_pl), hull_faces), error = function(e) NULL)
         if (!is.null(edges) && length(edges$x) > 0) {
           p <- add_trace(p, type = "scatter3d", mode = "lines", x = edges$x, y = edges$y, z = edges$z,
-            line = list(color = darker_col(model_col), width = 4), hoverinfo = "none",
+            line = list(color = darker_col(model_col), width = 4), hoverinfo = "skip",
             name = name_model, legendgroup = name_model, showlegend = FALSE)
         }
       } else {
