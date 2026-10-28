@@ -6603,6 +6603,7 @@ server <- shinyServer(function(input, output, session) {
   fairy_run_end <- function(note = "") session$sendCustomMessage("fairy_run_end", list(note = note))
   # last mixture results by name, with a signature of the component models they were built from
   mixture_cache <- new.env()
+  hint_cache <- new.env()   # results of rows built from H-representations of their sources (intersections with mixtures, unpacked models)
 
   # An unexpected R error inside a big computation block used to end the session (greyed-out
   # app). Report it in the run window / as a notification instead and keep the session alive.
@@ -14248,6 +14249,16 @@ server <- shinyServer(function(input, output, session) {
           hint_notes <- c(hint_notes, paste0(h_row_name, ": its models do not have the same number of items for every probability, so they live in different spaces"))
           next
         }
+        # unchanged sources (same H-representations as at the last Go): reuse the last result instead of recomputing it
+        hint_sig <- paste(c(info$type, vapply(H_src, function(h) paste(c(dim(h), as.vector(h)), collapse = ","), character(1))), collapse = "|")
+        hint_prev <- hint_cache[[h_row_name]]
+        if (!is.null(hint_prev) && identical(hint_prev$sig, hint_sig)) {
+          h_reactive[[h_row_name]] <- hint_prev$h
+          if (!is.null(hint_prev$v)) v_reactive[[h_row_name]] <- hint_prev$v
+          if (is_mix_h) hint_mix_names <- c(hint_mix_names, h_row_name)
+          fairy_run_row(h_row_name, h = "cached", v = if (!is.null(hint_prev$v)) "cached" else NULL)
+          next
+        }
         if (is_mix_h) {
           # mixture: convex hull of the union of the sources' vertices (inside the unit cube)
           n_p_h <- ncol(H_src[[1]]) - 2L
@@ -14280,6 +14291,7 @@ server <- shinyServer(function(input, output, session) {
           }
           h_reactive[[h_row_name]] <- mix_res$h
           v_reactive[[h_row_name]] <- mix_res$v
+          hint_cache[[h_row_name]] <- list(sig = hint_sig, h = mix_res$h, v = mix_res$v)
           recomputed_models <- c(recomputed_models, h_row_name)
           hint_mix_names <- c(hint_mix_names, h_row_name)
           fairy_run_row(h_row_name, h = "done", v = "done")
@@ -14308,6 +14320,7 @@ server <- shinyServer(function(input, output, session) {
         if (!is.null(vv) && nrow(vv$output) > 0) {
           if (ncol(vv$output) == length(h_cn_int)) colnames(vv$output) <- h_cn_int
           v_reactive[[h_row_name]] <- vv
+          hint_cache[[h_row_name]] <- list(sig = hint_sig, h = hh, v = vv)
           fairy_run_row(h_row_name, v = "done")
         } else {
           fairy_run_row(h_row_name, v = "fail")
