@@ -2259,7 +2259,7 @@ ui <- shinyUI(fluidPage(
            setTimeout(function() {
              b.classList.remove('fairy-bubble-show');
              setTimeout(function() { b.remove(); }, 220);
-           }, 3200);
+           }, 3500 + 70 * String(text || '').length);   // longer sayings stay longer
          }
 
          $(document).on('click', '#corner-fairy', function() {
