@@ -413,6 +413,15 @@ ui <- shinyUI(fluidPage(
             while collapsed, Go is the ONLY thing visible. Panel
             padding-bottom reserves exactly Go's own height so the two
             never overlap. */
+      /* On short windows the panel sits closer to the corner, so Go stays inside the visible area */
+      @media (max-height: 560px) { #sidebar-fab-panel { right: 10px !important; bottom: 10px !important; } }
+      /* Until Go has been used once, it glows softly so a first-time visitor finds it */
+      @keyframes fairy-go-attn-kf {
+        0%, 100% { filter: drop-shadow(0 0 0 rgba(58,109,240,0)); }
+        50% { filter: drop-shadow(0 0 7px rgba(58,109,240,0.95)) brightness(1.08); }
+      }
+      .fairy-go-attn { animation: fairy-go-attn-kf 1.6s ease-in-out infinite; }
+      @media (prefers-reduced-motion: reduce) { .fairy-go-attn { animation: none; filter: drop-shadow(0 0 6px rgba(58,109,240,0.9)); } }
       #sidebar-fab-panel {
         position: fixed;
         right: 24px;
@@ -4937,6 +4946,24 @@ ui <- shinyUI(fluidPage(
     )),
     tags$script(HTML(
       "
+      // ---- First visit: Go glows until it has been used once ----
+      (function() {
+        var seen = false;
+        try { seen = localStorage.getItem('fairyGoSeen') === '1'; } catch (e) {}
+        if (seen) return;
+        function done() {
+          try { localStorage.setItem('fairyGoSeen', '1'); } catch (e) {}
+          document.querySelectorAll('.fairy-go-attn').forEach(function(el) { el.classList.remove('fairy-go-attn'); });
+        }
+        function arm() {
+          var b = document.getElementById('go_v_h');
+          if (b && !b.classList.contains('fairy-go-attn')) { b.classList.add('fairy-go-attn'); b.setAttribute('title', 'Press Go (or ' + String.fromCharCode(8984) + '/Ctrl+Enter) to calculate'); }
+        }
+        document.addEventListener('click', function(e) { if (e.target.closest && e.target.closest('#go_v_h, #go')) done(); }, true);
+        document.addEventListener('keydown', function(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') done(); }, true);
+        if (window.jQuery) jQuery(document).one('shiny:connected', function() { setTimeout(arm, 1500); setTimeout(arm, 4000); });
+      })();
+
       // ---- Share link: the whole input lives in the URL hash (#s=...) ----
       (function() {
         function toast(msg) {
