@@ -178,23 +178,6 @@ ui <- shinyUI(fluidPage(
         }
       }
 
-      /* Comparison table cell colour classes (themed via CSS variables) */
-      .ct-default  { background: var(--ct-default) !important; }
-      .ct-diag     { background: var(--ct-diag) !important; color: var(--fairy-text) !important; }
-      .ct-nodim    { background: var(--ct-nodim) !important; }
-      .ct-disjoint { background: var(--ct-disjoint) !important; }
-      .ct-equiv    { background: var(--ct-equiv) !important; }
-      .ct-nest     { background: var(--ct-nest) !important; }
-      .ct-overlap  { background: var(--ct-overlap) !important; }
-      .ct-header   { background: var(--ct-diag) !important; color: var(--fairy-text) !important; }
-      .ct-infobox  {
-        background: var(--ct-info-bg) !important;
-        color: var(--fairy-text) !important;
-        border-left-color: var(--fairy-primary) !important;
-      }
-      .ct-infobox p, .ct-infobox li, .ct-infobox ul { color: var(--fairy-text) !important; }
-      .ct-infobox p[style*='color:#888'], .ct-infobox p.ct-muted { color: var(--fairy-text-muted) !important; }
-
       /* Dark mode: panels, wells, tables, inputs */
       body.dark-mode .well,
       body.dark-mode .panel.panel-default > .panel-body {
@@ -273,13 +256,6 @@ ui <- shinyUI(fluidPage(
       body.dark-mode .shiny-bound-output { background: transparent !important; }
       body.dark-mode .container-fluid,
       body.dark-mode .row { color: var(--fairy-text) !important; }
-      /* Info boxes — extra specificity to beat any inherited white */
-      body.dark-mode .ct-infobox {
-        background-color: var(--ct-info-bg) !important;
-        background: var(--ct-info-bg) !important;
-        color: var(--fairy-text) !important;
-      }
-      body.dark-mode details > div.ct-infobox { background: var(--ct-info-bg) !important; }
       /* Plotly: instant CSS background so there's never a white frame visible.
          NOTE: main-svg must stay transparent for gl3d (WebGL) plots — it's an
          overlay (hover/ticks/titles) that sits on top of a separate <canvas>;
@@ -1253,74 +1229,14 @@ ui <- shinyUI(fluidPage(
         left: 0;
         transform: none;
       }
-      /* Self-built 'Computing X' progress overlay (#fairy-progress-overlay
-         in the UI) — a single, always-present backdrop + card that the
-         server only ever shows/hides and rewrites the text of (see
-         fairy_progress_open/_update/_close and their JS handlers). Kept
-         entirely outside shinyalert/swal2 on purpose: repeatedly calling
-         shinyalert() to show 'model N of M' visibly flashed the dialog
-         closed-then-reopened on every single model, and reaching into
-         swal2's own DOM after the fact proved unreliable. A plain fixed
-         div with a CSS opacity transition has neither problem — toggling
-         one class never tears down or recreates the node. */
-      #fairy-progress-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 20000;
-        display: flex;
-        align-items: flex-start;
-        justify-content: center;
-        box-sizing: border-box;
-        padding-top: 14vh;
-        background: rgba(20, 20, 30, 0.45);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.2s ease;
-      }
-      #fairy-progress-overlay.active {
-        opacity: 1;
-        pointer-events: all;
-      }
-      #fairy-progress-overlay-card {
-        background: var(--fairy-panel, #fff);
-        color: var(--fairy-text, #222);
-        border-radius: 14px;
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
-        padding: 24px 28px;
-        max-width: 480px;
-        width: calc(100% - 48px);
-        max-height: 80vh;
-        min-height: 190px;
-        overflow-y: auto;
-        overflow-x: hidden;
-        box-sizing: border-box;
-      }
-      #fairy-progress-overlay-title {
-        font-size: 17px;
-        font-weight: 600;
-        text-align: center;
-        margin-bottom: 6px;
-      }
+      /* The fairy figure of the run window (landing / idle animation) */
       /* Progress fairy: climbs down into the dialog then spins */
-      @keyframes fairy-climb-in {
-        0%   { transform: translateY(-120px) rotate(-15deg); opacity: 0; }
-        60%  { transform: translateY(6px)   rotate(5deg);   opacity: 1; }
-        80%  { transform: translateY(-4px)  rotate(-3deg);  opacity: 1; }
-        100% { transform: translateY(0)     rotate(0deg);   opacity: 1; }
-      }
       @keyframes fairy-idle-spin {
         0%   { transform: rotate(-8deg) scale(1);    }
         25%  { transform: rotate(8deg)  scale(1.06); }
         50%  { transform: rotate(-8deg) scale(1);    }
         75%  { transform: rotate(5deg)  scale(0.96); }
         100% { transform: rotate(-8deg) scale(1);    }
-      }
-      .fairy-progress-wrap {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
-        padding: 4px 0 2px;
       }
       .fairy-progress-figure {
         width: 56px; height: 56px;
@@ -1341,166 +1257,13 @@ ui <- shinyUI(fluidPage(
          the progress bar. Collapse it to zero size in this one context
          instead of touching the shared class (still used, and still
          landing normally, on swal2 popups elsewhere). */
-      #fairy-progress-overlay-body .fairy-progress-figure {
-        display: none;
-      }
-      .fairy-progress-dots {
-        font-size: 20px;
-        letter-spacing: 4px;
-        color: var(--fairy-primary, #3a6df0);
-        opacity: 0.55;
-        animation: fairy-soft-fade 2.8s ease-in-out infinite;
-      }
       @keyframes fairy-soft-fade {
         0%, 100% { opacity: 0.35; }
         50%      { opacity: 0.7;  }
       }
-      .fairy-progress-cores {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--fairy-primary, #3a6df0);
-        background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent);
-        border-radius: 999px;
-        padding: 5px 14px;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .fairy-progress-done {
-        margin-top: 4px;
-        padding-top: 12px;
-        border-top: 1px solid var(--fairy-border, #e5e5e5);
-        text-align: left;
-        width: 100%;
-        max-width: 340px;
-      }
-      .fairy-progress-done-label {
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        color: #2e7d32;
-        margin-bottom: 8px;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-      }
-      .fairy-progress-done-chips {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 7px;
-      }
-      .fairy-progress-done-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        font-size: 13.5px;
-        font-weight: 500;
-        color: #2e7d32;
-        background: rgba(46, 125, 50, 0.08);
-        border: 1px solid rgba(46, 125, 50, 0.22);
-        border-radius: 999px;
-        padding: 4px 12px 4px 9px;
-      }
-      .fairy-progress-items {
-        text-align: left;
-        width: 100%;
-        max-width: 340px;
-      }
-      .fairy-progress-items-label {
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        color: var(--fairy-primary, #3a6df0);
-        margin-bottom: 8px;
-      }
-      .fairy-progress-items-chips {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 7px;
-      }
-      .fairy-progress-items-chip {
-        display: inline-flex;
-        align-items: center;
-        font-size: 13.5px;
-        font-weight: 500;
-        color: var(--fairy-primary, #3a6df0);
-        background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 8%, transparent);
-        border: 1px solid color-mix(in srgb, var(--fairy-primary, #3a6df0) 22%, transparent);
-        border-radius: 999px;
-        padding: 4px 12px;
-      }
       /* Overflow marker chip ('+N more') appended once a chip list is
          capped — styled muted/dashed so it visibly reads as 'there's
          more, not shown' rather than as just another model. */
-      .fairy-progress-chip-more {
-        color: var(--fairy-text-muted, #888) !important;
-        background: transparent !important;
-        border-style: dashed !important;
-        font-style: italic;
-      }
-      .fairy-progress-bar-track {
-        width: 220px;
-        height: 6px;
-        border-radius: 999px;
-        background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 12%, transparent);
-        overflow: hidden;
-      }
-      .fairy-progress-bar-fill {
-        height: 100%;
-        border-radius: 999px;
-        background: var(--fairy-primary, #3a6df0);
-        transition: width 0.3s ease;
-      }
-      .fairy-progress-bar-indeterminate {
-        height: 100%;
-        width: 100%;
-        border-radius: 999px;
-        background: var(--fairy-primary, #3a6df0);
-        opacity: 0.45;
-        animation: fairy-soft-fade 2.8s ease-in-out infinite;
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .fairy-progress-dots { animation: none; opacity: 0.55; }
-        .fairy-progress-bar-indeterminate { animation: none; }
-        #fairy-progress-overlay { transition: none; }
-      }
-      .fairy-progress-now {
-        display: flex;
-        align-items: baseline;
-        justify-content: center;
-        gap: 8px;
-        width: 100%;
-        max-width: 340px;
-        min-height: 22px;
-        font-size: 15px;
-      }
-      .fairy-progress-now-label {
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: var(--fairy-text-muted, #667085);
-      }
-      .fairy-progress-now-name {
-        font-weight: 600;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .fairy-progress-now-more { font-weight: 400; color: var(--fairy-text-muted, #667085); }
-      .fairy-progress-sub {
-        font-size: 14px;
-        color: var(--fairy-text-muted, #667085);
-        min-height: 20px;
-      }
-      .fairy-progress-count {
-        font-variant-numeric: tabular-nums;
-        font-size: 12.5px;
-        font-weight: 500;
-        color: var(--fairy-text-muted, #667085);
-      }
       .model-card::after {
         content: 'click to expand';
         position: absolute;
@@ -6966,7 +6729,6 @@ server <- shinyServer(function(input, output, session) {
   # form, since there the name is the only thing distinguishing which
   # group a copy belongs to.
   items_superscript <- function(nm_f, group_name, lev) {
-    is_solo <- length(nm_f) == 1 && identical(plain_p_name(group_name), plain_p_name(nm_f))
     paste0(nm_f, "^{(", lev, ")}")
   }
   build_items_h_core <- function(h_base, factors, param_factors, substitutable = FALSE, factor_types = NULL) {
@@ -7389,11 +7151,6 @@ server <- shinyServer(function(input, output, session) {
     paste0(base_m, " [", factor_tag, "]")
   }
 
-  get_pending_items_names <- function() {
-    specs <- isolate(mytable_items_reactive$value)
-    if (is.null(specs) || length(specs) == 0) return(character(0))
-    unique(unlist(lapply(specs, items_spec_names)))
-  }
 
   # User selection of WHICH model pairs to intersect. The chosen pairs are the
   # only intersections shown anywhere (H-representation cards, downloads,
@@ -7921,25 +7678,7 @@ server <- shinyServer(function(input, output, session) {
             chipState.asg = chipState.asg.map(function(s) { return map[s]; });
             chipState.sets = ns;
           }
-          function itemsCountsMode() {
-            var t = document.querySelector('.fairy-items-quick-type:checked');
-            return !!t && (t.value === 'substitutable' || t.value === 'average');
-          }
           function chipsRender() { chipsRenderGroups(); }
-          function chipsRenderCounts() {
-            var ch = document.getElementById('fairy_items_chips'), sl = document.getElementById('fairy_items_sets');
-            if (!ch || !sl) return;
-            ch.textContent = ''; sl.textContent = '';
-            chipState.counts.forEach(function(n, i) {
-              var row = document.createElement('div'); row.style.cssText = 'display:flex; align-items:center; gap:8px; margin:4px 0;';
-              var lab = document.createElement('b'); lab.style.cssText = 'font-size:12.5px; min-width:48px;'; lab.textContent = chipRowName(i);
-              var inp = document.createElement('input'); inp.type = 'number'; inp.min = 1; inp.max = 50; inp.value = n; inp.className = 'form-control fairy-count-n';
-              inp.style.cssText = 'width:70px; height:28px; padding:2px 6px;'; inp.setAttribute('data-p', i); inp.setAttribute('aria-label', 'Items of ' + chipRowName(i));
-              var it = document.createElement('span'); it.style.fontSize = '12.5px'; it.textContent = 'items';
-              [lab, inp, it].forEach(function(e) { row.appendChild(e); });
-              sl.appendChild(row);
-            });
-          }
           function chipsRenderGroups() {
             var ch = document.getElementById('fairy_items_chips'), sl = document.getElementById('fairy_items_sets');
             if (!ch || !sl) return;
@@ -9042,7 +8781,6 @@ server <- shinyServer(function(input, output, session) {
   ineq_eq_left_reactive <- reactiveValues(value = NA)
   ineq_eq_right_reactive <- reactiveValues(value = NA)
   n_user_clauses_reactive <- reactiveValues(value = NA)
-  numb_p_reactive <- reactiveValues(value = NA)
   probs_reactive <- reactiveValues(value = NA)
 
   names_available_models_reactive <- reactiveValues(value = NA)
@@ -11822,23 +11560,6 @@ server <- shinyServer(function(input, output, session) {
     })
   }
 
-  #### Theory-building notes ####
-  # Supports the paper's "back and forth between formalization and verbal
-  # model" argument (formalization uncovers hidden assumptions; the verbal
-  # theory in turn constrains the formal model to its intended scope) by
-  # surfacing, right where a model's H-representation is displayed: (a)
-  # whether any stated clauses turned out to be logically redundant (a
-  # commitment the verbal theory didn't need to make explicit), (b) a plain-
-  # language reverse-paraphrase of each constraint (so the user can check
-  # the formal model against what they actually meant), and (c) a prompt
-  # about exact vs. approximate equality, a common source of ambiguity in
-  # verbal theories. Deliberately built on the app's existing, already-
-  # proven redundant()/H-representation machinery rather than new custom
-  # entailment logic, since we can't interactively verify novel LP code
-  # against this app's real data during this session.
-  # Wrap a probability name (e.g. "p_{1}") in MathJax inline delimiters so
-  # it renders as proper LaTeX rather than literal underscore/brace text.
-  mathify <- function(s) paste0("\\(", s, "\\)")
 
   # A default probability name (e.g. "p_{1}") is valid LaTeX on its own —
   # render it as-is. A user-typed custom label (e.g. "success rate", stored
@@ -12299,8 +12020,6 @@ server <- shinyServer(function(input, output, session) {
 
     probs <- data.frame(probs, rep(0, nrow(probs)), rep(1, nrow(probs)))
     colnames(probs) <- c("variable", "name", "p_min", "p_max")
-    min_values <- rep(0, nrow(probs))
-    max_values <- rep(1, nrow(probs))
 
     ####* split and remove ####
 
@@ -12487,7 +12206,6 @@ server <- shinyServer(function(input, output, session) {
       )
       pos <- pos[order(pos[, 1]), ]
 
-      length_str <- str_length(test_actual)
 
       pos <- data.frame(t(pos))
 
@@ -12950,7 +12668,6 @@ server <- shinyServer(function(input, output, session) {
     all_operators_reactive$value <- all_operators
     ineq_eq_left_reactive$value <- ineq_eq_left
     ineq_eq_right_reactive$value <- ineq_eq_right
-    numb_p_reactive$value <- numb_p
     probs_reactive$value <- probs
   }
 
@@ -13889,7 +13606,6 @@ server <- shinyServer(function(input, output, session) {
       ####* V-representation ####
       # Runs after items so all H-reps are available.
 
-      n_model_rows <- nrow(mytable_input)
 
       # Used to blindly overwrite mytable_v_reactive$value's names by
       # POSITION with mytable_input's current names — a leftover
@@ -13947,7 +13663,6 @@ server <- shinyServer(function(input, output, session) {
           # worth parallelizing. All models run at once here, so there is no
           # meaningful "currently computing" single model to name — the
           # popup instead acknowledges parallel mode and the core count.
-          n_v_jobs <- length(models_to_compute_v)
           for (m_run in models_to_compute_v) fairy_run_row(m_run, v = "run")
 
           h_v_snapshot <- setNames(
@@ -15454,7 +15169,6 @@ server <- shinyServer(function(input, output, session) {
       on.exit(setwd(owd))
       files <- NULL
 
-      all_h_rep_in_matrix <- numeric()
 
       # models, intersections, and mixtures
       export_names <- c(
@@ -15565,10 +15279,6 @@ server <- shinyServer(function(input, output, session) {
             right_dec <-
               eval(parse(text = csv_file_dec[loop_eval]))
 
-            numb_dec <- str_count(gsub(
-              ".*[.]", "",
-              format(right_dec, scientific = F)
-            ), "0")
 
             csv_file_dec[loop_eval] <- format(round(right_dec, digits = 6), scientific = F)
           }
