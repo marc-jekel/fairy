@@ -4,7 +4,7 @@
 \alias{fairy_compare}
 \title{Compare a set of models}
 \usage{
-fairy_compare(models, n_p = NULL, method = "auto")
+fairy_compare(models, n_p = NULL, method = "volesti", ...)
 }
 \arguments{
 \item{models}{A named list of models (strings or H-representations).}
@@ -12,6 +12,8 @@ fairy_compare(models, n_p = NULL, method = "auto")
 \item{n_p}{Number of probabilities for model strings.}
 
 \item{method}{Volume method, see \code{\link[=fairy_volume]{fairy_volume()}}.}
+
+\item{...}{Passed on to \code{\link[=fairy_volume]{fairy_volume()}}.}
 }
 \value{
 An object of class \code{"fairy_compare"} with elements \code{volume}

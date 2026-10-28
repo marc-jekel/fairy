@@ -7,8 +7,9 @@
 fairy_volume(
   h,
   n_p = NULL,
-  method = c("auto", "exact", "mc", "volesti"),
-  n_samples = 1e+06
+  method = c("volesti", "exact", "mc"),
+  n_samples = 1e+06,
+  ...
 )
 }
 \arguments{
@@ -16,14 +17,17 @@ fairy_volume(
 
 \item{n_p}{Number of probabilities (only if \code{h} is a string).}
 
-\item{method}{\code{"exact"} (convex hull of the vertices, exact up to
-floating-point error, practical up to roughly 10 dimensions),
-\code{"mc"} (uniform Monte Carlo draws from the hypercube),
-\code{"volesti"} (random-walk volume estimation, needs the volesti
-package, for high dimensions), or \code{"auto"} (exact if feasible, otherwise
-volesti when installed, otherwise Monte Carlo).}
+\item{method}{\code{"volesti"} (default): random-walk volume estimation with
+the package \pkg{volesti} and its own default settings; further arguments
+in \code{...} are passed on to \code{volesti::volume()} (e.g. \code{settings = list(error = 0.01)}),
+so any non-default volesti option is up to the user. \code{"exact"}: convex hull
+of the vertices, exact up to floating-point error, but can be very slow
+or run out of memory in high dimensions. \code{"mc"}: uniform Monte Carlo
+draws from the hypercube. The method is never switched automatically.}
 
 \item{n_samples}{Monte Carlo draws for \code{method = "mc"}.}
+
+\item{...}{Passed on to \code{volesti::volume()} when \code{method = "volesti"}.}
 }
 \value{
 A list with \code{volume}, \code{se} (\code{NA} unless Monte Carlo), \code{method},

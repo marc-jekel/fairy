@@ -4,22 +4,25 @@
 \alias{fairy_info}
 \title{Summary numbers of a model}
 \usage{
-fairy_info(h, n_p = NULL, method = "auto", volume = TRUE)
+fairy_info(h, n_p = NULL, method = "volesti", volume = TRUE, ...)
 }
 \arguments{
 \item{h}{An H-representation from \code{\link[=fairy_h]{fairy_h()}}, or a single model string.}
 
 \item{n_p}{Number of probabilities (only if \code{h} is a string).}
 
-\item{method}{\code{"exact"} (convex hull of the vertices, exact up to
-floating-point error, practical up to roughly 10 dimensions),
-\code{"mc"} (uniform Monte Carlo draws from the hypercube),
-\code{"volesti"} (random-walk volume estimation, needs the volesti
-package, for high dimensions), or \code{"auto"} (exact if feasible, otherwise
-volesti when installed, otherwise Monte Carlo).}
+\item{method}{\code{"volesti"} (default): random-walk volume estimation with
+the package \pkg{volesti} and its own default settings; further arguments
+in \code{...} are passed on to \code{volesti::volume()} (e.g. \code{settings = list(error = 0.01)}),
+so any non-default volesti option is up to the user. \code{"exact"}: convex hull
+of the vertices, exact up to floating-point error, but can be very slow
+or run out of memory in high dimensions. \code{"mc"}: uniform Monte Carlo
+draws from the hypercube. The method is never switched automatically.}
 
 \item{volume}{Compute the volume as well? Skip it (\code{FALSE}) when the
 polytope is large.}
+
+\item{...}{Passed on to \code{volesti::volume()} when \code{method = "volesti"}.}
 }
 \value{
 A one-row data frame.

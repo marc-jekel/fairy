@@ -84,11 +84,9 @@ fairy_replicate <- function(h, r, type = c("identical", "joint", "substitutable"
     hh <- rr
   }
   if (type == "joint") {
-    # the labs are independent blocks, so the volume is the single-lab volume to the power r
-    v1 <- fairy_volume(h)
-    attr(hh, "fairy_volume") <- list(volume = v1$volume^r, se = NA_real_, method = "product",
-                                     dim = if (v1$dim < 0) -1L else v1$dim * r,
-                                     max_bf = if (v1$volume > 0) v1$volume^(-r) else Inf)
+    # the labs are independent blocks: the volume is the single-lab volume to the power r
+    # (computed on demand by fairy_volume() with the method the user picks)
+    attr(hh, "fairy_joint") <- list(h = h, r = r)
   }
   hh
 }

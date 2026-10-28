@@ -31,7 +31,7 @@ test_that("fairy_v returns vertices satisfying the constraints", {
 
 test_that("parsimony of full ordering is close to 1/6", {
   h    <- fairy_h("p1 > p2 > p3", n_p = 3)
-  pars <- fairy_parsimony(h, n_p = 3, n_samples = 2e5)
+  pars <- fairy_parsimony(h, n_p = 3, n_samples = 2e5, method = "exact")
   expect_equal(pars$parsimony, 1/6, tolerance = 0.01)
 })
 

@@ -118,12 +118,14 @@ volume_from_vertices <- function(v) {
 #'
 #' @param h An H-representation from [fairy_h()], or a single model string.
 #' @param n_p Number of probabilities (only if `h` is a string).
-#' @param method `"exact"` (convex hull of the vertices, exact up to
-#'   floating-point error, practical up to roughly 10 dimensions),
-#'   `"mc"` (uniform Monte Carlo draws from the hypercube),
-#'   `"volesti"` (random-walk volume estimation, needs the volesti
-#'   package, for high dimensions), or `"auto"` (exact if feasible, otherwise
-#'   volesti when installed, otherwise Monte Carlo).
+#' @param method `"volesti"` (default): random-walk volume estimation with
+#'   the package \pkg{volesti} and its own default settings; further arguments
+#'   in `...` are passed on to `volesti::volume()` (e.g. `settings = list(error = 0.01)`),
+#'   so any non-default volesti option is up to the user. `"exact"`: convex hull
+#'   of the vertices, exact up to floating-point error, but can be very slow
+#'   or run out of memory in high dimensions. `"mc"`: uniform Monte Carlo
+#'   draws from the hypercube. The method is never switched automatically.
+#' @param ... Passed on to `volesti::volume()` when `method = "volesti"`.
 #' @param n_samples Monte Carlo draws for `method = "mc"`.
 #'
 #' @return A list with `volume`, `se` (`NA` unless Monte Carlo), `method`,
@@ -134,11 +136,17 @@ volume_from_vertices <- function(v) {
 #' fairy_volume("p1 = p2; p2 > p3")$max_bf      # Inf, a lower-dimensional model
 #' @importFrom stats runif
 #' @export
-fairy_volume <- function(h, n_p = NULL, method = c("auto", "exact", "mc", "volesti"),
-                         n_samples = 1e6) {
+fairy_volume <- function(h, n_p = NULL, method = c("volesti", "exact", "mc"),
+                         n_samples = 1e6, ...) {
   method <- match.arg(method)
   h <- resolve_h(h, n_p = n_p)
-  if (!is.null(attr(h, "fairy_volume")) && method %in% c("auto", "exact")) return(attr(h, "fairy_volume"))
+  jt <- attr(h, "fairy_joint")
+  if (!is.null(jt)) {
+    v1 <- fairy_volume(jt$h, method = method, n_samples = n_samples, ...)
+    return(list(volume = v1$volume^jt$r, se = NA_real_, method = paste0("product of ", v1$method),
+                dim = if (v1$dim < 0) -1L else v1$dim * jt$r,
+                max_bf = if (v1$volume > 0) v1$volume^(-jt$r) else Inf))
+  }
   n <- ncol(h) - 2L
   v <- fairy_vertices(h)
   dm <- if (nrow(v) == 0) -1L else if (nrow(v) == 1) 0L else qr(sweep(v, 2, v[1, ]), tol = 1e-9)$rank
@@ -146,11 +154,6 @@ fairy_volume <- function(h, n_p = NULL, method = c("auto", "exact", "mc", "voles
                                      max_bf = if (vol > 0) 1 / vol else Inf)
   if (dm < n) return(out(0, NA_real_, "lower-dimensional"))
 
-  if (method == "auto") {
-    method <- if (n <= 9L && nrow(v) <= 5000L) "exact"
-              else if (requireNamespace("volesti", quietly = TRUE)) "volesti"
-              else "mc"
-  }
   if (method == "exact") {
     return(out(volume_from_vertices(v), NA_real_, "exact"))
   }
@@ -159,7 +162,7 @@ fairy_volume <- function(h, n_p = NULL, method = c("auto", "exact", "mc", "voles
     hn <- q2d(h)
     A <- -hn[, -(1:2), drop = FALSE]; b <- hn[, 2]
     P <- volesti::Hpolytope(A = A, b = b)
-    vol <- volesti::volume(P, settings = list(algorithm = "CB", error = 0.05, random_walk = "CDHR"))
+    vol <- volesti::volume(P, ...)
     return(out(as.numeric(vol), NA_real_, "volesti"))
   }
   # Monte Carlo in the unit hypercube
@@ -189,8 +192,8 @@ fairy_volume <- function(h, n_p = NULL, method = c("auto", "exact", "mc", "voles
 #' @examples
 #' fairy_max_bf("p1 > p2 > p3 > p4")   # 24
 #' @export
-fairy_max_bf <- function(h, n_p = NULL, method = "auto", n_samples = 1e6) {
-  fairy_volume(h, n_p = n_p, method = method, n_samples = n_samples)$max_bf
+fairy_max_bf <- function(h, n_p = NULL, method = "volesti", n_samples = 1e6, ...) {
+  fairy_volume(h, n_p = n_p, method = method, n_samples = n_samples, ...)$max_bf
 }
 
 #' Summary numbers of a model
@@ -206,11 +209,11 @@ fairy_max_bf <- function(h, n_p = NULL, method = "auto", n_samples = 1e6) {
 #' @examples
 #' fairy_info("p1 > p2 > p3")
 #' @export
-fairy_info <- function(h, n_p = NULL, method = "auto", volume = TRUE) {
+fairy_info <- function(h, n_p = NULL, method = "volesti", volume = TRUE, ...) {
   h <- resolve_h(h, n_p = n_p)
   hn <- q2d(h)
   v <- fairy_vertices(h)
-  vol <- if (volume) fairy_volume(h, method = method) else list(volume = NA_real_, max_bf = NA_real_, dim = NA_integer_)
+  vol <- if (volume) fairy_volume(h, method = method, ...) else list(volume = NA_real_, max_bf = NA_real_, dim = NA_integer_)
   data.frame(
     dim = if (volume) vol$dim else fairy_dim(h),
     vertices = nrow(v),

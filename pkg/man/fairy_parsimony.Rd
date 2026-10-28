@@ -4,7 +4,7 @@
 \alias{fairy_parsimony}
 \title{Compute parsimony of an order-constrained model}
 \usage{
-fairy_parsimony(h, n_p = NULL, n_samples = 1e+05, method = "auto")
+fairy_parsimony(h, n_p = NULL, n_samples = 1e+05, method = "volesti", ...)
 }
 \arguments{
 \item{h}{H-representation as returned by \code{\link[=fairy_h]{fairy_h()}}.}

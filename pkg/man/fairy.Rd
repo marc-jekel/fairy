@@ -10,7 +10,9 @@ fairy(
   p_names = NULL,
   approx_tol = 0,
   reduce = TRUE,
-  n_samples = 1e+05
+  n_samples = 1e+05,
+  method = "volesti",
+  ...
 )
 }
 \arguments{
@@ -31,6 +33,9 @@ Default \code{0}.}
 \item{n_samples}{Integer. Set to \code{0} to skip the parsimony computation
 (the volume is exact for small models; this value only matters when it
 has to be estimated by Monte Carlo).}
+
+\item{method, ...}{Volume method and further arguments for \code{\link[=fairy_volume]{fairy_volume()}}
+(default: \code{volesti} with its own default settings).}
 }
 \value{
 If \code{models} has length 1, a list of class \code{"fairy"}. If

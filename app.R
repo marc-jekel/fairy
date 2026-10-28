@@ -11151,7 +11151,7 @@ server <- shinyServer(function(input, output, session) {
     out <- c(out, "", "# all models of the session",
       paste0("models <- list(", paste0(q(row_name[ok]), " = ", obj[ok], collapse = ", "), ")"), "",
       "# dimension, vertices, constraints, volume (parsimony) and largest Bayes factor of each model",
-      "# (up to 9 dimensions the volume is exact; above that fairy_volume() estimates it, which can take longer)",
+      "# (estimated with volesti and its default settings; use method = \"exact\" in fairy_info() for the exact convex-hull volume)",
       "info <- do.call(rbind, lapply(names(models), function(nm) {",
       "  h <- models[[nm]]",
       "  cbind(model = nm, fairy_info(h))",

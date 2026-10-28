@@ -93,9 +93,7 @@ fairy_max_bf("p1 > p2 > p3")                 # 6
 fairy_info("p1 > p2 > p3")                   # dimension, vertices, constraints, volume, max. BF in one row
 ```
 
-The volume is exact up to about nine dimensions. Above, `fairy_volume()` uses the volesti package
-(random-walk estimate) if installed and otherwise Monte Carlo (`method = "mc"`). `fairy_parsimony()` is the older
-name of the same computation.
+By default `fairy_volume()` estimates the volume with the volesti package and its own default settings; any non-default volesti option can be passed via `...` (e.g. `settings = list(error = 0.01)`). `method = "exact"` (convex hull of the vertices) and `method = "mc"` (Monte Carlo) are available on request. The method is never switched automatically. `fairy_parsimony()` is the older name of the same computation.
 
 # Several models at once
 

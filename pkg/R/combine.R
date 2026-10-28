@@ -141,6 +141,7 @@ fairy_nested <- function(a, b, n_p = NULL, tol = 1e-9) {
 #' @param models A named list of models (strings or H-representations).
 #' @param n_p Number of probabilities for model strings.
 #' @param method Volume method, see [fairy_volume()].
+#' @param ... Passed on to [fairy_volume()].
 #'
 #' @return An object of class `"fairy_compare"` with elements `volume`
 #'   (numeric matrix: diagonal and upper triangle), `relation` (character
@@ -149,7 +150,7 @@ fairy_nested <- function(a, b, n_p = NULL, tol = 1e-9) {
 #' @examples
 #' fairy_compare(list(A = "p1 > p2 > p3", B = "p1 > p2", C = "p3 > p1"), n_p = 3)
 #' @export
-fairy_compare <- function(models, n_p = NULL, method = "auto") {
+fairy_compare <- function(models, n_p = NULL, method = "volesti", ...) {
   if (is.null(names(models))) names(models) <- seq_along(models)
   if (is.null(n_p)) n_p <- infer_n_p(models)
   hs <- lapply(models, resolve_h, n_p = n_p)
@@ -159,7 +160,7 @@ fairy_compare <- function(models, n_p = NULL, method = "auto") {
   dims <- integer(k); names(dims) <- nm
   mbf <- numeric(k); names(mbf) <- nm
   for (i in seq_len(k)) {
-    vi <- fairy_volume(hs[[i]], method = method)
+    vi <- fairy_volume(hs[[i]], method = method, ...)
     vol[i, i] <- vi$volume; dims[i] <- vi$dim; mbf[i] <- vi$max_bf
   }
   for (i in seq_len(k)) for (j in seq_len(k)) {
@@ -167,7 +168,7 @@ fairy_compare <- function(models, n_p = NULL, method = "auto") {
     hij <- fairy_intersect(hs[[i]], hs[[j]], reduce = FALSE)
     dij <- fairy_dim(hij)
     if (i < j) {
-      vol[i, j] <- if (dij < 0) 0 else if (dij < n_p) 0 else fairy_volume(hij, method = method)$volume
+      vol[i, j] <- if (dij < 0) 0 else if (dij < n_p) 0 else fairy_volume(hij, method = method, ...)$volume
     } else {
       rel[i, j] <-
         if (fairy_nested(hs[[i]], hs[[j]], n_p = n_p)) "subset"

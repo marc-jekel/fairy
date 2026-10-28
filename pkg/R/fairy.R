@@ -134,8 +134,8 @@ fairy_v <- function(h) {
 #'
 #' @seealso [fairy_volume()], [fairy_max_bf()]
 #' @export
-fairy_parsimony <- function(h, n_p = NULL, n_samples = 1e5, method = "auto") {
-  vol <- fairy_volume(h, n_p = NULL, method = method, n_samples = n_samples)
+fairy_parsimony <- function(h, n_p = NULL, n_samples = 1e5, method = "volesti", ...) {
+  vol <- fairy_volume(h, n_p = NULL, method = method, n_samples = n_samples, ...)
   list(parsimony = vol$volume, se = vol$se, n_samples = n_samples,
        method = vol$method, max_bf = vol$max_bf)
 }
@@ -161,6 +161,8 @@ fairy_parsimony <- function(h, n_p = NULL, n_samples = 1e5, method = "auto") {
 #' @param approx_tol Numeric. Tolerance for approximate equalities.
 #'   Default `0`.
 #' @param reduce Logical. Remove redundant H-rep rows. Default `TRUE`.
+#' @param method,... Volume method and further arguments for [fairy_volume()]
+#'   (default: `volesti` with its own default settings).
 #' @param n_samples Integer. Set to `0` to skip the parsimony computation
 #'   (the volume is exact for small models; this value only matters when it
 #'   has to be estimated by Monte Carlo).
@@ -183,7 +185,8 @@ fairy_parsimony <- function(h, n_p = NULL, n_samples = 1e5, method = "auto") {
 #' @seealso [fairy_h()], [fairy_v()], [fairy_parsimony()]
 #' @export
 fairy <- function(models, n_p = NULL, p_names = NULL,
-                  approx_tol = 0, reduce = TRUE, n_samples = 1e5) {
+                  approx_tol = 0, reduce = TRUE, n_samples = 1e5,
+                  method = "volesti", ...) {
   if (is.null(names(models))) names(models) <- paste0("M", seq_along(models))
 
   if (is.null(n_p)) {
@@ -202,7 +205,7 @@ fairy <- function(models, n_p = NULL, p_names = NULL,
     v      <- fairy_v(h)
 
     if (n_samples > 0) {
-      pars         <- fairy_parsimony(h, n_p = n_p_h, n_samples = n_samples)
+      pars         <- fairy_parsimony(h, n_p = n_p_h, n_samples = n_samples, method = method, ...)
       parsimony    <- pars$parsimony
       parsimony_se <- pars$se
       max_bf       <- pars$max_bf
