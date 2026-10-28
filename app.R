@@ -4246,26 +4246,28 @@ ui <- shinyUI(fluidPage(
     )),
     tags$script(HTML(
       "
-      // keep the 3D view: when the plot is drawn again (a model added to it, other axes), the camera the user
-      // had turned it to is put back instead of the default view
+      // keep the 3D view: the camera the user turned the plot to is sent to the server (after a short pause), and
+      // the plot is drawn with it the next time (a model added or removed, other axes), so it does not jump
       (function() {
-        var cam = null;
+        var timer = null;
         function remember(gd) {
           return function() {
-            var c = gd._fullLayout && gd._fullLayout.scene && gd._fullLayout.scene.camera;
-            if (c) cam = JSON.parse(JSON.stringify(c));
+            clearTimeout(timer);
+            timer = setTimeout(function() {
+              var c = gd._fullLayout && gd._fullLayout.scene && gd._fullLayout.scene.camera;
+              if (c && window.Shiny) { window.__fairyHasCam = true; Shiny.setInputValue('plot_camera', JSON.parse(JSON.stringify(c))); }
+            }, 300);
           };
         }
-        function restore() {
+        function hook() {
           var gd = document.getElementById('plot');
-          if (!gd || !window.Plotly || !gd.on || !gd.layout || !gd.layout.scene) return;
+          if (!gd || !gd.on || !gd.layout || !gd.layout.scene) return;
           if (gd.__fairyRemember && gd.removeListener) gd.removeListener('plotly_relayout', gd.__fairyRemember);
-          if (cam) { gd.__fairyCam = true; Plotly.relayout(gd, {'scene.camera': cam}); }
           gd.__fairyRemember = remember(gd);
           gd.on('plotly_relayout', gd.__fairyRemember);
         }
         if (window.jQuery) jQuery(document).on('shiny:value', function(ev) {
-          if (ev.name === 'plot') { setTimeout(restore, 800); }
+          if (ev.name === 'plot') { setTimeout(hook, 800); }
         });
       })();
       "
@@ -4284,7 +4286,7 @@ ui <- shinyUI(fluidPage(
           Plotly.relayout(gd, {'scene.camera.eye': {x: e.x * 1.45, y: e.y * 1.45, z: e.z * 1.45}});
         }
         if (window.jQuery) jQuery(document).on('shiny:value', function(ev) {
-          if (ev.name === 'plot') { var gd = document.getElementById('plot'); if (gd) gd.__fairyCam = false; setTimeout(fit, 600); setTimeout(fit, 1500); }
+          if (ev.name === 'plot') { var gd = document.getElementById('plot'); if (gd) gd.__fairyCam = !!window.__fairyHasCam; setTimeout(fit, 600); setTimeout(fit, 1500); }
         });
       })();
       "
@@ -11630,9 +11632,8 @@ server <- shinyServer(function(input, output, session) {
             aspectratio = list(x = 1, y = 1, z = 1),
             # lifted and a little smaller, so the figure and its axis labels do not hang at the lower edge
             domain = list(x = c(0.02, 0.98), y = c(0.14, 0.98)),
-            camera = list(eye = list(
-              x = 2, y = 2, z = 2
-            ))
+            # the view the user had turned the plot to (set from the browser, read without a dependency)
+            camera = isolate(input$plot_camera) %||% list(eye = list(x = 2, y = 2, z = 2))
           ),
           margin = list(t = 30, b = 50)
         )
