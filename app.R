@@ -10680,7 +10680,7 @@ server <- shinyServer(function(input, output, session) {
                   is.null(item_model_spec_idx$value[[as.character(ii)]])) {
                 return(shinyjs::disabled(
                   actionButton(
-                    paste0("vrep_toggle_btn_", ii), label = NULL, icon = icon("braille"),
+                    paste0("vrep_toggle_btn_", ii), label = NULL, icon = icon("draw-polygon"),
                     class = "btn action-button fairy-vrep-toggle-btn active fairy-tooltip",
                     `data-tooltip` = "Always included for mixtures",
                     style = "padding:2px 7px; font-size:11px; border-radius:6px; min-width:0;"
@@ -10692,7 +10692,7 @@ server <- shinyServer(function(input, output, session) {
               active <- !is.null(vtab) && nrow(vtab) > 0 &&
                 model_name %in% vtab[[1]][vtab[[2]] == TRUE]
               actionButton(
-                paste0("vrep_toggle_btn_", ii), label = NULL, icon = icon("braille"),
+                paste0("vrep_toggle_btn_", ii), label = NULL, icon = icon("draw-polygon"),
                 class = paste("btn action-button fairy-vrep-toggle-btn fairy-tooltip", if (active) "active" else ""),
                 `data-tooltip` = if (active) "Included in V-representation — click to remove" else "Include this model in V-representation computation",
                 style = "padding:2px 7px; font-size:11px; border-radius:6px; min-width:0;"
@@ -16535,7 +16535,7 @@ server <- shinyServer(function(input, output, session) {
     just_appeared <- cur_id > isolate(vrep_toggle_all_last_shown_id())
     if (just_appeared) vrep_toggle_all_last_shown_id(cur_id)
     btn <- actionButton(
-      "vrep_toggle_all_btn", label = NULL, icon = icon("braille"),
+      "vrep_toggle_all_btn", label = NULL, icon = icon("draw-polygon"),
       class = paste("btn action-button fairy-vrep-toggle-btn fairy-vrep-toggle-all-btn",
         if (all_included) "active" else ""),
       style = "padding:5px 12px; font-size:14px; border-radius:8px; min-width:0;"
