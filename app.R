@@ -7076,13 +7076,6 @@ server <- shinyServer(function(input, output, session) {
   # get properly MathJax-rendered.
   plain_p_name <- function(nm) gsub("[_{}]", "", nm)
 
-  # Items model names derived from specs — available before Parsimony runs
-  # Name(s) a single items spec produces — kept in one place since both
-  # the Go pipeline and the model-row delete handler (which
-  # needs to find and drop the spec matching a just-deleted row, so it
-  # doesn't silently reappear on the next Go — see delete_model_idx's own
-  # comment) must compute the EXACT same name(s) the Go pipeline's
-  # "Multiple-items models" block would.
   # Member tolerances for factor `fi`, in that factor's own member order
   # (matching how build_items_h_mixed iterates them) — eps_per_param is a
   # named vector keyed by probability name, so this just looks each
@@ -7135,6 +7128,9 @@ server <- shinyServer(function(input, output, session) {
     paste0(paste(body, collapse = "; "), if (one_kind) paste0(" \u00b7 ", kinds) else "")
   }
 
+  # Name(s) a single items spec produces. The Go pipeline and the model-row
+  # delete handler both need exactly the same name(s) (the handler drops the
+  # spec of a deleted row so it does not reappear on the next Go).
   items_spec_names <- function(spec) {
     base_m  <- spec$base
     factors <- spec$factors
