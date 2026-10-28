@@ -42,9 +42,9 @@ darker_col <- function(col, f = 0.6) {
 #'
 #' @param models An H-representation from [fairy_h()], or a (named) list of
 #'   them. All models must have the same number of probabilities.
-#' @param dims Integers: the two or three probabilities (columns) to plot.
-#'   Default: all probabilities if there are two or three, otherwise the first
-#'   three.
+#' @param dims Integers: the one, two or three probabilities (columns) to plot.
+#'   Default: all probabilities if there are up to three, otherwise the first
+#'   three. One probability gives a line, two a flat picture, three a 3D scene.
 #' @param colors Colours, one per model. Default: a colour palette.
 #' @param opacity Opacity of the faces (default `0.35`).
 #' @return A `plotly` object.
@@ -60,12 +60,26 @@ fairy_plot <- function(models, dims = NULL, colors = NULL, opacity = 0.35) {
   if (is.null(names(models))) names(models) <- paste0("model", seq_along(models))
   vs <- lapply(models, fairy_vertices)
   n <- ncol(vs[[1]])
-  if (n < 2) stop("fairy_plot() needs at least two probabilities.")
   if (is.null(dims)) dims <- seq_len(min(n, 3L))
-  if (!length(dims) %in% 2:3 || any(dims > n)) stop("'dims' must name two or three of the model's probabilities.")
+  if (!length(dims) %in% 1:3 || any(dims > n)) stop("'dims' must name one, two or three of the model's probabilities.")
   if (is.null(colors)) colors <- rep(c("#1f77b4", "#d62728", "#2ca02c", "#ff7f0e", "#9467bd", "#8c564b", "#e377c2", "#17becf"), length.out = length(vs))
   lab <- gsub("[_{}]", "", colnames(vs[[1]])[dims])
   p <- plotly::plot_ly()
+  if (length(dims) == 1) {
+    for (k in seq_along(vs)) {
+      nm <- names(vs)[k]; col <- colors[k]
+      vv <- sort(unique(round(vs[[k]][, dims], 10)))
+      if (length(vv) == 0) next
+      if (length(vv) >= 2) p <- plotly::add_trace(p, x = range(vv), y = c(k, k), type = "scatter", mode = "lines",
+        line = list(color = darker_col(col), width = 8), hoverinfo = "skip", name = nm, legendgroup = nm, showlegend = FALSE)
+      p <- plotly::add_trace(p, x = vv, y = rep(k, length(vv)), type = "scatter", mode = "markers",
+        marker = list(color = darker_col(col, 0.65), size = 11, line = list(color = darker_col(col, 0.4), width = 1)),
+        text = paste0(nm, " \u00b7 vertex ", seq_along(vv), "<br>", lab, " = ", format(round(vv, 3), trim = TRUE)),
+        hoverinfo = "text", name = nm, legendgroup = nm)
+    }
+    return(plotly::layout(p, xaxis = list(title = lab, range = c(-0.02, 1.02), zeroline = FALSE),
+      yaxis = list(visible = FALSE, range = c(0.4, length(vs) + 0.6))))
+  }
   for (k in seq_along(vs)) {
     nm <- names(vs)[k]; col <- colors[k]
     pts <- unique(round(vs[[k]][, dims, drop = FALSE], 10))

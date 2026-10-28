@@ -7,5 +7,6 @@ test_that("fairy_plot() builds a plotly figure for 3D, 2D and projected models",
   h4 <- fairy_h("p1 > p2 > p3 > p4", n_p = 4)
   expect_s3_class(fairy_plot(h4, dims = c(1, 2, 3)), "plotly")
   expect_s3_class(fairy_plot(h4, dims = c(1, 4)), "plotly")
-  expect_error(fairy_plot(h4, dims = 1), "two or three")
+  expect_s3_class(fairy_plot(h4, dims = 1), "plotly")
+  expect_error(fairy_plot(h4, dims = 5), "one, two or three")
 })

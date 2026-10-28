@@ -10,9 +10,9 @@ fairy_plot(models, dims = NULL, colors = NULL, opacity = 0.35)
 \item{models}{An H-representation from \code{\link[=fairy_h]{fairy_h()}}, or a (named) list of
 them. All models must have the same number of probabilities.}
 
-\item{dims}{Integers: the two or three probabilities (columns) to plot.
-Default: all probabilities if there are two or three, otherwise the first
-three.}
+\item{dims}{Integers: the one, two or three probabilities (columns) to plot.
+Default: all probabilities if there are up to three, otherwise the first
+three. One probability gives a line, two a flat picture, three a 3D scene.}
 
 \item{colors}{Colours, one per model. Default: a colour palette.}
 
