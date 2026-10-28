@@ -1,6 +1,6 @@
 Package: fairy
 Title: Formalize and Analyze Order-Constrained Hypotheses About Proportions
-Version: 0.4.1
+Version: 0.5.0
 Authors@R: c(
     person("Marc", "Jekel", email = "mjekel@uni-koeln.de", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-9146-0306")),
