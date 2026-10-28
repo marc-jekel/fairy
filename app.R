@@ -11798,32 +11798,6 @@ server <- shinyServer(function(input, output, session) {
           p <- add_model_trace(p, matrix_pl, model_col, name_model, mesh_opacity, mesh_opacity_hull)
         }
 
-        # vertices that two or more of the plotted models have in common: larger white markers, one legend entry per set of models
-        mpl_ord <- matrix_pl_all[!(as.character(matrix_pl_all[, 1]) %in% derived_row_names()), , drop = FALSE]   # intersections / mixtures share vertices with their sources by construction
-        if (length(unique(as.character(mpl_ord[, 1]))) > 1) {
-          cm_all <- matrix(as.numeric(as.matrix(mpl_ord[, -1, drop = FALSE])), nrow = nrow(mpl_ord))
-          v_keys <- apply(cm_all, 1, function(r) paste(round(r, 6), collapse = ","))
-          mods_all <- as.character(mpl_ord[, 1])
-          set_of_key <- tapply(mods_all, v_keys, function(m) paste(sort(unique(m)), collapse = " | "))
-          n_in_key <- tapply(mods_all, v_keys, function(m) length(unique(m)))
-          multi <- names(n_in_key)[n_in_key >= 2]
-          sets_found <- unique(unname(set_of_key[multi]))
-          shapes <- c("diamond", "square", "circle", "cross", "x")
-          fills <- c("#FFFFFF", "#FFFFFF", "#FFFFFF", "#000000", "#000000")   # cross / x are drawn in the marker colour
-          for (si in seq_along(sets_found)) {
-            rows_si <- which(v_keys %in% multi & unname(set_of_key[v_keys]) == sets_found[si] & !duplicated(v_keys))
-            if (length(rows_si) == 0) next
-            p <- add_trace(p,
-              type = "scatter3d", mode = "markers",
-              x = cm_all[rows_si, select_plot[1]], y = cm_all[rows_si, select_plot[2]], z = cm_all[rows_si, select_plot[3]],
-              marker = list(size = 8, symbol = shapes[((si - 1) %% length(shapes)) + 1], color = fills[((si - 1) %% length(fills)) + 1], line = list(color = "#000000", width = 3)),
-              text = paste("shared by", gsub(" | ", " + ", sets_found[si], fixed = TRUE)), hoverinfo = "text+x+y+z",
-              name = paste("shared:", paste(short_model_name(strsplit(sets_found[si], " | ", fixed = TRUE)[[1]], 22), collapse = " + ")),
-              legendgroup = paste("shared:", sets_found[si]), showlegend = TRUE
-            )
-          }
-        }
-
         overlap_note <- NULL
         p <- add_overlap_traces(p, select_models_to_plot, select_plot, dim_names)
 
