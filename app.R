@@ -8348,7 +8348,7 @@ server <- shinyServer(function(input, output, session) {
               pdisp = ordP.map(function(p) { return [idxs.indexOf(p[0]), idxs.indexOf(p[1]), p[3] || p[2] || '', !!p[3], p[4] || '']; }).filter(function(q) { return q[0] >= 0 && q[1] >= 0; });
             } else {
               idxs = []; for (var z = 0; z < Math.min(2, nProb); z++) idxs.push(z);
-              pdisp = [[0, 1]];
+              pdisp = idxs.length > 1 ? [[0, 1]] : [];   // a single probability has nothing to compare
             }
             var nRows = idxs.length, R = idxs.map(function(i) { return spec(i); });
             // rows that are parts of a sum read as a calculation: p1, + 3x p2, = 2*p1+3*p2
@@ -8520,7 +8520,7 @@ server <- shinyServer(function(input, output, session) {
                 else if (q2 < cnt[i]) el('circle', { cx: X(q2), cy: ys[i], r: 6.5, fill: r.color || 'currentColor' }, gd);
               }
             });
-            var a = R[0].name, b = R[1].name, cap = document.getElementById('fairy_items_caption');
+            var a = R[0].name, b = R[1] ? R[1].name : '', cap = document.getElementById('fairy_items_caption');
             var midDot = String.fromCharCode(183), avgFormula;
             if (R[0].n <= 4) { var fp = []; for (var q3 = 1; q3 <= R[0].n; q3++) fp.push('1/' + R[0].n + ' ' + midDot + ' item ' + q3); avgFormula = fp.join(' + '); }
             else avgFormula = '(item 1 + ... + item ' + R[0].n + ') / ' + R[0].n;
