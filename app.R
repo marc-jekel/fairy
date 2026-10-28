@@ -4946,6 +4946,19 @@ ui <- shinyUI(fluidPage(
     )),
     tags$script(HTML(
       "
+      // ---- Go right after typing: send what is typed first ----
+      // Text boxes report to the server a moment after the last keystroke; a fast click on Go (or Ctrl/Cmd+Enter) could
+      // arrive before the last characters. A change event on every text box sends its current value immediately, ahead of Go.
+      (function() {
+        function flush() {
+          if (!window.jQuery) return;
+          jQuery('textarea[id^=textin_], input[id^=textin_], textarea[id=add_for_all_models]').each(function() { jQuery(this).trigger('change'); });
+        }
+        document.addEventListener('mousedown', function(e) { if (e.target.closest && e.target.closest('#go_v_h, #go')) flush(); }, true);
+        document.addEventListener('touchstart', function(e) { if (e.target.closest && e.target.closest('#go_v_h, #go')) flush(); }, true);
+        document.addEventListener('keydown', function(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') flush(); }, true);
+      })();
+
       // ---- First visit: Go glows until it has been used once ----
       (function() {
         var seen = false;
