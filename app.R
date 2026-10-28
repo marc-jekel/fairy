@@ -6087,7 +6087,7 @@ ui <- shinyUI(fluidPage(
               # instead (reported directly, screenshot showed the
               # tooltip text cut off behind the navbar).
               tags$span(class = "fairy-tooltip fairy-tooltip-down", `data-tooltip` = "Set an exact number of probabilities",
-                numericInput("set_prob_count", NULL, value = 3, min = 2, max = 30, width = "62px")),
+                numericInput("set_prob_count", NULL, value = 3, min = 1, max = 30, width = "62px")),
               actionBttn("show_items_modal", "Unpack across items", icon = icon("layer-group"),
                 size = "xs", style = "jelly", color = "default"
               )
@@ -6528,7 +6528,7 @@ ui <- shinyUI(fluidPage(
           )
         )),
         tags$style(HTML("
-          #polytope_plot_expand { position:absolute; top:6px; right:8px; z-index:5; width:28px; height:28px; padding:0; display:flex; align-items:center; justify-content:center;
+          #polytope_plot_expand { position:absolute; bottom:8px; right:8px; z-index:2100; width:28px; height:28px; padding:0; display:flex; align-items:center; justify-content:center;
             border:0; border-radius:6px; background:transparent; color:var(--fairy-text-muted, #667085); cursor:pointer; }
           #polytope_plot_expand:hover { background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 18%, transparent); color:var(--fairy-primary, #3a6df0); }
           #polytope_plot_wrap.fairy-plot-full { position:fixed !important; inset:0; z-index:2000; background:var(--fairy-panel, #fff); padding:8px; }
@@ -9256,7 +9256,7 @@ server <- shinyServer(function(input, output, session) {
     counter$n <- max(isolate(counter$n), manual_p_floor())
   })
   observeEvent(input$rm_prob, {
-    manual_p_floor(max(2L, manual_p_floor() - 1L))
+    manual_p_floor(max(1L, manual_p_floor() - 1L))
     # Recompute from scratch (rather than just decrementing counter$n)
     # so removing the manual floor doesn't drop below whatever's still
     # actually referenced in the constraint text.
@@ -9265,7 +9265,7 @@ server <- shinyServer(function(input, output, session) {
       isolate(input[[paste0("textin_relations_", i)]]) %||% "", character(1)), collapse = ";")
     nums <- suppressWarnings(as.integer(unlist(stringr::str_extract_all(all_text, "(?<=p)\\d+"))))
     nums <- nums[!is.na(nums) & nums > 0]
-    counter$n <- max(2L, if (length(nums) == 0) 0L else max(nums), manual_p_floor())
+    counter$n <- max(1L, if (length(nums) == 0) 0L else max(nums), manual_p_floor())
   })
   # Same manual_p_floor mechanism as add_prob/rm_prob above, just set
   # directly to a typed number instead of stepped by one — invalid/blank
@@ -9276,7 +9276,7 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$set_prob_count, {
     val <- suppressWarnings(as.integer(input$set_prob_count))
     if (is.na(val)) return()
-    val <- max(2L, min(30L, val))
+    val <- max(1L, min(30L, val))
     manual_p_floor(val)
     n_m <- isolate(counter_input$n)
     all_text <- paste(vapply(seq_len(n_m), function(i)
@@ -9316,7 +9316,7 @@ server <- shinyServer(function(input, output, session) {
     if (isTRUE(isolate(restoring_upload()))) return()
     p_nums <- suppressWarnings(as.numeric(unlist(str_extract_all(combined_specs_text_d(), "(?<=p)[0-9]+"))))
     max_p <- suppressWarnings(max(p_nums, na.rm = TRUE))
-    counter$n <- max(2, if (is.finite(max_p)) max_p else 0, isolate(manual_p_floor()))
+    counter$n <- max(1, if (is.finite(max_p)) max_p else 0, isolate(manual_p_floor()))
   })
 
   # Plain-text staleness flags, alongside the button-glow class — for
@@ -9701,7 +9701,7 @@ server <- shinyServer(function(input, output, session) {
     nums <- suppressWarnings(
       as.integer(unlist(stringr::str_extract_all(all_text, "(?<=p)\\d+"))))
     nums <- nums[!is.na(nums) & nums > 0]
-    target <- max(2L, if (length(nums) == 0) 0L else max(nums), isolate(manual_p_floor()))
+    target <- max(1L, if (length(nums) == 0) 0L else max(nums), isolate(manual_p_floor()))
     cur <- isolate(counter$n)
     if (target != cur) counter$n <- target
   })
@@ -11521,7 +11521,7 @@ server <- shinyServer(function(input, output, session) {
     counter$n       <- new_counter_n
     # extra probabilities are intentional: keep them as the floor, otherwise the auto-detect
     # pass shrinks the count to the highest p referenced in the specifications
-    manual_p_floor(max(2L, min(30L, as.integer(new_counter_n))))
+    manual_p_floor(max(1L, min(30L, as.integer(new_counter_n))))
 
     # Still update via updateTextAreaInput too, as a fallback for any box
     # that existed (and so wasn't freshly rendered) before this upload, and
@@ -11894,7 +11894,7 @@ server <- shinyServer(function(input, output, session) {
         this_name <- extract_name[1, 1]
 
         all_plot_actual <- all_v_rep_in_list[[loop_pl]]
-        all_plot_actual <- all_plot_actual[, 2:ncol(all_plot_actual)]
+        all_plot_actual <- all_plot_actual[, 2:ncol(all_plot_actual), drop = FALSE]
 
         if (is.null(expected_ncol)) {
           expected_ncol <- ncol(all_plot_actual)
@@ -11929,12 +11929,36 @@ server <- shinyServer(function(input, output, session) {
 
       matrix_pl_all <- matrix_pl_all[matrix_pl_all[, 1] %in% select_models_to_plot, ]
 
+      # one probability: a line from the smallest to the largest allowed value
+      if (length(select_models_to_plot) > 0 && ncol(matrix_pl_all) == 2) {
+        runjs("$('#dim_2').closest('.form-group').hide(); $('#dim_3').closest('.form-group').hide();")
+        pal1 <- c("#E69F00", "#56B4E9", "#009E73", "#D55E00", "#CC79A7", "#0072B2", "#F0E442", "#000000", "#999999")
+        ax1 <- gsub("[_{}]", "", colnames(matrix_pl_all)[2])
+        p1d <- plot_ly(height = 220 + 60 * length(select_models_to_plot))
+        for (k1 in seq_along(select_models_to_plot)) {
+          nm1 <- select_models_to_plot[k1]; col1 <- pal1[((k1 - 1) %% length(pal1)) + 1]
+          vv <- sort(unique(round(as.numeric(matrix_pl_all[matrix_pl_all[, 1] == nm1, 2]), 10)))
+          if (length(vv) == 0) next
+          yy <- rep(k1, length(vv))
+          if (length(vv) >= 2) p1d <- add_trace(p1d, x = range(vv), y = c(k1, k1), type = "scatter", mode = "lines",
+            line = list(color = darker_col(col1), width = 8), hoverinfo = "skip", name = nm1, legendgroup = nm1, showlegend = FALSE)
+          p1d <- add_trace(p1d, x = vv, y = yy, type = "scatter", mode = "markers",
+            marker = list(color = darker_col(col1, 0.65), size = 11, line = list(color = darker_col(col1, 0.4), width = 1)),
+            text = paste0(nm1, " \u00b7 vertex ", seq_along(vv), "<br>", ax1, " = ", format(round(vv, 3), trim = TRUE)),
+            hoverinfo = "text", name = nm1, legendgroup = nm1)
+        }
+        return(layout(p1d,
+          xaxis = list(title = ax1, range = c(-0.02, 1.02), zeroline = FALSE),
+          yaxis = list(visible = FALSE, range = c(0.4, length(select_models_to_plot) + 0.6)),
+          margin = list(t = 30, b = 50)))
+      }
+
       # two probabilities: a flat picture (polygon, line or point per model) instead of the 3D scene
       if (length(select_models_to_plot) > 0 && ncol(matrix_pl_all) == 3) {
-        runjs("$('#dim_3').closest('.form-group').hide();")
+        runjs("$('#dim_2').closest('.form-group').show(); $('#dim_3').closest('.form-group').hide();")
         pal2 <- c("#E69F00", "#56B4E9", "#009E73", "#D55E00", "#CC79A7", "#0072B2", "#F0E442", "#000000", "#999999")
         ax_names <- gsub("[_{}]", "", colnames(matrix_pl_all)[2:3])
-        p2 <- plot_ly(height = 700)
+        p2 <- plot_ly()
         for (k2 in seq_along(select_models_to_plot)) {
           nm2 <- select_models_to_plot[k2]; col2 <- pal2[((k2 - 1) %% length(pal2)) + 1]
           pts <- unique(round(as.matrix(matrix_pl_all[matrix_pl_all[, 1] == nm2, 2:3, drop = FALSE]), 10))
@@ -11961,7 +11985,7 @@ server <- shinyServer(function(input, output, session) {
           margin = list(t = 30, b = 50)))
       }
 
-      runjs("$('#dim_3').closest('.form-group').show();")
+      runjs("$('#dim_2').closest('.form-group').show(); $('#dim_3').closest('.form-group').show();")
       if (length(select_models_to_plot) > 0) {
         for (loop_pl in 1:length(select_models_to_plot)) {
           all_plot_actual <- matrix_pl_all[matrix_pl_all[, 1] == select_models_to_plot[loop_pl], 2:ncol(matrix_pl_all)]
