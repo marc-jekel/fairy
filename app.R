@@ -4530,10 +4530,15 @@ ui <- shinyUI(fluidPage(
         // the content (H description, tables) scales with the tile's width; nat = width of the tile at its natural size
         var nat = {};
         function applyZoom(c, z) {
+          var on = z && Math.abs(z - 1) >= 0.02;
           Array.prototype.forEach.call(c.children, function(ch) {
             if (/fairy-handle|fairy-resize|fairy-card-expand/.test(ch.className)) return;
-            // font size, not CSS zoom: zoom makes MathJax and the aligned tables measure their columns wrongly (seen in Safari)
-            ch.style.zoom = ''; ch.style.fontSize = (!z || Math.abs(z - 1) < 0.02) ? '' : (Math.round(z * 100) + '%');
+            ch.style.zoom = ''; ch.style.fontSize = '';
+            if (!on) { ch.style.transform = ch.style.transformOrigin = ch.style.width = ch.style.marginBottom = ''; return; }
+            // scale the whole content (title, badge, table) like a picture: laid out at its natural size, then enlarged
+            // (CSS zoom and font sizes make MathJax and the aligned tables measure their columns wrongly)
+            ch.style.transformOrigin = '0 0'; ch.style.transform = 'scale(' + z + ')'; ch.style.width = (100 / z) + '%';
+            ch.style.marginBottom = ((z - 1) * ch.offsetHeight) + 'px';
           });
         }
         function applyOrder() {
@@ -11408,6 +11413,33 @@ server <- shinyServer(function(input, output, session) {
   # Adds one model's marker + surface trace(s) to a Plot Polytope(s) figure.
   # matrix_pl: data.frame of the model's vertices, already subset to the 3
   # currently-selected plot dimensions. Returns the updated plotly object.
+  # Real edges of a convex hull (not the diagonals of its triangulated faces): edges between two facets that are not coplanar.
+  hull_edge_lines <- function(pts, hull_faces) {
+    nf <- nrow(hull_faces)
+    fn <- t(vapply(seq_len(nf), function(i) {
+      a <- pts[hull_faces[i, 1], ]; b <- pts[hull_faces[i, 2], ]; cc <- pts[hull_faces[i, 3], ]
+      nv <- c((b[2]-a[2])*(cc[3]-a[3]) - (b[3]-a[3])*(cc[2]-a[2]), (b[3]-a[3])*(cc[1]-a[1]) - (b[1]-a[1])*(cc[3]-a[3]), (b[1]-a[1])*(cc[2]-a[2]) - (b[2]-a[2])*(cc[1]-a[1]))
+      nv / (sqrt(sum(nv^2)) + 1e-15)
+    }, numeric(3)))
+    ek <- list()
+    for (i in seq_len(nf)) for (e in list(c(1, 2), c(2, 3), c(1, 3))) {
+      v <- sort(hull_faces[i, e]); key <- paste(v, collapse = "-")
+      ek[[key]] <- c(ek[[key]], i)
+    }
+    xs <- numeric(0); ys <- numeric(0); zs <- numeric(0)
+    for (key in names(ek)) {
+      fi <- ek[[key]]
+      keep <- length(fi) == 1 || abs(sum(fn[fi[1], ] * fn[fi[2], ])) < 0.9999
+      if (!keep) next
+      v <- as.integer(strsplit(key, "-")[[1]])
+      xs <- c(xs, pts[v, 1], NA); ys <- c(ys, pts[v, 2], NA); zs <- c(zs, pts[v, 3], NA)
+    }
+    list(x = xs, y = ys, z = zs)
+  }
+  darker_col <- function(col, f = 0.6) {
+    rgbv <- tryCatch(grDevices::col2rgb(col), error = function(e) matrix(c(80, 80, 80), ncol = 1))
+    grDevices::rgb(t(rgbv * f), maxColorValue = 255)
+  }
   add_model_trace <- function(p, matrix_pl, model_col, name_model,
                                mesh_opacity, mesh_opacity_hull) {
     trace1 <- list(
@@ -11478,6 +11510,13 @@ server <- shinyServer(function(input, output, session) {
             legendgroup = name_model,
             showlegend = FALSE
           )
+        # darker edges, drawn through the surface, so the hidden (bottom) edges can be followed too
+        edges <- tryCatch(hull_edge_lines(as.matrix(matrix_pl), hull_faces), error = function(e) NULL)
+        if (!is.null(edges) && length(edges$x) > 0) {
+          p <- add_trace(p, type = "scatter3d", mode = "lines", x = edges$x, y = edges$y, z = edges$z,
+            line = list(color = darker_col(model_col), width = 4), hoverinfo = "none",
+            name = name_model, legendgroup = name_model, showlegend = FALSE)
+        }
       } else {
         for (d_axis in c("x", "y", "z")) {
           p <-
@@ -13476,6 +13515,10 @@ server <- shinyServer(function(input, output, session) {
       if (!nzchar(trimws(spec_chk))) {
         precheck_msgs <- c(precheck_msgs, paste0("<b>", htmltools::htmlEscape(label_chk), "</b> has no specification yet."))
         next
+      }
+      # a "p" without a number (p instead of p1) cannot be read; say so instead of failing further down
+      if (grepl("(?<![A-Za-z0-9_{\\\\])p(?![0-9A-Za-z_{])", gsub("[^A-Za-z0-9_{}]", " ", spec_chk), perl = TRUE)) {
+        precheck_msgs <- c(precheck_msgs, paste0("<b>", htmltools::htmlEscape(label_chk), "</b>: a probability needs a number, write p1, p2, p3, \u2026 instead of just p."))
       }
     }
     conflict_msgs <- character()
