@@ -1615,10 +1615,6 @@ ui <- shinyUI(fluidPage(
       @keyframes fairy-click-kf { 0% { transform: scale(1); } 35% { transform: scale(0.9); } 70% { transform: scale(1.04); } 100% { transform: scale(1); } }
       .fairy-clicked { animation: fairy-click-kf 0.26s ease-out; }
       @media (prefers-reduced-motion: reduce) { .fairy-clicked { animation: none; } }
-      .fairy-open-tab { position: fixed; left: 12px; bottom: 12px; z-index: 1070; padding: 5px 11px; border-radius: 999px; cursor: pointer;
-        border: 1px solid var(--fairy-border, #d5d9e4); background: var(--fairy-panel, #fff); color: var(--fairy-primary, #3a6df0);
-        font-size: 12px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
-      .fairy-open-tab:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, var(--fairy-panel, #fff)); }
       .fairy-share-wrap { position: relative; display: inline-flex; }
       .fairy-share-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
       .fairy-share-pop { position: absolute; left: 0; bottom: calc(100% + 10px); min-width: 188px; z-index: 5; padding: 4px;
@@ -5000,30 +4996,7 @@ ui <- shinyUI(fluidPage(
             ta.remove(); ok ? res() : rej();
           });
         }
-        // the app alone in its own tab, with the current input (for the app embedded in a small window on a web page)
-        window.fairyOpenInTab = function() {
-          window.fairyOpenWin = window.open('', '_blank');   // opened right away (a click), filled in when the input is packed
-          window.fairyShareMode = 'open';
-          Shiny.setInputValue('share_request', Date.now(), { priority: 'event' });
-        };
-        (function() {
-          var emb = false; try { emb = window.parent !== window; } catch (e) { emb = true; }
-          if (!emb) return;
-          var tries = 0;
-          (function showItem() { var it = document.getElementById('fairy_share_open'); if (it) it.hidden = false; else if (tries++ < 30) setTimeout(showItem, 500); })();
-          var pill = document.createElement('button');
-          pill.type = 'button'; pill.id = 'fairy_open_tab'; pill.className = 'fairy-open-tab';
-          pill.textContent = 'Open in a new tab ' + String.fromCharCode(8599);
-          pill.addEventListener('click', function() { window.fairyOpenInTab(); });
-          document.body.appendChild(pill);
-        })();
         Shiny.addCustomMessageHandler('fairy_share', function(m) {
-          if (window.fairyShareMode === 'open') {
-            window.fairyShareMode = null;
-            var openUrl = location.origin + location.pathname + location.search + '#s=' + m.token, ow = window.fairyOpenWin; window.fairyOpenWin = null;
-            if (ow) ow.location = openUrl; else window.open(openUrl, '_blank');
-            return;
-          }
           // embedded in the tutorial page: share a link to that page, which loads the app with this input
           var embedded = false;
           try { embedded = window.parent !== window; } catch (e) {}
@@ -5132,8 +5105,6 @@ ui <- shinyUI(fluidPage(
           if (item) {
             if (item.id === 'fairy_share_link') {
               Shiny.setInputValue('share_request', Date.now(), { priority: 'event' });
-            } else if (item.id === 'fairy_share_open') {
-              window.fairyOpenInTab();
             } else if (item.id === 'fairy_share_file' && !item.classList.contains('fairy-share-muted') && p.dl) {
               p.dl.click();
             }
@@ -6005,9 +5976,7 @@ ui <- shinyUI(fluidPage(
               tags$button(id = "fairy_share_link", type = "button", role = "menuitem", class = "fairy-share-item",
                 icon("link"), "Copy link"),
               tags$button(id = "fairy_share_file", type = "button", role = "menuitem", class = "fairy-share-item",
-                icon("download"), "Save file (.xlsx)"),
-              tags$button(id = "fairy_share_open", type = "button", role = "menuitem", class = "fairy-share-item", hidden = NA,
-                icon("up-right-from-square"), "Open in a new tab")
+                icon("download"), "Save file (.xlsx)")
             ),
             tags$span(class = "fairy-share-hidden",
               downloadButton("download", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn fairy-btn-muted")
