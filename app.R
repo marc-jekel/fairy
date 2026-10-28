@@ -2653,11 +2653,12 @@ ui <- shinyUI(fluidPage(
          format named only in the hover tooltip — easy to grab the wrong
          one without hovering first. A small corner label badge (QTEST / multinom)
          makes the format visible at a glance instead. */
-      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq {
+      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex {
         position: relative !important;
       }
       #d_h::after, #d_v::after,
-      #d_h_multinomineq::after, #d_v_multinomineq::after {
+      #d_h_multinomineq::after, #d_v_multinomineq::after,
+      #d_latex::after, #d_v_latex::after {
         content: 'QTEST';
         position: absolute;
         bottom: -6px;
@@ -2676,10 +2677,14 @@ ui <- shinyUI(fluidPage(
         box-shadow: 0 0 0 2px var(--fairy-panel, #fff);
       }
       /* room for the label that hangs below each of these buttons */
-      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq { margin-bottom: 14px !important; }
+      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex { margin-bottom: 14px !important; }
       #d_h_multinomineq::after, #d_v_multinomineq::after {
         content: 'multinom';
         background: #8a5cf6;
+      }
+      #d_latex::after, #d_v_latex::after {
+        content: 'LaTeX';
+        background: #0f766e;
       }
       /* Stale results: Go/Compute itself blinks instead of a separate
          badge next to it — see the observers toggling this class + the
@@ -6180,7 +6185,7 @@ ui <- shinyUI(fluidPage(
           tags$span(class = "fairy-tooltip", `data-tooltip` = "H-representation for multinomineq",
             downloadButton("d_h_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "LaTeX file of H-representation",
-            downloadButton("d_latex", NULL, icon = icon("file-alt"), class = "fairy-toolbar-iconbtn"))
+            downloadButton("d_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
         ),
         div(style = "flex: 1 1 auto; min-width: 0;",
       mainPanel(
@@ -6299,7 +6304,7 @@ ui <- shinyUI(fluidPage(
           tags$span(class = "fairy-tooltip", `data-tooltip` = "V-representation for multinomineq",
             downloadButton("d_v_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "LaTeX table (words: all/none/fractions)",
-            downloadButton("d_v_latex", NULL, icon = icon("file-alt"), class = "fairy-toolbar-iconbtn"))
+            downloadButton("d_v_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
         ),
         div(style = "flex: 1 1 auto; min-width: 0;",
       mainPanel(
