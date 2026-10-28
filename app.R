@@ -6059,6 +6059,8 @@ ui <- shinyUI(fluidPage(
           el.removeClass("trivial-gray trivial-hide");
           if (state === "gray") el.addClass("trivial-gray");
           else if (state === "hide") el.addClass("trivial-hide");
+          // the LaTeX download follows this setting
+          if (typeof Shiny !== "undefined") { Shiny.setInputValue("h_trivial_mode", String(state)); }
         });
         // H-rep table Layout (aligned/compact) and Color (off/on) are
         // two INDEPENDENT segmented controls now (used to be one 3-way
@@ -13745,7 +13747,7 @@ server <- shinyServer(function(input, output, session) {
       # Parallel plain-LaTeX collection (see equation_all_total_latex_
       # reactive's own comment) — one align* block appended per model,
       # alongside (not instead of) the HTML card text above.
-      equation_all_total_latex <- character()
+      equation_all_total_latex <- list()
 
       # Global parameter display order (p1, p2, ... in their current,
       # possibly-renamed form), fixed once per Go run so param_color_map
@@ -14043,8 +14045,9 @@ server <- shinyServer(function(input, output, session) {
           # "LaTeX file" download fail to compile (see d_latex's own
           # comment). Trivial 0-1 bound rows are skipped here too, same
           # as the count badge already excludes them.
-          latex_rows <- vapply(seq_along(row_data), function(ri) {
-            if (trivial_vec[ri]) return(NA_character_)
+          # All rows are kept here, with a flag for the trivial 0-1 bounds: the download decides at the
+          # moment of the click which of them to write (show / gray / hide), following the toggle on the screen
+          latex_parts <- lapply(seq_along(row_data), function(ri) {
             d <- row_data[[ri]]
             lhs_set <- setdiff(d$nz_all, d$move_idx)
             lhs_terms <- c(
@@ -14057,19 +14060,15 @@ server <- shinyServer(function(input, output, session) {
               vapply(seq_along(d$move_idx), function(k) math_of(abs(d$coeffs[d$move_idx[k]]), d$move_idx[k], lead = d$rhs_const <= 0 && k == 1), character(1))
             )
             if (length(rhs_terms) == 0) rhs_terms <- "0"
-            op_latex <- if (d$is_eq) "&=" else "&\\leq"
-            paste0(paste(lhs_terms, collapse = ""), " ", op_latex, " ", paste(rhs_terms, collapse = ""), " \\\\")
-          }, character(1))
-          latex_rows <- latex_rows[!is.na(latex_rows)]
+            list(lhs = paste(lhs_terms, collapse = ""), op = if (d$is_eq) "=" else "\\leq", rhs = paste(rhs_terms, collapse = ""))
+          })
+          latex_show <- vapply(latex_parts, function(p) paste0(p$lhs, " &", p$op, " ", p$rhs, " \\\\"), character(1))
+          latex_gray <- vapply(latex_parts, function(p) paste0("\\textcolor{gray}{", p$lhs, "} &\\textcolor{gray}{", p$op, " ", p$rhs, "} \\\\"), character(1))
 
-          equation_all_total_latex <- c(equation_all_total_latex, paste0(
-            "\\subsection*{", gsub("_", "\\\\_", current_name), "}\n",
-            if (length(latex_rows) > 0) {
-              paste0("\\begin{align*}\n", paste(latex_rows, collapse = "\n"), "\n\\end{align*}\n")
-            } else {
-              "(no non-trivial constraints)\n"
-            }
-          ))
+          equation_all_total_latex <- c(equation_all_total_latex, list(list(
+            title = paste0("\\subsection*{", gsub("_", "\\\\_", current_name), "}\n"),
+            show = latex_show, gray = latex_gray, trivial = trivial_vec
+          )))
         } else {
           count_badge <- paste0(
             '<div class="fairy-h-count-badge fairy-tooltip" data-tooltip="Excludes the automatic 0-1 bounds">',
@@ -15522,6 +15521,7 @@ server <- shinyServer(function(input, output, session) {
       header_latex <- (
         "\\documentclass{article}
 \\usepackage{amsmath}
+\\usepackage{xcolor}
 \\begin{document}
 \\section*{Models}
 "
@@ -15538,9 +15538,20 @@ server <- shinyServer(function(input, output, session) {
       # equation_all_total_latex_reactive$value holds a parallel, plain-
       # LaTeX align* block per model built alongside it for exactly this
       # export (see its own comment) — use that instead.
-      equation_all_total_latex <- unlist(equation_all_total_latex_reactive$value)
-      body_latex <- if (length(equation_all_total_latex) == 0)
-        "No models have been computed yet.\n" else paste(equation_all_total_latex, collapse = "\n")
+      # the trivial 0-1 bounds follow the toggle in the H-representation tab: shown, grayed out or hidden
+      trivial_mode <- isolate(input$h_trivial_mode)
+      if (is.null(trivial_mode)) trivial_mode <- "show"
+      blocks <- vapply(equation_all_total_latex_reactive$value, function(m) {
+        rows <- switch(trivial_mode,
+          hide = m$show[!m$trivial],
+          gray = ifelse(m$trivial, m$gray, m$show),
+          m$show)
+        paste0(m$title, if (length(rows) > 0) {
+          paste0("\\begin{align*}\n", paste(rows, collapse = "\n"), "\n\\end{align*}\n")
+        } else if (trivial_mode == "hide") "(no non-trivial constraints)\n" else "(no constraints)\n")
+      }, character(1))
+      body_latex <- if (length(blocks) == 0)
+        "No models have been computed yet.\n" else paste(blocks, collapse = "\n")
 
       formula_h_all_download <- paste0(header_latex, body_latex, footer_latex)
 
