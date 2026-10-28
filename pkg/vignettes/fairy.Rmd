@@ -62,6 +62,25 @@ fairy_vertices(h)                          # extreme cases, numbers
 fairy_words(h, labels = c("A", "B", "C"))  # extreme cases in words: "all" / "none"
 ```
 
+## How to read the H- and V-description
+
+Both describe the same set of allowed probability combinations (a polytope), from two sides:
+
+* **H-description (constraints).** Each row is one constraint, and the model is the set of all combinations that satisfy
+  *all* rows at once. `- p1 + p2 <= 0` says `p2 <= p1`; a row of type `equality` fixes a relation exactly. Constraints
+  that are redundant are left out; the bounds 0 <= p <= 1 appear only where they restrict the model (e.g. `p1 <= 1`).
+* **V-description (extreme cases).** Each row is a vertex: an allowed combination that cannot be written as a mixture of
+  two other allowed combinations. Every allowed combination is a weighted mixture of the rows.
+
+`fairy_h_table()` and `fairy_v_table()` put them into tables, and `fairy_table_write()` turns a table into Markdown, LaTeX or CSV:
+
+```{r tables}
+fairy_h_table(h)
+fairy_h_table(h, style = "matrix")   # a1*p1 + ... + an*pn <= b, one row per constraint
+fairy_v_table(h)
+fairy_table_write(fairy_v_table(h, words = TRUE))
+```
+
 `fairy_v(h)` returns the vertices in rcdd's own format. `fairy_dim()` gives the dimension of the model.
 Models with an equality have a dimension below `n` and volume zero:
 
@@ -177,6 +196,7 @@ multinomineq (one `.tar` archive with one file per model).
 | `fairy_constraints()` | H-representation as readable text lines |
 | `fairy_vertices()` | extreme cases as a numeric matrix |
 | `fairy_words()` | extreme cases in words ("all" / "none" / fractions) |
+| `fairy_h_table()`, `fairy_v_table()` | H- and V-description as tables (`fairy_table_write()`: Markdown, LaTeX, CSV) |
 | `fairy_dim()` | dimension of a model |
 | `fairy_volume()` | parsimony: volume in the unit cube (exact, volesti, or Monte Carlo) |
 | `fairy_max_bf()` | largest possible Bayes factor against the unconstrained model (1 / volume) |

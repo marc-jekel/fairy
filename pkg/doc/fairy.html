@@ -437,11 +437,54 @@ every equality into “within 0.05”.</p>
 <span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a><span class="co">#&gt; V2  all none none</span></span>
 <span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a><span class="co">#&gt; V3  all  all none</span></span>
 <span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a><span class="co">#&gt; V4  all  all  all</span></span></code></pre></div>
+<div id="how-to-read-the-h--and-v-description" class="section level2">
+<h2>How to read the H- and V-description</h2>
+<p>Both describe the same set of allowed probability combinations (a
+polytope), from two sides:</p>
+<ul>
+<li><strong>H-description (constraints).</strong> Each row is one
+constraint, and the model is the set of all combinations that satisfy
+<em>all</em> rows at once. <code>- p1 + p2 &lt;= 0</code> says
+<code>p2 &lt;= p1</code>; a row of type <code>equality</code> fixes a
+relation exactly. Constraints that are redundant are left out; the
+bounds 0 &lt;= p &lt;= 1 appear only where they restrict the model
+(e.g. <code>p1 &lt;= 1</code>).</li>
+<li><strong>V-description (extreme cases).</strong> Each row is a
+vertex: an allowed combination that cannot be written as a mixture of
+two other allowed combinations. Every allowed combination is a weighted
+mixture of the rows.</li>
+</ul>
+<p><code>fairy_h_table()</code> and <code>fairy_v_table()</code> put
+them into tables, and <code>fairy_table_write()</code> turns a table
+into Markdown, LaTeX or CSV:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">fairy_h_table</span>(h)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="co">#&gt;        Constraint       Type</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co">#&gt; C1 - p1 + p2 &lt;= 0 inequality</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co">#&gt; C2 - p2 + p3 &lt;= 0 inequality</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="co">#&gt; C3        p1 &lt;= 1 inequality</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="co">#&gt; C4      - p3 &lt;= 0 inequality</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="fu">fairy_h_table</span>(h, <span class="at">style =</span> <span class="st">&quot;matrix&quot;</span>)   <span class="co"># a1*p1 + ... + an*pn &lt;= b, one row per constraint</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="co">#&gt;    p1 p2 p3 relation b</span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="co">#&gt; C1 -1  1  0       &lt;= 0</span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="co">#&gt; C2  0 -1  1       &lt;= 0</span></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="co">#&gt; C3  1  0  0       &lt;= 1</span></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="co">#&gt; C4  0  0 -1       &lt;= 0</span></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="fu">fairy_v_table</span>(h)</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a><span class="co">#&gt;    p1 p2 p3</span></span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a><span class="co">#&gt; V1  0  0  0</span></span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="co">#&gt; V2  1  0  0</span></span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a><span class="co">#&gt; V3  1  1  0</span></span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="co">#&gt; V4  1  1  1</span></span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="fu">fairy_table_write</span>(<span class="fu">fairy_v_table</span>(h, <span class="at">words =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="co">#&gt; [1] &quot;|    | p_.1. | p_.2. | p_.3. |&quot; &quot;| -- | ----- | ----- | ----- |&quot;</span></span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a><span class="co">#&gt; [3] &quot;| V1 |  none |  none |  none |&quot; &quot;| V2 |   all |  none |  none |&quot;</span></span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="co">#&gt; [5] &quot;| V3 |   all |   all |  none |&quot; &quot;| V4 |   all |   all |   all |&quot;</span></span></code></pre></div>
 <p><code>fairy_v(h)</code> returns the vertices in rcdd’s own format.
 <code>fairy_dim()</code> gives the dimension of the model. Models with
 an equality have a dimension below <code>n</code> and volume zero:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">c</span>(<span class="fu">fairy_dim</span>(<span class="st">&quot;p1 &gt; p2 &gt; p3&quot;</span>), <span class="fu">fairy_dim</span>(<span class="st">&quot;p1 = p2; p2 &gt; p3&quot;</span>))</span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="co">#&gt; [1] 3 2</span></span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">c</span>(<span class="fu">fairy_dim</span>(<span class="st">&quot;p1 &gt; p2 &gt; p3&quot;</span>), <span class="fu">fairy_dim</span>(<span class="st">&quot;p1 = p2; p2 &gt; p3&quot;</span>))</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="co">#&gt; [1] 3 2</span></span></code></pre></div>
+</div>
 </div>
 <div id="starting-from-a-model-you-already-have" class="section level1">
 <h1>Starting from a model you already have</h1>
@@ -453,29 +496,29 @@ string, an H-representation from <code>fairy_h()</code>,
 <code>fairy_info()</code>, <code>fairy_nested()</code>,
 <code>fairy_compare()</code>, <code>fairy_replicate()</code> and so
 on.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>v <span class="ot">&lt;-</span> <span class="fu">fairy_v</span>(h)                  <span class="co"># V-representation in rcdd format</span></span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">fairy_max_bf</span>(v)                  <span class="co"># the same as fairy_max_bf(h)</span></span>
-<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">#&gt; [1] 6</span></span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>v <span class="ot">&lt;-</span> <span class="fu">fairy_v</span>(h)                  <span class="co"># V-representation in rcdd format</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="fu">fairy_max_bf</span>(v)                  <span class="co"># the same as fairy_max_bf(h)</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="co">#&gt; [1] 6</span></span></code></pre></div>
 <p>If you only have your own table of vertices (one row per extreme
 case, probabilities as numbers or exact fractions such as
 <code>&quot;1/3&quot;</code>), <code>fairy_from_vertices()</code> turns it into
 the H-representation:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>corners <span class="ot">&lt;-</span> <span class="fu">rbind</span>(<span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>))      <span class="co"># a triangle</span></span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>h_tri <span class="ot">&lt;-</span> <span class="fu">fairy_from_vertices</span>(corners)</span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="fu">fairy_constraints</span>(h_tri)</span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co">#&gt; [1] &quot;p1 &lt;= 1&quot;        &quot;- p1 + p2 &lt;= 0&quot; &quot;- p2 &lt;= 0&quot;</span></span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="fu">fairy_volume</span>(h_tri)<span class="sc">$</span>volume</span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="co">#&gt; [1] 0.5</span></span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>corners <span class="ot">&lt;-</span> <span class="fu">rbind</span>(<span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>))      <span class="co"># a triangle</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>h_tri <span class="ot">&lt;-</span> <span class="fu">fairy_from_vertices</span>(corners)</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="fu">fairy_constraints</span>(h_tri)</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co">#&gt; [1] &quot;p1 &lt;= 1&quot;        &quot;- p1 + p2 &lt;= 0&quot; &quot;- p2 &lt;= 0&quot;</span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="fu">fairy_volume</span>(h_tri)<span class="sc">$</span>volume</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#&gt; [1] 0.5</span></span></code></pre></div>
 </div>
 <div id="parsimony" class="section level1">
 <h1>Parsimony</h1>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">fairy_volume</span>(<span class="st">&quot;p1 &gt; p2 &gt; p3&quot;</span>)<span class="sc">$</span>volume          <span class="co"># 1/6</span></span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="co">#&gt; [1] 0.1666667</span></span>
-<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="fu">fairy_max_bf</span>(<span class="st">&quot;p1 &gt; p2 &gt; p3&quot;</span>)                 <span class="co"># 6</span></span>
-<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co">#&gt; [1] 6</span></span>
-<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="fu">fairy_info</span>(<span class="st">&quot;p1 &gt; p2 &gt; p3&quot;</span>)                   <span class="co"># dimension, vertices, constraints, volume, max. BF in one row</span></span>
-<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#&gt;   dim vertices inequalities equalities    volume max_bf</span></span>
-<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#&gt; 1   3        4            4          0 0.1666667      6</span></span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">fairy_volume</span>(<span class="st">&quot;p1 &gt; p2 &gt; p3&quot;</span>)<span class="sc">$</span>volume          <span class="co"># 1/6</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co">#&gt; [1] 0.1666667</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="fu">fairy_max_bf</span>(<span class="st">&quot;p1 &gt; p2 &gt; p3&quot;</span>)                 <span class="co"># 6</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co">#&gt; [1] 6</span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="fu">fairy_info</span>(<span class="st">&quot;p1 &gt; p2 &gt; p3&quot;</span>)                   <span class="co"># dimension, vertices, constraints, volume, max. BF in one row</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="co">#&gt;   dim vertices inequalities equalities    volume max_bf</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co">#&gt; 1   3        4            4          0 0.1666667      6</span></span></code></pre></div>
 <p>Outside this vignette, <code>fairy_volume()</code> by default
 estimates the volume with the volesti package and its own default
 settings; any non-default volesti option can be passed via
@@ -489,42 +532,42 @@ is the older name of the same computation.</p>
 <h1>Several models at once</h1>
 <p><code>fairy()</code> computes constraints, extreme cases, volume and
 maximal Bayes factor for a named set of models:</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">fairy</span>(<span class="fu">c</span>(<span class="at">H1 =</span> <span class="st">&quot;p1 &gt; p2 &gt; p3&quot;</span>, <span class="at">H2 =</span> <span class="st">&quot;p1 &gt; p2; p3 &gt; p4&quot;</span>), <span class="at">n_p =</span> <span class="dv">4</span>)</span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co">#&gt; $H1</span></span>
-<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#&gt; fairy model: H1 </span></span>
-<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co">#&gt;   Model:        p1 &gt; p2 &gt; p3 </span></span>
-<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co">#&gt;   Parameters:   4 </span></span>
-<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="co">#&gt;   H-rep rows:   6 </span></span>
-<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co">#&gt;   Vertices:     8 </span></span>
-<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="co">#&gt;   Volume:       0.166667</span></span>
-<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="co">#&gt;   Max. BF:       6 </span></span>
-<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a><span class="co">#&gt; $H2</span></span>
-<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a><span class="co">#&gt; fairy model: H2 </span></span>
-<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a><span class="co">#&gt;   Model:        p1 &gt; p2; p3 &gt; p4 </span></span>
-<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a><span class="co">#&gt;   Parameters:   4 </span></span>
-<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a><span class="co">#&gt;   H-rep rows:   6 </span></span>
-<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a><span class="co">#&gt;   Vertices:     9 </span></span>
-<span id="cb6-17"><a href="#cb6-17" tabindex="-1"></a><span class="co">#&gt;   Volume:       0.25</span></span>
-<span id="cb6-18"><a href="#cb6-18" tabindex="-1"></a><span class="co">#&gt;   Max. BF:       4</span></span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">fairy</span>(<span class="fu">c</span>(<span class="at">H1 =</span> <span class="st">&quot;p1 &gt; p2 &gt; p3&quot;</span>, <span class="at">H2 =</span> <span class="st">&quot;p1 &gt; p2; p3 &gt; p4&quot;</span>), <span class="at">n_p =</span> <span class="dv">4</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="co">#&gt; $H1</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt; fairy model: H1 </span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co">#&gt;   Model:        p1 &gt; p2 &gt; p3 </span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="co">#&gt;   Parameters:   4 </span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="co">#&gt;   H-rep rows:   6 </span></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a><span class="co">#&gt;   Vertices:     8 </span></span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a><span class="co">#&gt;   Volume:       0.166667</span></span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a><span class="co">#&gt;   Max. BF:       6 </span></span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a><span class="co">#&gt; $H2</span></span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a><span class="co">#&gt; fairy model: H2 </span></span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a><span class="co">#&gt;   Model:        p1 &gt; p2; p3 &gt; p4 </span></span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a><span class="co">#&gt;   Parameters:   4 </span></span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a><span class="co">#&gt;   H-rep rows:   6 </span></span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a><span class="co">#&gt;   Vertices:     9 </span></span>
+<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a><span class="co">#&gt;   Volume:       0.25</span></span>
+<span id="cb7-18"><a href="#cb7-18" tabindex="-1"></a><span class="co">#&gt;   Max. BF:       4</span></span></code></pre></div>
 </div>
 <div id="overlap-nesting-mixtures-comparison" class="section level1">
 <h1>Overlap, nesting, mixtures, comparison</h1>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="st">&quot;p1 &gt; p2 &gt; p3&quot;</span>; b <span class="ot">&lt;-</span> <span class="st">&quot;p1 &gt; p2&quot;</span></span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="fu">fairy_nested</span>(a, b, <span class="at">n_p =</span> <span class="dv">3</span>)                  <span class="co"># is a nested in b?  TRUE</span></span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span>
-<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>ab <span class="ot">&lt;-</span> <span class="fu">fairy_intersect</span>(a, b, <span class="at">n_p =</span> <span class="dv">3</span>)         <span class="co"># constraints of both hold</span></span>
-<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>mx <span class="ot">&lt;-</span> <span class="fu">fairy_mixture</span>(<span class="st">&quot;p1 &gt; .8; p2 &lt; .2&quot;</span>, <span class="st">&quot;p1 &lt; .2; p2 &gt; .8&quot;</span>, <span class="at">n_p =</span> <span class="dv">2</span>)   <span class="co"># convex hull of two models</span></span>
-<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="fu">fairy_constraints</span>(mx)</span>
-<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a><span class="co">#&gt; [1] &quot;- p2 &lt;= 0&quot;                   &quot;- 5/4 * p1 - 5/4 * p2 &lt;= -1&quot;</span></span>
-<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a><span class="co">#&gt; [3] &quot;- p1 &lt;= 0&quot;                   &quot;p2 &lt;= 1&quot;                    </span></span>
-<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a><span class="co">#&gt; [5] &quot;p1 + p2 &lt;= 6/5&quot;              &quot;p1 &lt;= 1&quot;</span></span>
-<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a><span class="fu">fairy_compare</span>(<span class="fu">list</span>(<span class="at">A =</span> a, <span class="at">B =</span> b, <span class="at">C =</span> <span class="st">&quot;p3 &gt; p1&quot;</span>), <span class="at">n_p =</span> <span class="dv">3</span>)        <span class="co"># volumes, overlaps, nesting, max. BF</span></span>
-<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a><span class="co">#&gt;       A        B    C   </span></span>
-<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a><span class="co">#&gt; A     0.17     0.17 0   </span></span>
-<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a><span class="co">#&gt; B     superset 0.5  0.17</span></span>
-<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a><span class="co">#&gt; C     1D       3D   0.5 </span></span>
-<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a><span class="co">#&gt; maxBF    6        2    2</span></span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="st">&quot;p1 &gt; p2 &gt; p3&quot;</span>; b <span class="ot">&lt;-</span> <span class="st">&quot;p1 &gt; p2&quot;</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="fu">fairy_nested</span>(a, b, <span class="at">n_p =</span> <span class="dv">3</span>)                  <span class="co"># is a nested in b?  TRUE</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>ab <span class="ot">&lt;-</span> <span class="fu">fairy_intersect</span>(a, b, <span class="at">n_p =</span> <span class="dv">3</span>)         <span class="co"># constraints of both hold</span></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>mx <span class="ot">&lt;-</span> <span class="fu">fairy_mixture</span>(<span class="st">&quot;p1 &gt; .8; p2 &lt; .2&quot;</span>, <span class="st">&quot;p1 &lt; .2; p2 &gt; .8&quot;</span>, <span class="at">n_p =</span> <span class="dv">2</span>)   <span class="co"># convex hull of two models</span></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="fu">fairy_constraints</span>(mx)</span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="co">#&gt; [1] &quot;- p2 &lt;= 0&quot;                   &quot;- 5/4 * p1 - 5/4 * p2 &lt;= -1&quot;</span></span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a><span class="co">#&gt; [3] &quot;- p1 &lt;= 0&quot;                   &quot;p2 &lt;= 1&quot;                    </span></span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a><span class="co">#&gt; [5] &quot;p1 + p2 &lt;= 6/5&quot;              &quot;p1 &lt;= 1&quot;</span></span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a><span class="fu">fairy_compare</span>(<span class="fu">list</span>(<span class="at">A =</span> a, <span class="at">B =</span> b, <span class="at">C =</span> <span class="st">&quot;p3 &gt; p1&quot;</span>), <span class="at">n_p =</span> <span class="dv">3</span>)        <span class="co"># volumes, overlaps, nesting, max. BF</span></span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a><span class="co">#&gt;       A        B    C   </span></span>
+<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a><span class="co">#&gt; A     0.17     0.17 0   </span></span>
+<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a><span class="co">#&gt; B     superset 0.5  0.17</span></span>
+<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a><span class="co">#&gt; C     1D       3D   0.5 </span></span>
+<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a><span class="co">#&gt; maxBF    6        2    2</span></span></code></pre></div>
 <p><code>fairy_compare()</code> returns the table layout of the paper:
 volumes on the diagonal, overlap volumes above it, below it “subset” /
 “superset” (printed as the set symbols) or the dimension of the overlap,
@@ -532,10 +575,10 @@ and the largest Bayes factors in the last row.</p>
 </div>
 <div id="replication-across-labs" class="section level1">
 <h1>Replication across labs</h1>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>h2 <span class="ot">&lt;-</span> <span class="fu">fairy_h</span>(<span class="st">&quot;p1 &gt; p2&quot;</span>, <span class="at">n_p =</span> <span class="dv">2</span>)</span>
-<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="fu">fairy_info</span>(<span class="fu">fairy_replicate</span>(h2, <span class="at">r =</span> <span class="dv">3</span>, <span class="at">type =</span> <span class="st">&quot;joint&quot;</span>))</span>
-<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="co">#&gt;   dim vertices inequalities equalities volume max_bf</span></span>
-<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="co">#&gt; 1   6       27            9          0  0.125      8</span></span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>h2 <span class="ot">&lt;-</span> <span class="fu">fairy_h</span>(<span class="st">&quot;p1 &gt; p2&quot;</span>, <span class="at">n_p =</span> <span class="dv">2</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="fu">fairy_info</span>(<span class="fu">fairy_replicate</span>(h2, <span class="at">r =</span> <span class="dv">3</span>, <span class="at">type =</span> <span class="st">&quot;joint&quot;</span>))</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="co">#&gt;   dim vertices inequalities equalities volume max_bf</span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="co">#&gt; 1   6       27            9          0  0.125      8</span></span></code></pre></div>
 <p><code>type = &quot;identical&quot;</code> forces all labs to have the same
 probabilities, <code>&quot;joint&quot;</code> lets each lab satisfy the model
 independently, <code>&quot;substitutable&quot;</code> requires every constraint to
@@ -551,11 +594,11 @@ items (<code>&quot;joint&quot;</code> item by item, <code>&quot;substitutable&qu
 for every combination, <code>&quot;identical&quot;</code> for a shared value,
 within a tolerance <code>eps</code>, or <code>&quot;average&quot;</code> for the
 average over the items).</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># p1 and p2 share a list of 2 items, p3 has its own list of 3 items</span></span>
-<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>h3 <span class="ot">&lt;-</span> <span class="fu">fairy_unpack</span>(<span class="st">&quot;p3 &gt; p1 + p2&quot;</span>, <span class="at">items =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">3</span>), <span class="at">lists =</span> <span class="fu">c</span>(<span class="st">&quot;A&quot;</span>, <span class="st">&quot;A&quot;</span>, <span class="st">&quot;B&quot;</span>),</span>
-<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>                   <span class="at">type =</span> <span class="fu">c</span>(<span class="at">A =</span> <span class="st">&quot;substitutable&quot;</span>, <span class="at">B =</span> <span class="st">&quot;average&quot;</span>), <span class="at">n_p =</span> <span class="dv">3</span>)</span>
-<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="fu">colnames</span>(h3)[<span class="sc">-</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>)]</span>
-<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="co">#&gt; [1] &quot;p_{1}^(1)&quot; &quot;p_{2}^(1)&quot; &quot;p_{1}^(2)&quot; &quot;p_{2}^(2)&quot; &quot;p_{3}^(1)&quot; &quot;p_{3}^(2)&quot; &quot;p_{3}^(3)&quot;</span></span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># p1 and p2 share a list of 2 items, p3 has its own list of 3 items</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>h3 <span class="ot">&lt;-</span> <span class="fu">fairy_unpack</span>(<span class="st">&quot;p3 &gt; p1 + p2&quot;</span>, <span class="at">items =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">3</span>), <span class="at">lists =</span> <span class="fu">c</span>(<span class="st">&quot;A&quot;</span>, <span class="st">&quot;A&quot;</span>, <span class="st">&quot;B&quot;</span>),</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>                   <span class="at">type =</span> <span class="fu">c</span>(<span class="at">A =</span> <span class="st">&quot;substitutable&quot;</span>, <span class="at">B =</span> <span class="st">&quot;average&quot;</span>), <span class="at">n_p =</span> <span class="dv">3</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="fu">colnames</span>(h3)[<span class="sc">-</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>)]</span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="co">#&gt; [1] &quot;p_{1}^(1)&quot; &quot;p_{2}^(1)&quot; &quot;p_{1}^(2)&quot; &quot;p_{2}^(2)&quot; &quot;p_{3}^(1)&quot; &quot;p_{3}^(2)&quot; &quot;p_{3}^(3)&quot;</span></span></code></pre></div>
 <p>Unpacked models with the same number of items for every probability
 live in the same space, also when the items are grouped differently, and
 can be combined. <code>fairy_intersect()</code>,
@@ -564,14 +607,14 @@ can be combined. <code>fairy_intersect()</code>,
 only checks that the numbers of items fit; that item <em>k</em> of one
 probability means the same thing as item <em>k</em> of another is up to
 you.</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>m <span class="ot">&lt;-</span> <span class="fu">fairy_h</span>(<span class="st">&quot;p1 &gt; p2; p2 &gt; p3&quot;</span>, <span class="at">n_p =</span> <span class="dv">3</span>)</span>
-<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>avg  <span class="ot">&lt;-</span> <span class="fu">fairy_unpack</span>(m, <span class="at">items =</span> <span class="dv">2</span>, <span class="at">type =</span> <span class="st">&quot;average&quot;</span>)</span>
-<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>subs <span class="ot">&lt;-</span> <span class="fu">fairy_unpack</span>(m, <span class="at">items =</span> <span class="dv">2</span>, <span class="at">lists =</span> <span class="fu">c</span>(<span class="st">&quot;A&quot;</span>, <span class="st">&quot;B&quot;</span>, <span class="st">&quot;C&quot;</span>), <span class="at">type =</span> <span class="st">&quot;substitutable&quot;</span>)</span>
-<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="fu">fairy_nested</span>(subs, avg)                <span class="co"># every combination of items implies the average</span></span>
-<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="co">#&gt; [1] FALSE</span></span>
-<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a><span class="fu">fairy_info</span>(<span class="fu">fairy_intersect</span>(avg, subs), <span class="at">volume =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="co">#&gt;   dim vertices inequalities equalities volume max_bf</span></span>
-<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a><span class="co">#&gt; 1   6       10           12          0     NA     NA</span></span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>m <span class="ot">&lt;-</span> <span class="fu">fairy_h</span>(<span class="st">&quot;p1 &gt; p2; p2 &gt; p3&quot;</span>, <span class="at">n_p =</span> <span class="dv">3</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>avg  <span class="ot">&lt;-</span> <span class="fu">fairy_unpack</span>(m, <span class="at">items =</span> <span class="dv">2</span>, <span class="at">type =</span> <span class="st">&quot;average&quot;</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>subs <span class="ot">&lt;-</span> <span class="fu">fairy_unpack</span>(m, <span class="at">items =</span> <span class="dv">2</span>, <span class="at">lists =</span> <span class="fu">c</span>(<span class="st">&quot;A&quot;</span>, <span class="st">&quot;B&quot;</span>, <span class="st">&quot;C&quot;</span>), <span class="at">type =</span> <span class="st">&quot;substitutable&quot;</span>)</span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a><span class="fu">fairy_nested</span>(subs, avg)                <span class="co"># every combination of items implies the average</span></span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a><span class="co">#&gt; [1] FALSE</span></span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a><span class="fu">fairy_info</span>(<span class="fu">fairy_intersect</span>(avg, subs), <span class="at">volume =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a><span class="co">#&gt;   dim vertices inequalities equalities volume max_bf</span></span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a><span class="co">#&gt; 1   6       10           12          0     NA     NA</span></span></code></pre></div>
 </div>
 <div id="export" class="section level1">
 <h1>Export</h1>
@@ -625,60 +668,66 @@ factor for one or several models</td>
 fractions)</td>
 </tr>
 <tr class="even">
+<td align="left"><code>fairy_h_table()</code>,
+<code>fairy_v_table()</code></td>
+<td align="left">H- and V-description as tables
+(<code>fairy_table_write()</code>: Markdown, LaTeX, CSV)</td>
+</tr>
+<tr class="odd">
 <td align="left"><code>fairy_dim()</code></td>
 <td align="left">dimension of a model</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>fairy_volume()</code></td>
 <td align="left">parsimony: volume in the unit cube (exact, volesti, or
 Monte Carlo)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>fairy_max_bf()</code></td>
 <td align="left">largest possible Bayes factor against the unconstrained
 model (1 / volume)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>fairy_info()</code></td>
 <td align="left">dimension, vertices, constraints, volume, max. Bayes
 factor in one row</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>fairy_parsimony()</code></td>
 <td align="left">older interface to the volume</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>fairy_intersect()</code></td>
 <td align="left">intersection of models</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>fairy_mixture()</code></td>
 <td align="left">mixture model (convex hull of the components)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>fairy_nested()</code></td>
 <td align="left">is one model nested in another?</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>fairy_compare()</code></td>
 <td align="left">comparison table of a set of models (Table 3 of the
 paper)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>fairy_replicate()</code></td>
 <td align="left">replication across labs: identical, joint,
 substitutable</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>fairy_unpack()</code></td>
 <td align="left">unpacking across items: lists, joint / substitutable /
 identical (with tolerance) / average</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>fairy_write_qtest()</code></td>
 <td align="left">write input files for QTEST</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>fairy_write_multinomineq()</code></td>
 <td align="left">write input files for multinomineq</td>
 </tr>

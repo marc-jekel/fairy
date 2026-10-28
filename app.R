@@ -10732,11 +10732,22 @@ server <- shinyServer(function(input, output, session) {
       "  cbind(model = nm, fairy_info(h, settings = vol_settings))",
       "}))",
       "print(info)", "",
+      "# H-description of every model, one table per model.",
+      "# How to read it: each row is one constraint, and a model is the set of all combinations of the",
+      "# probabilities that satisfy ALL rows. '- p1 + p2 <= 0' means p2 <= p1; a row of type 'equality' fixes a relation",
+      "# exactly. Redundant constraints are left out; the bounds 0 <= p <= 1 appear only where they restrict the model.",
+      "h_tables <- lapply(models, fairy_h_table)",
+      "print(h_tables)",
+      "# fairy_h_table(h, style = \"matrix\") gives the coefficients (a1*p1 + ... + an*pn <= b) instead of text;",
+      "# fairy_table_write(table, file = \"table.md\") writes any table as Markdown (or format = \"latex\" / \"csv\").", "",
       if (length(vnames) > 0) c(
-        "# V-description (vertices) of the models for which it was switched on in the app",
+        "# V-description (extreme cases) of the models for which it was switched on in the app.",
+        "# How to read it: each row is a vertex, a combination of values of the probabilities that the model allows and",
+        "# that cannot be written as a mixture of two other allowed combinations. Every allowed combination is a",
+        "# weighted mixture of the rows. (words = TRUE writes 'none' and 'all' for 0 and 1.)",
         paste0("v_models <- c(", paste(q(vnames), collapse = ", "), ")"),
-        "vertices <- lapply(models[v_models], fairy_vertices)",
-        "print(vertices)", ""))
+        "v_tables <- lapply(models[v_models], fairy_v_table)",
+        "print(v_tables)", ""))
     out
   }
   output$download_rscript <- downloadHandler(

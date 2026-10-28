@@ -45,6 +45,7 @@ A verbal hypothesis about proportions, "category A is more common than B, which 
 | `fairy_constraints()` | H-representation as readable text lines |
 | `fairy_vertices()` | extreme cases as a numeric matrix |
 | `fairy_words()` | extreme cases in words ("all" / "none" / fractions) |
+| `fairy_h_table()`, `fairy_v_table()` | H- and V-description as tables; `fairy_table_write()` writes Markdown, LaTeX or CSV |
 | `fairy_dim()` | dimension of a model |
 | `fairy_volume()` | parsimony: volume in the unit cube (exact, volesti, or Monte Carlo) |
 | `fairy_max_bf()` | largest possible Bayes factor against the unconstrained model (1 / volume) |
@@ -68,6 +69,8 @@ fairy("p1 > p2 > p3", n_p = 3)
 
 fairy_constraints("p1 > p2 > p3")     # "- p1 + p2 <= 0" "- p2 + p3 <= 0" "p1 <= 1" "- p3 <= 0"
 fairy_words("p1 > p2 > p3")           # extreme cases, in words
+fairy_h_table("p1 > p2 > p3", n_p = 3)   # constraints as a table (each row: one constraint, all must hold)
+fairy_v_table("p1 > p2 > p3", n_p = 3)   # extreme cases as a table (each row: one vertex; the model is all mixtures of them)
 fairy_max_bf("p1 > p2 > p3")          # 6 = 1 / volume
 fairy_info("p1 > p2 > p3")            # dimension, vertices, constraints, volume, max. BF
 ```
