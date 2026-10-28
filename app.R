@@ -11817,10 +11817,13 @@ server <- shinyServer(function(input, output, session) {
             zaxis = axz,
             aspectmode = "manual",
             aspectratio = list(x = 1, y = 1, z = 1),
+            # lifted and a little smaller, so the figure and its axis labels do not hang at the lower edge
+            domain = list(x = c(0.02, 0.98), y = c(0.14, 0.98)),
             camera = list(eye = list(
               x = 2, y = 2, z = 2
             ))
-          )
+          ),
+          margin = list(t = 30, b = 50)
         )
       } else {
         # No models selected (e.g. after clicking "-" to clear the list).
