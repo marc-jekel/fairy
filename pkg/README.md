@@ -47,7 +47,6 @@ A verbal hypothesis about proportions, "category A is more common than B, which 
 | `fairy_words()` | extreme cases in words ("all" / "none" / fractions) |
 | `fairy_dim()` | dimension of a model |
 | `fairy_volume()` | parsimony: volume in the unit cube (exact, volesti, or Monte Carlo) |
-| `fairy_plot()` | plot the polytopes of one or several models (2D or 3D, needs `plotly`) |
 | `fairy_max_bf()` | largest possible Bayes factor against the unconstrained model (1 / volume) |
 | `fairy_info()` | dimension, vertices, constraints, volume, max. Bayes factor in one row |
 | `fairy_parsimony()` | older interface to the volume |

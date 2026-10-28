@@ -36,7 +36,6 @@ Imports:
 Suggests:
     knitr,
     rmarkdown,
-    plotly,
     testthat (>= 3.0.0),
     volesti
 VignetteBuilder: knitr

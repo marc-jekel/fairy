@@ -10950,7 +10950,6 @@ server <- shinyServer(function(input, output, session) {
       paste0("# Session exported from the Fairy app on ", format(Sys.Date()), "."),
       "# It rebuilds every model of the session with the R package 'fairy' and reports dimension, vertices, constraints, volume and largest Bayes factor.",
       "# install.packages(\"remotes\"); remotes::install_github(\"marc-jekel/fairy\", subdir = \"pkg\", upgrade = \"always\")",
-      "# for the plots at the end: install.packages(\"plotly\")",
       "library(fairy)", "",
       paste0("n_p <- ", n_p, "   # number of probabilities"), ""
     )
@@ -11011,16 +11010,7 @@ server <- shinyServer(function(input, output, session) {
         "# V-description (vertices) of the models for which it was switched on in the app",
         paste0("v_models <- c(", paste(q(vnames), collapse = ", "), ")"),
         "vertices <- lapply(models[v_models], fairy_vertices)",
-        "print(vertices)", ""),
-      "# plots of the polytopes (needs the package 'plotly'): one figure per group of models in the same space;",
-      "# with more than 3 probabilities the first three are shown - change 'dims' to pick others, e.g. dims = c(1, 2, 4)",
-      "space <- vapply(models, function(h) ncol(h), numeric(1))",
-      "plots <- list()",
-      "for (d in unique(space)) {",
-      "  grp <- models[space == d]",
-      "  if (d - 2 >= 1) plots[[paste0(d - 2, \"D space\")]] <- fairy_plot(grp, dims = seq_len(min(d - 2, 3)))",
-      "}",
-      "plots   # in RStudio: use plots[[1]], plots[[2]], ... to show a figure")
+        "print(vertices)", ""))
     out
   }
   output$download_rscript <- downloadHandler(
