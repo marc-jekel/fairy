@@ -10723,10 +10723,18 @@ server <- shinyServer(function(input, output, session) {
     vnames <- unique(vnames[vnames %in% row_name[ok]])
     out <- c(out, "", "# all models of the session",
       paste0("models <- list(", paste0(q(row_name[ok]), " = ", obj[ok], collapse = ", "), ")"), "",
-      "# volesti settings for the volume estimate; the seed makes the numbers reproducible (add further volesti::volume() settings here)",
+      "# Summary table with one row per model:",
+      "#   dim           dimension of the model (number of probabilities, minus one for each equality)",
+      "#   vertices      number of extreme cases (rows of the V-description below)",
+      "#   inequalities, equalities   number of constraints of each kind (rows of the H-description below)",
+      "#   volume        share of all combinations of the probabilities (each between 0 and 1) that the model allows;",
+      "#                 smaller = more restrictive; 0 if the model contains an equality",
+      "#   max_bf        1 / volume: the largest Bayes factor in favour of the model against the unconstrained model",
+      "#                 that any data could produce (uniform prior); Inf if the volume is 0",
+      "# The volume is estimated with the R package volesti (its default settings). The seed makes the numbers",
+      "# reproducible; further volesti::volume() settings can be added to the list.",
+      "# For the exact value use fairy_info(h, method = \"exact\") (can be slow for many probabilities).",
       "vol_settings <- list(seed = 1)", "",
-      "# dimension, vertices, constraints, volume (parsimony) and largest Bayes factor of each model",
-      "# (estimated with volesti and its default settings; use method = \"exact\" in fairy_info() for the exact convex-hull volume)",
       "info <- do.call(rbind, lapply(names(models), function(nm) {",
       "  h <- models[[nm]]",
       "  cbind(model = nm, fairy_info(h, settings = vol_settings))",
@@ -10737,7 +10745,7 @@ server <- shinyServer(function(input, output, session) {
       "# probabilities that satisfy ALL rows. '- p1 + p2 <= 0' means p2 <= p1; a row of type 'equality' fixes a relation",
       "# exactly. Redundant constraints are left out; the bounds 0 <= p <= 1 appear only where they restrict the model.",
       "h_tables <- lapply(models, fairy_h_table)",
-      "print(h_tables)",
+      "for (nm in names(h_tables)) { cat(\"\\nH-description of\", nm, \"\\n\"); print(h_tables[[nm]]) }",
       "# fairy_h_table(h, style = \"matrix\") gives the coefficients (a1*p1 + ... + an*pn <= b) instead of text;",
       "# fairy_table_write(table, file = \"table.md\") writes any table as Markdown (or format = \"latex\" / \"csv\").", "",
       if (length(vnames) > 0) c(
@@ -10747,7 +10755,7 @@ server <- shinyServer(function(input, output, session) {
         "# weighted mixture of the rows. (words = TRUE writes 'none' and 'all' for 0 and 1.)",
         paste0("v_models <- c(", paste(q(vnames), collapse = ", "), ")"),
         "v_tables <- lapply(models[v_models], fairy_v_table)",
-        "print(v_tables)", ""))
+        "for (nm in names(v_tables)) { cat(\"\\nV-description of\", nm, \"\\n\"); print(v_tables[[nm]]) }", ""))
     out
   }
   output$download_rscript <- downloadHandler(
