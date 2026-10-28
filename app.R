@@ -9803,9 +9803,7 @@ server <- shinyServer(function(input, output, session) {
     !is.null(idx) && !is.null(specs) && idx <= length(specs)
   }
   # An unpacked row, or an intersection of unpacked rows: its H-representation lives in the item space.
-  is_h_only_row <- function(i) {
-    is_items_row(i) || isTRUE(isolate(derived_model_sources$value[[as.character(i)]])$by_h)
-  }
+  is_h_only_row <- function(i) !identical(row_space_sig(i), "base")
   # The V-representation on/off flag is kept per model NAME. A copied or edited row gets a new name, so its flag
   # has to follow: copy = the new name inherits the old name's flag, move = the old name's flag is handed over.
   vtab_carry <- function(from, to, move = FALSE) {
@@ -13935,7 +13933,19 @@ server <- shinyServer(function(input, output, session) {
 
       mixture_names <- character()
       mix_fail_notes <- character()
-      mixture_specs <- Filter(function(x) x$type == "mixture" && !isTRUE(x$by_h), isolate(derived_model_sources$value))
+      # Rows that have to wait for the unpacked models: those built from H-representations of rows that are computed later
+      # (unpacked models, and intersections that involve a mixture), and mixtures of such rows.
+      dms_all <- isolate(derived_model_sources$value)
+      is_late <- function(key, depth = 0) {
+        sx <- dms_all[[as.character(key)]]
+        if (is.null(sx) || depth > 10) return(FALSE)
+        if (isTRUE(sx$by_h)) return(TRUE)
+        if (identical(sx$type, "mixture")) return(any(vapply(sx$source_idx, is_late, logical(1), depth = depth + 1)))
+        if (identical(sx$type, "intersection"))
+          return(any(vapply(sx$source_idx, function(z) identical(dms_all[[as.character(z)]]$type, "mixture") || is_late(z, depth + 1), logical(1))))
+        FALSE
+      }
+      mixture_specs <- dms_all[vapply(names(dms_all), function(k) identical(dms_all[[k]]$type, "mixture") && !is_late(k), logical(1))]
 
       if (length(mixture_specs) > 0) {
         mix_feedback <- character()
@@ -14206,16 +14216,9 @@ server <- shinyServer(function(input, output, session) {
       ####* Intersections of unpacked models ####
       # An intersection row built from unpacked rows that share the same items has no constraint text: its
       # H-representation is the stack of its sources' H-representations (same item space, same columns).
-      dms_h <- isolate(derived_model_sources$value)
-      src_needs_h <- function(si, depth = 0) {
-        sx <- dms_h[[as.character(si)]]
-        if (is.null(sx) || depth > 10) return(FALSE)
-        identical(sx$type, "mixture") || isTRUE(sx$by_h) ||
-          (identical(sx$type, "intersection") && any(vapply(sx$source_idx, src_needs_h, logical(1), depth = depth + 1)))
-      }
-      # an intersection that involves a mixture (also one saved by an earlier version) is built from its sources' H-representations
-      hint_specs <- Filter(function(x) (x$type == "mixture" && isTRUE(x$by_h)) ||
-        (x$type == "intersection" && (isTRUE(x$by_h) || any(vapply(x$source_idx, src_needs_h, logical(1))))), dms_h)
+      # intersections that involve a mixture (also ones saved by an earlier version), unpacked-model combinations and
+      # mixtures of those: built from the H-representations of their sources
+      hint_specs <- dms_all[vapply(names(dms_all), is_late, logical(1))]
       hint_mix_names <- character()
       hint_notes <- character()
       for (hk in names(hint_specs)[order(suppressWarnings(as.integer(names(hint_specs))))]) {
