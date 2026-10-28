@@ -11151,17 +11151,17 @@ server <- shinyServer(function(input, output, session) {
     out <- c(out, "", "# all models of the session",
       paste0("models <- list(", paste0(q(row_name[ok]), " = ", obj[ok], collapse = ", "), ")"), "",
       "# dimension, vertices, constraints, volume (parsimony) and largest Bayes factor of each model",
-      "# (the volume is skipped for models with more than 9 probabilities, where it can take very long)",
+      "# (up to 9 dimensions the volume is exact; above that fairy_volume() estimates it, which can take longer)",
       "info <- do.call(rbind, lapply(names(models), function(nm) {",
       "  h <- models[[nm]]",
-      "  cbind(model = nm, fairy_info(h, volume = (ncol(h) - 2) <= 9))",
+      "  cbind(model = nm, fairy_info(h))",
       "}))",
       "print(info)", "",
       "# comparison of models that live in the same space (here: all models with the same number of columns)",
       "same_space <- vapply(models, function(h) ncol(h), numeric(1))",
       "for (d in unique(same_space)) {",
       "  grp <- models[same_space == d]",
-      "  if (length(grp) > 1 && d - 2 <= 9) print(fairy_compare(grp))",
+      "  if (length(grp) > 1) print(fairy_compare(grp))",
       "}")
     out
   }
