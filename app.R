@@ -15180,7 +15180,7 @@ server <- shinyServer(function(input, output, session) {
           v_table <- data.frame(v_reactive[[loop_table]])
 
           if (length(v_table) > 0) {
-            v_table <- v_table[, 3:ncol(v_table)]
+            v_table <- v_table[, 3:ncol(v_table), drop = FALSE]
             v_table <- cbind(loop_table, v_table)
 
             rownames(v_table) <-
@@ -15376,7 +15376,7 @@ server <- shinyServer(function(input, output, session) {
 
 
           if (not_full_dim == 0) {
-            left_pars <- q2d((act_pars[, 3:ncol(act_pars)]))
+            left_pars <- q2d((act_pars[, 3:ncol(act_pars), drop = FALSE]))
             right_pars <- q2d((act_pars[, 2]))
 
             model_s4 <- new("model_s4",
@@ -16264,7 +16264,7 @@ server <- shinyServer(function(input, output, session) {
           A <- rbind(A, flipped_mn)
         }
         b <- A[, 2]
-        A <- A[, 3:ncol(A)]
+        A <- A[, 3:ncol(A), drop = FALSE]
         A <- d2q(-1 * q2d(A))
         names_A <- colnames(A)
         colnames(A) <- names_A
@@ -16349,7 +16349,7 @@ server <- shinyServer(function(input, output, session) {
 
           ####
 
-          csv_file <- csv_file[, 3:ncol(csv_file)]
+          csv_file <- csv_file[, 3:ncol(csv_file), drop = FALSE]
           csv_file <- t(csv_file)
 
           header_v <- paste("V", 1:ncol(csv_file), sep = "")
@@ -16415,7 +16415,7 @@ server <- shinyServer(function(input, output, session) {
         vrep_entry    <- v_reactive[[download_v_names[loop_v_qtest]]]
         current_model <- if (is.list(vrep_entry) && !is.null(vrep_entry$output))
           vrep_entry$output else vrep_entry
-        current_model <- current_model[, 3:ncol(current_model)]
+        current_model <- current_model[, 3:ncol(current_model), drop = FALSE]
 
         # Per-model parameter names, not the shared probs_reactive$value —
         # that reactive holds whichever single model was last processed
