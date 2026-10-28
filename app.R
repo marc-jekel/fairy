@@ -6334,10 +6334,61 @@ ui <- shinyUI(fluidPage(
           #polytope_plot_expand:hover { background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 18%, transparent); color:var(--fairy-primary, #3a6df0); }
           #polytope_plot_wrap.fairy-plot-full { position:fixed !important; inset:0; z-index:2000; background:var(--fairy-panel, #fff); padding:8px; }
           #polytope_plot_wrap.fairy-plot-full #plot { height:calc(100vh - 16px) !important; }
+          .fairy-plot-panel { position:fixed !important; top:60px; left:16px; z-index:2100; width:300px; max-height:calc(100vh - 90px);
+            overflow:auto; margin:0 !important; box-shadow:0 8px 28px rgba(0,0,0,.25); }
+          .fairy-plot-panel-head { display:flex; justify-content:space-between; align-items:center; cursor:move; padding:0 0 8px; font-weight:600;
+            touch-action:none; user-select:none; }
+          .fairy-plot-panel-head button { border:0; background:transparent; font-size:22px; line-height:1; cursor:pointer; color:inherit; }
+          .fairy-plot-panel-tab { position:fixed; top:60px; left:16px; z-index:2100; padding:6px 14px; border:0; border-radius:8px;
+            background:var(--fairy-primary, #3a6df0); color:#fff; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.25); }
         ")),
         tags$script(HTML("
           (function() {
             function resizePlot() { var gd = document.getElementById('plot'); if (gd && window.Plotly) { try { Plotly.Plots.resize(gd); } catch (e) {} } }
+            // while the plot fills the window, its controls (models, rotation, probabilities) float in a small panel
+            // that can be moved and closed; a Controls button brings it back
+            function panel(on) {
+              var sel = document.getElementById('name_model_plot');
+              var side = sel ? sel.closest('.well') : null;
+              if (!side) return;
+              var tab = document.getElementById('fairy_plot_panel_tab');
+              if (!on) {
+                side.classList.remove('fairy-plot-panel');
+                side.style.left = side.style.top = side.style.display = '';
+                var h0 = side.querySelector('.fairy-plot-panel-head'); if (h0) h0.parentNode.removeChild(h0);
+                if (tab) tab.parentNode.removeChild(tab);
+                return;
+              }
+              if (side.classList.contains('fairy-plot-panel')) return;
+              side.classList.add('fairy-plot-panel');
+              var head = document.createElement('div');
+              head.className = 'fairy-plot-panel-head';
+              head.innerHTML = '<span>Controls</span><button type=\"button\" title=\"Close (the Controls button brings it back)\">&times;</button>';
+              side.insertBefore(head, side.firstChild);
+              tab = document.createElement('button');
+              tab.id = 'fairy_plot_panel_tab'; tab.type = 'button'; tab.className = 'fairy-plot-panel-tab'; tab.textContent = 'Controls';
+              tab.style.display = 'none';
+              document.body.appendChild(tab);
+              head.querySelector('button').addEventListener('click', function() {
+                side.style.display = 'none';
+                tab.style.left = side.style.left || '16px'; tab.style.top = side.style.top || '60px';
+                tab.style.display = 'block';
+              });
+              tab.addEventListener('click', function() { side.style.display = ''; tab.style.display = 'none'; });
+              var drag = null;
+              head.addEventListener('pointerdown', function(e) {
+                if (e.target.closest('button')) return;
+                var r = side.getBoundingClientRect();
+                drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+                head.setPointerCapture(e.pointerId);
+              });
+              head.addEventListener('pointermove', function(e) {
+                if (!drag) return;
+                side.style.left = Math.max(0, Math.min(window.innerWidth - 80, e.clientX - drag.dx)) + 'px';
+                side.style.top = Math.max(0, Math.min(window.innerHeight - 40, e.clientY - drag.dy)) + 'px';
+              });
+              head.addEventListener('pointerup', function() { drag = null; });
+            }
             function setFull(on) {
               var w = document.getElementById('polytope_plot_wrap'); if (!w) return;
               // an ancestor of the tab can trap position:fixed, so the plot moves to the body while it is expanded
@@ -6345,6 +6396,7 @@ ui <- shinyUI(fluidPage(
               if (on && !ph) { ph = document.createElement('div'); ph.id = 'polytope_plot_ph'; w.parentNode.insertBefore(ph, w); document.body.appendChild(w); }
               if (!on && ph) { ph.parentNode.insertBefore(w, ph); ph.parentNode.removeChild(ph); }
               w.classList.toggle('fairy-plot-full', on);
+              panel(on);
               document.body.style.overflow = on ? 'hidden' : '';
               setTimeout(resizePlot, 60); setTimeout(resizePlot, 300);
             }
