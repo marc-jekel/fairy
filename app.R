@@ -6336,9 +6336,22 @@ ui <- shinyUI(fluidPage(
           #polytope_plot_wrap.fairy-plot-full #plot { height:calc(100vh - 16px) !important; }
           .fairy-plot-panel { position:fixed !important; top:60px; left:16px; z-index:2100; width:300px; max-height:calc(100vh - 90px);
             overflow:auto; margin:0 !important; box-shadow:0 8px 28px rgba(0,0,0,.25); }
-          .fairy-plot-panel-head { display:flex; justify-content:space-between; align-items:center; cursor:move; padding:0 0 8px; font-weight:600;
-            touch-action:none; user-select:none; }
-          .fairy-plot-panel-head button { border:0; background:transparent; font-size:22px; line-height:1; cursor:pointer; color:inherit; }
+          .fairy-plot-panel { border-radius:12px; }
+          /* the dropdown lists stay open inside the panel: a list of models can be ticked one after the other */
+          .fairy-plot-panel .bootstrap-select:has(select[multiple]) > .dropdown-menu { display:block !important; position:static !important;
+            float:none; width:100%; transform:none !important; margin:4px 0 0; box-shadow:none; max-height:none !important; }
+          .fairy-plot-panel .bootstrap-select:has(select[multiple]) > .dropdown-menu .inner { max-height:none !important; }
+          .fairy-plot-panel-head { position:relative; display:flex; align-items:center; justify-content:center; height:24px;
+            border-radius:11px 11px 0 0; cursor:grab; touch-action:none; user-select:none;
+            background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 9%, transparent);
+            border-bottom:1px solid color-mix(in srgb, var(--fairy-primary, #3a6df0) 16%, transparent); }
+          .fairy-plot-panel-head:hover { background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 16%, transparent); }
+          .fairy-plot-panel-head:active { cursor:grabbing; }
+          .fairy-plot-panel-grip { position:absolute; left:12px; color:#566075; font-size:13px; letter-spacing:2px; line-height:1; }
+          .fairy-plot-panel-title { font-size:11px; font-weight:600; color:var(--fairy-text-muted, #667085); letter-spacing:0.04em; }
+          .fairy-plot-panel-head button { position:absolute; right:6px; top:0; height:24px; border:0; background:transparent; font-size:18px;
+            line-height:1; cursor:pointer; color:var(--fairy-text-muted, #667085); }
+          .fairy-plot-panel-head button:hover { color:var(--fairy-primary, #3a6df0); }
           .fairy-plot-panel-tab { position:fixed; top:60px; left:16px; z-index:2100; padding:6px 14px; border:0; border-radius:8px;
             background:var(--fairy-primary, #3a6df0); color:#fff; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.25); }
         ")),
@@ -6363,12 +6376,20 @@ ui <- shinyUI(fluidPage(
               side.classList.add('fairy-plot-panel');
               var head = document.createElement('div');
               head.className = 'fairy-plot-panel-head';
-              head.innerHTML = '<span>Controls</span><button type=\"button\" title=\"Close (the Controls button brings it back)\">&times;</button>';
+              head.innerHTML = '<span class=\"fairy-plot-panel-grip\">\\u2847\\u2847\\u2847</span><span class=\"fairy-plot-panel-title\">Controls</span><button type=\"button\" title=\"Close (the Controls button brings it back)\">&times;</button>';
+              // a slim bar across the top edge, like the handle bar of the tiles
+              var cs = getComputedStyle(side);
+              head.style.margin = '-' + cs.paddingTop + ' -' + cs.paddingRight + ' 12px -' + cs.paddingLeft;
               side.insertBefore(head, side.firstChild);
               tab = document.createElement('button');
               tab.id = 'fairy_plot_panel_tab'; tab.type = 'button'; tab.className = 'fairy-plot-panel-tab'; tab.textContent = 'Controls';
               tab.style.display = 'none';
               document.body.appendChild(tab);
+              // the list of models is built the first time its menu opens: open and close it once, then it stays open
+              side.querySelectorAll('.bootstrap-select').forEach(function(bs) {
+                var t = bs.querySelector('button.dropdown-toggle');
+                if (t && bs.querySelector('select[multiple]')) { t.click(); setTimeout(function() { t.click(); }, 150); }
+              });
               head.querySelector('button').addEventListener('click', function() {
                 side.style.display = 'none';
                 tab.style.left = side.style.left || '16px'; tab.style.top = side.style.top || '60px';
