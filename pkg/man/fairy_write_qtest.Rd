@@ -4,30 +4,40 @@
 \alias{fairy_write_qtest}
 \title{Write QTEST input files for one or more models}
 \usage{
-fairy_write_qtest(models, n_p, file = NULL, approx_tol = 0, reduce = TRUE)
+fairy_write_qtest(
+  models,
+  n_p = NULL,
+  file = NULL,
+  approx_tol = 0,
+  reduce = TRUE
+)
 }
 \arguments{
-\item{models}{Named character vector of model specifications, as
-accepted by \code{\link[=fairy]{fairy()}}. Each element is one model.}
+\item{models}{A (named) character vector or list. Each element is a model
+string, as accepted by \code{\link[=fairy]{fairy()}}, or an H-representation (for example from
+\code{\link[=fairy_intersect]{fairy_intersect()}}, \code{\link[=fairy_mixture]{fairy_mixture()}} or \code{\link[=fairy_unpack]{fairy_unpack()}}).}
 
-\item{n_p}{Integer. Number of probability parameters.}
+\item{n_p}{Integer. Number of probabilities; only needed for model strings.}
 
 \item{file}{Path for the output \code{.tar} file. Defaults to
 \code{"qtest_YYYY-MM-DD.tar"} in the current directory.}
 
-\item{approx_tol}{Numeric. Tolerance for approximate equalities. Default \code{0}.}
+\item{approx_tol}{Numeric. Tolerance for approximate equalities (model strings only). Default \code{0}.}
 
-\item{reduce}{Logical. Remove redundant H-rep rows. Default \code{TRUE}.}
+\item{reduce}{Logical. Remove redundant H-rep rows (model strings only). Default \code{TRUE}.}
 }
 \value{
 Invisibly returns the path to the \code{.tar} file.
 }
 \description{
 Generates the plain-text input files expected by QTEST (Regenwetter &
-Davis-Stober, 2012). Each model produces one \code{.txt} file containing
-the integer-scaled A matrix and b vector (inequalities only; models
-with equalities get a notice file instead). All files are bundled in
-a single \code{.tar} archive.
+Davis-Stober, 2012), H-representation. Each model produces one \code{.txt} file
+with the integer-scaled A matrix and b vector. QTEST cannot express
+equalities, so for a model with equalities one probability is eliminated per
+independent equality (solved for and substituted out) and a second file
+\verb{<name>_substitutions.txt} lists the kept probabilities and how the
+eliminated ones are recovered. A model whose equalities contradict each other
+gets a notice file instead. All files are bundled in a single \code{.tar} archive.
 }
 \examples{
 \dontrun{

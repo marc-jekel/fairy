@@ -10755,7 +10755,13 @@ server <- shinyServer(function(input, output, session) {
         "# weighted mixture of the rows. (words = TRUE writes 'none' and 'all' for 0 and 1.)",
         paste0("v_models <- c(", paste(q(vnames), collapse = ", "), ")"),
         "v_tables <- lapply(models[v_models], fairy_v_table)",
-        "for (nm in names(v_tables)) { cat(\"\\nV-description of\", nm, \"\\n\"); print(v_tables[[nm]]) }", ""))
+        "for (nm in names(v_tables)) { cat(\"\\nV-description of\", nm, \"\\n\"); print(v_tables[[nm]]) }", ""),
+      "# Input files for other software, written to the working directory (one .tar archive each).",
+      "# QTEST: one .txt file per model with the H-representation (A and b, integer-scaled). QTEST cannot express",
+      "# equalities, so one probability is eliminated per equality; a *_substitutions.txt file says how to recover it.",
+      "fairy_write_qtest(models, file = \"h_representation_qtest.tar\")",
+      "# multinomineq: A_<model>.csv and b_<model>.csv with A %*% p <= b (an equality is written in both directions).",
+      "fairy_write_multinomineq(models, file = \"h_representation_multinomineq.tar\")")
     out
   }
   output$download_rscript <- downloadHandler(

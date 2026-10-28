@@ -6,24 +6,25 @@
 \usage{
 fairy_write_multinomineq(
   models,
-  n_p,
+  n_p = NULL,
   file = NULL,
   approx_tol = 0,
   reduce = TRUE
 )
 }
 \arguments{
-\item{models}{Named character vector of model specifications, as
-accepted by \code{\link[=fairy]{fairy()}}.}
+\item{models}{A (named) character vector or list. Each element is a model
+string, as accepted by \code{\link[=fairy]{fairy()}}, or an H-representation (for example from
+\code{\link[=fairy_intersect]{fairy_intersect()}}, \code{\link[=fairy_mixture]{fairy_mixture()}} or \code{\link[=fairy_unpack]{fairy_unpack()}}).}
 
-\item{n_p}{Integer. Number of probability parameters.}
+\item{n_p}{Integer. Number of probabilities; only needed for model strings.}
 
 \item{file}{Path for the output \code{.tar} file. Defaults to
 \code{"multinomineq_YYYY-MM-DD.tar"} in the current directory.}
 
-\item{approx_tol}{Numeric. Tolerance for approximate equalities. Default \code{0}.}
+\item{approx_tol}{Numeric. Tolerance for approximate equalities (model strings only). Default \code{0}.}
 
-\item{reduce}{Logical. Remove redundant H-rep rows. Default \code{TRUE}.}
+\item{reduce}{Logical. Remove redundant H-rep rows (model strings only). Default \code{TRUE}.}
 }
 \value{
 Invisibly returns the path to the \code{.tar} file.
@@ -36,7 +37,8 @@ are bundled in a single \code{.tar} archive.
 }
 \details{
 The A matrix satisfies \code{A \%*\% p <= b} and is derived directly from
-the H-representation.
+the H-representation. An equality is written as two inequalities (both
+directions), so the polytope is exactly the model.
 }
 \examples{
 \dontrun{
