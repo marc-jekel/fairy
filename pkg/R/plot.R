@@ -122,7 +122,8 @@ fairy_plot <- function(models, dims = NULL, colors = NULL, opacity = 0.35) {
     }
   }
   if (length(dims) == 2) {
-    plotly::layout(p, xaxis = list(title = lab[1], range = c(0, 1)), yaxis = list(title = lab[2], range = c(0, 1), scaleanchor = "x"))
+    plotly::layout(p, xaxis = list(title = lab[1], range = c(-0.02, 1.02), constrain = "domain", zeroline = FALSE),
+      yaxis = list(title = lab[2], range = c(-0.02, 1.02), scaleanchor = "x", scaleratio = 1, constrain = "domain", zeroline = FALSE))
   } else {
     plotly::layout(p, scene = list(xaxis = list(title = lab[1], range = c(0, 1)), yaxis = list(title = lab[2], range = c(0, 1)),
       zaxis = list(title = lab[3], range = c(0, 1)), aspectmode = "cube"))

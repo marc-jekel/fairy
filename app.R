@@ -11899,7 +11899,7 @@ server <- shinyServer(function(input, output, session) {
         runjs("$('#dim_3').closest('.form-group').hide();")
         pal2 <- c("#E69F00", "#56B4E9", "#009E73", "#D55E00", "#CC79A7", "#0072B2", "#F0E442", "#000000", "#999999")
         ax_names <- gsub("[_{}]", "", colnames(matrix_pl_all)[2:3])
-        p2 <- plot_ly(height = 800)
+        p2 <- plot_ly(height = 700)
         for (k2 in seq_along(select_models_to_plot)) {
           nm2 <- select_models_to_plot[k2]; col2 <- pal2[((k2 - 1) %% length(pal2)) + 1]
           pts <- unique(round(as.matrix(matrix_pl_all[matrix_pl_all[, 1] == nm2, 2:3, drop = FALSE]), 10))
@@ -11921,8 +11921,8 @@ server <- shinyServer(function(input, output, session) {
           }
         }
         return(layout(p2,
-          xaxis = list(title = ax_names[1], range = c(-0.02, 1.02)),
-          yaxis = list(title = ax_names[2], range = c(-0.02, 1.02), scaleanchor = "x"),
+          xaxis = list(title = ax_names[1], range = c(-0.02, 1.02), constrain = "domain", zeroline = FALSE),
+          yaxis = list(title = ax_names[2], range = c(-0.02, 1.02), scaleanchor = "x", scaleratio = 1, constrain = "domain", zeroline = FALSE),
           margin = list(t = 30, b = 50)))
       }
 
