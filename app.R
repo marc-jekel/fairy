@@ -1425,7 +1425,7 @@ ui <- shinyUI(fluidPage(
       /* parameter names with a sub- and a superscript (items-expanded columns): room above and below, so the two do not crowd the letter */
       #v_rep table.dataTable thead th .MathJax { display: inline-block; padding: 7px 4px 8px; }
       /* the same room for the parameter names in the constraint rows of the H-representation */
-      .model-card table td .MathJax { display: inline-block; padding: 4px 3px 5px; }
+      .model-card table td .MathJax { display: inline-block; padding: 2px 3px 3px; }
       .fairy-v-shared { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 9px; font-size: 11px; color: var(--fairy-primary, #3a6df0);
         background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 12%, transparent); }
       .fairy-toolbar-iconbtn.active { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 22%, transparent) !important; color: var(--fairy-primary, #3a6df0) !important; }
