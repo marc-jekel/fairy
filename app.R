@@ -14204,7 +14204,9 @@ server <- shinyServer(function(input, output, session) {
               # parameter name in \(...\) and rely on the drawCallback below
               # to retypeset after DT (re)draws, or these show as literal
               # LaTeX source ("{p_{1}}^{(1)}") instead of rendering.
-              colnames(pl_t)[-1] <- paste0("\\(", tex_name(colnames_pl_t[-1]), "\\)")
+              # the item number of an items-expanded column goes in parentheses on the baseline, p_{1}(2), instead of a
+              # superscript stacked over the subscript
+              colnames(pl_t)[-1] <- paste0("\\(", sub("\\^\\{(\\(.*\\))\\}$", "\\1", tex_name(colnames_pl_t[-1])), "\\)")
               # line under the title: size of the model; with the sharing marks on, how many vertices are shared with
               # another model and how many are unique to this one
               output[[paste0("v_meta_", my_i)]] <- renderUI({
