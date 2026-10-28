@@ -12,7 +12,7 @@
 
 <meta name="author" content="Marc Jekel" />
 
-<meta name="date" content="2026-10-24" />
+<meta name="date" content="2026-10-28" />
 
 <title>Reproducing the paper and its online supplement</title>
 
@@ -342,7 +342,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <h1 class="title toc-ignore">Reproducing the paper and its online
 supplement</h1>
 <h4 class="author">Marc Jekel</h4>
-<h4 class="date">2026-10-24</h4>
+<h4 class="date">2026-10-28</h4>
 
 
 
@@ -398,7 +398,7 @@ substitutable)</td>
 <td align="left"><code>fairy_replicate()</code></td>
 </tr>
 <tr class="even">
-<td align="left">input files for QTest and multinomineq</td>
+<td align="left">input files for QTEST and multinomineq</td>
 <td align="left"><code>fairy_write_qtest()</code>,
 <code>fairy_write_multinomineq()</code></td>
 </tr>
@@ -467,7 +467,7 @@ parameters and two range constraints,
 <span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;- p1 + p2 &lt;= 0&quot; &quot;- p2 + p3 &lt;= 0&quot; &quot;p4 - p5 &lt;= 0&quot;   &quot;p5 - p6 &lt;= 0&quot;   &quot;p1 - p4 &lt;= 0&quot;  </span></span>
 <span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="co">#&gt; [6] &quot;p6 &lt;= 1&quot;        &quot;- p3 &lt;= 0&quot;</span></span></code></pre></div>
 <p>The first line is the paper’s <code>-1 x p1 + 1 x p2 &lt;= 0</code>.
-The same constraints in the machine-readable format of QTest are written
+The same constraints in the machine-readable format of QTEST are written
 by <code>fairy_write_qtest()</code> (and for the R package multinomineq
 by <code>fairy_write_multinomineq()</code>):</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">fairy_write_qtest</span>(strings[<span class="st">&quot;M4&quot;</span>], <span class="at">n_p =</span> <span class="dv">6</span>, <span class="at">file =</span> <span class="st">&quot;model4.tar&quot;</span>)</span></code></pre></div>

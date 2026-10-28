@@ -13,6 +13,11 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 5.5, fig.height = 4.5)
 library(fairy)
 options(width = 90)
+# In this vignette all volumes are computed exactly (convex hull), so that the printed
+# numbers are deterministic. The package default is a volesti estimate (see ?fairy_volume).
+for (f in c("fairy_volume", "fairy_max_bf", "fairy_info", "fairy_compare", "fairy_parsimony", "fairy")) {
+  g <- get(f); formals(g)$method <- "exact"; assign(f, g)
+}
 ```
 
 This vignette walks through the examples of Jekel, Regenwetter, Chen, and Line

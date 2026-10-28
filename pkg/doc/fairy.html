@@ -12,7 +12,7 @@
 
 <meta name="author" content="Marc Jekel" />
 
-<meta name="date" content="2026-10-26" />
+<meta name="date" content="2026-10-28" />
 
 <title>fairy: an overview of all functions</title>
 
@@ -341,7 +341,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 <h1 class="title toc-ignore">fairy: an overview of all functions</h1>
 <h4 class="author">Marc Jekel</h4>
-<h4 class="date">2026-10-26</h4>
+<h4 class="date">2026-10-28</h4>
 
 
 
@@ -367,8 +367,9 @@ constraints (equalities and facet-defining inequalities);</li>
 of the model.</li>
 </ul>
 <p>Its <strong>volume</strong> is the share of all conceivable
-proportions the model allows; its inverse is the largest Bayes factor
-the model can reach against the unconstrained model.</p>
+proportions the model allows (the smaller, the more restrictive and more
+precise the model); its inverse is the largest Bayes factor the model
+can reach against the unconstrained model.</p>
 </div>
 <div id="writing-a-model" class="section level1">
 <h1>Writing a model</h1>
@@ -475,11 +476,14 @@ the H-representation:</p>
 <span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="fu">fairy_info</span>(<span class="st">&quot;p1 &gt; p2 &gt; p3&quot;</span>)                   <span class="co"># dimension, vertices, constraints, volume, max. BF in one row</span></span>
 <span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#&gt;   dim vertices inequalities equalities    volume max_bf</span></span>
 <span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#&gt; 1   3        4            4          0 0.1666667      6</span></span></code></pre></div>
-<p>The volume is exact up to about nine dimensions. Above,
-<code>fairy_volume()</code> uses the volesti package (random-walk
-estimate) if installed and otherwise Monte Carlo
-(<code>method = &quot;mc&quot;</code>). <code>fairy_parsimony()</code> is the
-older name of the same computation.</p>
+<p>Outside this vignette, <code>fairy_volume()</code> by default
+estimates the volume with the volesti package and its own default
+settings; any non-default volesti option can be passed via
+<code>...</code> (e.g. <code>settings = list(error = 0.01)</code>).
+<code>method = &quot;exact&quot;</code> (convex hull of the vertices) and
+<code>method = &quot;mc&quot;</code> (Monte Carlo) are available on request. The
+method is never switched automatically. <code>fairy_parsimony()</code>
+is the older name of the same computation.</p>
 </div>
 <div id="several-models-at-once" class="section level1">
 <h1>Several models at once</h1>
@@ -573,7 +577,7 @@ you.</p>
 <h1>Export</h1>
 <p><code>fairy_write_qtest()</code> and
 <code>fairy_write_multinomineq()</code> write the models as input files
-for QTest and for the R package multinomineq (one <code>.tar</code>
+for QTEST and for the R package multinomineq (one <code>.tar</code>
 archive with one file per model).</p>
 </div>
 <div id="all-functions" class="section level1">
@@ -672,7 +676,7 @@ identical (with tolerance) / average</td>
 </tr>
 <tr class="odd">
 <td align="left"><code>fairy_write_qtest()</code></td>
-<td align="left">write input files for QTest</td>
+<td align="left">write input files for QTEST</td>
 </tr>
 <tr class="even">
 <td align="left"><code>fairy_write_multinomineq()</code></td>

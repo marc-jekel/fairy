@@ -12,6 +12,11 @@ vignette: >
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 library(fairy)
+# In this vignette all volumes are computed exactly (convex hull), so that the printed
+# numbers are deterministic. The package default is a volesti estimate (see ?fairy_volume).
+for (f in c("fairy_volume", "fairy_max_bf", "fairy_info", "fairy_compare", "fairy_parsimony", "fairy")) {
+  g <- get(f); formals(g)$method <- "exact"; assign(f, g)
+}
 options(width = 90)
 ```
 
@@ -93,7 +98,7 @@ fairy_max_bf("p1 > p2 > p3")                 # 6
 fairy_info("p1 > p2 > p3")                   # dimension, vertices, constraints, volume, max. BF in one row
 ```
 
-By default `fairy_volume()` estimates the volume with the volesti package and its own default settings; any non-default volesti option can be passed via `...` (e.g. `settings = list(error = 0.01)`). `method = "exact"` (convex hull of the vertices) and `method = "mc"` (Monte Carlo) are available on request. The method is never switched automatically. `fairy_parsimony()` is the older name of the same computation.
+Outside this vignette, `fairy_volume()` by default estimates the volume with the volesti package and its own default settings; any non-default volesti option can be passed via `...` (e.g. `settings = list(error = 0.01)`). `method = "exact"` (convex hull of the vertices) and `method = "mc"` (Monte Carlo) are available on request. The method is never switched automatically. `fairy_parsimony()` is the older name of the same computation.
 
 # Several models at once
 
