@@ -113,10 +113,6 @@ ui <- shinyUI(fluidPage(
         --ct-default: #f7f8fb;
         --ct-diag: #eef2fe;
         --ct-nodim: #f5f5f5;
-        --ct-disjoint: #fff0f0;
-        --ct-equiv: #fde8e8;
-        --ct-nest: #f0f8f0;
-        --ct-overlap: #fffbe6;
         --ct-info-bg: #f9fafd;
       }
 
@@ -151,10 +147,6 @@ ui <- shinyUI(fluidPage(
         --ct-default: #1a1f2c;
         --ct-diag: #192240;
         --ct-nodim: #1e2028;
-        --ct-disjoint: #2a1818;
-        --ct-equiv: #2a1520;
-        --ct-nest: #152515;
-        --ct-overlap: #26230a;
         --ct-info-bg: #192030;
       }
 
@@ -6262,7 +6254,7 @@ ui <- shinyUI(fluidPage(
           12,
           offset = 0,
           hr(),
-          h5("Select probabilities")
+          h5("Select probabilities", id = "dim_pick_heading")
         )),
         dim_picker_row(1, 1),
         dim_picker_row(2, 2),
@@ -7086,7 +7078,7 @@ server <- shinyServer(function(input, output, session) {
 
   # Items model names derived from specs — available before Parsimony runs
   # Name(s) a single items spec produces — kept in one place since both
-  # get_pending_items_names() and the model-row delete handler (which
+  # the Go pipeline and the model-row delete handler (which
   # needs to find and drop the spec matching a just-deleted row, so it
   # doesn't silently reappear on the next Go — see delete_model_idx's own
   # comment) must compute the EXACT same name(s) the Go pipeline's
@@ -11377,7 +11369,7 @@ server <- shinyServer(function(input, output, session) {
 
       # one probability: a line from the smallest to the largest allowed value
       if (length(select_models_to_plot) > 0 && ncol(matrix_pl_all) == 2) {
-        runjs("$('#dim_2').closest('.form-group').hide(); $('#dim_3').closest('.form-group').hide();")
+        runjs("$('#dim_pick_heading').hide(); $('#dim_1, #dim_2, #dim_3').closest('.form-group').hide();")
         pal1 <- c("#E69F00", "#56B4E9", "#009E73", "#D55E00", "#CC79A7", "#0072B2", "#F0E442", "#000000", "#999999")
         ax1 <- gsub("[_{}]", "", colnames(matrix_pl_all)[2])
         p1d <- plot_ly(height = 220 + 60 * length(select_models_to_plot))
@@ -11395,13 +11387,15 @@ server <- shinyServer(function(input, output, session) {
         }
         return(layout(p1d,
           xaxis = list(title = ax1, range = c(-0.02, 1.02), zeroline = FALSE),
-          yaxis = list(visible = FALSE, range = c(0.4, length(select_models_to_plot) + 0.6)),
+          yaxis = list(tickmode = "array", tickvals = seq_along(select_models_to_plot), ticktext = select_models_to_plot,
+            range = c(0.4, length(select_models_to_plot) + 0.6), showgrid = FALSE, zeroline = FALSE, automargin = TRUE, title = ""),
+          showlegend = FALSE,
           margin = list(t = 30, b = 50)))
       }
 
       # two probabilities: a flat picture (polygon, line or point per model) instead of the 3D scene
       if (length(select_models_to_plot) > 0 && ncol(matrix_pl_all) == 3) {
-        runjs("$('#dim_2').closest('.form-group').show(); $('#dim_3').closest('.form-group').hide();")
+        runjs("$('#dim_pick_heading').show(); $('#dim_1, #dim_2').closest('.form-group').show(); $('#dim_3').closest('.form-group').hide();")
         pal2 <- c("#E69F00", "#56B4E9", "#009E73", "#D55E00", "#CC79A7", "#0072B2", "#F0E442", "#000000", "#999999")
         ax_names <- gsub("[_{}]", "", colnames(matrix_pl_all)[2:3])
         p2 <- plot_ly()
@@ -11431,7 +11425,7 @@ server <- shinyServer(function(input, output, session) {
           margin = list(t = 30, b = 50)))
       }
 
-      runjs("$('#dim_2').closest('.form-group').show(); $('#dim_3').closest('.form-group').show();")
+      runjs("$('#dim_pick_heading').show(); $('#dim_1, #dim_2, #dim_3').closest('.form-group').show();")
       if (length(select_models_to_plot) > 0) {
         for (loop_pl in 1:length(select_models_to_plot)) {
           all_plot_actual <- matrix_pl_all[matrix_pl_all[, 1] == select_models_to_plot[loop_pl], 2:ncol(matrix_pl_all)]
@@ -11990,7 +11984,7 @@ server <- shinyServer(function(input, output, session) {
 
   #### Function to extract In/equalities from Input ####
 
-  extract_info <- function(test = input_relations$rel1, loop_numb_models, func_mytable_input) {
+  extract_info <- function(test, loop_numb_models, func_mytable_input) {
     check_input <- paste(func_mytable_input[, 2], collapse = ";")
 
     max_p <- max(as.numeric(unlist(str_extract_all(check_input, "(?<=p)[0-9]*"))))
