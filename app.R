@@ -4537,7 +4537,13 @@ ui <- shinyUI(fluidPage(
           }, 250);
         }
         // the content (H description, tables) scales with the tile's width; nat = width of the tile at its natural size
-        var nat = {};
+        var nat = {}, nath = {};
+        // scale that fits a tile of size w x h: by width, and also by height when the user has set both
+        function fitZoom(key, w, h, both) {
+          var z = nat[key] ? w / nat[key] : 1;
+          if (both && nath[key]) z = Math.min(z, h / nath[key]);
+          return Math.max(0.6, Math.min(3, z));
+        }
         function applyZoom(c, z) {
           var on = z && Math.abs(z - 1) >= 0.02;
           Array.prototype.forEach.call(c.children, function(ch) {
@@ -4612,10 +4618,10 @@ ui <- shinyUI(fluidPage(
           wrap.classList.remove('fairy-packed'); wrap.style.height = '';
           cards.forEach(function(c) { c.style.left = c.style.top = c.style.width = ''; clearSize(c); });
           cards.forEach(function(c) { applyZoom(c, 1); });
-          cards.forEach(function(c) { nat[pkey(c)] = c.offsetWidth; });
+          cards.forEach(function(c) { nat[pkey(c)] = c.offsetWidth; nath[pkey(c)] = c.offsetHeight; });
           cards.forEach(function(c) {
             var uw = widths[pkey(c)], uh = heights[pkey(c)];
-            if (uw && nat[pkey(c)]) applyZoom(c, Math.max(0.6, Math.min(3, Math.min(uw, wrap.clientWidth) / nat[pkey(c)])));
+            if (uw && nat[pkey(c)]) applyZoom(c, fitZoom(pkey(c), Math.min(uw, wrap.clientWidth), uh, !!uh));
             if (uw) c.style.width = Math.min(uw, wrap.clientWidth) + 'px';
             if (uh) { c.style.height = uh + 'px'; c.style.overflow = 'auto'; }
             if (uw || uh) c.classList.add('fairy-sized');
@@ -4643,23 +4649,42 @@ ui <- shinyUI(fluidPage(
           cards.forEach(function(c, k) { c.style.width = sizes[k].w + 'px'; });
           sizes.forEach(function(z, k) { z.h = cards[k].offsetHeight; });
           snapSizes('h', 30, function(c) { return !!heights[pkey(c)]; });
+          // places the tiles (reading order, packed upwards); returns the top of every tile
+          function place() {
+            var ys = [];
+            for (i = 0; i < n; i++) sky[i] = 0;
+            cards.forEach(function(c, k) {
+              var w = sizes[k].w, h = sizes[k].h, bx = 0, by = Infinity, x, j, y, cand = [];
+              for (x = 0; x + w <= W + 0.5; x += Q) {
+                y = 0;
+                for (j = Math.floor(x / Q); j < Math.min(n, Math.ceil((x + w + G) / Q)); j++) if (sky[j] > y) y = sky[j];
+                cand.push([x, y]);
+                if (y < by) by = y;
+              }
+              if (!cand.length) { bx = 0; by = Math.max.apply(null, sky); }
+              else {
+                // reading order: the leftmost spot that is at most a third of the tile's height lower than the best one
+                for (j = 0; j < cand.length; j++) if (cand[j][1] <= by + 0.3 * h) { bx = cand[j][0]; by = cand[j][1]; break; }
+              }
+              for (j = Math.floor(bx / Q); j < Math.min(n, Math.ceil((bx + w + G) / Q)); j++) sky[j] = by + h + G;
+              c.style.left = bx + 'px'; c.style.top = by + 'px'; c.style.width = w + 'px';
+              ys.push(by);
+            });
+            return ys;
+          }
+          var ys = place();
+          // tiles in the same row get the height of the tallest one (tiles the user resized keep theirs)
+          var rowTop = ys.map(function(y, k) { return k; }).sort(function(a, b) { return ys[a] - ys[b]; });
+          var changed = false, r0 = 0;
+          while (r0 < rowTop.length) {
+            var r1 = r0; while (r1 + 1 < rowTop.length && ys[rowTop[r1 + 1]] - ys[rowTop[r0]] <= 40) r1++;
+            var mh = 0, q2;
+            for (q2 = r0; q2 <= r1; q2++) if (!heights[pkey(cards[rowTop[q2]])]) mh = Math.max(mh, sizes[rowTop[q2]].h);
+            for (q2 = r0; q2 <= r1; q2++) { var kk = rowTop[q2]; if (!heights[pkey(cards[kk])] && sizes[kk].h < mh) { sizes[kk].h = mh; changed = true; } }
+            r0 = r1 + 1;
+          }
           cards.forEach(function(c, k) { if (!heights[pkey(c)]) c.style.minHeight = sizes[k].h + 'px'; });
-          cards.forEach(function(c, k) {
-            var w = sizes[k].w, h = sizes[k].h, bx = 0, by = Infinity, x, j, y, cand = [];
-            for (x = 0; x + w <= W + 0.5; x += Q) {
-              y = 0;
-              for (j = Math.floor(x / Q); j < Math.min(n, Math.ceil((x + w + G) / Q)); j++) if (sky[j] > y) y = sky[j];
-              cand.push([x, y]);
-              if (y < by) by = y;
-            }
-            if (!cand.length) { bx = 0; by = Math.max.apply(null, sky); }
-            else {
-              // reading order: the leftmost spot that is at most a third of the tile's height lower than the best one
-              for (j = 0; j < cand.length; j++) if (cand[j][1] <= by + 0.3 * h) { bx = cand[j][0]; by = cand[j][1]; break; }
-            }
-            for (j = Math.floor(bx / Q); j < Math.min(n, Math.ceil((bx + w + G) / Q)); j++) sky[j] = by + h + G;
-            c.style.left = bx + 'px'; c.style.top = by + 'px'; c.style.width = w + 'px';
-          });
+          if (changed) place();
           wrap.style.height = Math.max(0, Math.max.apply(null, sky) - G) + 'px';
           setTimeout(function() {
             packing = false;
@@ -4757,11 +4782,14 @@ ui <- shinyUI(fluidPage(
                 try { rz.setPointerCapture(e.pointerId); } catch (err) {}
                 function mv(ev) {
                   card.classList.add('fairy-sized');
-                  if (dir !== 'y') {
-                    var nwid = Math.max(260, Math.min(max, w0 + ev.clientX - x0));
-                    card.style.width = nwid + 'px'; applyZoom(card, Math.max(0.6, Math.min(3, nwid / nw)));
-                  }
-                  if (dir !== 'x') { card.style.height = Math.max(120, h0 + ev.clientY - y0) + 'px'; card.style.overflow = 'auto'; }
+                  var nwid = card.offsetWidth, nhgt = heights[pkey(card)] || h0;
+                  if (dir !== 'y') nwid = Math.max(260, Math.min(max, w0 + ev.clientX - x0));
+                  if (dir !== 'x') nhgt = Math.max(120, h0 + ev.clientY - y0);
+                  if (dir !== 'y') card.style.width = nwid + 'px';
+                  if (dir !== 'x') { card.style.minHeight = ''; card.style.height = nhgt + 'px'; card.style.overflow = 'auto'; }
+                  // the content scales with the width, and with the height too once both have been set
+                  var hasW = dir !== 'y' || !!widths[pkey(card)], hasH = dir !== 'x' || !!heights[pkey(card)];
+                  if (hasW) applyZoom(card, fitZoom(pkey(card), nwid, nhgt, hasH));
                   if (wrap && wrap.classList.contains('fairy-free')) fitWrap(wrap);
                 }
                 function up() {
@@ -6059,7 +6087,7 @@ ui <- shinyUI(fluidPage(
               # instead (reported directly, screenshot showed the
               # tooltip text cut off behind the navbar).
               tags$span(class = "fairy-tooltip fairy-tooltip-down", `data-tooltip` = "Set an exact number of probabilities",
-                numericInput("set_prob_count", NULL, value = 3, min = 3, max = 30, width = "62px")),
+                numericInput("set_prob_count", NULL, value = 3, min = 2, max = 30, width = "62px")),
               actionBttn("show_items_modal", "Unpack across items", icon = icon("layer-group"),
                 size = "xs", style = "jelly", color = "default"
               )
@@ -6691,6 +6719,7 @@ server <- shinyServer(function(input, output, session) {
   fairy_report_error <- function(e, where) {
     msg <- conditionMessage(e)
     message("[fairy] error in ", where, ": ", msg)
+    if (!is.null(conditionCall(e))) message("[fairy]   call: ", substr(paste(deparse(conditionCall(e)), collapse = " "), 1, 300))
     if (identical(where, "go_v_h")) {
       fairy_run_end(paste0("<b>Error:</b> the calculation stopped (", htmltools::htmlEscape(msg),
         "). Your input is unchanged; please check the models and try again."))
@@ -9192,7 +9221,7 @@ server <- shinyServer(function(input, output, session) {
     counter$n <- max(isolate(counter$n), manual_p_floor())
   })
   observeEvent(input$rm_prob, {
-    manual_p_floor(max(3L, manual_p_floor() - 1L))
+    manual_p_floor(max(2L, manual_p_floor() - 1L))
     # Recompute from scratch (rather than just decrementing counter$n)
     # so removing the manual floor doesn't drop below whatever's still
     # actually referenced in the constraint text.
@@ -9201,7 +9230,7 @@ server <- shinyServer(function(input, output, session) {
       isolate(input[[paste0("textin_relations_", i)]]) %||% "", character(1)), collapse = ";")
     nums <- suppressWarnings(as.integer(unlist(stringr::str_extract_all(all_text, "(?<=p)\\d+"))))
     nums <- nums[!is.na(nums) & nums > 0]
-    counter$n <- max(3L, if (length(nums) == 0) 0L else max(nums), manual_p_floor())
+    counter$n <- max(2L, if (length(nums) == 0) 0L else max(nums), manual_p_floor())
   })
   # Same manual_p_floor mechanism as add_prob/rm_prob above, just set
   # directly to a typed number instead of stepped by one — invalid/blank
@@ -9212,7 +9241,7 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$set_prob_count, {
     val <- suppressWarnings(as.integer(input$set_prob_count))
     if (is.na(val)) return()
-    val <- max(3L, min(30L, val))
+    val <- max(2L, min(30L, val))
     manual_p_floor(val)
     n_m <- isolate(counter_input$n)
     all_text <- paste(vapply(seq_len(n_m), function(i)
@@ -9252,7 +9281,7 @@ server <- shinyServer(function(input, output, session) {
     if (isTRUE(isolate(restoring_upload()))) return()
     p_nums <- suppressWarnings(as.numeric(unlist(str_extract_all(combined_specs_text_d(), "(?<=p)[0-9]+"))))
     max_p <- suppressWarnings(max(p_nums, na.rm = TRUE))
-    counter$n <- max(3, if (is.finite(max_p)) max_p else 0, isolate(manual_p_floor()))
+    counter$n <- max(2, if (is.finite(max_p)) max_p else 0, isolate(manual_p_floor()))
   })
 
   # Plain-text staleness flags, alongside the button-glow class — for
@@ -9637,7 +9666,7 @@ server <- shinyServer(function(input, output, session) {
     nums <- suppressWarnings(
       as.integer(unlist(stringr::str_extract_all(all_text, "(?<=p)\\d+"))))
     nums <- nums[!is.na(nums) & nums > 0]
-    target <- max(3L, if (length(nums) == 0) 0L else max(nums), isolate(manual_p_floor()))
+    target <- max(2L, if (length(nums) == 0) 0L else max(nums), isolate(manual_p_floor()))
     cur <- isolate(counter$n)
     if (target != cur) counter$n <- target
   })
@@ -11106,6 +11135,7 @@ server <- shinyServer(function(input, output, session) {
       paste0("# Session exported from the Fairy app on ", format(Sys.Date()), "."),
       "# It rebuilds every model of the session with the R package 'fairy' and reports dimension, vertices, constraints, volume and largest Bayes factor.",
       "# install.packages(\"remotes\"); remotes::install_github(\"marc-jekel/fairy\", subdir = \"pkg\", upgrade = \"always\")",
+      "# for the plots at the end: install.packages(\"plotly\")",
       "library(fairy)", "",
       paste0("n_p <- ", n_p, "   # number of probabilities"), ""
     )
@@ -11456,7 +11486,7 @@ server <- shinyServer(function(input, output, session) {
     counter$n       <- new_counter_n
     # extra probabilities are intentional: keep them as the floor, otherwise the auto-detect
     # pass shrinks the count to the highest p referenced in the specifications
-    manual_p_floor(max(3L, min(30L, as.integer(new_counter_n))))
+    manual_p_floor(max(2L, min(30L, as.integer(new_counter_n))))
 
     # Still update via updateTextAreaInput too, as a fallback for any box
     # that existed (and so wasn't freshly rendered) before this upload, and
@@ -11864,6 +11894,39 @@ server <- shinyServer(function(input, output, session) {
 
       matrix_pl_all <- matrix_pl_all[matrix_pl_all[, 1] %in% select_models_to_plot, ]
 
+      # two probabilities: a flat picture (polygon, line or point per model) instead of the 3D scene
+      if (length(select_models_to_plot) > 0 && ncol(matrix_pl_all) == 3) {
+        runjs("$('#dim_3').closest('.form-group').hide();")
+        pal2 <- c("#E69F00", "#56B4E9", "#009E73", "#D55E00", "#CC79A7", "#0072B2", "#F0E442", "#000000", "#999999")
+        ax_names <- gsub("[_{}]", "", colnames(matrix_pl_all)[2:3])
+        p2 <- plot_ly(height = 800)
+        for (k2 in seq_along(select_models_to_plot)) {
+          nm2 <- select_models_to_plot[k2]; col2 <- pal2[((k2 - 1) %% length(pal2)) + 1]
+          pts <- unique(round(as.matrix(matrix_pl_all[matrix_pl_all[, 1] == nm2, 2:3, drop = FALSE]), 10))
+          if (nrow(pts) == 0) next
+          p2 <- add_trace(p2, x = pts[, 1], y = pts[, 2], type = "scatter", mode = "markers",
+            marker = list(color = darker_col(col2, 0.65), size = 9, line = list(color = darker_col(col2, 0.4), width = 1)),
+            text = vapply(seq_len(nrow(pts)), function(r_i) paste0(nm2, " \u00b7 vertex ", r_i, "<br>",
+              paste0(ax_names, " = ", format(round(pts[r_i, ], 3), trim = TRUE), collapse = "<br>")), character(1)),
+            hoverinfo = "text", name = nm2, legendgroup = nm2)
+          if (nrow(pts) >= 3 && qr(sweep(pts, 2, pts[1, ]), tol = 1e-9)$rank == 2) {
+            hh2 <- grDevices::chull(pts); hh2 <- c(hh2, hh2[1])
+            p2 <- add_trace(p2, x = pts[hh2, 1], y = pts[hh2, 2], type = "scatter", mode = "lines", fill = "toself",
+              fillcolor = grDevices::adjustcolor(col2, 0.35), line = list(color = darker_col(col2), width = 2),
+              hoverinfo = "skip", name = nm2, legendgroup = nm2, showlegend = FALSE)
+          } else if (nrow(pts) >= 2) {
+            o2 <- order(pts[, 1], pts[, 2])
+            p2 <- add_trace(p2, x = pts[o2, 1], y = pts[o2, 2], type = "scatter", mode = "lines",
+              line = list(color = darker_col(col2), width = 3), hoverinfo = "skip", name = nm2, legendgroup = nm2, showlegend = FALSE)
+          }
+        }
+        return(layout(p2,
+          xaxis = list(title = ax_names[1], range = c(-0.02, 1.02)),
+          yaxis = list(title = ax_names[2], range = c(-0.02, 1.02), scaleanchor = "x"),
+          margin = list(t = 30, b = 50)))
+      }
+
+      runjs("$('#dim_3').closest('.form-group').show();")
       if (length(select_models_to_plot) > 0) {
         for (loop_pl in 1:length(select_models_to_plot)) {
           all_plot_actual <- matrix_pl_all[matrix_pl_all[, 1] == select_models_to_plot[loop_pl], 2:ncol(matrix_pl_all)]
