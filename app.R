@@ -2662,7 +2662,8 @@ ui <- shinyUI(fluidPage(
         content: 'QTEST';
         position: absolute;
         bottom: -6px;
-        right: -6px;
+        left: 50%;
+        transform: translateX(-50%);
         height: 14px;
         padding: 0 5px;
         border-radius: 999px;
