@@ -10742,11 +10742,11 @@ server <- shinyServer(function(input, output, session) {
       "print(info)", "",
       "# H-description of every model, one table per model.",
       "# How to read it: each row is one constraint, and a model is the set of all combinations of the",
-      "# probabilities that satisfy ALL rows. '- p1 + p2 <= 0' means p2 <= p1; a row of type 'equality' fixes a relation",
+      "# probabilities that satisfy ALL rows. 'p2 <= p1' means p2 is at most p1; a row of type 'equality' fixes a relation",
       "# exactly. Redundant constraints are left out; the bounds 0 <= p <= 1 appear only where they restrict the model.",
       "h_tables <- lapply(models, fairy_h_table)",
       "for (nm in names(h_tables)) { cat(\"\\nH-description of\", nm, \"\\n\"); print(h_tables[[nm]]) }",
-      "# fairy_h_table(h, style = \"matrix\") gives the coefficients (a1*p1 + ... + an*pn <= b) instead of text;",
+      "# fairy_h_table(h, style = \"paper\") writes the form of the paper (- p1 + p2 <= 0), style = \"matrix\" the coefficients;",
       "# fairy_table_write(table, file = \"table.md\") writes any table as Markdown (or format = \"latex\" / \"csv\").", "",
       if (length(vnames) > 0) c(
         "# V-description (extreme cases) of the models for which it was switched on in the app.",

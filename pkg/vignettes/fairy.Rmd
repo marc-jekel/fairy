@@ -67,7 +67,7 @@ fairy_words(h, labels = c("A", "B", "C"))  # extreme cases in words: "all" / "no
 Both describe the same set of allowed probability combinations (a polytope), from two sides:
 
 * **H-description (constraints).** Each row is one constraint, and the model is the set of all combinations that satisfy
-  *all* rows at once. `- p1 + p2 <= 0` says `p2 <= p1`; a row of type `equality` fixes a relation exactly. Constraints
+  *all* rows at once. `p2 <= p1` says that `p2` is at most `p1`; a row of type `equality` fixes a relation exactly. Constraints
   that are redundant are left out; the bounds 0 <= p <= 1 appear only where they restrict the model (e.g. `p1 <= 1`).
 * **V-description (extreme cases).** Each row is a vertex: an allowed combination that cannot be written as a mixture of
   two other allowed combinations. Every allowed combination is a weighted mixture of the rows.
@@ -76,6 +76,7 @@ Both describe the same set of allowed probability combinations (a polytope), fro
 
 ```{r tables}
 fairy_h_table(h)
+fairy_h_table(h, style = "paper")    # the form of the paper's Figure 2: - p1 + p2 <= 0
 fairy_h_table(h, style = "matrix")   # a1*p1 + ... + an*pn <= b, one row per constraint
 fairy_v_table(h)
 fairy_table_write(fairy_v_table(h, words = TRUE))

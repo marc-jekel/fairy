@@ -4,7 +4,13 @@
 \alias{fairy_h_table}
 \title{The H-description of a model as a table}
 \usage{
-fairy_h_table(h, n_p = NULL, labels = NULL, style = c("text", "matrix"))
+fairy_h_table(
+  h,
+  n_p = NULL,
+  labels = NULL,
+  style = c("text", "paper", "matrix"),
+  times = " * "
+)
 }
 \arguments{
 \item{h}{An H-representation from \code{\link[=fairy_h]{fairy_h()}} (or a model string).}
@@ -13,22 +19,26 @@ fairy_h_table(h, n_p = NULL, labels = NULL, style = c("text", "matrix"))
 
 \item{labels}{Optional names for the probabilities.}
 
-\item{style}{\code{"text"} (default) or \code{"matrix"}.}
+\item{style}{\code{"text"} (default), \code{"paper"} or \code{"matrix"}.}
+
+\item{times}{Symbol between a coefficient and its probability (\code{"text"} style).}
 }
 \value{
 A data frame of class \code{"fairy_table"}. Use \code{\link[=fairy_table_write]{fairy_table_write()}} to
 get it as Markdown, LaTeX or CSV.
 }
 \description{
-One row per constraint. \code{style = "text"} gives the constraint as a line of
-text (\code{- p1 + p2 <= 0}, as in \code{\link[=fairy_constraints]{fairy_constraints()}}); \code{style = "matrix"}
-gives the coefficients: the constraint \verb{a1 p1 + ... + an pn <= b} (or \code{=})
+One row per constraint. \code{style = "text"} (default) writes each constraint
+without minus signs, so that it reads like a sentence (\code{p2 <= p1},
+\code{1/10 <= p3}, \code{p1 + p2 <= 1 + p3}); \code{style = "paper"} gives the form used in
+the paper's Figure 2 (\code{- p1 + p2 <= 0}, as in \code{\link[=fairy_constraints]{fairy_constraints()}});
+\code{style = "matrix"} gives the coefficients: the constraint \verb{a1 p1 + ... + an pn <= b} (or \code{=})
 is one row with the columns \code{p1}, ..., \code{pn}, \code{relation} and \code{b}.
 }
 \details{
 \strong{How to read it.} Each row is one constraint of the model, and the model
 is the set of all combinations of the probabilities that satisfy \emph{all} rows
-at once. \code{- p1 + p2 <= 0} says that \code{p2} is at most \code{p1}; a row with \code{=}
+at once. \code{p2 <= p1} says that \code{p2} is at most \code{p1}; a row with \code{=}
 (\code{type} equality) fixes a relation exactly. Redundant rows are left out; the
 bounds 0 <= p <= 1 appear only where they restrict the model
 (for example \code{p1 <= 1}).

@@ -6,17 +6,37 @@ tbl_num <- function(x) {
   out
 }
 
+# a . p <= b (or =) written without minus signs: positive terms left, negative terms right,
+# a constant on the side where it is positive ("p2 <= p1", "1/10 <= p3", "p1 + p2 <= 1 + p3")
+tbl_readable <- function(a, b, nm, eq, times = " * ") {
+  if (eq) {
+    fi <- which(a != 0)[1]
+    if (!is.na(fi) && a[fi] < 0) { a <- -a; b <- -b }
+  }
+  side <- function(coef, const) {
+    terms <- vapply(which(coef != 0), function(j)
+      if (abs(coef[j] - 1) < 1e-12) nm[j] else paste0(tbl_num(coef[j]), times, nm[j]), character(1))
+    if (abs(const) > 1e-12) terms <- c(terms, tbl_num(const))
+    if (length(terms) == 0) "0" else paste(terms, collapse = " + ")
+  }
+  left <- side(pmax(a, 0), max(-b, 0))
+  right <- side(pmax(-a, 0), max(b, 0))
+  paste(left, if (eq) "=" else "<=", right)
+}
+
 #' The H-description of a model as a table
 #'
-#' One row per constraint. `style = "text"` gives the constraint as a line of
-#' text (`- p1 + p2 <= 0`, as in [fairy_constraints()]); `style = "matrix"`
-#' gives the coefficients: the constraint `a1 p1 + ... + an pn <= b` (or `=`)
+#' One row per constraint. `style = "text"` (default) writes each constraint
+#' without minus signs, so that it reads like a sentence (`p2 <= p1`,
+#' `1/10 <= p3`, `p1 + p2 <= 1 + p3`); `style = "paper"` gives the form used in
+#' the paper's Figure 2 (`- p1 + p2 <= 0`, as in [fairy_constraints()]);
+#' `style = "matrix"` gives the coefficients: the constraint `a1 p1 + ... + an pn <= b` (or `=`)
 #' is one row with the columns `p1`, ..., `pn`, `relation` and `b`.
 #'
 #' @details
 #' **How to read it.** Each row is one constraint of the model, and the model
 #' is the set of all combinations of the probabilities that satisfy *all* rows
-#' at once. `- p1 + p2 <= 0` says that `p2` is at most `p1`; a row with `=`
+#' at once. `p2 <= p1` says that `p2` is at most `p1`; a row with `=`
 #' (`type` equality) fixes a relation exactly. Redundant rows are left out; the
 #' bounds 0 <= p <= 1 appear only where they restrict the model
 #' (for example `p1 <= 1`).
@@ -25,7 +45,8 @@ tbl_num <- function(x) {
 #' @param h An H-representation from [fairy_h()] (or a model string).
 #' @param n_p Number of probabilities for model strings.
 #' @param labels Optional names for the probabilities.
-#' @param style `"text"` (default) or `"matrix"`.
+#' @param times Symbol between a coefficient and its probability (`"text"` style).
+#' @param style `"text"` (default), `"paper"` or `"matrix"`.
 #'
 #' @return A data frame of class `"fairy_table"`. Use [fairy_table_write()] to
 #'   get it as Markdown, LaTeX or CSV.
@@ -34,7 +55,7 @@ tbl_num <- function(x) {
 #' fairy_h_table(h)
 #' fairy_h_table(h, style = "matrix")
 #' @export
-fairy_h_table <- function(h, n_p = NULL, labels = NULL, style = c("text", "matrix")) {
+fairy_h_table <- function(h, n_p = NULL, labels = NULL, style = c("text", "paper", "matrix"), times = " * ") {
   style <- match.arg(style)
   h <- resolve_h(h, n_p = n_p)
   hn <- q2d(h)
@@ -43,6 +64,10 @@ fairy_h_table <- function(h, n_p = NULL, labels = NULL, style = c("text", "matri
   keep <- !(hn[, 1] == 0 & apply(hn[, -(1:2), drop = FALSE], 1, function(r) all(r == 0)))
   hn <- hn[keep, , drop = FALSE]
   if (style == "text") {
+    A <- -hn[, -(1:2), drop = FALSE]
+    txt <- vapply(seq_len(nrow(hn)), function(i) tbl_readable(A[i, ], hn[i, 2], nm, hn[i, 1] == 1, times), character(1))
+    df <- data.frame(Constraint = txt, Type = ifelse(hn[, 1] == 1, "equality", "inequality"), stringsAsFactors = FALSE)
+  } else if (style == "paper") {
     df <- data.frame(Constraint = fairy_constraints(h, labels = labels)[keep],
                      Type = ifelse(hn[, 1] == 1, "equality", "inequality"), stringsAsFactors = FALSE)
   } else {

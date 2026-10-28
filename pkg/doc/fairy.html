@@ -444,11 +444,11 @@ polytope), from two sides:</p>
 <ul>
 <li><strong>H-description (constraints).</strong> Each row is one
 constraint, and the model is the set of all combinations that satisfy
-<em>all</em> rows at once. <code>- p1 + p2 &lt;= 0</code> says
-<code>p2 &lt;= p1</code>; a row of type <code>equality</code> fixes a
-relation exactly. Constraints that are redundant are left out; the
-bounds 0 &lt;= p &lt;= 1 appear only where they restrict the model
-(e.g. <code>p1 &lt;= 1</code>).</li>
+<em>all</em> rows at once. <code>p2 &lt;= p1</code> says that
+<code>p2</code> is at most <code>p1</code>; a row of type
+<code>equality</code> fixes a relation exactly. Constraints that are
+redundant are left out; the bounds 0 &lt;= p &lt;= 1 appear only where
+they restrict the model (e.g. <code>p1 &lt;= 1</code>).</li>
 <li><strong>V-description (extreme cases).</strong> Each row is a
 vertex: an allowed combination that cannot be written as a mixture of
 two other allowed combinations. Every allowed combination is a weighted
@@ -458,27 +458,33 @@ mixture of the rows.</li>
 them into tables, and <code>fairy_table_write()</code> turns a table
 into Markdown, LaTeX or CSV:</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">fairy_h_table</span>(h)</span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="co">#&gt;        Constraint       Type</span></span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co">#&gt; C1 - p1 + p2 &lt;= 0 inequality</span></span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co">#&gt; C2 - p2 + p3 &lt;= 0 inequality</span></span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="co">#&gt; C3        p1 &lt;= 1 inequality</span></span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="co">#&gt; C4      - p3 &lt;= 0 inequality</span></span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="fu">fairy_h_table</span>(h, <span class="at">style =</span> <span class="st">&quot;matrix&quot;</span>)   <span class="co"># a1*p1 + ... + an*pn &lt;= b, one row per constraint</span></span>
-<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="co">#&gt;    p1 p2 p3 relation b</span></span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="co">#&gt; C1 -1  1  0       &lt;= 0</span></span>
-<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="co">#&gt; C2  0 -1  1       &lt;= 0</span></span>
-<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="co">#&gt; C3  1  0  0       &lt;= 1</span></span>
-<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="co">#&gt; C4  0  0 -1       &lt;= 0</span></span>
-<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="fu">fairy_v_table</span>(h)</span>
-<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a><span class="co">#&gt;    p1 p2 p3</span></span>
-<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a><span class="co">#&gt; V1  0  0  0</span></span>
-<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="co">#&gt; V2  1  0  0</span></span>
-<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a><span class="co">#&gt; V3  1  1  0</span></span>
-<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="co">#&gt; V4  1  1  1</span></span>
-<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="fu">fairy_table_write</span>(<span class="fu">fairy_v_table</span>(h, <span class="at">words =</span> <span class="cn">TRUE</span>))</span>
-<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="co">#&gt; [1] &quot;|    | p_.1. | p_.2. | p_.3. |&quot; &quot;| -- | ----- | ----- | ----- |&quot;</span></span>
-<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a><span class="co">#&gt; [3] &quot;| V1 |  none |  none |  none |&quot; &quot;| V2 |   all |  none |  none |&quot;</span></span>
-<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="co">#&gt; [5] &quot;| V3 |   all |   all |  none |&quot; &quot;| V4 |   all |   all |   all |&quot;</span></span></code></pre></div>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="co">#&gt;    Constraint       Type</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co">#&gt; C1   p2 &lt;= p1 inequality</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co">#&gt; C2   p3 &lt;= p2 inequality</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="co">#&gt; C3    p1 &lt;= 1 inequality</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="co">#&gt; C4    0 &lt;= p3 inequality</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="fu">fairy_h_table</span>(h, <span class="at">style =</span> <span class="st">&quot;paper&quot;</span>)    <span class="co"># the form of the paper&#39;s Figure 2: - p1 + p2 &lt;= 0</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="co">#&gt;        Constraint       Type</span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="co">#&gt; C1 - p1 + p2 &lt;= 0 inequality</span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="co">#&gt; C2 - p2 + p3 &lt;= 0 inequality</span></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="co">#&gt; C3        p1 &lt;= 1 inequality</span></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="co">#&gt; C4      - p3 &lt;= 0 inequality</span></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="fu">fairy_h_table</span>(h, <span class="at">style =</span> <span class="st">&quot;matrix&quot;</span>)   <span class="co"># a1*p1 + ... + an*pn &lt;= b, one row per constraint</span></span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a><span class="co">#&gt;    p1 p2 p3 relation b</span></span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a><span class="co">#&gt; C1 -1  1  0       &lt;= 0</span></span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="co">#&gt; C2  0 -1  1       &lt;= 0</span></span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a><span class="co">#&gt; C3  1  0  0       &lt;= 1</span></span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="co">#&gt; C4  0  0 -1       &lt;= 0</span></span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="fu">fairy_v_table</span>(h)</span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="co">#&gt;    p1 p2 p3</span></span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a><span class="co">#&gt; V1  0  0  0</span></span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="co">#&gt; V2  1  0  0</span></span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a><span class="co">#&gt; V3  1  1  0</span></span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a><span class="co">#&gt; V4  1  1  1</span></span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a><span class="fu">fairy_table_write</span>(<span class="fu">fairy_v_table</span>(h, <span class="at">words =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a><span class="co">#&gt; [1] &quot;|    | p_.1. | p_.2. | p_.3. |&quot; &quot;| -- | ----- | ----- | ----- |&quot;</span></span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a><span class="co">#&gt; [3] &quot;| V1 |  none |  none |  none |&quot; &quot;| V2 |   all |  none |  none |&quot;</span></span>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a><span class="co">#&gt; [5] &quot;| V3 |   all |   all |  none |&quot; &quot;| V4 |   all |   all |   all |&quot;</span></span></code></pre></div>
 <p><code>fairy_v(h)</code> returns the vertices in rcdd’s own format.
 <code>fairy_dim()</code> gives the dimension of the model. Models with
 an equality have a dimension below <code>n</code> and volume zero:</p>
