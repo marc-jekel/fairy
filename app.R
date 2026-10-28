@@ -39,10 +39,10 @@ library("writexl")
 if (!require("readxl")) install.packages("readxl")
 library("readxl")
 
-# Icon for the V-representation: the corner points (extreme cases) of a small triangle
+# Icon for the V-representation: the letter V whose three tips are marked as points (the vertices)
 vrep_icon <- function() {
   tags$span(class = "fairy-vrep-icon", style = "display:inline-flex; align-items:center;",
-    HTML("<svg width='15' height='15' viewBox='0 0 16 16' aria-hidden='true' style='display:block'><polygon points='8,2.5 14,13 2,13' fill='none' stroke='currentColor' stroke-width='1.1' stroke-opacity='0.45'/><circle cx='8' cy='2.5' r='2.1' fill='currentColor'/><circle cx='14' cy='13' r='2.1' fill='currentColor'/><circle cx='2' cy='13' r='2.1' fill='currentColor'/></svg>"))
+    HTML("<svg width='15' height='15' viewBox='0 0 16 16' aria-hidden='true' style='display:block'><polyline points='2.5,3 8,13 13.5,3' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round' stroke-opacity='0.55'/><circle cx='2.5' cy='3' r='2' fill='currentColor'/><circle cx='8' cy='13' r='2' fill='currentColor'/><circle cx='13.5' cy='3' r='2' fill='currentColor'/></svg>"))
 }
 
 if (!require("shinybusy")) install.packages("shinybusy")
