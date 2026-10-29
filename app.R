@@ -338,7 +338,7 @@ ui <- shinyUI(fluidPage(
         position: fixed;
         top: 13px;
         right: 62px;
-        z-index: 1060;
+        z-index: 1035;   /* above the navbar (1030), below dialogs (1040/1050) */
         background: rgba(255,255,255,0.10);
         border: none;
         border-radius: 999px;
@@ -891,7 +891,7 @@ ui <- shinyUI(fluidPage(
         position: fixed;
         top: 8px;
         right: 20px;
-        z-index: 1060;
+        z-index: 1035;
         opacity: 0.6;
         transition: opacity 0.25s ease;
       }
