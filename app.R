@@ -8304,7 +8304,7 @@ server <- shinyServer(function(input, output, session) {
                 }
               } else if (r.type === 'average') {
                 if (i === 0) { var ah = el('text', { x: avgX, y: 14, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '10.5', 'font-weight': '600' }, svg); ah.textContent = 'average'; }
-                for (k = 0; k < c; k++) el('line', { x1: X(k) + 6, y1: ys[i], x2: avgX - 8, y2: ys[i], stroke: 'currentColor', 'stroke-width': '1', opacity: '0.4', 'stroke-dasharray': '2 3' }, svg);
+                el('line', { x1: X(0) + 6, y1: ys[i], x2: avgX - 8, y2: ys[i], stroke: 'currentColor', 'stroke-width': '1', opacity: '0.4', 'stroke-dasharray': '2 3' }, svg);   // one line (several overlapping ones mixed their dash patterns)
                 // plus signs on the dotted line: the items are added up (and then divided by their number)
                 for (k = 0; k < c - 1; k++) {
                   var pl = el('text', { x: (X(k) + X(k + 1)) / 2, y: ys[i] - 4, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '16', 'font-weight': '600', opacity: '0.75' }, svg); pl.textContent = '+';
