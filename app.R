@@ -6658,8 +6658,11 @@ ui <- shinyUI(fluidPage(
         ")),
         tags$script(HTML("
           (function() {
+            // the floating parts live inside the dialog itself: the dialog takes the keyboard focus back from anything outside it,
+            // which made the name boxes in the panel impossible to type into
+            function itemsHost() { return document.querySelector('.modal:has(#submit_items_multi)') || document.body; }
             function moved(node, id) {
-              var ph = document.createElement('div'); ph.id = id; node.parentNode.insertBefore(ph, node); document.body.appendChild(node); return ph;
+              var ph = document.createElement('div'); ph.id = id; node.parentNode.insertBefore(ph, node); itemsHost().appendChild(node); return ph;
             }
             function back(node, id) {
               var ph = document.getElementById(id);
@@ -6693,7 +6696,7 @@ ui <- shinyUI(fluidPage(
               var opts = document.querySelector('.fairy-items-main > div:first-child');
               if (!viz || !opts || active()) return;
               moved(viz, 'fairy_items_viz_ph'); viz.classList.add('fairy-items-full');
-              var setup = document.createElement('div'); setup.id = 'fairy_items_setup_panel'; document.body.appendChild(setup);
+              var setup = document.createElement('div'); setup.id = 'fairy_items_setup_panel'; itemsHost().appendChild(setup);
               ['fairy_items_base_wrap', 'fairy_items_q1', 'fairy_items_count_same', 'fairy_items_two_panel', 'fairy_items_quick_eps_wrap'].forEach(function(id) {
                 var n = document.getElementById(id);
                 if (n) { moved(n, id + '_ph'); n.classList.add('fairy-items-count'); setup.appendChild(n); }
@@ -6706,7 +6709,7 @@ ui <- shinyUI(fluidPage(
                 var addb = document.createElement('button'); addb.type = 'button'; addb.id = 'fairy_items_add_here'; addb.className = 'btn btn-primary fairy-items-add';
                 addb.textContent = sub.textContent.trim() || 'Add';
                 addb.addEventListener('click', function() { collapse(); setTimeout(function() { sub.click(); }, 50); });
-                var bw = document.createElement('div'); bw.id = 'fairy_items_btns'; document.body.appendChild(bw); bw.appendChild(addb);
+                var bw = document.createElement('div'); bw.id = 'fairy_items_btns'; itemsHost().appendChild(bw); bw.appendChild(addb);
                 var canb = document.createElement('button'); canb.type = 'button'; canb.id = 'fairy_items_cancel_here'; canb.className = 'btn fairy-items-add fairy-items-cancel';
                 canb.textContent = 'Cancel';
                 canb.addEventListener('click', function() {
