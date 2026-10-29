@@ -7485,7 +7485,7 @@ server <- shinyServer(function(input, output, session) {
   # p1, p2, ... are numbered by that same column order.
   # p3 -> p<sub>3</sub> (the same reading as the H-description); other names stay as they are
   sub_html <- function(nm) ifelse(grepl("^[A-Za-z]+[0-9]+$", nm), sub("^([A-Za-z]+)([0-9]+)$", "\\1<sub>\\2</sub>", nm), gsub("[<>&]", "", nm))
-  items_column_legend <- function(h_base, factors, param_factors) {
+  items_column_legend <- function(h_base, factors, param_factors, lists = NULL) {
     p_names <- colnames(h_base)[-(1:2)]
     F  <- length(factors)
     pf <- as.integer(param_factors[p_names]); pf[is.na(pf)] <- 0L
@@ -7517,17 +7517,19 @@ server <- shinyServer(function(input, output, session) {
     legend_shared <- if (length(shared_idx) > 0) {
       paste0(sub_html(label_of(p_names[shared_idx], shared_idx)), " <span class='text-muted'>(not repeated)</span>")
     } else character(0)
+    lists_v <- if (!is.null(lists)) unlist(lists) else NULL
+    # the list a column belongs to: as stored for every probability (also for "every combination" / "average", whose groups are
+    # split into single probabilities); older specs without it fall back to the name of the group
+    list_suffix <- function(idx_f, f) vapply(idx_f, function(ix) {
+      lst <- if (!is.null(lists_v) && !is.na(lists_v[p_names[ix]])) as.character(lists_v[p_names[ix]]) else as.character(factors[[f]]$list %||% "")[1]
+      if (!nzchar(lst) && !grepl("^p_?\\{?[0-9]+\\}?$", factors[[f]]$name)) lst <- factors[[f]]$name
+      if (nzchar(lst)) paste0(" <span class='text-muted'>(", gsub("[<>&]", "", sub("^group ", "list ", lst)), ")</span>") else ""
+    }, character(1))
     legend_factors <- unlist(lapply(seq_len(F), function(f) {
       idx_f <- which(pf == f)
       if (length(idx_f) == 0) return(character(0))
       unlist(lapply(seq_len(factors[[f]]$n), function(lev)
-        paste0(sub_html(label_of(p_names[idx_f], idx_f)), "<sup>(", lev, ")</sup>",
-               # the list of the dialog ("group D" is list D); default names (p_{1}, ...) would only repeat the probability
-               {
-                 lst <- as.character(factors[[f]]$list %||% "")[1]
-                 if (!nzchar(lst) && !grepl("^p_?\\{?[0-9]+\\}?$", factors[[f]]$name)) lst <- factors[[f]]$name
-                 if (nzchar(lst)) paste0(" <span class='text-muted'>(", gsub("[<>&]", "", sub("^group ", "list ", lst)), ")</span>") else ""
-               })))
+        paste0(sub_html(label_of(p_names[idx_f], idx_f)), "<sup>(", lev, ")</sup>", list_suffix(idx_f, f))))
     }))
     c(legend_shared, legend_factors)
   }
@@ -9085,7 +9087,7 @@ server <- shinyServer(function(input, output, session) {
             return()
           }
 
-          legend <- items_column_legend(h_base_preview, spec$factors, spec$param_factors)
+          legend <- items_column_legend(h_base_preview, spec$factors, spec$param_factors, spec$lists)
           # the order of the probabilities chosen for this model (the same one as in the downloads)
           nm_prev <- isolate(input[[paste0("textin_relations_name", ii)]]) %||% paste0("m", ii)
           pm_prev <- isolate(qtest_perm$map[[nm_prev]])
@@ -11331,7 +11333,7 @@ server <- shinyServer(function(input, output, session) {
       if (is.null(idx) || is.null(specs) || idx > length(specs)) return(NULL)
       spec <- specs[[idx]]; hb <- isolate(h_reactive[[spec$base]])
       if (is.null(hb) || is.null(spec$factors)) return(NULL)
-      return(items_column_legend(hb, spec$factors, spec$param_factors))
+      return(items_column_legend(hb, spec$factors, spec$param_factors, spec$lists))
     }
     NULL
   }
