@@ -9172,8 +9172,39 @@ server <- shinyServer(function(input, output, session) {
     if (isTRUE(isolate(restoring_upload()))) return()
     p_nums <- suppressWarnings(as.numeric(unlist(str_extract_all(combined_specs_text_d(), "(?<=p)[0-9]+"))))
     max_p <- suppressWarnings(max(p_nums, na.rm = TRUE))
-    counter$n <- max(1, if (is.finite(max_p)) max_p else 0, isolate(manual_p_floor()))
+    new_n <- max(1, if (is.finite(max_p)) max_p else 0, isolate(manual_p_floor()))
+    old_n <- isolate(counter$n)
+    if (new_n > old_n) {
+      # typing a new probability adds it: say so; a big jump (p12 instead of p1 2, ...) is asked about first
+      if (new_n - old_n >= 4 && new_n > isolate(p_jump_ok())) {
+        p_jump_pending(new_n)
+        showModal(modalDialog(
+          title = "Add many probabilities?",
+          paste0("Your text uses p", new_n, ", so ", new_n - old_n, " probabilities (p", old_n + 1, " to p", new_n,
+                 ") would be added. Did you mean that?"),
+          footer = tagList(
+            actionButton("p_jump_no", "No, I will correct the text"),
+            actionButton("p_jump_yes", paste0("Yes, add them (p", old_n + 1, " \u2013 p", new_n, ")"), class = "btn-primary")),
+          easyClose = FALSE))
+        return()
+      }
+      showNotification(
+        paste0("Added ", paste0("p", (old_n + 1):new_n, collapse = ", "), " (from your text). Remove with \u2212 or by editing the text."),
+        type = "message", duration = 7)
+    }
+    counter$n <- new_n
   })
+  p_jump_pending <- reactiveVal(0)
+  p_jump_ok <- reactiveVal(0)
+  observeEvent(input$p_jump_yes, {
+    n <- isolate(p_jump_pending()); old_n <- isolate(counter$n)
+    removeModal(); p_jump_ok(n)
+    if (n > old_n) {
+      showNotification(paste0("Added ", paste0("p", (old_n + 1):n, collapse = ", "), "."), type = "message", duration = 7)
+      counter$n <- n
+    }
+  })
+  observeEvent(input$p_jump_no, { removeModal() })
 
   # Plain-text staleness flags, alongside the button-glow class — for
   # people who might not notice/understand a glowing button on its own.
