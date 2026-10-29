@@ -6104,6 +6104,7 @@ ui <- shinyUI(fluidPage(
           tags$hr(class = "fairy-toolbar-divider"),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "H-representation for QTEST",
             downloadButton("d_h", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
+          uiOutput("qtest_order_btn_ui", inline = TRUE),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "H-representation for multinomineq",
             downloadButton("d_h_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "LaTeX file of H-representation",
@@ -11279,6 +11280,27 @@ server <- shinyServer(function(input, output, session) {
   }
 
   # ---- Export the session as an R script (package 'fairy') ----
+  # ---- QTEST: the order of the probabilities of an unpacked model can be chosen (draggable list) ----
+  qtest_perm <- reactiveValues(map = list())
+  qtest_valid_perm <- function(p, N) {
+    p <- suppressWarnings(as.integer(unlist(p)))
+    if (length(p) == N && !anyNA(p) && setequal(p, seq_len(N))) p else seq_len(N)
+  }
+  # what each column of an unpacked model is (HTML, in the order of its columns); NULL when it cannot be told
+  items_model_legend <- function(nm) {
+    n <- isolate(counter_input$n)
+    for (i in seq_len(n)) {
+      nmi <- isolate(input[[paste0("textin_relations_name", i)]]) %||% paste0("m", i)
+      if (!identical(nmi, nm)) next
+      idx <- isolate(item_model_spec_idx$value[[as.character(i)]]); specs <- isolate(mytable_items_reactive$value)
+      if (is.null(idx) || is.null(specs) || idx > length(specs)) return(NULL)
+      spec <- specs[[idx]]; hb <- isolate(h_reactive[[spec$base]])
+      if (is.null(hb) || is.null(spec$factors)) return(NULL)
+      return(items_column_legend(hb, spec$factors, spec$param_factors))
+    }
+    NULL
+  }
+
   # Card title: "m1 [long description of the unpacking]" -> the description goes onto a small second line of its own;
   # the text content stays exactly the full name (the cards are ordered and sized by it).
   card_title_html <- function(nm) {
@@ -11386,6 +11408,15 @@ server <- shinyServer(function(input, output, session) {
     vtab <- isolate(mytable_v_reactive$value)
     vnames <- if (!is.null(vtab) && ncol(vtab) >= 2) as.character(vtab[[1]][vapply(vtab[[2]], isTRUE, logical(1))]) else character(0)
     vnames <- unique(vnames[vnames %in% row_name[ok]])
+    # the order of the probabilities chosen for QTEST (draggable list in the app), only where it is not the default one
+    qo <- list()
+    for (nm0 in row_name[ok]) {
+      pm0 <- isolate(qtest_perm$map[[nm0]]); h0 <- isolate(h_reactive[[nm0]])
+      if (!is.null(pm0) && !is.null(h0) && length(pm0) == ncol(h0) - 2L && setequal(pm0, seq_len(length(pm0))) && !identical(as.integer(pm0), seq_along(pm0))) qo[[nm0]] <- as.integer(pm0)
+    }
+    qo_lines <- if (length(qo)) c(
+      cm("Order of the probabilities in the QTEST file, as chosen in the app: the first number is the probability of the model that becomes p1 in the file, and so on."),
+      "qtest_order <- list(", paste0("  ", q(names(qo)), " = c(", vapply(qo, function(p) paste(p, collapse = ", "), character(1)), ")", c(rep(",", length(qo) - 1), "")), ")") else character(0)
     out <- c(out, "", "# all models of the session",
       "models <- list(", paste0("  ", q(row_name[ok]), " = ", obj[ok], c(rep(",", length(ok) - 1), "")), ")", "",
       "# Summary table with one row per model:",
@@ -11430,7 +11461,8 @@ server <- shinyServer(function(input, output, session) {
         "}", ""),
       cm("Input files for other software, written to the working directory (one .tar archive each)."),
       cm("QTEST: one .txt file per model with the H-representation (A and b, integer-scaled). QTEST cannot express equalities, so one probability is eliminated per equality; a *_substitutions.txt file says how to recover it."),
-      "fairy_write_qtest(models, file = \"h_representation_qtest.tar\")",
+      qo_lines,
+      paste0("fairy_write_qtest(models, file = \"h_representation_qtest.tar\"", if (length(qo)) ", order = qtest_order" else "", ")"),
       cm("multinomineq: A_<model>.csv and b_<model>.csv with A %*% p <= b (an equality is written in both directions)."),
       "fairy_write_multinomineq(models, file = \"h_representation_multinomineq.tar\")")
     out
@@ -15795,6 +15827,80 @@ server <- shinyServer(function(input, output, session) {
     paste(lines, collapse = "\n")
   }
 
+  output$qtest_order_btn_ui <- renderUI({
+    if (length(items_reactive$names) == 0) return(NULL)
+    tags$span(class = "fairy-tooltip", `data-tooltip` = "Order of the probabilities in the QTEST file (unpacked models)",
+      actionButton("qtest_order_open", NULL, icon = icon("sort"), class = "fairy-toolbar-iconbtn"))
+  })
+  observeEvent(input$qtest_order_open, {
+    blocks <- lapply(isolate(items_reactive$names), function(nm) {
+      lg <- items_model_legend(nm); if (is.null(lg)) return(NULL)
+      N <- length(lg); perm <- qtest_valid_perm(isolate(qtest_perm$map[[nm]]), N)
+      tags$div(style = "margin-bottom:16px;",
+        tags$div(style = "font-weight:600; margin-bottom:6px;", nm),
+        tags$ul(class = "fairy-qo-list", `data-model` = nm,
+          lapply(seq_len(N), function(j) tags$li(draggable = "true", `data-col` = perm[j],
+            tags$code(paste0("p", j)), tags$span(class = "qo-grip", HTML("&#8942;&#8942;")),
+            tags$span(class = "qo-right", HTML(lg[perm[j]])),
+            tags$span(class = "qo-btns",
+              tags$button(type = "button", class = "qo-up", title = "one up", HTML("&#9650;")),
+              tags$button(type = "button", class = "qo-down", title = "one down", HTML("&#9660;")))))))
+    })
+    blocks <- Filter(Negate(is.null), blocks)
+    if (length(blocks) == 0) {
+      showNotification("No unpacked model with computed H-representation yet: click Go first.", type = "warning"); return()
+    }
+    showModal(modalDialog(
+      title = "Order of the probabilities in the QTEST file",
+      tags$p(class = "fairy-eq-tol-help", "Left: the probability as QTEST will see it (p1, p2, ...). Right: which probability of the unpacked model it is. Drag a row (or use the arrows) to change the matching. The order is used for the QTEST download and in the R script."),
+      blocks,
+      tags$style(HTML("
+        .fairy-qo-list { list-style:none; padding:0; margin:0; max-height:46vh; overflow-y:auto; }
+        .fairy-qo-list li { display:flex; align-items:center; gap:10px; padding:5px 10px; margin:0 0 3px; border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px; background:var(--fairy-panel, #fff); cursor:grab; }
+        .fairy-qo-list li.qo-drag { opacity:.4; }
+        .fairy-qo-list li code { min-width:46px; text-align:center; }
+        .qo-grip { color:var(--fairy-text-muted, #667085); letter-spacing:-2px; }
+        .qo-right { flex:1; font-size:14px; }
+        .qo-btns button { border:0; background:transparent; color:var(--fairy-text-muted, #667085); cursor:pointer; padding:0 4px; }
+        .qo-btns button:hover { color:var(--fairy-primary, #3a6df0); }
+      ")),
+      tags$script(HTML("
+        (function() {
+          var dragEl = null;
+          function relabel(ul) { [].forEach.call(ul.querySelectorAll('li'), function(li, i) { li.querySelector('code').textContent = 'p' + (i + 1); }); }
+          function send(ul) {
+            var cols = [].map.call(ul.querySelectorAll('li'), function(li) { return parseInt(li.getAttribute('data-col'), 10); });
+            if (window.Shiny) Shiny.setInputValue('qtest_perm', { model: ul.getAttribute('data-model'), perm: cols }, { priority: 'event' });
+          }
+          function changed(ul) { relabel(ul); send(ul); }
+          [].forEach.call(document.querySelectorAll('.fairy-qo-list li'), function(li) {
+            li.addEventListener('dragstart', function(e) { dragEl = li; li.classList.add('qo-drag'); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', 'x'); } catch (x) {} });
+            li.addEventListener('dragend', function() { if (dragEl) dragEl.classList.remove('qo-drag'); dragEl = null; });
+            li.addEventListener('dragover', function(e) {
+              if (!dragEl || dragEl.parentNode !== li.parentNode || dragEl === li) return;
+              e.preventDefault(); var r = li.getBoundingClientRect();
+              li.parentNode.insertBefore(dragEl, (e.clientY - r.top) > r.height / 2 ? li.nextSibling : li);
+            });
+            li.addEventListener('drop', function(e) { e.preventDefault(); changed(li.parentNode); });
+            li.querySelector('.qo-up').addEventListener('click', function() { var p = li.previousElementSibling; if (p) { li.parentNode.insertBefore(li, p); changed(li.parentNode); } });
+            li.querySelector('.qo-down').addEventListener('click', function() { var n = li.nextElementSibling; if (n) { li.parentNode.insertBefore(n, li); changed(li.parentNode); } });
+          });
+        })();
+      ")),
+      footer = tagList(actionButton("qtest_order_reset", "Reset order"), modalButton("Done")),
+      easyClose = TRUE))
+  })
+  observeEvent(input$qtest_perm, {
+    q <- input$qtest_perm
+    if (is.null(q$model)) return()
+    qtest_perm$map[[as.character(q$model)]] <- as.integer(unlist(q$perm))
+  })
+  observeEvent(input$qtest_order_reset, {
+    qtest_perm$map <- list()
+    removeModal()
+    shinyjs::runjs("setTimeout(function() { var b = document.getElementById('qtest_order_open'); if (b) b.click(); }, 400);")
+  })
+
   output$d_h <- downloadHandler(
     filename = function() {
       paste("h_representation_qtest_",
@@ -15818,6 +15924,9 @@ server <- shinyServer(function(input, output, session) {
       for (loop_v in export_names) {
         h_mat <- isolate(h_reactive[[loop_v]])
         if (is.null(h_mat)) next
+        # the order of the probabilities chosen for an unpacked model
+        pm <- isolate(qtest_perm$map[[loop_v]])
+        if (!is.null(pm) && length(pm) == ncol(h_mat) - 2L && setequal(pm, seq_len(length(pm)))) h_mat <- h_mat[, c(1L, 2L, 2L + pm), drop = FALSE]
 
         h_num      <- q2d(h_mat)
         act_v_ineq <- h_mat[h_num[, 1] == 0, , drop = FALSE]

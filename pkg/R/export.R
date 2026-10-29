@@ -1,6 +1,17 @@
 # ---- helpers shared by the writers -------------------------------------------
 
 # one model (string or H-representation) as H-representation
+# puts the probabilities (columns 3 onwards) of an H-representation into the order `perm`
+# (perm[j] = the old column that becomes the j-th probability); NULL keeps the order
+reorder_h_columns <- function(h, perm) {
+  if (is.null(perm)) return(h)
+  n_p <- ncol(h) - 2L
+  perm <- as.integer(perm)
+  if (length(perm) != n_p || !setequal(perm, seq_len(n_p)))
+    stop("'order' must be a permutation of 1..", n_p, " (one entry per probability).", call. = FALSE)
+  h[, c(1L, 2L, 2L + perm), drop = FALSE]
+}
+
 export_h_of <- function(m, n_p, approx_tol, reduce) {
   if (is.character(m) && !is.matrix(m)) {
     if (is.null(n_p)) stop("'n_p' is needed for model strings.")
@@ -140,6 +151,10 @@ format_qtest_substitution_note <- function(elim, orig_names) {
 #'   `"qtest_YYYY-MM-DD.tar"` in the current directory.
 #' @param approx_tol Numeric. Tolerance for approximate equalities (model strings only). Default `0`.
 #' @param reduce Logical. Remove redundant H-rep rows (model strings only). Default `TRUE`.
+#' @param order Optional named list: for a model (by name) the order of its probabilities in the
+#'   file. `order[["m1"]] = c(3, 1, 2)` makes the third probability of the model the first one in
+#'   the QTEST file, the first one the second, and so on. Models that are not listed keep their own
+#'   order. Useful when QTEST expects the probabilities in a different order than they have here.
 #'
 #' @return Invisibly returns the path to the `.tar` file.
 #'
@@ -150,13 +165,15 @@ format_qtest_substitution_note <- function(elim, orig_names) {
 #'   n_p = 3,
 #'   file = "qtest_output.tar"
 #' )
+#' # the third probability first
+#' fairy_write_qtest(c(H1 = "p1 > p2 > p3"), n_p = 3, order = list(H1 = c(3, 1, 2)))
 #' }
 #'
 #' @importFrom MASS fractions
 #' @importFrom rcdd q2d d2q
 #' @importFrom utils tar write.table
 #' @export
-fairy_write_qtest <- function(models, n_p = NULL, file = NULL, approx_tol = 0, reduce = TRUE) {
+fairy_write_qtest <- function(models, n_p = NULL, file = NULL, approx_tol = 0, reduce = TRUE, order = NULL) {
   if (is.null(file)) file <- paste0("qtest_", Sys.Date(), ".tar")
   if (!grepl("^/|^~", file)) file <- file.path(getwd(), file)
   file <- path.expand(file)
@@ -169,6 +186,7 @@ fairy_write_qtest <- function(models, n_p = NULL, file = NULL, approx_tol = 0, r
 
   for (nm in names(models)) {
     h <- export_h_of(models[[nm]], n_p, approx_tol, reduce)
+    h <- reorder_h_columns(h, order[[nm]])
     h_num <- q2d(h)
     safe_nm <- gsub("[^A-Za-z0-9_.-]", "_", nm)
     orig_names <- colnames(h)[3:ncol(h)]

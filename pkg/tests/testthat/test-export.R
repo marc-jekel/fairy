@@ -16,3 +16,17 @@ test_that("QTEST and multinomineq writers accept strings and H-representations",
   # multinomineq: an equality is written in both directions (3 inequalities + 2 for p2 = p3)
   expect_equal(length(readLines(file.path(d, "m", "b_m2.csv"))), 5)
 })
+
+test_that("fairy_write_qtest(order = ) puts the probabilities of a model in the chosen order", {
+  d <- tempfile(); dir.create(d)
+  a <- fairy_write_qtest(c(m = "p1 > p2 > p3"), n_p = 3, file = file.path(d, "a.tar"))
+  b <- fairy_write_qtest(c(m = "p1 > p2 > p3"), n_p = 3, file = file.path(d, "b.tar"), order = list(m = c(3, 1, 2)))
+  utils::untar(a, exdir = file.path(d, "a")); utils::untar(b, exdir = file.path(d, "b"))
+  ta <- readLines(file.path(d, "a", "m.txt")); tb <- readLines(file.path(d, "b", "m.txt"))
+  expect_false(identical(ta, tb))
+  # the same rows, only the columns are in another order: the first column of b is the third one of a
+  rows <- function(t) lapply(t[nzchar(t)][-1], function(l) strsplit(trimws(l), "\\s+")[[1]])
+  ra <- rows(ta)[1:2]; rb <- rows(tb)[1:2]
+  expect_equal(length(ra[[1]]), length(rb[[1]]))
+  expect_error(fairy_write_qtest(c(m = "p1 > p2 > p3"), n_p = 3, file = file.path(d, "c.tar"), order = list(m = c(1, 1, 2))), "permutation")
+})
