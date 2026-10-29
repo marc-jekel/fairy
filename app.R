@@ -6456,7 +6456,10 @@ ui <- shinyUI(fluidPage(
           .fairy-newp-sub { font-size:11.5px; color:var(--fairy-text-muted, #667085); }
           @keyframes fairyFlash { 0% { box-shadow:0 0 0 0 rgba(58,109,240,.6); background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 18%, transparent); } 100% { box-shadow:0 0 0 14px rgba(58,109,240,0); background:transparent; } }
           .fairy-flash { animation:fairyFlash 1.4s ease-out 2; border-radius:10px; }
-          #shiny-notification-panel { top:76px !important; bottom:auto !important; left:50% !important; right:auto !important; transform:translateX(-50%); width:420px; max-width:92vw; z-index:20000; }
+          #shiny-notification-panel { top:58px !important; bottom:auto !important; right:14px !important; left:auto !important; width:350px; max-width:92vw; z-index:20000; }
+          .shiny-notification { overflow:hidden; }
+          .fairy-newp-bar { position:absolute; left:0; bottom:0; height:3px; width:100%; background:var(--fairy-primary, #3a6df0); transform-origin:left; animation:fairyBar 6s linear forwards; }
+          @keyframes fairyBar { from { transform:scaleX(1); } to { transform:scaleX(0); } }
           .shiny-notification { opacity:1; }
           .fairy-items-panel.fairy-items-folded { overflow:hidden; padding-bottom:0 !important; }
           .fairy-items-panel.fairy-items-folded > :not(.fairy-plot-panel-head) { display:none !important; }
@@ -9253,7 +9256,7 @@ server <- shinyServer(function(input, output, session) {
       "<div class='fairy-newp'><span class='fairy-newp-icon'>+</span><div><div class='fairy-newp-title'>",
       if (length(idx) == 1) "Probability added" else paste0(length(idx), " probabilities added"),
       "</div><div class='fairy-newp-chips'>", chips, "</div><div class='fairy-newp-sub'>", why,
-      " &middot; remove with \u2212 or by editing the text</div></div></div>")), type = "message", duration = 8)
+      " &middot; remove with \u2212 or by editing the text</div></div><div class='fairy-newp-bar'></div></div>")), type = "message", duration = 6)
     shinyjs::runjs(paste0("setTimeout(function(){ [", paste(idx, collapse = ","),
       "].forEach(function(k){ var e = document.getElementById('textin_name_' + k); if (!e) return; var b = e.closest('.form-group') || e; b.classList.remove('fairy-flash'); void b.offsetWidth; b.classList.add('fairy-flash'); }); }, 400);"))
   }
