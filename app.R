@@ -6460,10 +6460,11 @@ ui <- shinyUI(fluidPage(
           .fairy-items-panel.fairy-items-folded { overflow:hidden; padding-bottom:0 !important; }
           .fairy-items-panel.fairy-items-folded > :not(.fairy-plot-panel-head) { display:none !important; }
           .fairy-items-panel.fairy-items-folded .fairy-plot-panel-head { margin-bottom:0; }
-          .fairy-items-add { position:fixed; right:28px; bottom:26px; z-index:10200; padding:11px 34px; border:0; border-radius:12px; font-size:15px; font-weight:600;
+          #fairy_items_btns { position:fixed; right:28px; bottom:26px; z-index:10200; display:flex; gap:10px; }
+          .fairy-items-add { padding:11px 30px; border:0; border-radius:12px; font-size:15px; font-weight:600;
             background:var(--fairy-primary, #3a6df0); color:#fff; box-shadow:0 8px 24px rgba(58,109,240,.4); cursor:pointer; }
           .fairy-items-add:hover { filter:brightness(1.08); }
-          .fairy-items-cancel { right:168px; background:var(--fairy-panel, #fff); color:var(--fairy-text, #1d2433); border:1px solid var(--fairy-border, #d5d9e4); box-shadow:0 6px 18px rgba(20,30,60,.18); }
+          .fairy-items-cancel { background:var(--fairy-panel, #fff); color:var(--fairy-text, #1d2433); border:1px solid var(--fairy-border, #d5d9e4); box-shadow:0 6px 18px rgba(20,30,60,.18); }
           .fairy-items-panel .fairy-items-count { margin:0 0 8px; padding-bottom:6px; border-bottom:1px solid var(--fairy-border, #d5d9e4); }
           .fairy-items-panel #fairy_items_stmts, .fairy-items-panel #fairy_items_caption { display:none !important; }
           .fairy-items-panel .fairy-plot-panel-head { margin:0 -14px 10px; }
@@ -6532,14 +6533,14 @@ ui <- shinyUI(fluidPage(
                 var addb = document.createElement('button'); addb.type = 'button'; addb.id = 'fairy_items_add_here'; addb.className = 'btn btn-primary fairy-items-add';
                 addb.textContent = sub.textContent.trim() || 'Add';
                 addb.addEventListener('click', function() { collapse(); setTimeout(function() { sub.click(); }, 50); });
-                document.body.appendChild(addb);
+                var bw = document.createElement('div'); bw.id = 'fairy_items_btns'; document.body.appendChild(bw); bw.appendChild(addb);
                 var canb = document.createElement('button'); canb.type = 'button'; canb.id = 'fairy_items_cancel_here'; canb.className = 'btn fairy-items-add fairy-items-cancel';
                 canb.textContent = 'Cancel';
                 canb.addEventListener('click', function() {
                   var cx = document.querySelector('.modal:has(#submit_items_multi) .modal-footer [data-dismiss=modal], .modal:has(#submit_items_multi) .modal-footer [data-bs-dismiss=modal]');
                   collapse(); setTimeout(function() { if (cx) cx.click(); }, 50);
                 });
-                document.body.appendChild(canb);
+                bw.insertBefore(canb, addb);
               }
               setup.style.top = (opts.getBoundingClientRect().bottom + 12) + 'px';
               if (opts.getBoundingClientRect().bottom + 200 > window.innerHeight) { opts.classList.add('fairy-items-folded'); opts.querySelector('button').textContent = '\\u25B8'; setup.style.top = '100px'; }
@@ -6551,8 +6552,7 @@ ui <- shinyUI(fluidPage(
                 if (n) { n.classList.remove('fairy-items-count'); back(n, id + '_ph'); }
               });
               if (setup) setup.parentNode.removeChild(setup);
-              var addh = document.getElementById('fairy_items_add_here'); if (addh) addh.parentNode.removeChild(addh);
-              var canh = document.getElementById('fairy_items_cancel_here'); if (canh) canh.parentNode.removeChild(canh);
+              var btns = document.getElementById('fairy_items_btns'); if (btns) btns.parentNode.removeChild(btns);
               if (opts) {
                 var h = opts.querySelector('.fairy-plot-panel-head'); if (h) h.parentNode.removeChild(h);
                 opts.classList.remove('fairy-items-panel', 'fairy-items-folded'); opts.style.left = opts.style.top = '';
