@@ -6402,7 +6402,7 @@ ui <- shinyUI(fluidPage(
             id = "polytope_plot_wrap", style = "position:relative;",
             tags$button(
               id = "polytope_plot_expand", type = "button", title = "Expand the plot (Esc to close)", `aria-label` = "Expand the plot",
-              HTML("<svg width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M9.5 2.5h4v4M13.5 2.5l-4.5 4.5M6.5 13.5h-4v-4M2.5 13.5l4.5-4.5'/></svg>")
+              HTML("<svg class=\'pp-open\' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M9.5 2.5h4v4M13.5 2.5l-4.5 4.5M6.5 13.5h-4v-4M2.5 13.5l4.5-4.5'/></svg><svg class=\'pp-close\' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M13 6.5H9.5V3M9.5 6.5 14 2M3 9.5h3.5V13M6.5 9.5 2 14'/></svg>")
             ),
             plotlyOutput("plot", width = "100%", height = "calc(100vh - 120px)"),   # follows the height of the window (min-height in the style below)
             align = "center"
@@ -6412,6 +6412,10 @@ ui <- shinyUI(fluidPage(
           #plot { min-height: 480px; }
           #polytope_plot_expand { position:absolute; bottom:8px; right:8px; z-index:2100; width:28px; height:28px; padding:0; display:flex; align-items:center; justify-content:center;
             border:0; border-radius:6px; background:transparent; color:var(--fairy-text-muted, #667085); cursor:pointer; }
+          #polytope_plot_expand .pp-close { display:none; }
+          #polytope_plot_wrap.fairy-plot-full #polytope_plot_expand .pp-open { display:none; }
+          #polytope_plot_wrap.fairy-plot-full #polytope_plot_expand .pp-close { display:block; }
+          #polytope_plot_wrap.fairy-plot-full #polytope_plot_expand { top:8px; bottom:auto; }
           #polytope_plot_expand:hover { background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 18%, transparent); color:var(--fairy-primary, #3a6df0); }
           #polytope_plot_wrap.fairy-plot-full { position:fixed !important; inset:0; z-index:2000; background:var(--fairy-panel, #fff); padding:8px; }
           #polytope_plot_wrap.fairy-plot-full #plot { height:calc(100vh - 16px) !important; }
