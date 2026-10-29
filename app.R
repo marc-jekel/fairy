@@ -6457,6 +6457,19 @@ ui <- shinyUI(fluidPage(
         ")),
         tags$script(HTML("
           (function() {
+            function apply() {
+              var d = document.getElementById('fairy_items_diagram'), w = document.getElementById('fairy_items_fade_wrap'), t = document.getElementById('fairy_items_fade_toggle');
+              if (!d || !w || !t) return;
+              var faded = d.querySelectorAll('[opacity=\"0.2\"]');
+              w.style.display = faded.length ? 'block' : 'none';
+              for (var i = 0; i < faded.length; i++) faded[i].style.display = t.checked ? '' : 'none';
+            }
+            document.addEventListener('change', function(e) { if (e.target && e.target.id === 'fairy_items_fade_toggle') apply(); });
+            new MutationObserver(function() { apply(); }).observe(document.documentElement, { childList: true, subtree: true });
+          })();
+        ")),
+        tags$script(HTML("
+          (function() {
             function moved(node, id) {
               var ph = document.createElement('div'); ph.id = id; node.parentNode.insertBefore(ph, node); document.body.appendChild(node); return ph;
             }
@@ -7674,7 +7687,10 @@ server <- shinyServer(function(input, output, session) {
               tags$button(id = "fairy_items_expand", type = "button", title = "Expand the picture (Esc to close)", `aria-label` = "Expand the picture",
                 HTML("<svg width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M9.5 2.5h4v4M13.5 2.5l-4.5 4.5M6.5 13.5h-4v-4M2.5 13.5l4.5-4.5'/></svg>")),
               tags$div(id = "fairy_items_diagram", `aria-hidden` = "true"),
-              tags$div(id = "fairy_items_legend", style = "font-size:11px; color:var(--fairy-text-muted); margin-top:8px; line-height:1.7;"))),
+              tags$div(id = "fairy_items_legend", style = "font-size:11px; color:var(--fairy-text-muted); margin-top:8px; line-height:1.7;"),
+              tags$label(id = "fairy_items_fade_wrap", style = "display:none; font-weight:normal; font-size:11.5px; margin:6px 0 0; cursor:pointer; color:var(--fairy-text-muted);",
+                tags$input(id = "fairy_items_fade_toggle", type = "checkbox", checked = "checked", style = "margin:0 6px 0 0; vertical-align:-1px;"),
+                "Show the same for the other items"))),
           tags$div(id = "fairy_items_quick_eps_wrap", style = paste0(if (identical(q_type, "identical")) "" else "display:none;"),
             qh(4, "Are the items of a probability exactly equal, or only approximately?"),
             tags$div(style = "margin-left:28px; font-size:12.5px;",
