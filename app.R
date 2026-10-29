@@ -6460,7 +6460,9 @@ ui <- shinyUI(fluidPage(
           .fairy-items-panel.fairy-items-folded { overflow:hidden; padding-bottom:0 !important; }
           .fairy-items-panel.fairy-items-folded > :not(.fairy-plot-panel-head) { display:none !important; }
           .fairy-items-panel.fairy-items-folded .fairy-plot-panel-head { margin-bottom:0; }
-          .fairy-items-add { display:block; margin:10px 0 0 auto; padding:6px 22px; border-radius:8px; }
+          .fairy-items-add { position:fixed; right:28px; bottom:26px; z-index:10200; padding:11px 34px; border:0; border-radius:12px; font-size:15px; font-weight:600;
+            background:var(--fairy-primary, #3a6df0); color:#fff; box-shadow:0 8px 24px rgba(58,109,240,.4); cursor:pointer; }
+          .fairy-items-add:hover { filter:brightness(1.08); }
           .fairy-items-panel .fairy-items-count { margin:0 0 8px; padding-bottom:6px; border-bottom:1px solid var(--fairy-border, #d5d9e4); }
           .fairy-items-panel #fairy_items_stmts, .fairy-items-panel #fairy_items_caption { display:none !important; }
           .fairy-items-panel .fairy-plot-panel-head { margin:0 -14px 10px; }
@@ -6529,7 +6531,7 @@ ui <- shinyUI(fluidPage(
                 var addb = document.createElement('button'); addb.type = 'button'; addb.id = 'fairy_items_add_here'; addb.className = 'btn btn-primary fairy-items-add';
                 addb.textContent = sub.textContent.trim() || 'Add';
                 addb.addEventListener('click', function() { collapse(); setTimeout(function() { sub.click(); }, 50); });
-                setup.appendChild(addb);
+                document.body.appendChild(addb);
               }
               setup.style.top = (opts.getBoundingClientRect().bottom + 12) + 'px';
               if (opts.getBoundingClientRect().bottom + 200 > window.innerHeight) { opts.classList.add('fairy-items-folded'); opts.querySelector('button').textContent = '\\u25B8'; setup.style.top = '100px'; }
@@ -6541,6 +6543,7 @@ ui <- shinyUI(fluidPage(
                 if (n) { n.classList.remove('fairy-items-count'); back(n, id + '_ph'); }
               });
               if (setup) setup.parentNode.removeChild(setup);
+              var addh = document.getElementById('fairy_items_add_here'); if (addh) addh.parentNode.removeChild(addh);
               if (opts) {
                 var h = opts.querySelector('.fairy-plot-panel-head'); if (h) h.parentNode.removeChild(h);
                 opts.classList.remove('fairy-items-panel', 'fairy-items-folded'); opts.style.left = opts.style.top = '';
