@@ -8179,6 +8179,9 @@ server <- shinyServer(function(input, output, session) {
                 for (k = 0; k < c - 1; k++) {
                   var pl = el('text', { x: (X(k) + X(k + 1)) / 2, y: ys[i] - 4, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '16', 'font-weight': '600', opacity: '0.75' }, svg); pl.textContent = '+';
                 }
+                // ... and divided by the number of items (the real one, also when only 3 dots are drawn)
+                var dv = el('text', { x: (X(c - 1) + avgX) / 2, y: ys[i] - 6, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12', opacity: '0.75' }, svg);
+                dv.textContent = String.fromCharCode(247) + ' ' + r.n;
                 el('circle', { cx: avgX, cy: ys[i], r: 7, fill: 'var(--ct-default, #fff)' }, g);
                 anchor[i] = { x: avgX, y: ys[i], grid: false };
               }
