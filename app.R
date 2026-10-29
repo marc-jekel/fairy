@@ -6446,8 +6446,18 @@ ui <- shinyUI(fluidPage(
           .fairy-items-full #fairy_items_expand { position:fixed; top:14px; right:18px; z-index:10200; }
           .fairy-items-panel { position:fixed !important; top:64px; left:16px; z-index:10100; width:340px; max-height:calc(100vh - 90px); overflow:auto;
             margin:0 !important; padding:0 14px 12px !important; border-radius:12px; background:var(--fairy-panel, #fff); box-shadow:0 8px 28px rgba(0,0,0,.25); }
+          .shiny-notification { background:var(--fairy-panel, #fff) !important; color:var(--fairy-text, #1d2433) !important; border:1px solid var(--fairy-border, #d5d9e4) !important; border-left:0 !important;
+            border-radius:14px !important; box-shadow:0 10px 32px rgba(20,30,60,.22) !important; padding:12px 34px 12px 14px !important; }
+          .fairy-newp { display:flex; gap:12px; align-items:center; }
+          .fairy-newp-icon { flex:none; width:34px; height:34px; border-radius:50%; background:var(--fairy-primary, #3a6df0); color:#fff; font-size:22px; font-weight:600; line-height:34px; text-align:center; }
+          .fairy-newp-title { font-weight:600; font-size:14px; }
+          .fairy-newp-chips { margin:3px 0; }
+          .fairy-newp-chip { display:inline-block; margin:0 5px 3px 0; padding:1px 9px; border-radius:999px; background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 14%, transparent); color:var(--fairy-primary, #3a6df0); font-weight:600; font-size:12.5px; }
+          .fairy-newp-sub { font-size:11.5px; color:var(--fairy-text-muted, #667085); }
+          @keyframes fairyFlash { 0% { box-shadow:0 0 0 0 rgba(58,109,240,.6); background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 18%, transparent); } 100% { box-shadow:0 0 0 14px rgba(58,109,240,0); background:transparent; } }
+          .fairy-flash { animation:fairyFlash 1.4s ease-out 2; border-radius:10px; }
           #shiny-notification-panel { top:76px !important; bottom:auto !important; left:50% !important; right:auto !important; transform:translateX(-50%); width:420px; max-width:92vw; z-index:20000; }
-          .shiny-notification { opacity:1; border-left:5px solid var(--fairy-primary, #3a6df0); font-size:13.5px; }
+          .shiny-notification { opacity:1; }
           .fairy-items-panel.fairy-items-folded { overflow:hidden; padding-bottom:0 !important; }
           .fairy-items-panel.fairy-items-folded > :not(.fairy-plot-panel-head) { display:none !important; }
           .fairy-items-panel.fairy-items-folded .fairy-plot-panel-head { margin-bottom:0; }
@@ -9232,19 +9242,28 @@ server <- shinyServer(function(input, output, session) {
           easyClose = FALSE))
         return()
       }
-      showNotification(
-        paste0("Added ", paste0("p", (old_n + 1):new_n, collapse = ", "), " (from your text). Remove with \u2212 or by editing the text."),
-        type = "message", duration = 7)
+      fairy_added_toast((old_n + 1):new_n, "from your text")
     }
     counter$n <- new_n
   })
+  # "Added p5" card at the top of the page, and the new name fields flash once
+  fairy_added_toast <- function(idx, why) {
+    chips <- paste0("<span class='fairy-newp-chip'>p", idx, "</span>", collapse = "")
+    showNotification(HTML(paste0(
+      "<div class='fairy-newp'><span class='fairy-newp-icon'>+</span><div><div class='fairy-newp-title'>",
+      if (length(idx) == 1) "Probability added" else paste0(length(idx), " probabilities added"),
+      "</div><div class='fairy-newp-chips'>", chips, "</div><div class='fairy-newp-sub'>", why,
+      " &middot; remove with \u2212 or by editing the text</div></div></div>")), type = "message", duration = 8)
+    shinyjs::runjs(paste0("setTimeout(function(){ [", paste(idx, collapse = ","),
+      "].forEach(function(k){ var e = document.getElementById('textin_name_' + k); if (!e) return; var b = e.closest('.form-group') || e; b.classList.remove('fairy-flash'); void b.offsetWidth; b.classList.add('fairy-flash'); }); }, 400);"))
+  }
   p_jump_pending <- reactiveVal(0)
   p_jump_ok <- reactiveVal(0)
   observeEvent(input$p_jump_yes, {
     n <- isolate(p_jump_pending()); old_n <- isolate(counter$n)
     removeModal(); p_jump_ok(n)
     if (n > old_n) {
-      showNotification(paste0("Added ", paste0("p", (old_n + 1):n, collapse = ", "), "."), type = "message", duration = 7)
+      fairy_added_toast((old_n + 1):n, "as you confirmed")
       counter$n <- n
     }
   })
