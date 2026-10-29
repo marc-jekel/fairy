@@ -6445,6 +6445,7 @@ ui <- shinyUI(fluidPage(
           .fairy-items-panel { position:fixed !important; top:64px; left:16px; z-index:10100; width:340px; max-height:calc(100vh - 90px); overflow:auto;
             margin:0 !important; padding:0 14px 12px !important; border-radius:12px; background:var(--fairy-panel, #fff); box-shadow:0 8px 28px rgba(0,0,0,.25); }
           .fairy-items-panel .fairy-items-count { margin:0 0 8px; padding-bottom:6px; border-bottom:1px solid var(--fairy-border, #d5d9e4); }
+          .fairy-items-panel #fairy_items_stmts, .fairy-items-panel #fairy_items_caption { display:none !important; }
           .fairy-items-panel .fairy-plot-panel-head { margin:0 -14px 10px; }
           .fairy-items-panel-tab { position:fixed; top:64px; left:16px; z-index:10100; padding:6px 14px; border:0; border-radius:8px;
             background:var(--fairy-primary, #3a6df0); color:#fff; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.25); }
