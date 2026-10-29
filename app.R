@@ -8278,7 +8278,7 @@ server <- shinyServer(function(input, output, session) {
                 }
                 // brackets around the sum, then the division by the number of items (the real one, also when only
                 // 3 dots are drawn): (item 1 + item 2 + item 3) / n
-                var closeX = more ? X(cols - 1) + 44 : X(c - 1) + 13;
+                var closeX = r.n > MAXC ? X(cols - 1) + 44 : X(c - 1) + 13;
                 var pa = el('text', { x: X(0) - 13, y: ys[i] + 7, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '20', opacity: '0.75' }, svg); pa.textContent = '(';
                 var pb = el('text', { x: closeX, y: ys[i] + 7, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '20', opacity: '0.75' }, svg); pb.textContent = ')';
                 var dv = el('text', { x: (closeX + 4 + avgX - 8) / 2, y: ys[i] - 6, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12', opacity: '0.75' }, svg);
