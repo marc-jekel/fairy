@@ -8246,7 +8246,7 @@ server <- shinyServer(function(input, output, session) {
             });
             var gt = el('g', { fill: 'currentColor', 'font-size': '11' }, svg);
             for (var j = 0; j < cols; j++) { var th = el('text', { x: X(j), y: 15, 'text-anchor': 'middle', opacity: '0.7' }, gt); th.textContent = 'item ' + (j + 1); }
-            if (more) ys.concat([0]).slice(0, -1).forEach(function(yy) { var d = el('text', { x: X(cols - 1) + 30, y: yy + 4, 'text-anchor': 'middle' }, gt); d.textContent = String.fromCharCode(8230); });
+            if (more) ys.forEach(function(yy, ri) { if (!(R[ri] && R[ri].n > MAXC)) return; var d = el('text', { x: X(cols - 1) + 30, y: yy + 4, 'text-anchor': 'middle' }, gt); d.textContent = String.fromCharCode(8230); });
             R.forEach(function(r, i) {
               var l = el('text', { x: 12, y: ys[i] + (r.tag ? 0 : 4), 'font-weight': '600', 'font-size': '12.5' }, gt); l.textContent = labs[i];
               if (r.tag) { var l2 = el('text', { x: 12, y: ys[i] + 13, 'font-size': '9.5', fill: r.color }, svg); l2.textContent = r.tag.replace(' - ', ''); }
