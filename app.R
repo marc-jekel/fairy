@@ -6460,6 +6460,7 @@ ui <- shinyUI(fluidPage(
           .fairy-items-panel.fairy-items-folded { overflow:hidden; padding-bottom:0 !important; }
           .fairy-items-panel.fairy-items-folded > :not(.fairy-plot-panel-head) { display:none !important; }
           .fairy-items-panel.fairy-items-folded .fairy-plot-panel-head { margin-bottom:0; }
+          .fairy-items-add { display:block; margin:10px 0 0 auto; padding:6px 22px; border-radius:8px; }
           .fairy-items-panel .fairy-items-count { margin:0 0 8px; padding-bottom:6px; border-bottom:1px solid var(--fairy-border, #d5d9e4); }
           .fairy-items-panel #fairy_items_stmts, .fairy-items-panel #fairy_items_caption { display:none !important; }
           .fairy-items-panel .fairy-plot-panel-head { margin:0 -14px 10px; }
@@ -6523,6 +6524,13 @@ ui <- shinyUI(fluidPage(
                 if (n) { moved(n, id + '_ph'); n.classList.add('fairy-items-count'); setup.appendChild(n); }
               });
               decorate(setup, 'Items');
+              var sub = document.getElementById('submit_items_multi');
+              if (sub) {
+                var addb = document.createElement('button'); addb.type = 'button'; addb.id = 'fairy_items_add_here'; addb.className = 'btn btn-primary fairy-items-add';
+                addb.textContent = sub.textContent.trim() || 'Add';
+                addb.addEventListener('click', function() { collapse(); setTimeout(function() { sub.click(); }, 50); });
+                setup.appendChild(addb);
+              }
               setup.style.top = (opts.getBoundingClientRect().bottom + 12) + 'px';
               if (opts.getBoundingClientRect().bottom + 200 > window.innerHeight) { opts.classList.add('fairy-items-folded'); opts.querySelector('button').textContent = '\\u25B8'; setup.style.top = '100px'; }
             }
@@ -8653,7 +8661,7 @@ server <- shinyServer(function(input, output, session) {
       )),
       footer = tagList(
         modalButton("Cancel"),
-        actionBttn("submit_items_multi", if (is_edit) "Save" else "Add", style = "material-flat", color = "primary", size = "sm")
+        actionBttn("submit_items_multi", "Add", style = "material-flat", color = "primary", size = "sm")
       ),
       easyClose = TRUE, fade = TRUE
     ))
@@ -16009,7 +16017,7 @@ server <- shinyServer(function(input, output, session) {
             tagList(eq_rows),
             footer = tagList(
               modalButton("Cancel"),
-              actionBttn(paste0("submit_eq_tol_", ii), "Save", style = "material-flat", color = "primary", size = "sm")
+              actionBttn(paste0("submit_eq_tol_", ii), "Add", style = "material-flat", color = "primary", size = "sm")
             ),
             easyClose = TRUE,
             fade = TRUE
