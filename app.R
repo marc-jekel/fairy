@@ -6457,6 +6457,20 @@ ui <- shinyUI(fluidPage(
           #shiny-notification-panel { top:58px !important; bottom:auto !important; right:14px !important; left:auto !important; width:350px; max-width:92vw; z-index:20000; }
           .shiny-notification { overflow:hidden; }
           .shiny-notification { opacity:1; }
+          .fairy-items-panel { width:320px; }
+          .fairy-items-panel label.control-label, .fairy-items-panel .fairy-items-q strong { font-size:11px !important; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--fairy-text-muted, #667085); }
+          .fairy-items-panel .form-group { margin-bottom:0; }
+          .fairy-items-panel .fairy-items-q { margin:12px 0 4px !important; }
+          .fairy-items-panel .fairy-items-num, .fairy-items-panel .fairy-items-q span span { display:none !important; }
+          .fairy-items-panel #fairy_items_q1 > div:last-child { margin-left:0 !important; display:flex; gap:6px; flex-wrap:wrap; }
+          .fairy-items-panel #fairy_items_q1 label { margin:0 !important; white-space:nowrap; padding:5px 10px; font-size:12px !important; border:1px solid var(--fairy-border, #d5d9e4); border-radius:999px; }
+          .fairy-items-panel #fairy_items_q1 label:has(input:checked) { background:rgba(58,109,240,.10); border-color:var(--fairy-primary, #3a6df0); }
+          .fairy-items-panel #fairy_items_q1 label input, .fairy-items-panel #fairy_items_q1 label span { display:none; }
+          .fairy-items-panel .fairy-items-nrow { margin:0 !important; }
+          .fairy-items-panel #fairy_items_quick_n { width:84px !important; height:34px; }
+          .fairy-items-panel .fairy-items-count { margin:0 0 6px; padding:0; border:0; }
+          .fairy-items-panel .fairy-items-opt { padding:5px 10px !important; margin-bottom:1px !important; }
+          .fairy-items-panel .fairy-items-opt:not(.fairy-items-opt-sel) span span { display:none !important; }
           .fairy-items-panel.fairy-items-folded { overflow:hidden; padding-bottom:0 !important; }
           .fairy-items-panel.fairy-items-folded > :not(.fairy-plot-panel-head) { display:none !important; }
           .fairy-items-panel.fairy-items-folded .fairy-plot-panel-head { margin-bottom:0; }
@@ -6465,7 +6479,6 @@ ui <- shinyUI(fluidPage(
             background:var(--fairy-primary, #3a6df0); color:#fff; box-shadow:0 8px 24px rgba(58,109,240,.4); cursor:pointer; }
           .fairy-items-add:hover { filter:brightness(1.08); }
           .fairy-items-cancel { background:var(--fairy-panel, #fff); color:var(--fairy-text, #1d2433); border:1px solid var(--fairy-border, #d5d9e4); box-shadow:0 6px 18px rgba(20,30,60,.18); }
-          .fairy-items-panel .fairy-items-count { margin:0 0 8px; padding-bottom:6px; border-bottom:1px solid var(--fairy-border, #d5d9e4); }
           .fairy-items-panel #fairy_items_stmts, .fairy-items-panel #fairy_items_caption { display:none !important; }
           .fairy-items-panel .fairy-plot-panel-head { margin:0 -14px 10px; }
           .fairy-items-panel-tab { position:fixed; top:64px; left:16px; z-index:10100; padding:6px 14px; border:0; border-radius:8px;
@@ -6525,13 +6538,14 @@ ui <- shinyUI(fluidPage(
               var opts = document.querySelector('.fairy-items-main > div:first-child');
               if (!viz || !opts || active()) return;
               moved(viz, 'fairy_items_viz_ph'); viz.classList.add('fairy-items-full');
-              moved(opts, 'fairy_items_opts_ph'); decorate(opts, 'Options');
               var setup = document.createElement('div'); setup.id = 'fairy_items_setup_panel'; document.body.appendChild(setup);
-              ['fairy_items_q1', 'fairy_items_count_same', 'fairy_items_two_panel', 'fairy_items_quick_eps_wrap'].forEach(function(id) {
+              ['fairy_items_base_wrap', 'fairy_items_q1', 'fairy_items_count_same', 'fairy_items_two_panel', 'fairy_items_quick_eps_wrap'].forEach(function(id) {
                 var n = document.getElementById(id);
                 if (n) { moved(n, id + '_ph'); n.classList.add('fairy-items-count'); setup.appendChild(n); }
               });
-              decorate(setup, 'Items');
+              // one panel like the settings column of the dialog: base model, items, then the options
+              moved(opts, 'fairy_items_opts_ph'); setup.appendChild(opts);
+              decorate(setup, 'Settings');
               var sub = document.getElementById('submit_items_multi');
               if (sub) {
                 var addb = document.createElement('button'); addb.type = 'button'; addb.id = 'fairy_items_add_here'; addb.className = 'btn btn-primary fairy-items-add';
@@ -6546,22 +6560,17 @@ ui <- shinyUI(fluidPage(
                 });
                 bw.insertBefore(canb, addb);
               }
-              setup.style.top = (opts.getBoundingClientRect().bottom + 12) + 'px';
-              if (opts.getBoundingClientRect().bottom + 200 > window.innerHeight) { opts.classList.add('fairy-items-folded'); opts.querySelector('button').textContent = '\\u25B8'; setup.style.top = '100px'; }
             }
             function collapse() {
-              var viz = active(), opts = document.querySelector('.fairy-items-panel:not(#fairy_items_setup_panel)'), setup = document.getElementById('fairy_items_setup_panel');
-              ['fairy_items_q1', 'fairy_items_count_same', 'fairy_items_two_panel', 'fairy_items_quick_eps_wrap'].forEach(function(id) {
+              var viz = active(), setup = document.getElementById('fairy_items_setup_panel');
+              var stm = setup && setup.querySelector('#fairy_items_stmts'), opts = stm ? stm.parentNode : null;
+              if (opts) back(opts, 'fairy_items_opts_ph');
+              ['fairy_items_base_wrap', 'fairy_items_q1', 'fairy_items_count_same', 'fairy_items_two_panel', 'fairy_items_quick_eps_wrap'].forEach(function(id) {
                 var n = document.getElementById(id);
                 if (n) { n.classList.remove('fairy-items-count'); back(n, id + '_ph'); }
               });
               if (setup) setup.parentNode.removeChild(setup);
               var btns = document.getElementById('fairy_items_btns'); if (btns) btns.parentNode.removeChild(btns);
-              if (opts) {
-                var h = opts.querySelector('.fairy-plot-panel-head'); if (h) h.parentNode.removeChild(h);
-                opts.classList.remove('fairy-items-panel', 'fairy-items-folded'); opts.style.left = opts.style.top = '';
-                back(opts, 'fairy_items_opts_ph');
-              }
               if (viz) { viz.classList.remove('fairy-items-full'); back(viz, 'fairy_items_viz_ph'); }
             }
             document.addEventListener('click', function(e) {
