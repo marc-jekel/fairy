@@ -7615,8 +7615,6 @@ server <- shinyServer(function(input, output, session) {
       tags$p(class = "fairy-eq-tol-help",
         HTML("Use this if your study has <b>several items</b> for each probability, e.g. several different jokes, stimuli or trials. The model is then applied to the items.")
       ),
-      selectInput("items_base_model", "Base model", choices = model_choices,
-        selected = prefill_base %||% model_choices[1], width = "100%"),
       tags$script(HTML(paste0("window.fairyItemsPairs = ", items_pairs_json(prefill_base %||% model_choices[1]), ";"))),
       # Each row is its OWN grid container rather than one flat grid for
       # header + all rows — conditionalPanel hides the tolerance cell via
@@ -7682,6 +7680,26 @@ server <- shinyServer(function(input, output, session) {
             #fairy_items_caption { color:var(--fairy-text-muted); margin-top:10px !important; }
             #fairy_items_summary { border-left:0 !important; background:transparent !important; padding:0 !important; color:var(--fairy-text-muted); font-size:12px !important; margin-top:22px !important; }
             .modal:has(#submit_items_multi) .modal-body { padding:14px 26px !important; }
+            /* redesign: one settings row, quiet labels, short option list, folded statements */
+            .fairy-eq-tol-modal .fairy-eq-tol-help, #fairy_items_pairs_hint, #fairy_items_caption { display:none !important; }
+            .fairy-items-top { display:grid !important; grid-template-columns:minmax(150px,0.8fr) minmax(0,2.2fr) 96px; gap:0 20px; align-items:start; margin-bottom:10px; }
+            #fairy_items_base_wrap { grid-column:1; grid-row:1; } #fairy_items_q1 { grid-column:2; grid-row:1; } #fairy_items_count_same { grid-column:3; grid-row:1; }
+            .fairy-items-top .form-group { margin-bottom:0; }
+            .fairy-items-top label.control-label, .fairy-items-top .fairy-items-q strong { font-size:11px !important; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--fairy-text-muted, #667085); }
+            .fairy-items-top .fairy-items-q { margin:0 0 4px !important; }
+            .fairy-items-top .fairy-items-num, .fairy-items-top .fairy-items-q span span { display:none !important; }
+            .fairy-items-top #fairy_items_q1 > div:last-child { margin-left:0 !important; display:flex; gap:6px; flex-wrap:nowrap; }
+            .fairy-items-top #fairy_items_q1 label { margin:0 !important; white-space:nowrap; padding:6px 12px; border:1px solid var(--fairy-border, #d5d9e4); border-radius:999px; font-size:12.5px !important; }
+            .fairy-items-top #fairy_items_q1 label:has(input:checked) { background:rgba(58,109,240,.10); border-color:var(--fairy-primary, #3a6df0); }
+            .fairy-items-top #fairy_items_q1 label input { display:none; }
+            .fairy-items-top #fairy_items_q1 label span { display:none; }
+            .fairy-items-top .fairy-items-nrow { margin:0 !important; }
+            .fairy-items-top #fairy_items_quick_n { width:84px !important; height:34px; }
+            .fairy-items-quick #fairy_items_q3_text { font-size:12.5px !important; font-weight:600; }
+            .fairy-items-quick .fairy-items-q .fairy-items-num { display:none !important; }
+            .fairy-items-opt:not(.fairy-items-opt-sel) span span { display:none !important; }
+            .fairy-items-opt { padding:5px 10px !important; margin-bottom:1px !important; }
+            .fairy-items-quick { margin-top:0 !important; }
             /* compact: questions 1 and 2 side by side, tighter gaps */
             .fairy-items-top { display:grid; grid-template-columns:1.5fr 1fr; gap:0 28px; align-items:start; }
             .fairy-items-top > #fairy_items_count_same[style*='display:none'] { display:none !important; }
@@ -7694,16 +7712,18 @@ server <- shinyServer(function(input, output, session) {
             #fairy_items_caption { margin-top:6px !important; }
           ")),
           tags$div(class = "fairy-items-top",
+          tags$div(id = "fairy_items_base_wrap", selectInput("items_base_model", "Base model", choices = model_choices,
+            selected = prefill_base %||% model_choices[1], width = "100%")),
           tags$div(id = "fairy_items_q1",
-          qh(1, "Do all probabilities use the same items?"),
+          qh(1, "Same items for all probabilities?"),
           tags$div(style = "margin-left:28px;",
             tags$label(style = "display:block; font-weight:normal; font-size:13px; margin:0 0 4px; cursor:pointer;",
               tags$input(type = "radio", name = "fairy_items_two_choice", value = "same", class = "fairy-items-two-choice",
-                checked = if (adv_diff) NULL else "checked", style = "margin-right:6px;"), "Yes, the same items for all probabilities"),
+                checked = if (adv_diff) NULL else "checked", style = "margin-right:6px;"), "Yes, the same items"),
             tags$label(style = "display:block; font-weight:normal; font-size:13px; margin:0 0 4px; cursor:pointer;",
               tags$input(type = "radio", name = "fairy_items_two_choice", value = "two", class = "fairy-items-two-choice",
                 checked = if (adv_diff) "checked" else NULL, style = "margin-right:6px;"),
-              "No, they use different item lists ",
+              "No, different lists ",
               tags$span(style = "color:var(--fairy-text-muted); font-size:11.5px;", "(e.g. p1, p2 use a list of 3 jokes, p3, p4 a list of 5 puns)")))),
           tags$div(id = "fairy_items_count_same", style = if (adv_diff) "display:none;" else "",
             qh(2, "How many items?", "e.g. 3 different jokes"),
@@ -8536,20 +8556,25 @@ server <- shinyServer(function(input, output, session) {
               stEl.hidden = !shownAny;
               if (shownAny) {
                 var stH = document.createElement('div'); stH.style.cssText = 'font-weight:600; margin-bottom:4px;';
-                stH.textContent = (realPairs ? 'What this makes of your model' : 'What this would make of a model like p1 > p2');
-                stEl.appendChild(stH);
+                var stTitle = (realPairs ? 'What this makes of your model' : 'What this would make of a model like p1 > p2');
+                var stBody = document.createElement('div');
+                // folded by default: the picture and the options say most of it already
+                var setOpen = function(o) { window.fairyItemsStmtOpen = o; stBody.style.display = o ? '' : 'none'; stH.textContent = (o ? '\\u25BE ' : '\\u25B8 ') + stTitle; };
+                stH.style.cursor = 'pointer'; stH.addEventListener('click', function() { setOpen(!window.fairyItemsStmtOpen); });
+                stEl.appendChild(stH); stEl.appendChild(stBody);
+                setOpen(!!window.fairyItemsStmtOpen);
                 sRows.forEach(function(r) {
                   var d = document.createElement('div'); d.style.cssText = 'margin:3px 0;';
                   var a1 = document.createElement('div'); a1.style.cssText = 'font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px;'; a1.innerHTML = r[0].replace(/&/g, '&amp;').replace(/</g, '&lt;')
                     .replace(/\\b([A-Za-z]+)([0-9]+)\\b/g, '$1<sub>$2</sub>')
                     .replace(/(<\\/sub>|[A-Za-z])\\(([i-n])\\)/g, '$1<sup>($2)</sup>');
                   var b1 = document.createElement('div'); b1.style.cssText = 'font-size:11px; color:var(--fairy-text-muted);'; b1.textContent = r[1];
-                  d.appendChild(a1); d.appendChild(b1); stEl.appendChild(d);
+                  d.appendChild(a1); d.appendChild(b1); stBody.appendChild(d);
                 });
                 if (sRows.length > 1 || PPs.length > 5) {
                   var tt = document.createElement('div'); tt.style.cssText = 'margin-top:4px; font-size:11px; color:var(--fairy-text-muted);';
                   tt.textContent = 'Together ' + total + ' statements' + (PPs.length > 5 ? ' (and more, ' + ELL + ')' : '') + (total > 1000 ? '. That is a lot, the model may become slow.' : '.');
-                  stEl.appendChild(tt);
+                  stBody.appendChild(tt);
                 }
               }
             }
