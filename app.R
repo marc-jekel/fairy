@@ -6434,6 +6434,78 @@ ui <- shinyUI(fluidPage(
             });
           })();
         ")),
+        # the picture of the "Unpack across items" dialog can fill the window; the options of question 3 float in a
+        # small panel (movable, closable) so the mode can be switched while looking at the big picture
+        tags$style(HTML("
+          .fairy-items-viz.fairy-items-full { position:fixed !important; inset:0; z-index:10050; margin:0 !important; border:0 !important; border-radius:0 !important;
+            padding:56px 28px 28px 372px !important; overflow:auto; background:var(--fairy-panel, #fff) !important; }
+          .fairy-items-full #fairy_items_diagram { max-height:none !important; overflow:visible !important; }
+          .fairy-items-full #fairy_items_diagram svg { width:100% !important; max-width:1500px; height:auto !important; max-height:calc(100vh - 170px); min-height:0; margin:0 auto; }
+          .fairy-items-full #fairy_items_expand { position:fixed; top:14px; right:18px; z-index:10200; }
+          .fairy-items-panel { position:fixed !important; top:64px; left:16px; z-index:10100; width:340px; max-height:calc(100vh - 90px); overflow:auto;
+            margin:0 !important; padding:0 14px 12px !important; border-radius:12px; background:var(--fairy-panel, #fff); box-shadow:0 8px 28px rgba(0,0,0,.25); }
+          .fairy-items-panel .fairy-plot-panel-head { margin:0 -14px 10px; }
+          .fairy-items-panel-tab { position:fixed; top:64px; left:16px; z-index:10100; padding:6px 14px; border:0; border-radius:8px;
+            background:var(--fairy-primary, #3a6df0); color:#fff; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.25); }
+        ")),
+        tags$script(HTML("
+          (function() {
+            function moved(node, id) {
+              var ph = document.createElement('div'); ph.id = id; node.parentNode.insertBefore(ph, node); document.body.appendChild(node); return ph;
+            }
+            function back(node, id) {
+              var ph = document.getElementById(id);
+              if (ph) { ph.parentNode.insertBefore(node, ph); ph.parentNode.removeChild(ph); } else if (node.parentNode) { node.parentNode.removeChild(node); }
+            }
+            function active() { return document.querySelector('.fairy-items-viz.fairy-items-full'); }
+            function expand() {
+              var viz = document.querySelector('.fairy-items-viz');
+              var opts = document.querySelector('.fairy-items-main > div:first-child');
+              if (!viz || !opts || active()) return;
+              moved(viz, 'fairy_items_viz_ph'); viz.classList.add('fairy-items-full');
+              moved(opts, 'fairy_items_opts_ph'); opts.classList.add('fairy-items-panel');
+              var head = document.createElement('div');
+              head.className = 'fairy-plot-panel-head';
+              head.innerHTML = '<span class=\"fairy-plot-panel-grip\">\\u2847\\u2847\\u2847</span><span class=\"fairy-plot-panel-title\">Options</span><button type=\"button\" title=\"Close (the Options button brings it back)\">&times;</button>';
+              opts.insertBefore(head, opts.firstChild);
+              var tab = document.createElement('button');
+              tab.id = 'fairy_items_panel_tab'; tab.type = 'button'; tab.className = 'fairy-items-panel-tab'; tab.textContent = 'Options'; tab.style.display = 'none';
+              document.body.appendChild(tab);
+              head.querySelector('button').addEventListener('click', function() {
+                opts.style.display = 'none'; tab.style.left = opts.style.left || '16px'; tab.style.top = opts.style.top || '64px'; tab.style.display = 'block';
+              });
+              tab.addEventListener('click', function() { opts.style.display = ''; tab.style.display = 'none'; });
+              var drag = null;
+              head.addEventListener('pointerdown', function(e) {
+                if (e.target.closest('button')) return;
+                var r = opts.getBoundingClientRect(); drag = { dx: e.clientX - r.left, dy: e.clientY - r.top }; head.setPointerCapture(e.pointerId);
+              });
+              head.addEventListener('pointermove', function(e) {
+                if (!drag) return;
+                opts.style.left = Math.max(0, Math.min(window.innerWidth - 80, e.clientX - drag.dx)) + 'px';
+                opts.style.top = Math.max(0, Math.min(window.innerHeight - 40, e.clientY - drag.dy)) + 'px';
+              });
+              head.addEventListener('pointerup', function() { drag = null; });
+            }
+            function collapse() {
+              var viz = active(), opts = document.querySelector('.fairy-items-panel'), tab = document.getElementById('fairy_items_panel_tab');
+              if (tab) tab.parentNode.removeChild(tab);
+              if (opts) {
+                var h = opts.querySelector('.fairy-plot-panel-head'); if (h) h.parentNode.removeChild(h);
+                opts.classList.remove('fairy-items-panel'); opts.style.left = opts.style.top = opts.style.display = '';
+                back(opts, 'fairy_items_opts_ph');
+              }
+              if (viz) { viz.classList.remove('fairy-items-full'); back(viz, 'fairy_items_viz_ph'); }
+            }
+            document.addEventListener('click', function(e) {
+              if (e.target.closest && e.target.closest('#fairy_items_expand')) { if (active()) collapse(); else expand(); }
+            });
+            document.addEventListener('keydown', function(e) {
+              if (e.key === 'Escape' && active()) { e.stopImmediatePropagation(); e.preventDefault(); collapse(); }
+            }, true);
+            if (window.jQuery) jQuery(document).on('hide.bs.modal', collapse);
+          })();
+        ")),
         tags$script(HTML(
           "
           (function() {
@@ -7511,7 +7583,10 @@ server <- shinyServer(function(input, output, session) {
             .fairy-items-opt input { margin-top:3px; flex:none; }
             .fairy-items-opt:hover { background:rgba(120,140,200,.10); }
             .fairy-items-opt.fairy-items-opt-sel { background:var(--ct-default, #fff); border-color:var(--fairy-primary, #3a6df0); }
-            .fairy-items-viz { background:var(--ct-default, #fff); border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px; padding:8px 10px; }
+            .fairy-items-viz { position:relative; background:var(--ct-default, #fff); border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px; padding:8px 10px; }
+            #fairy_items_expand { position:absolute; top:4px; right:4px; z-index:3; width:26px; height:26px; padding:0; display:flex; align-items:center;
+              justify-content:center; border:0; border-radius:6px; background:transparent; color:var(--fairy-text-muted, #667085); cursor:pointer; }
+            #fairy_items_expand:hover { background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 18%, transparent); color:var(--fairy-primary, #3a6df0); }
             #fairy_items_diagram { max-height:520px; overflow-y:auto; }
             #fairy_items_diagram svg { display:block; max-width:100%; height:auto; margin:0 auto; color:var(--fairy-text-muted); }
             .modal:has(#submit_items_multi) .modal-dialog { width:95vw; max-width:900px; }
@@ -7570,6 +7645,8 @@ server <- shinyServer(function(input, output, session) {
               tags$div(id = "fairy_items_caption", style = "font-size:12px; margin-top:6px;")
             ),
             tags$div(class = "fairy-items-viz",
+              tags$button(id = "fairy_items_expand", type = "button", title = "Expand the picture (Esc to close)", `aria-label` = "Expand the picture",
+                HTML("<svg width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M9.5 2.5h4v4M13.5 2.5l-4.5 4.5M6.5 13.5h-4v-4M2.5 13.5l4.5-4.5'/></svg>")),
               tags$div(id = "fairy_items_diagram", `aria-hidden` = "true"),
               tags$div(id = "fairy_items_legend", style = "font-size:11px; color:var(--fairy-text-muted); margin-top:8px; line-height:1.7;"))),
           tags$div(id = "fairy_items_quick_eps_wrap", style = paste0(if (identical(q_type, "identical")) "" else "display:none;"),
@@ -8126,12 +8203,12 @@ server <- shinyServer(function(input, output, session) {
               for (var t = 0; t < i; t++) { var pj = partOf[idxs[t]]; if (pj && !pj.amb && pj.v === po.v) { first = false; break; } }
               return (first ? '' : '+ ') + wtxt + nmTxt + constTxt(idxs[i]);
             });
-            var MAXC = 3, dx = 58, x0 = Math.max(96, Math.round(18 + 7 * Math.max.apply(null, labs.map(function(l) { return l.length; })))), rowGap = R.length > 6 ? Math.max(30, Math.round(300 / R.length)) : 46, ys = R.map(function(r, i) { return 46 + i * rowGap; }), H = ys[ys.length - 1] + 34;
+            var MAXC = 3, dx = 58, x0 = Math.max(96, Math.round(18 + 7 * Math.max.apply(null, labs.map(function(l) { return l.length; })))) + (R.some(function(r) { return r.type === 'average'; }) ? 12 : 0), rowGap = R.length > 6 ? Math.max(30, Math.round(300 / R.length)) : 46, ys = R.map(function(r, i) { return 46 + i * rowGap; }), H = ys[ys.length - 1] + 34;
             var cnt = R.map(function(r) { return Math.min(r.n, MAXC); });
             var cols = Math.max.apply(null, cnt), more = R.some(function(r) { return r.n > MAXC; });
             var hasAvg = R.some(function(r) { return r.type === 'average'; });
             var nonAdj = pdisp.some(function(pp) { return Math.abs(pp[0] - pp[1]) > 1; });
-            var W = x0 + (cols - 1) * dx + 30 + (more ? 22 : 0) + (hasAvg ? dx : 0) + (nonAdj ? 70 : 0);
+            var W = x0 + (cols - 1) * dx + 30 + (more ? 22 : 0) + (hasAvg ? dx + (more ? 24 : 0) : 0) + (nonAdj ? 70 : 0);
             var NS = 'http://www.w3.org/2000/svg';
             function el(tag, attrs, parent) {
               var e = document.createElementNS(NS, tag);
@@ -8162,7 +8239,7 @@ server <- shinyServer(function(input, output, session) {
               var t = el('text', { x: x + 7, y: y + 4, 'text-anchor': 'start', 'font-size': '12', 'font-weight': '700', fill: BL, stroke: 'none' }, svg);   // beside the line, never on top of it
               t.textContent = ch || '>';
             }
-            var anchor = [], avgX = X(cols - 1) + dx;
+            var anchor = [], avgX = X(cols - 1) + dx + (more ? 24 : 0);
             R.forEach(function(r, i) {
               var c = cnt[i], cx = (X(0) + X(c - 1)) / 2;
               anchor[i] = { x: cx, y: ys[i], grid: r.type !== 'average' };
@@ -8179,8 +8256,12 @@ server <- shinyServer(function(input, output, session) {
                 for (k = 0; k < c - 1; k++) {
                   var pl = el('text', { x: (X(k) + X(k + 1)) / 2, y: ys[i] - 4, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '16', 'font-weight': '600', opacity: '0.75' }, svg); pl.textContent = '+';
                 }
-                // ... and divided by the number of items (the real one, also when only 3 dots are drawn)
-                var dv = el('text', { x: (X(c - 1) + avgX) / 2, y: ys[i] - 6, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12', opacity: '0.75' }, svg);
+                // brackets around the sum, then the division by the number of items (the real one, also when only
+                // 3 dots are drawn): (item 1 + item 2 + item 3) / n
+                var closeX = more ? X(cols - 1) + 44 : X(c - 1) + 13;
+                var pa = el('text', { x: X(0) - 13, y: ys[i] + 7, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '20', opacity: '0.75' }, svg); pa.textContent = '(';
+                var pb = el('text', { x: closeX, y: ys[i] + 7, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '20', opacity: '0.75' }, svg); pb.textContent = ')';
+                var dv = el('text', { x: (closeX + 4 + avgX - 8) / 2, y: ys[i] - 6, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12', opacity: '0.75' }, svg);
                 dv.textContent = String.fromCharCode(247) + ' ' + r.n;
                 el('circle', { cx: avgX, cy: ys[i], r: 7, fill: 'var(--ct-default, #fff)' }, g);
                 anchor[i] = { x: avgX, y: ys[i], grid: false };
