@@ -7680,6 +7680,23 @@ server <- shinyServer(function(input, output, session) {
             #fairy_items_caption { color:var(--fairy-text-muted); margin-top:10px !important; }
             #fairy_items_summary { border-left:0 !important; background:transparent !important; padding:0 !important; color:var(--fairy-text-muted); font-size:12px !important; margin-top:22px !important; }
             .modal:has(#submit_items_multi) .modal-body { padding:14px 26px !important; }
+            /* layout v3: narrow settings column on the left, the picture as a big stage on the right */
+            .modal:has(#submit_items_multi) .modal-dialog { max-width:1020px; }
+            .fairy-items-quick { display:grid !important; grid-template-columns:340px minmax(0,1fr); column-gap:26px; row-gap:0; align-items:start; }
+            .fairy-items-quick > * { grid-column:1; }
+            .fairy-items-top, .fairy-items-main { display:contents !important; }
+            #fairy_items_base_wrap, #fairy_items_q1, #fairy_items_count_same, .fairy-items-main > div:first-child { grid-column:1 !important; grid-row:auto !important; }
+            #fairy_items_base_wrap { margin-bottom:10px; }
+            #fairy_items_q1 { margin-bottom:10px; }
+            .fairy-items-top #fairy_items_q1 label { padding:5px 10px !important; font-size:12px !important; }
+            #fairy_items_count_same { margin-bottom:12px; }
+            .fairy-items-top .fairy-items-q { margin-bottom:3px !important; }
+            .fairy-items-quick .fairy-items-viz { grid-column:2 !important; grid-row:1 / span 40 !important; align-self:stretch; display:flex; flex-direction:column; justify-content:center;
+              background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 5%, transparent) !important; border-radius:14px !important; padding:18px 14px 12px !important; min-height:360px; }
+            .fairy-items-quick #fairy_items_diagram { max-height:440px; }
+            .fairy-items-quick #fairy_items_diagram svg { width:100%; max-height:420px; }
+            #fairy_items_summary { display:none !important; }
+            .modal:has(#submit_items_multi) .modal-body { padding:12px 24px 8px !important; }
             /* redesign: one settings row, quiet labels, short option list, folded statements */
             .fairy-eq-tol-modal .fairy-eq-tol-help, #fairy_items_pairs_hint, #fairy_items_caption { display:none !important; }
             .fairy-items-top { display:grid !important; grid-template-columns:minmax(150px,0.8fr) minmax(0,2.2fr) 96px; gap:0 20px; align-items:start; margin-bottom:10px; }
