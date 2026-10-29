@@ -7371,6 +7371,8 @@ server <- shinyServer(function(input, output, session) {
   # column construction exactly (shared params first, then each factor's
   # columns level-major/parameter-minor) since h_matrix_to_plain_spec's
   # p1, p2, ... are numbered by that same column order.
+  # p3 -> p<sub>3</sub> (the same reading as the H-description); other names stay as they are
+  sub_html <- function(nm) ifelse(grepl("^[A-Za-z]+[0-9]+$", nm), sub("^([A-Za-z]+)([0-9]+)$", "\\1<sub>\\2</sub>", nm), gsub("[<>&]", "", nm))
   items_column_legend <- function(h_base, factors, param_factors) {
     p_names <- colnames(h_base)[-(1:2)]
     F  <- length(factors)
@@ -7401,13 +7403,15 @@ server <- shinyServer(function(input, output, session) {
     # paste0's recycling.
     shared_idx <- which(pf == 0L)
     legend_shared <- if (length(shared_idx) > 0) {
-      paste0(label_of(p_names[shared_idx], shared_idx), " (not repeated)")
+      paste0(sub_html(label_of(p_names[shared_idx], shared_idx)), " <span class='text-muted'>(not repeated)</span>")
     } else character(0)
     legend_factors <- unlist(lapply(seq_len(F), function(f) {
       idx_f <- which(pf == f)
       if (length(idx_f) == 0) return(character(0))
       unlist(lapply(seq_len(factors[[f]]$n), function(lev)
-        paste0(label_of(p_names[idx_f], idx_f), " (group ", factors[[f]]$name, ", item ", lev, ")")))
+        paste0(sub_html(label_of(p_names[idx_f], idx_f)), "<sup>(", lev, ")</sup>",
+               # a group the user named gets its name; the default groups (p_{1}, ...) would only repeat the probability
+               if (grepl("^p_?\\{?[0-9]+\\}?$", factors[[f]]$name)) "" else paste0(" <span class='text-muted'>(", gsub("[<>&]", "", factors[[f]]$name), ")</span>"))))
     }))
     c(legend_shared, legend_factors)
   }
@@ -8930,7 +8934,7 @@ server <- shinyServer(function(input, output, session) {
           preview_text <- h_matrix_to_plain_spec(h_preview)
           legend <- items_column_legend(h_base_preview, spec$factors, spec$param_factors)
           legend_rows <- lapply(seq_along(legend), function(j)
-            tags$li(tags$code(paste0("p", j)), " = ", legend[j]))
+            tags$li(tags$code(paste0("p", j)), " = ", HTML(legend[j])))
 
           showModal(modalDialog(
             title = "Show as typed input",
