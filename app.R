@@ -4246,17 +4246,19 @@ ui <- shinyUI(fluidPage(
     )),
     tags$script(HTML(
       "
-      // keep the 3D view: the camera the user turned the plot to is sent to the server (after a short pause), and
+      // keep the 3D view: the camera the user turned the plot to is sent to the server (every 150 ms at most), and
       // the plot is drawn with it the next time (a model added or removed, other axes), so it does not jump
       (function() {
         var timer = null;
         function remember(gd) {
+          // sent at most every 150 ms (also while the plot is turning by itself, which never pauses)
           return function() {
-            clearTimeout(timer);
+            if (timer) return;
             timer = setTimeout(function() {
+              timer = null;
               var c = gd._fullLayout && gd._fullLayout.scene && gd._fullLayout.scene.camera;
               if (c && window.Shiny) { window.__fairyHasCam = true; Shiny.setInputValue('plot_camera', JSON.parse(JSON.stringify(c))); }
-            }, 300);
+            }, 150);
           };
         }
         function hook() {
@@ -11541,7 +11543,7 @@ server <- shinyServer(function(input, output, session) {
 
       # one probability: a line from the smallest to the largest allowed value
       if (length(select_models_to_plot) > 0 && ncol(matrix_pl_all) == 2) {
-        runjs("$('#dim_pick_heading').hide(); $('#dim_1, #dim_2, #dim_3').closest('.form-group').hide();")
+        runjs("$('#dim_pick_heading').hide(); $('#dim_1, #dim_2, #dim_3').closest('.form-group').hide(); $('#auto_rotate_plot').prop('checked', false).trigger('change'); $('#auto_rotate_plot').closest('.row').hide();")
         pal1 <- c("#E69F00", "#56B4E9", "#009E73", "#D55E00", "#CC79A7", "#0072B2", "#F0E442", "#000000", "#999999")
         ax1 <- gsub("[_{}]", "", colnames(matrix_pl_all)[2])
         p1d <- plot_ly(height = 220 + 60 * length(select_models_to_plot))
@@ -11567,7 +11569,7 @@ server <- shinyServer(function(input, output, session) {
 
       # two probabilities: a flat picture (polygon, line or point per model) instead of the 3D scene
       if (length(select_models_to_plot) > 0 && ncol(matrix_pl_all) == 3) {
-        runjs("$('#dim_pick_heading').show(); $('#dim_1, #dim_2').closest('.form-group').show(); $('#dim_3').closest('.form-group').hide();")
+        runjs("$('#dim_pick_heading').show(); $('#dim_1, #dim_2').closest('.form-group').show(); $('#dim_3').closest('.form-group').hide(); $('#auto_rotate_plot').prop('checked', false).trigger('change'); $('#auto_rotate_plot').closest('.row').hide();")
         pal2 <- c("#E69F00", "#56B4E9", "#009E73", "#D55E00", "#CC79A7", "#0072B2", "#F0E442", "#000000", "#999999")
         ax_names <- gsub("[_{}]", "", colnames(matrix_pl_all)[2:3])
         p2 <- plot_ly()
@@ -11597,7 +11599,7 @@ server <- shinyServer(function(input, output, session) {
           margin = list(t = 30, b = 50)))
       }
 
-      runjs("$('#dim_pick_heading').show(); $('#dim_1, #dim_2, #dim_3').closest('.form-group').show();")
+      runjs("$('#dim_pick_heading').show(); $('#dim_1, #dim_2, #dim_3').closest('.form-group').show(); $('#auto_rotate_plot').closest('.row').show();")
       if (length(select_models_to_plot) > 0) {
         for (loop_pl in 1:length(select_models_to_plot)) {
           all_plot_actual <- matrix_pl_all[matrix_pl_all[, 1] == select_models_to_plot[loop_pl], 2:ncol(matrix_pl_all)]
@@ -14920,11 +14922,15 @@ server <- shinyServer(function(input, output, session) {
           x = ~Volume, y = ~Model, color = ~Algorithm, type = "bar", orientation = "h",
           colors = algo_colors,
           marker = list(line = list(width = 0)),
-          hovertemplate = "%{y} (%{fullData.name}): %{x:.4f}<extra></extra>"
+          hovertemplate = "%{fullData.name}: %{x:.4f}<extra></extra>"
         ) %>%
           layout(
             barmode = "group",
             bargap = 0.35, bargroupgap = 0.15,
+            # one label per model row, wherever the mouse is on that row (not only at the end of a bar), listing the
+            # volume of every algorithm; a white box, so it is not mistaken for part of the bar
+            hovermode = "y unified",
+            hoverlabel = list(bgcolor = "white", bordercolor = "rgba(120,120,120,0.5)", font = list(color = "#333", size = fsize)),
             font = list(size = fsize, color = "#555"),
             paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)",
             xaxis = list(
