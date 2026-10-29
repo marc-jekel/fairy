@@ -2462,8 +2462,12 @@ ui <- shinyUI(fluidPage(
         white-space: nowrap;
         box-shadow: 0 0 0 2px var(--fairy-panel, #fff);
       }
-      /* room for the label that hangs below each of these buttons */
-      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex { margin-bottom: 14px !important; }
+      /* icon above, label below, both centred inside one equally wide button */
+      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex, #qtest_order_open, #qtest_order_open_v {
+        margin-bottom: 0 !important; width: 66px !important; height: auto !important; padding: 7px 4px 6px !important;
+        display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+      #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_v_multinomineq::after, #d_latex::after, #d_v_latex::after,
+      #qtest_order_open::after, #qtest_order_open_v::after { position: static !important; transform: none !important; box-shadow: none !important; margin: 0 auto; }
       #d_h_multinomineq::after, #d_v_multinomineq::after {
         content: 'multinom';
         background: #8a5cf6;
