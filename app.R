@@ -11205,7 +11205,9 @@ server <- shinyServer(function(input, output, session) {
     out <- c(
       paste0("# Session exported from the Fairy app on ", format(Sys.Date()), "."),
       cm("It rebuilds every model of the session with the R package 'fairy' and reports dimension, vertices, constraints, volume and largest Bayes factor."),
-      if (!is.null(app_url)) c("", cm("The same input in the app: open this link (all inputs are stored in the link itself)."),
+      if (!is.null(app_url)) c("", "# ---- The same input in the app --------------------------------------------",
+        cm("This link opens the Fairy app with exactly the probabilities, models and settings of this script. Everything is stored in the part of the link after '#s=' (nothing is saved on a server), so the link can be bookmarked or sent to someone else."),
+        cm("To open it, remove the '#' in front of browseURL() below and run the line, or paste the link into a browser. Changes made in the app afterwards are not written back to this script."),
         paste0("fairy_app_url <- ", q(app_url)), "# browseURL(fairy_app_url)", ""),
       "# install.packages(\"remotes\")",
       "# remotes::install_github(\"marc-jekel/fairy\", subdir = \"pkg\",",
