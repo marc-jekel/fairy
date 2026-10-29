@@ -384,9 +384,13 @@ ui <- shinyUI(fluidPage(
       /* On short windows the panel sits closer to the corner, so Go stays inside the visible area */
       @media (max-height: 560px) { #sidebar-fab-panel { right: 10px !important; bottom: 10px !important; } }
       /* Until Go has been used once, it glows softly so a first-time visitor finds it */
-      .fairy-order-btn { position: relative !important; flex-direction: column !important; height: 48px !important; gap: 1px; line-height: 1; }
-      .fairy-order-btn span { font-size: 9.5px; font-weight: 600; letter-spacing: .02em; }
-      .fairy-order-btn.fairy-order-new::after { content: ''; position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: #e5484d; }
+      .fairy-dl-group { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 5px; border: 1.5px solid var(--fairy-border);
+        border-radius: 14px; background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 4%, transparent); }
+      .fairy-dl-group > .shiny-html-output { display: block; width: 100%; }
+      .fairy-dl-group .fairy-order-btn { position: relative !important; width: 100% !important; height: 24px !important; border-radius: 8px !important; gap: 4px;
+        font-size: 10.5px !important; font-weight: 700; flex-direction: row !important; line-height: 1; }
+      .fairy-order-btn span { font-size: 10.5px; font-weight: 700; letter-spacing: .02em; }
+      .fairy-order-btn.fairy-order-new::after { content: ''; position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: #e5484d; border: 1.5px solid var(--fairy-panel, #fff); }
       #fairy-running-note { position: fixed; right: 22px; bottom: 92px; z-index: 100000; display: flex; align-items: center; gap: 9px;
         padding: 9px 16px; border-radius: 999px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1d2433); font-size: 13.5px; font-weight: 600;
         border: 1px solid var(--fairy-border, #d5d9e4); box-shadow: 0 8px 24px rgba(20,30,60,.22); }
@@ -6120,11 +6124,13 @@ ui <- shinyUI(fluidPage(
           # as visually running together into one undifferentiated
           # button stack.
           tags$hr(class = "fairy-toolbar-divider"),
-          tags$span(class = "fairy-tooltip", `data-tooltip` = "H-representation for QTEST",
-            downloadButton("d_h", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
-          uiOutput("qtest_order_btn_ui", inline = TRUE),
-          tags$span(class = "fairy-tooltip", `data-tooltip` = "H-representation for multinomineq",
-            downloadButton("d_h_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
+          # QTEST and multinomineq share the order of the probabilities: one group with its button on top
+          tags$div(class = "fairy-dl-group",
+            uiOutput("qtest_order_btn_ui", inline = TRUE),
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "H-representation for QTEST",
+              downloadButton("d_h", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "H-representation for multinomineq",
+              downloadButton("d_h_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "LaTeX file of H-representation",
             downloadButton("d_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
         ),
@@ -6242,11 +6248,12 @@ ui <- shinyUI(fluidPage(
           tags$span(class = "fairy-tooltip", `data-tooltip` = "Show only the vertices that no other model has",
             tags$button(id = "v_unique_btn", type = "button", class = "fairy-toolbar-iconbtn", `aria-pressed` = "false", `aria-label` = "Show only unique vertices", icon("filter"))),
           tags$hr(class = "fairy-toolbar-divider"),
-          tags$span(class = "fairy-tooltip", `data-tooltip` = "V-representation for QTEST",
-            downloadButton("d_v", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
-          uiOutput("qtest_order_btn_ui_v", inline = TRUE),
-          tags$span(class = "fairy-tooltip", `data-tooltip` = "V-representation for multinomineq",
-            downloadButton("d_v_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
+          tags$div(class = "fairy-dl-group",
+            uiOutput("qtest_order_btn_ui_v", inline = TRUE),
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "V-representation for QTEST",
+              downloadButton("d_v", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "V-representation for multinomineq",
+              downloadButton("d_v_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "LaTeX table (words: all/none/fractions)",
             downloadButton("d_v_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
         ),
@@ -15884,7 +15891,8 @@ server <- shinyServer(function(input, output, session) {
     }
     showModal(modalDialog(
       title = "Order of the probabilities in the QTEST file",
-      tags$p(class = "fairy-eq-tol-help", "Left: the probability as QTEST will see it (p1, p2, ...). Right: which probability of the unpacked model it is. Drag a row (or use the arrows) to change the matching. The order is used for the QTEST download and in the R script."),
+      tags$p(class = "fairy-eq-tol-help", "Left: the probability as QTEST and multinomineq will see it (p1, p2, ...). Right: which probability of the unpacked model it is. Drag a row (or use the arrows) to change the matching."),
+      tags$p(class = "fairy-eq-tol-help", style = "margin-top:-4px;", tags$b("Where it applies: "), "the QTEST and the multinomineq downloads, of the H-representation and of the V-representation (one order for all four), the typed input shown for this model, and the R script from Save R script (.R): it passes the order to fairy_write_qtest() and fairy_write_multinomineq() as order = qtest_order, so the files written by R have the same order."),
       blocks,
       tags$style(HTML("
         .fairy-qo-list { list-style:none; padding:0; margin:0; max-height:46vh; overflow-y:auto; }
