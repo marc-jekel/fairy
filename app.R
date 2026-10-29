@@ -8450,7 +8450,9 @@ server <- shinyServer(function(input, output, session) {
                 stEl.appendChild(stH);
                 sRows.forEach(function(r) {
                   var d = document.createElement('div'); d.style.cssText = 'margin:3px 0;';
-                  var a1 = document.createElement('div'); a1.style.cssText = 'font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px;'; a1.textContent = r[0];
+                  var a1 = document.createElement('div'); a1.style.cssText = 'font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px;'; a1.innerHTML = r[0].replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                    .replace(/\\b([A-Za-z]+)([0-9]+)\\b/g, '$1<sub>$2</sub>')
+                    .replace(/(<\\/sub>|[A-Za-z])\\(([i-n])\\)/g, '$1<sup>($2)</sup>');
                   var b1 = document.createElement('div'); b1.style.cssText = 'font-size:11px; color:var(--fairy-text-muted);'; b1.textContent = r[1];
                   d.appendChild(a1); d.appendChild(b1); stEl.appendChild(d);
                 });
@@ -11928,11 +11930,18 @@ server <- shinyServer(function(input, output, session) {
   # capture group cannot see past (confirmed directly: it silently
   # returned "p_1" for every copy instead of "p_1 (copy 1)"/"(copy 2)").
   plain_axis_name <- function(nm) {
+    # plotly tick text understands <sub>/<sup>: p_{2}^{(1)} reads like the H-description, p<sub>2</sub><sup>(1)</sup>
+    sub_p <- function(b) {
+      b <- gsub("[{}]", "", b)
+      if (grepl("^.+_.+$", b)) return(sub("^(.+?)_(.+)$", "\\1<sub>\\2</sub>", b, perl = TRUE))
+      if (grepl("^[A-Za-z]+[0-9]+$", b)) return(sub("^([A-Za-z]+)([0-9]+)$", "\\1<sub>\\2</sub>", b))
+      b
+    }
     vapply(nm, function(x) {
-      if (!grepl("\\^\\{", x)) return(gsub("[{}]", "", x))
-      # current items columns: "p_{1}^{(2)}" -> "p1 (2)"
+      if (!grepl("\\^\\{", x)) return(sub_p(x))
+      # current items columns: "p_{1}^{(2)}" -> p<sub>1</sub><sup>(2)</sup>
       if (grepl("^.*\\^\\{\\([0-9]+\\)\\}$", x))
-        return(paste0(gsub("[_{}]", "", sub("\\^\\{.*$", "", x)), " (", sub("^.*\\^\\{\\(([0-9]+)\\)\\}$", "\\1", x), ")"))
+        return(paste0(sub_p(sub("\\^\\{.*$", "", x)), "<sup>(", sub("^.*\\^\\{\\(([0-9]+)\\)\\}$", "\\1", x), ")</sup>"))
       base_of    <- sub("\\^\\{.*$", "", x)
       base_plain <- gsub("[{}]", "", base_of)
       # Strip the fixed "^{(\text{" prefix and ")}" suffix that wrap
@@ -11943,8 +11952,8 @@ server <- shinyServer(function(input, output, session) {
       inner   <- sub("\\)\\}$", "", inner)
       lev     <- sub(".*,([0-9]+)$", "\\1", inner)
       grp     <- gsub("[{}]", "", sub("\\}$", "", sub(",[0-9]+$", "", inner)))
-      if (identical(grp, base_plain)) paste0(base_plain, " (copy ", lev, ")")
-      else paste0(base_plain, " [", grp, " #", lev, "]")
+      if (identical(grp, base_plain)) paste0(sub_p(base_of), "<sup>(", lev, ")</sup>")
+      else paste0(sub_p(base_of), " [", grp, " #", lev, "]")
     }, character(1), USE.NAMES = FALSE)
   }
 
