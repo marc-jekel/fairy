@@ -8309,9 +8309,12 @@ server <- shinyServer(function(input, output, session) {
             var tEl = document.querySelector('.fairy-items-quick-type:checked');
             var nEl = document.getElementById('fairy_items_quick_n');
             if (!host || !tEl) return;
-            var gType = tEl.value === 'perlist' ? 'joint' : tEl.value;
+            // with one list only, the choice made for that list is the one that counts
+            var oneList = twoKinds() && chipState.sets && chipState.sets.length === 1 ? chipState.sets[0] : null;
+            var gType = tEl.value === 'perlist' ? ((oneList && oneList.over) || 'joint') : tEl.value;
             var two = twoKinds() && chipState.sets && chipState.sets.length > 1 && chipState.asg.length > 1;
             var n0 = Math.max(1, Math.min(50, parseInt(nEl && nEl.value, 10) || 1));
+            if (oneList && oneList.n) n0 = Math.max(1, Math.min(50, oneList.n));
             var nProb = document.querySelectorAll('.fairy-items-row').length || 2;
             var vK = [], vS = [], vN = [], vM = [], vW = [];
             function nm(i) { return i >= nProb ? vN[i - nProb] : chipRowName(i); }
