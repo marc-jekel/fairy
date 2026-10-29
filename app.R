@@ -15957,11 +15957,11 @@ server <- shinyServer(function(input, output, session) {
         modalButton(if (is.null(pending)) "Done" else "Cancel")),
       easyClose = TRUE))
   }
-  observeEvent(list(input$qtest_order_open, input$qtest_order_open_v, input$qtest_order_open_typed), {
-    # only a real click opens it (a freshly drawn button reports 0 clicks)
-    if (!any(vapply(list(input$qtest_order_open, input$qtest_order_open_v, input$qtest_order_open_typed), function(x) isTRUE(x > 0), logical(1)))) return()
-    show_qtest_order()
-  }, ignoreInit = TRUE)
+  # each button on its own: only a click on THAT button opens the window (a button that is drawn for the first time reports 0 clicks)
+  for (btn_id in c("qtest_order_open", "qtest_order_open_v", "qtest_order_open_typed")) local({
+    id <- btn_id
+    observeEvent(input[[id]], { if (isTRUE(input[[id]] > 0)) show_qtest_order() }, ignoreInit = TRUE)
+  })
   # first export of an unpacked model: the order is shown once before the file is written
   observeEvent(input$qtest_order_prompt, { show_qtest_order(pending = as.character(input$qtest_order_prompt$id)) }, ignoreInit = TRUE)
   observeEvent(input$qtest_perm, {
