@@ -384,6 +384,13 @@ ui <- shinyUI(fluidPage(
       /* On short windows the panel sits closer to the corner, so Go stays inside the visible area */
       @media (max-height: 560px) { #sidebar-fab-panel { right: 10px !important; bottom: 10px !important; } }
       /* Until Go has been used once, it glows softly so a first-time visitor finds it */
+      #fairy-running-note { position: fixed; right: 22px; bottom: 92px; z-index: 100000; display: flex; align-items: center; gap: 9px;
+        padding: 9px 16px; border-radius: 999px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1d2433); font-size: 13.5px; font-weight: 600;
+        border: 1px solid var(--fairy-border, #d5d9e4); box-shadow: 0 8px 24px rgba(20,30,60,.22); }
+      .fairy-running-spin { width: 15px; height: 15px; border-radius: 50%; border: 2.5px solid color-mix(in srgb, var(--fairy-primary, #3a6df0) 25%, transparent);
+        border-top-color: var(--fairy-primary, #3a6df0); animation: fairy-running-rot .8s linear infinite; }
+      @keyframes fairy-running-rot { to { transform: rotate(360deg); } }
+      #go_v_h.fairy-go-busy { filter: saturate(.7) brightness(.95); }
       @keyframes fairy-go-attn-kf {
         0%, 100% { filter: drop-shadow(0 0 0 rgba(58,109,240,0)); }
         50% { filter: drop-shadow(0 0 7px rgba(58,109,240,0.95)) brightness(1.08); }
@@ -4796,6 +4803,39 @@ ui <- shinyUI(fluidPage(
         document.addEventListener('keydown', function(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') flush(); }, true);
       })();
 
+      // ---- Go: feedback at once. The server needs a moment before its own progress window appears; until then a small note says it is running ----
+      (function() {
+        var note = null, since = 0, safety = null;
+        function show() {
+          if (!note) {
+            note = document.createElement('div'); note.id = 'fairy-running-note'; note.setAttribute('role', 'status');
+            note.innerHTML = '<span class=\"fairy-running-spin\"></span><span>Running...</span>';
+            document.body.appendChild(note);
+          }
+          since = Date.now();
+          var b = document.getElementById('go_v_h'); if (b) b.classList.add('fairy-go-busy');
+          clearTimeout(safety); safety = setTimeout(hide, 180000);
+        }
+        function hide() {
+          if (note && note.parentNode) note.parentNode.removeChild(note);
+          note = null; clearTimeout(safety);
+          var b = document.getElementById('go_v_h'); if (b) b.classList.remove('fairy-go-busy');
+        }
+        document.addEventListener('click', function(e) { if (e.target.closest && e.target.closest('#go_v_h')) show(); }, true);
+        document.addEventListener('keydown', function(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') show(); }, true);
+        if (window.jQuery) {
+          // gone when the server is idle again (at least 700 ms on screen, so a very fast run still shows that it ran)
+          // (an idle message that was already on its way when Go was pressed does not count: the server has to be busy first)
+          jQuery(document).on('shiny:busy', function() { if (note) note.setAttribute('data-busy', '1'); });
+          jQuery(document).on('shiny:idle', function() {
+            if (!note) return;
+            var busy = note.getAttribute('data-busy') === '1', age = Date.now() - since;
+            if (!busy && age < 4000) return;
+            setTimeout(hide, Math.max(0, 700 - age));
+          });
+        }
+      })();
+
       // ---- First visit: Go glows until it has been used once ----
       (function() {
         var seen = false;
@@ -6327,11 +6367,12 @@ ui <- shinyUI(fluidPage(
               id = "polytope_plot_expand", type = "button", title = "Expand the plot (Esc to close)", `aria-label` = "Expand the plot",
               HTML("<svg width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M9.5 2.5h4v4M13.5 2.5l-4.5 4.5M6.5 13.5h-4v-4M2.5 13.5l4.5-4.5'/></svg>")
             ),
-            plotlyOutput("plot", width = "100%", height = "800px"),
+            plotlyOutput("plot", width = "100%", height = "calc(100vh - 120px)"),   # follows the height of the window (min-height in the style below)
             align = "center"
           )
         )),
         tags$style(HTML("
+          #plot { min-height: 480px; }
           #polytope_plot_expand { position:absolute; bottom:8px; right:8px; z-index:2100; width:28px; height:28px; padding:0; display:flex; align-items:center; justify-content:center;
             border:0; border-radius:6px; background:transparent; color:var(--fairy-text-muted, #667085); cursor:pointer; }
           #polytope_plot_expand:hover { background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 18%, transparent); color:var(--fairy-primary, #3a6df0); }
@@ -7758,7 +7799,11 @@ server <- shinyServer(function(input, output, session) {
         pf_all <- prefill_rows
         q_n    <- if (length(pf_all)) max(vapply(pf_all, function(r) as.integer(r$n %||% 1L), integer(1))) else 2L
         q_type <- if (length(pf_all)) (pf_all[[1]]$type %||% "joint") else "joint"
-        q_eps  <- if (length(pf_all)) (pf_all[[1]]$eps %||% 0) else 0
+        # the tolerance belongs to the lists that use "shared value": take it from the first such row, not just from the first row
+        q_eps  <- if (length(pf_all)) {
+          idr <- Filter(function(r) identical(as.character(r$type %||% ""), "identical"), pf_all)
+          as.numeric((if (length(idr)) idr[[1]] else pf_all[[1]])$eps %||% 0)
+        } else 0
         opt <- function(value, label, expl)
           tags$label(class = paste("fairy-items-opt", if (identical(value, q_type)) "fairy-items-opt-sel" else ""),
             tags$input(type = "radio", name = "fairy_items_quick_type", value = value, class = "fairy-items-quick-type",
@@ -12163,7 +12208,7 @@ server <- shinyServer(function(input, output, session) {
             # lifted and a little smaller, so the figure and its axis labels do not hang at the lower edge
             domain = list(x = c(0.02, 0.98), y = c(0.14, 0.98)),
             # the view the user had turned the plot to (set from the browser, read without a dependency)
-            camera = isolate(input$plot_camera) %||% list(eye = list(x = 2, y = 2, z = 2))
+            camera = isolate(input$plot_camera) %||% list(eye = list(x = 1.55, y = 1.55, z = 1.55))
           ),
           # inside the plot area (top left): a legend outside would take width away from the cube, which then
           # moved sideways whenever a model was added or removed
