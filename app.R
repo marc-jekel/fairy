@@ -6030,7 +6030,11 @@ ui <- shinyUI(fluidPage(
                     ),
                     textAreaInput(
                       inputId = "add_for_all_models",
-                      label = "Shared Model Specification",
+                      label = tagList(
+                        tags$span("Shared Model Specification",
+                          tags$span(class = "fairy-tooltip", `data-tooltip` = "Constraints typed here hold for every model below, e.g. p1 < .5; p2 < .5 is added to each of them. Use it for what all your models have in common.",
+                            style = "margin-left:6px; cursor:help; color:var(--fairy-text-muted, #667085);", icon("circle-info"))),
+                        tags$small(style = "display:block; font-weight:400; color:var(--fairy-text-muted, #667085); margin:1px 0 3px;", "Added to every model below.")),
                       value = "",
                       width = "100%",
                       height = "80px",
@@ -7576,14 +7580,14 @@ server <- shinyServer(function(input, output, session) {
       if (length(members) == 0) members <- factors[[fi]]$name
       ev <- member_eps_for_factor(param_factors, eps_per_param, fi)
       kind <- switch(factor_types[fi],
-        joint = "item by item",
-        substitutable = "all combinations",
+        joint = "joint",
+        substitutable = "substitutable",
         average = "average",
         identical = {
           dec <- function(x) as.character(round(x, 4))
-          if (length(ev) == 0 || all(ev == 0)) "same value"
-          else if (length(unique(round(ev, 10))) == 1) paste0("same value \u00b1", dec(ev[1]))
-          else paste0("same value \u00b1", paste(vapply(ev, dec, character(1)), collapse = "/"))
+          if (length(ev) == 0 || all(ev == 0)) "identical"
+          else if (length(unique(round(ev, 10))) == 1) paste0("identical \u00b1", dec(ev[1]))
+          else paste0("identical \u00b1", paste(vapply(ev, dec, character(1)), collapse = "/"))
         })
       list(members = vapply(members, plain_p_name, character(1)), n = factors[[fi]]$n, kind = kind,
            solo = length(members) == 1)
@@ -7841,11 +7845,11 @@ server <- shinyServer(function(input, output, session) {
           idr <- Filter(function(r) identical(as.character(r$type %||% ""), "identical"), pf_all)
           as.numeric((if (length(idr)) idr[[1]] else pf_all[[1]])$eps %||% 0)
         } else 0
-        opt <- function(value, label, expl)
+        opt <- function(value, label, expl, gloss = NULL)
           tags$label(class = paste("fairy-items-opt", if (identical(value, q_type)) "fairy-items-opt-sel" else ""),
             tags$input(type = "radio", name = "fairy_items_quick_type", value = value, class = "fairy-items-quick-type",
               checked = if (identical(value, q_type)) "checked" else NULL),
-            tags$span(tags$b(label), tags$span(expl)))
+            tags$span(tags$b(label, if (!is.null(gloss)) tags$em(class = "fairy-items-gloss", gloss)), tags$span(expl)))
         qh <- function(num, text, hint = NULL, id = NULL)
           tags$div(class = "fairy-items-q", style = "display:flex; align-items:baseline; gap:8px; margin:14px 0 6px;",
             tags$span(class = "fairy-items-num", style = "flex:none; width:20px; height:20px; border-radius:50%; background:var(--fairy-primary, #3a6df0); color:#fff; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; justify-content:center;", num),
@@ -7929,6 +7933,8 @@ server <- shinyServer(function(input, output, session) {
             .fairy-items-quick #fairy_items_q3_text { font-size:12.5px !important; font-weight:600; }
             .fairy-items-quick .fairy-items-q .fairy-items-num { display:none !important; }
             .fairy-items-opt:not(.fairy-items-opt-sel) span span { display:none !important; }
+            .fairy-items-gloss { margin-left:8px; font-style:normal; font-weight:400; font-size:12px; color:var(--fairy-text-muted, #667085); }
+            .fairy-items-tech { margin-left:8px; padding:1px 7px; border-radius:6px; font-style:normal; font-weight:500; font-size:10.5px; font-family:ui-monospace,Menlo,Consolas,monospace; color:var(--fairy-text-muted, #667085); background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 8%, transparent); }
             .fairy-items-opt { padding:5px 10px !important; margin-bottom:1px !important; }
             .fairy-items-quick { margin-top:0 !important; }
             /* compact: questions 1 and 2 side by side, tighter gaps */
@@ -7972,12 +7978,12 @@ server <- shinyServer(function(input, output, session) {
           tags$div(id = "fairy_items_pairs_hint", style = "margin:-2px 0 8px 28px; font-size:11.5px; color:var(--fairy-text-muted);"),
           tags$div(class = "fairy-items-main",
             tags$div(
-              opt("joint", "for each item separately", "item 1 with item 1, item 2 with item 2, \u2026"),
-              opt("substitutable", "for every combination of items", "every item with every other item"),
-              opt("identical", "for the shared value of each probability", "all items of a probability are equal"),
-              opt("average", "for the average over the items", "single items may break it"),
+              opt("joint", "joint", "item 1 with item 1, item 2 with item 2, \u2026", "for each item separately"),
+              opt("substitutable", "substitutable", "every item with every other item", "for every combination of items"),
+              opt("identical", "identical", "all items of a probability are equal", "for the shared value of each probability"),
+              opt("average", "average", "single items may break it", "for the average over the items"),
               tags$div(id = "fairy_items_perlist_wrap", style = "display:none;",
-                opt("perlist", "differently for each list", "choose it for every list in question 2")),
+                opt("perlist", "differently for each list", "choose joint, substitutable, identical or average for every list")),
               tags$div(id = "fairy_items_stmts", style = "font-size:12px;"),
               tags$div(id = "fairy_items_caption", style = "font-size:12px; margin-top:6px;")
             ),
@@ -8189,7 +8195,7 @@ server <- shinyServer(function(input, output, session) {
             var b = listNames[k];
             return b ? b : 'group ' + chipLetter(k);
           }
-          var CHIP_TYPES = [['joint', 'for each item separately'], ['substitutable', 'for every combination of items'], ['identical', 'for the shared value (items equal)'], ['average', 'for the average over the items']];
+          var CHIP_TYPES = [['joint', 'joint (each item separately)'], ['substitutable', 'substitutable (every combination)'], ['identical', 'identical (items equal)'], ['average', 'average (over the items)']];
           function chipRowName(i) {
             var rows = document.querySelectorAll('.fairy-items-row'), sp = rows[i] && rows[i].querySelector('span');
             var t = sp ? sp.textContent.replace(/[_{}]/g, '').trim() : '';
@@ -8423,7 +8429,7 @@ server <- shinyServer(function(input, output, session) {
                 else el('circle', { cx: x0 + k * dx, cy: y, r: 5, fill: 'none', stroke: 'currentColor', 'stroke-dasharray': '2 2', opacity: '0.35' }, svg);
               }
               var lab = el('text', { x: x0 + maxN * dx + 4, y: y + 4, 'font-size': '11', fill: col }, svg);
-              var tn = { joint: 'item by item', substitutable: 'any item with any item', identical: 'all the same', average: 'only the average' }[x.t] || '';
+              var tn = { joint: 'joint', substitutable: 'substitutable', identical: 'identical', average: 'average' }[x.t] || '';
               lab.textContent = (x.g ? x.g : 'own items') + (x.n > 8 ? ' (' + x.n + ' items)' : '') + (x.n > 1 ? ' - ' + tn : '');
             });
             // relations like in the big picture, only inside an item set and according to its Model holds
@@ -8879,7 +8885,7 @@ server <- shinyServer(function(input, output, session) {
           function itemsSummary() {
             var el = document.getElementById('fairy_items_summary'), tEl = document.querySelector('.fairy-items-quick-type:checked'), nEl = document.getElementById('fairy_items_quick_n');
             if (!el || !tEl) return;
-            var words = { joint: 'for each item separately', substitutable: 'for every combination of items', identical: 'for the shared value of each probability', average: 'for the average over the items' };
+            var words = { joint: 'joint (for each item separately)', substitutable: 'substitutable (for every combination of items)', identical: 'identical (for the shared value of each probability)', average: 'average (over the items)' };
             var epsEl = document.getElementById('fairy_items_quick_eps'), epsV = parseFloat(epsEl && epsEl.value) || 0, parts;
             if (twoKinds() && chipState.sets.length > 1) {
               parts = chipState.sets.map(function(st, k) {
@@ -11295,6 +11301,8 @@ server <- shinyServer(function(input, output, session) {
       derived_sources_json <- toJSON(derived_model_sources$value, auto_unbox = TRUE, null = "null")
       mixture_flags_json   <- toJSON(mixture_model_flags$value, auto_unbox = TRUE, null = "null")
       item_spec_idx_json   <- toJSON(item_model_spec_idx$value, auto_unbox = TRUE, null = "null")
+      # the order of the probabilities chosen for QTEST / multinomineq (one permutation per unpacked model)
+      qtest_order_json     <- toJSON(isolate(qtest_perm$map), null = "null")
 
       out <- list(
         "V-description" = mytable_v,
@@ -11310,7 +11318,8 @@ server <- shinyServer(function(input, output, session) {
         "Multi-item models" = data.frame(json = as.character(items_json)),
         "Derived model sources" = data.frame(json = as.character(derived_sources_json)),
         "Mixture model flags" = data.frame(json = as.character(mixture_flags_json)),
-        "Item model spec idx" = data.frame(json = as.character(item_spec_idx_json))
+        "Item model spec idx" = data.frame(json = as.character(item_spec_idx_json)),
+        "QTEST order" = data.frame(json = as.character(qtest_order_json))
       )
 
       out
@@ -11630,7 +11639,7 @@ server <- shinyServer(function(input, output, session) {
     ok <- tryCatch({
       txt <- rawToChar(memDecompress(jsonlite::base64_dec(tok), type = "gzip"))
       sheets <- fromJSON(txt, simplifyVector = TRUE)
-      stopifnot(is.list(sheets), length(sheets) == 14)
+      stopifnot(is.list(sheets), length(sheets) %in% c(14, 15))
       sheets <- lapply(sheets, function(x) as.data.frame(x, stringsAsFactors = FALSE, check.names = FALSE))
       write_xlsx(sheets, tmp)
       TRUE
@@ -11746,6 +11755,12 @@ server <- shinyServer(function(input, output, session) {
 
     item_model_spec_idx$value <- tryCatch({
       item_spec_idx_from_json(read_excel(upload_file(), 14)$json[1])
+    }, error = function(e) list())
+
+    # sheet 15: the order of the probabilities for QTEST / multinomineq (files and links from before it simply have none)
+    qtest_perm$map <- tryCatch({
+      raw <- fromJSON(read_excel(upload_file(), 15)$json[1], simplifyVector = FALSE)
+      lapply(raw, function(x) as.integer(unlist(x)))
     }, error = function(e) list())
 
     # Each modal's row count is a SEPARATE counter (counter_int$n,
