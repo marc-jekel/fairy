@@ -6435,43 +6435,71 @@ ui <- shinyUI(fluidPage(
             });
           })();
         ")),
-        # PDF of the picture (for slides and papers): drawn at 4x on a white canvas, then placed on a PDF page
+        # PDF of the picture (for slides and papers): a vector graphic (jsPDF + svg2pdf.js), text stays text
         tags$script(HTML("
           (function() {
-            var JSPDF = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-            function loadPdf(cb) {
-              if (window.jspdf) return cb();
-              var sc = document.createElement('script'); sc.src = JSPDF; sc.onload = cb;
-              sc.onerror = function() { alert('The PDF library could not be loaded (internet connection?).'); };
-              document.head.appendChild(sc);
+            var LIBS = ['https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+                        'https://cdn.jsdelivr.net/npm/svg2pdf.js@2.2.4/dist/svg2pdf.umd.min.js'];
+            function loadLibs(cb) {
+              if (window.jspdf && (window.svg2pdf || (window.jspdf.jsPDF && window.jspdf.jsPDF.API.svg))) return cb();
+              var i = 0;
+              (function next() {
+                if (i >= LIBS.length) return cb();
+                var sc = document.createElement('script'); sc.src = LIBS[i++]; sc.onload = next;
+                sc.onerror = function() { alert('The PDF library could not be loaded (internet connection?).'); };
+                document.head.appendChild(sc);
+              })();
             }
-            // a standalone SVG knows neither CSS variables nor currentColor: write the computed values into the copy
+            // the copy has to stand on its own: CSS variables and currentColor are written out as computed colours
             function inlineStyles(src, dst) {
               var cs = getComputedStyle(src);
               ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'opacity', 'font-family', 'font-size', 'font-weight', 'display'].forEach(function(p) { dst.style.setProperty(p, cs.getPropertyValue(p)); });
+              if (cs.display === 'none') { dst.setAttribute('display', 'none'); }
+              if (/^(text|tspan)$/.test(src.tagName.toLowerCase())) dst.style.setProperty('font-family', 'helvetica'); dst.setAttribute('font-family', 'helvetica'); dst.style.setProperty('font-weight', parseInt(cs.fontWeight, 10) >= 600 ? 'bold' : 'normal');
               for (var i = 0; i < src.children.length; i++) inlineStyles(src.children[i], dst.children[i]);
             }
             function makePdf() {
               var svg = document.querySelector('#fairy_items_diagram svg');
               if (!svg) return;
-              var r = svg.getBoundingClientRect(), w = Math.round(r.width), h = Math.round(r.height), k = 4;
+              var r = svg.getBoundingClientRect(), w = Math.round(r.width), h = Math.round(r.height), pad = 24;
               var copy = svg.cloneNode(true);
               inlineStyles(svg, copy);
               copy.setAttribute('xmlns', 'http://www.w3.org/2000/svg'); copy.setAttribute('width', w); copy.setAttribute('height', h);
-              var url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(copy)], { type: 'image/svg+xml;charset=utf-8' }));
-              var img = new Image();
-              img.onload = function() {
-                var cv = document.createElement('canvas'); cv.width = w * k; cv.height = h * k;
-                var cx = cv.getContext('2d'); cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(img, 0, 0, cv.width, cv.height);
-                URL.revokeObjectURL(url);
-                loadPdf(function() {
-                  var pw = Math.max(w, h) > w ? 'p' : 'l', pad = 24;
-                  var doc = new window.jspdf.jsPDF({ orientation: pw, unit: 'pt', format: [w + 2 * pad, h + 2 * pad], compress: true });
-                  doc.addImage(cv, 'PNG', pad, pad, w, h, undefined, 'SLOW');
-                  doc.save('fairy-items.pdf');
-                });
-              };
-              img.src = url;
+              // the legend goes below the picture (drawn as shapes and text: the standard PDF fonts have no bullet or arrow glyphs)
+              var NS = 'http://www.w3.org/2000/svg', vb = (copy.getAttribute('viewBox') || ('0 0 ' + w + ' ' + h)).split(/[ ,]+/).map(Number), f = vb[2] / w;
+              var ents = [].filter.call(document.querySelectorAll('#fairy_items_legend span'), function(sp) { return sp.style.display !== 'none'; }).map(function(sp) {
+                var b = sp.querySelector('b'), sym = b ? b.textContent.replace(/\\s/g, '') : '';
+                return { sym: sym, col: b ? getComputedStyle(b).color : '#667085', txt: sp.textContent.replace(b ? b.textContent : '', '').trim() };
+              });
+              var x0 = 10, y0 = h + 14, lx = x0, ly = y0, items = [];
+              ents.forEach(function(en) {
+                var wd = 24 + en.txt.length * 4.9 + 14;
+                if (lx > x0 && lx + wd > w - 10) { lx = x0; ly += 20; }
+                items.push({ en: en, x: lx, y: ly }); lx += wd;
+              });
+              var legH = ents.length ? ly + 18 - h : 0;
+              copy.setAttribute('height', h + legH); copy.setAttribute('viewBox', vb[0] + ' ' + vb[1] + ' ' + vb[2] + ' ' + (vb[3] + legH * f));
+              var g = document.createElementNS(NS, 'g'); g.setAttribute('transform', 'translate(' + vb[0] + ',' + vb[1] + ') scale(' + f + ')');
+              var bg = document.createElementNS(NS, 'rect');
+              bg.setAttribute('x', vb[0]); bg.setAttribute('y', vb[1]); bg.setAttribute('width', vb[2]); bg.setAttribute('height', vb[3] + legH * f); bg.setAttribute('fill', '#ffffff');
+              copy.insertBefore(bg, copy.firstChild);
+              items.forEach(function(it) {
+                var en = it.en, cx = it.x + 6, cy = it.y;
+                if (en.sym.indexOf(String.fromCharCode(9679)) === 0) { var c = document.createElementNS(NS, 'circle'); c.setAttribute('cx', cx); c.setAttribute('cy', cy - 3); c.setAttribute('r', 4); c.setAttribute('fill', en.col); g.appendChild(c); }
+                else if (en.sym.indexOf(String.fromCharCode(8594)) === 0) { var a = document.createElementNS(NS, 'path'); a.setAttribute('d', 'M' + (cx - 5) + ' ' + (cy - 3) + ' L' + (cx + 5) + ' ' + (cy - 3) + ' M' + (cx + 1) + ' ' + (cy - 7) + ' L' + (cx + 5) + ' ' + (cy - 3) + ' L' + (cx + 1) + ' ' + (cy + 1)); a.setAttribute('fill', 'none'); a.setAttribute('stroke', '#3a6df0'); a.setAttribute('stroke-width', 1.4); g.appendChild(a); }
+                var t = document.createElementNS(NS, 'text'); t.setAttribute('x', cx + 10); t.setAttribute('y', cy); t.setAttribute('font-size', 10.5); t.setAttribute('font-family', 'helvetica'); t.setAttribute('fill', '#667085');
+                t.textContent = en.txt; g.appendChild(t);
+              });
+              copy.appendChild(g);
+              h = h + legH;
+              var host = document.createElement('div'); host.style.cssText = 'position:fixed; left:-10000px; top:0; width:' + w + 'px; height:' + h + 'px;';
+              host.appendChild(copy); document.body.appendChild(host);
+              loadLibs(function() {
+                var doc = new window.jspdf.jsPDF({ orientation: w >= h ? 'l' : 'p', unit: 'pt', format: [w + 2 * pad, h + 2 * pad], compress: true });
+                var done = function() { document.body.removeChild(host); doc.save('fairy-items.pdf'); };
+                var p = doc.svg(copy, { x: pad, y: pad, width: w, height: h });
+                if (p && p.then) p.then(done, function(e) { document.body.removeChild(host); alert('PDF failed: ' + e); }); else done();
+              });
             }
             document.addEventListener('click', function(e) { if (e.target.closest && e.target.closest('#fairy_items_pdf')) makePdf(); });
           })();
