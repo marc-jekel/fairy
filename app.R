@@ -8282,7 +8282,7 @@ server <- shinyServer(function(input, output, session) {
                 var closeX = r.n > MAXC ? X(cols - 1) + 44 : X(c - 1) + 13;
                 var pa = el('text', { x: X(0) - 13, y: ys[i] + 7, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '20', opacity: '0.75' }, svg); pa.textContent = '(';
                 var pb = el('text', { x: closeX, y: ys[i] + 7, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '20', opacity: '0.75' }, svg); pb.textContent = ')';
-                var dv = el('text', { x: (closeX + 4 + avgX - 8) / 2, y: ys[i] - 6, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12', opacity: '0.75' }, svg);
+                var dv = el('text', { x: closeX + 4 + (avgX - 8 - closeX - 4) * 0.4, y: ys[i] + 4, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'var(--ct-default, #f8f8f8)', 'stroke-width': '5', 'paint-order': 'stroke', 'font-size': '12', opacity: '0.85' }, svg);
                 dv.textContent = String.fromCharCode(247) + ' ' + r.n;
                 el('circle', { cx: avgX, cy: ys[i], r: 7, fill: 'var(--ct-default, #fff)' }, g);
                 anchor[i] = { x: avgX, y: ys[i], grid: false };
