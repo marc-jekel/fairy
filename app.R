@@ -6479,6 +6479,10 @@ ui <- shinyUI(fluidPage(
               var faded = d.querySelectorAll('[data-implied]');
               w.style.display = faded.length ? 'block' : 'none';
               for (var i = 0; i < faded.length; i++) faded[i].style.display = t.checked ? '' : 'none';
+              // the legend line for the meeting point only while one is still drawn
+              var hubs = [].filter.call(d.querySelectorAll('circle[r=\"3.2\"]'), function(c) { return c.style.display !== 'none'; });
+              var leg = document.getElementById('fairy_items_legend');
+              if (leg) [].forEach.call(leg.querySelectorAll('span'), function(sp) { if (sp.textContent.indexOf('lines meet here') >= 0) sp.style.display = hubs.length ? '' : 'none'; });
             }
             document.addEventListener('change', function(e) { if (e.target && e.target.id === 'fairy_items_fade_toggle') apply(); });
             new MutationObserver(function() { apply(); }).observe(document.documentElement, { childList: true, subtree: true });
@@ -8558,10 +8562,11 @@ server <- shinyServer(function(input, output, session) {
               legEl.textContent = '';
               entries.forEach(function(en, ei) {
                 var sp = document.createElement('span'); sp.style.cssText = 'white-space:nowrap; margin-right:2px;';
+                if (ei > 0) sp.appendChild(document.createTextNode(MD + ' '));
                 if (en[0]) { var sy = document.createElement('b'); sy.textContent = en[0] + NB; if (en[2]) sy.style.color = en[2]; sp.appendChild(sy); }
                 sp.appendChild(document.createTextNode(en[1]));
                 legEl.appendChild(sp);
-                if (ei < entries.length - 1) legEl.appendChild(document.createTextNode(' ' + MD + ' '));
+                if (ei < entries.length - 1) legEl.appendChild(document.createTextNode(' '));
               });
             }
           }
