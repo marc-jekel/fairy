@@ -7410,8 +7410,8 @@ server <- shinyServer(function(input, output, session) {
       if (length(idx_f) == 0) return(character(0))
       unlist(lapply(seq_len(factors[[f]]$n), function(lev)
         paste0(sub_html(label_of(p_names[idx_f], idx_f)), "<sup>(", lev, ")</sup>",
-               # a group the user named gets its name; the default groups (p_{1}, ...) would only repeat the probability
-               if (grepl("^p_?\\{?[0-9]+\\}?$", factors[[f]]$name)) "" else paste0(" <span class='text-muted'>(", gsub("[<>&]", "", factors[[f]]$name), ")</span>"))))
+               # (the group names are left out: they did not always match the list letters of the dialog)
+               "")))
     }))
     c(legend_shared, legend_factors)
   }
@@ -11151,6 +11151,23 @@ server <- shinyServer(function(input, output, session) {
   }
 
   # ---- Export the session as an R script (package 'fairy') ----
+  # the whole input as one URL-safe token (gzipped JSON): used by the share link and by the R script download
+  share_token <- function() tryCatch({
+    sheets_out <- lapply(isolate(build_user_input()), function(d) { d <- as.data.frame(d); rownames(d) <- NULL; d })
+    js <- toJSON(sheets_out, dataframe = "columns", na = "null", digits = NA)
+    raw <- memCompress(charToRaw(as.character(js)), type = "gzip")
+    chartr("+/", "-_", gsub("=+$", "", gsub("\\s", "", jsonlite::base64_enc(raw))))
+  }, error = function(e) NULL)
+  # link that opens the app with this input (the public address when the app runs locally)
+  app_share_url <- function() {
+    tok <- share_token()
+    if (is.null(tok)) return(NULL)
+    cd <- session$clientData
+    host <- cd$url_hostname %||% ""
+    base <- if (!nzchar(host) || host %in% c("localhost", "127.0.0.1")) "https://fairy.decision-research.de/" else
+      paste0(cd$url_protocol, "//", host, if (nzchar(cd$url_port %||% "")) paste0(":", cd$url_port), cd$url_pathname)
+    paste0(base, "#s=", tok)
+  }
   build_r_script <- function() {
     q <- function(x) encodeString(as.character(x), quote = '"')
     # "  name = c(a, b, c)," broken over several lines so that no line gets long
@@ -11174,9 +11191,12 @@ server <- shinyServer(function(input, output, session) {
     specs <- isolate(mytable_items_reactive$value)
     flags <- isolate(mixture_model_flags$value)
     tols <- isolate(equality_tolerances_reactive$value)
+    app_url <- tryCatch(app_share_url(), error = function(e) NULL)
     out <- c(
       paste0("# Session exported from the Fairy app on ", format(Sys.Date()), "."),
       cm("It rebuilds every model of the session with the R package 'fairy' and reports dimension, vertices, constraints, volume and largest Bayes factor."),
+      if (!is.null(app_url)) c("", cm("The same input in the app: open this link (all inputs are stored in the link itself)."),
+        paste0("fairy_app_url <- ", q(app_url)), "# browseURL(fairy_app_url)", ""),
       "# install.packages(\"remotes\")",
       "# remotes::install_github(\"marc-jekel/fairy\", subdir = \"pkg\",",
       "#                         upgrade = \"always\")",
@@ -11387,12 +11407,7 @@ server <- shinyServer(function(input, output, session) {
 
   # Share link: the whole input travels in the URL hash (#s=...), so nothing is stored on the server.
   observeEvent(input$share_request, {
-    tok <- tryCatch({
-      sheets_out <- lapply(isolate(build_user_input()), function(d) { d <- as.data.frame(d); rownames(d) <- NULL; d })
-      js <- toJSON(sheets_out, dataframe = "columns", na = "null", digits = NA)
-      raw <- memCompress(charToRaw(as.character(js)), type = "gzip")
-      chartr("+/", "-_", gsub("=+$", "", gsub("\\s", "", jsonlite::base64_enc(raw))))
-    }, error = function(e) NULL)
+    tok <- share_token()
     if (is.null(tok)) {
       showNotification("The share link could not be created.", type = "error")
       return()
