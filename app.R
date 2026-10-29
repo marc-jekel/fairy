@@ -15872,11 +15872,11 @@ server <- shinyServer(function(input, output, session) {
       actionButton("qtest_order_open_v", label = tagList(icon("sort"), tags$span("Order")), class = "fairy-toolbar-iconbtn fairy-order-btn fairy-order-new"))
   })
   show_qtest_order <- function(pending = NULL) {
-    blocks <- lapply(isolate(items_reactive$names), function(nm) {
+    all_nms <- isolate(items_reactive$names)
+    blocks <- lapply(all_nms, function(nm) {
       lg <- items_model_legend(nm); if (is.null(lg)) return(NULL)
       N <- length(lg); perm <- qtest_valid_perm(isolate(qtest_perm$map[[nm]]), N)
-      tags$div(style = "margin-bottom:16px;",
-        tags$div(style = "font-weight:600; margin-bottom:6px;", nm),
+      tags$div(class = "qo-pane", `data-model` = nm,
         tags$ul(class = "fairy-qo-list", `data-model` = nm,
           lapply(seq_len(N), function(j) tags$li(draggable = "true", `data-col` = perm[j],
             tags$code(paste0("p", j)), tags$span(class = "qo-grip", HTML("&#8942;&#8942;")),
@@ -15885,7 +15885,12 @@ server <- shinyServer(function(input, output, session) {
               tags$button(type = "button", class = "qo-up", title = "one up", HTML("&#9650;")),
               tags$button(type = "button", class = "qo-down", title = "one down", HTML("&#9660;")))))))
     })
-    blocks <- Filter(Negate(is.null), blocks)
+    keep <- !vapply(blocks, is.null, logical(1))
+    blocks <- blocks[keep]; shown_nms <- all_nms[keep]
+    # several unpacked models: one tab each, instead of the lists below each other
+    tab_bar <- if (length(blocks) > 1) tags$div(class = "qo-tabs",
+      lapply(seq_along(shown_nms), function(i) tags$button(type = "button", class = paste("qo-tab", if (i == 1) "qo-tab-on" else ""),
+        `data-model` = shown_nms[i], title = shown_nms[i], shown_nms[i]))) else tags$div(style = "font-weight:600; margin-bottom:6px;", shown_nms)
     if (length(blocks) == 0) {
       showNotification("No unpacked model with computed H-representation yet: click Go first.", type = "warning"); return()
     }
@@ -15893,8 +15898,13 @@ server <- shinyServer(function(input, output, session) {
       title = "Order of the probabilities in the QTEST file",
       tags$p(class = "fairy-eq-tol-help", "Left: the probability as QTEST and multinomineq will see it (p1, p2, ...). Right: which probability of the unpacked model it is. Drag a row (or use the arrows) to change the matching."),
       tags$p(class = "fairy-eq-tol-help", style = "margin-top:-4px;", tags$b("Where it applies: "), "the QTEST and the multinomineq downloads, of the H-representation and of the V-representation (one order for all four), the typed input shown for this model, and the R script from Save R script (.R): it passes the order to fairy_write_qtest() and fairy_write_multinomineq() as order = qtest_order, so the files written by R have the same order."),
+      tab_bar,
       blocks,
       tags$style(HTML("
+        .qo-tabs { display:flex; gap:4px; overflow-x:auto; border-bottom:1px solid var(--fairy-border, #d5d9e4); margin-bottom:10px; padding-bottom:0; }
+        .qo-tab { flex:none; max-width:230px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border:1px solid var(--fairy-border, #d5d9e4); border-bottom:0;
+          border-radius:8px 8px 0 0; background:transparent; padding:5px 12px; font-size:12.5px; color:var(--fairy-text-muted, #667085); cursor:pointer; }
+        .qo-tab.qo-tab-on { background:var(--fairy-panel, #fff); color:var(--fairy-text, #1d2433); font-weight:600; box-shadow:inset 0 2px 0 var(--fairy-primary, #3a6df0); }
         .fairy-qo-list { list-style:none; padding:0; margin:0; max-height:46vh; overflow-y:auto; }
         .fairy-qo-list li { display:flex; align-items:center; gap:10px; padding:5px 10px; margin:0 0 3px; border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px; background:var(--fairy-panel, #fff); cursor:grab; }
         .fairy-qo-list li.qo-drag { opacity:.4; }
@@ -15908,6 +15918,13 @@ server <- shinyServer(function(input, output, session) {
         (function() {
           var dragEl = null;
           window.fairyQtestSeen = true;
+          // one tab per unpacked model: only its list is visible
+          var tabs = document.querySelectorAll('.qo-tab'), panes = document.querySelectorAll('.qo-pane');
+          function showPane(m) {
+            [].forEach.call(panes, function(p) { p.style.display = (p.getAttribute('data-model') === m) ? '' : 'none'; });
+            [].forEach.call(tabs, function(t) { t.classList.toggle('qo-tab-on', t.getAttribute('data-model') === m); });
+          }
+          if (tabs.length) { [].forEach.call(tabs, function(t) { t.addEventListener('click', function() { showPane(t.getAttribute('data-model')); }); }); showPane(tabs[0].getAttribute('data-model')); }
           [].forEach.call(document.querySelectorAll('.fairy-order-btn'), function(b) { b.classList.remove('fairy-order-new'); });
           var go = document.getElementById('qtest_order_dl_go');
           if (go) go.addEventListener('click', function() {
