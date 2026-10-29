@@ -6467,6 +6467,7 @@ ui <- shinyUI(fluidPage(
               copy.setAttribute('xmlns', 'http://www.w3.org/2000/svg'); copy.setAttribute('width', w); copy.setAttribute('height', h);
               // the legend goes below the picture (drawn as shapes and text: the standard PDF fonts have no bullet or arrow glyphs)
               var NS = 'http://www.w3.org/2000/svg', vb = (copy.getAttribute('viewBox') || ('0 0 ' + w + ' ' + h)).split(/[ ,]+/).map(Number), f = vb[2] / w;
+              h = Math.round(vb[3] / f);   // height of the drawing itself (the element can be taller than it when it is letterboxed)
               var ents = [].filter.call(document.querySelectorAll('#fairy_items_legend span'), function(sp) { return sp.style.display !== 'none'; }).map(function(sp) {
                 var b = sp.querySelector('b'), sym = b ? b.textContent.replace(/\\s/g, '') : '';
                 return { sym: sym, col: b ? getComputedStyle(b).color : '#667085', txt: sp.textContent.replace(b ? b.textContent : '', '').trim() };
