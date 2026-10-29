@@ -6446,6 +6446,8 @@ ui <- shinyUI(fluidPage(
           .fairy-items-full #fairy_items_expand { position:fixed; top:14px; right:18px; z-index:10200; }
           .fairy-items-panel { position:fixed !important; top:64px; left:16px; z-index:10100; width:340px; max-height:calc(100vh - 90px); overflow:auto;
             margin:0 !important; padding:0 14px 12px !important; border-radius:12px; background:var(--fairy-panel, #fff); box-shadow:0 8px 28px rgba(0,0,0,.25); }
+          #shiny-notification-panel { top:76px !important; bottom:auto !important; left:50% !important; right:auto !important; transform:translateX(-50%); width:420px; max-width:92vw; z-index:20000; }
+          .shiny-notification { opacity:1; border-left:5px solid var(--fairy-primary, #3a6df0); font-size:13.5px; }
           .fairy-items-panel.fairy-items-folded { overflow:hidden; padding-bottom:0 !important; }
           .fairy-items-panel.fairy-items-folded > :not(.fairy-plot-panel-head) { display:none !important; }
           .fairy-items-panel.fairy-items-folded .fairy-plot-panel-head { margin-bottom:0; }
@@ -6460,7 +6462,7 @@ ui <- shinyUI(fluidPage(
             function apply() {
               var d = document.getElementById('fairy_items_diagram'), w = document.getElementById('fairy_items_fade_wrap'), t = document.getElementById('fairy_items_fade_toggle');
               if (!d || !w || !t) return;
-              var faded = d.querySelectorAll('[opacity=\"0.2\"]');
+              var faded = d.querySelectorAll('[data-implied]');
               w.style.display = faded.length ? 'block' : 'none';
               for (var i = 0; i < faded.length; i++) faded[i].style.display = t.checked ? '' : 'none';
             }
@@ -7690,7 +7692,7 @@ server <- shinyServer(function(input, output, session) {
               tags$div(id = "fairy_items_legend", style = "font-size:11px; color:var(--fairy-text-muted); margin-top:8px; line-height:1.7;"),
               tags$label(id = "fairy_items_fade_wrap", style = "display:none; font-weight:normal; font-size:11.5px; margin:6px 0 0; cursor:pointer; color:var(--fairy-text-muted);",
                 tags$input(id = "fairy_items_fade_toggle", type = "checkbox", checked = "checked", style = "margin:0 6px 0 0; vertical-align:-1px;"),
-                "Show the same for the other items"))),
+                "Show comparisons that follow from the others (p1 \u2192 p3)"))),
           tags$div(id = "fairy_items_quick_eps_wrap", style = paste0(if (identical(q_type, "identical")) "" else "display:none;"),
             qh(4, "Are the items of a probability exactly equal, or only approximately?"),
             tags$div(style = "margin-left:28px; font-size:12.5px;",
@@ -8375,9 +8377,35 @@ server <- shinyServer(function(input, output, session) {
                 }
               }
             }
-            pdisp.forEach(function(pp) {
+            // a comparison that already follows from the others (p1 > p2 > p3 makes p1 > p3 redundant): marked, so it can be switched off
+            var impl = {};
+            (function() {
+              var es = [];
+              pdisp.forEach(function(pp, ix) {
+                if (pp[3]) return;
+                var a = Math.min(pp[0], pp[1]), b = Math.max(pp[0], pp[1]), op = String(pp[2] || (pp[0] > pp[1] ? '<' : '>'));
+                if (op.indexOf('=') >= 0 && op.indexOf('>') < 0 && op.indexOf('<') < 0 && op.indexOf(String.fromCharCode(8805)) < 0 && op.indexOf(String.fromCharCode(8804)) < 0) return;
+                var up = op.indexOf('>') >= 0 || op.indexOf(String.fromCharCode(8805)) >= 0;
+                es.push({ ix: ix, from: up ? a : b, to: up ? b : a });
+              });
+              es.forEach(function(e) {
+                var seen = {}, stack = [e.from], found = false;
+                seen[e.from] = true;
+                while (stack.length && !found) {
+                  var u = stack.pop();
+                  es.forEach(function(f) {
+                    if (f === e || f.from !== u || seen[f.to]) return;
+                    if (f.to === e.to) { found = true; return; }
+                    seen[f.to] = true; stack.push(f.to);
+                  });
+                }
+                if (found) impl[e.ix] = true;
+              });
+            })();
+            pdisp.forEach(function(pp, pix) {
               var before = g.childNodes.length;
               drawPair(pp);
+              if (impl[pix]) for (var ti = before; ti < g.childNodes.length; ti++) g.childNodes[ti].setAttribute('data-implied', '1');
               if (pp[3]) return;
               var mk2 = (pp[0] < pp[1]) ? 'marker-end' : 'marker-start';   // the arrow points from the larger to the smaller probability, like the sign for greater than
               for (var ci = before; ci < g.childNodes.length; ci++) {
