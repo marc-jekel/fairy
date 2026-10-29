@@ -6464,6 +6464,42 @@ ui <- shinyUI(fluidPage(
               var r = svg.getBoundingClientRect(), w = Math.round(r.width), h = Math.round(r.height), pad = 24;
               var copy = svg.cloneNode(true);
               inlineStyles(svg, copy);
+              // svg2pdf turns an arrowhead at the START of a line the wrong way: reverse such lines, so every head sits at the end
+              [].forEach.call(copy.querySelectorAll('[marker-start]'), function(m) {
+                var tag = m.tagName.toLowerCase(), mk = m.getAttribute('marker-start');
+                if (tag === 'line') {
+                  var a = [m.getAttribute('x1'), m.getAttribute('y1'), m.getAttribute('x2'), m.getAttribute('y2')];
+                  m.setAttribute('x1', a[2]); m.setAttribute('y1', a[3]); m.setAttribute('x2', a[0]); m.setAttribute('y2', a[1]);
+                } else if (tag === 'path') {
+                  var d = m.getAttribute('d') || '', nums = (d.match(/-?[0-9]*\\.?[0-9]+(?:e-?[0-9]+)?/g) || []).map(Number);
+                  if (/^\\s*M[^C]*C[^C]*$/i.test(d) && nums.length === 8)
+                    m.setAttribute('d', 'M' + nums[6] + ' ' + nums[7] + ' C ' + nums[4] + ' ' + nums[5] + ' ' + nums[2] + ' ' + nums[3] + ' ' + nums[0] + ' ' + nums[1]);
+                  else if (/^\\s*M[^L]*L[^L]*$/i.test(d) && nums.length === 4) m.setAttribute('d', 'M' + nums[2] + ' ' + nums[3] + ' L' + nums[0] + ' ' + nums[1]);
+                  else return;
+                } else return;
+                m.removeAttribute('marker-start'); m.setAttribute('marker-end', mk); m.style.setProperty('marker-start', 'none'); m.style.setProperty('marker-end', mk);
+              });
+              // ... and it also turns the heads of slanted lines wrongly: draw every arrowhead as a small chevron of its own
+              [].forEach.call(copy.querySelectorAll('[marker-end]'), function(m) {
+                var tag = m.tagName.toLowerCase(), px, py, ux, uy;
+                if (tag === 'line') {
+                  var x1 = +m.getAttribute('x1'), y1 = +m.getAttribute('y1'); px = +m.getAttribute('x2'); py = +m.getAttribute('y2'); ux = px - x1; uy = py - y1;
+                } else if (tag === 'path') {
+                  var nm = ((m.getAttribute('d') || '').match(/-?[0-9]*\\.?[0-9]+(?:e-?[0-9]+)?/g) || []).map(Number);
+                  if (nm.length < 4) return;
+                  px = nm[nm.length - 2]; py = nm[nm.length - 1]; ux = px - nm[nm.length - 4]; uy = py - nm[nm.length - 3];
+                } else return;
+                var len = Math.sqrt(ux * ux + uy * uy); if (!len) return; ux /= len; uy /= len;
+                var tx = px + 0.8 * ux, ty = py + 0.8 * uy, bx = tx - 5.6 * ux, by = ty - 5.6 * uy, vx = -uy * 3.1, vy = ux * 3.1;
+                var hd = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                hd.setAttribute('d', 'M' + (bx + vx) + ' ' + (by + vy) + ' L' + tx + ' ' + ty + ' L' + (bx - vx) + ' ' + (by - vy));
+                hd.setAttribute('fill', 'none'); hd.setAttribute('stroke-linecap', 'round'); hd.setAttribute('stroke-linejoin', 'round'); hd.setAttribute('stroke-width', '1.7');
+                hd.setAttribute('stroke', m.style.getPropertyValue('stroke') || '#3a6df0');
+                hd.setAttribute('opacity', m.style.getPropertyValue('opacity') || '1');
+                if (m.getAttribute('display') === 'none') hd.setAttribute('display', 'none');
+                m.parentNode.insertBefore(hd, m.nextSibling);
+                m.removeAttribute('marker-end'); m.style.setProperty('marker-end', 'none');
+              });
               copy.setAttribute('xmlns', 'http://www.w3.org/2000/svg'); copy.setAttribute('width', w); copy.setAttribute('height', h);
               // the legend goes below the picture (drawn as shapes and text: the standard PDF fonts have no bullet or arrow glyphs)
               var NS = 'http://www.w3.org/2000/svg', vb = (copy.getAttribute('viewBox') || ('0 0 ' + w + ' ' + h)).split(/[ ,]+/).map(Number), f = vb[2] / w;
@@ -8496,7 +8532,7 @@ server <- shinyServer(function(input, output, session) {
                   var e = el('text', { x: (X(k) + X(k + 1)) / 2, y: ys[i] - 5, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '12' }, svg); e.textContent = eqCh;
                 }
               } else if (r.type === 'average') {
-                if (i === 0) { var ah = el('text', { x: avgX, y: 14, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '10.5', 'font-weight': '600' }, svg); ah.textContent = 'average'; }
+                if (!svg.querySelector('[data-avg-head]')) { var ah = el('text', { x: avgX, y: 14, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '10.5', 'font-weight': '600', 'data-avg-head': '1' }, svg); ah.textContent = 'average'; }   // once, above the first average row (not only when that is the first row of the picture)
                 el('line', { x1: X(0) + 6, y1: ys[i], x2: avgX - 8, y2: ys[i], stroke: 'currentColor', 'stroke-width': '1', opacity: '0.4', 'stroke-dasharray': '2 3' }, svg);   // one line (several overlapping ones mixed their dash patterns)
                 // plus signs on the dotted line: the items are added up (and then divided by their number)
                 for (k = 0; k < c - 1; k++) {
