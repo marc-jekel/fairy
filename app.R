@@ -7681,8 +7681,19 @@ server <- shinyServer(function(input, output, session) {
             #fairy_items_stmts { border:0 !important; border-top:1px solid var(--fairy-border, #d5d9e4) !important; border-radius:0 !important; background:transparent !important; padding:12px 0 0 !important; margin-top:18px !important; }
             #fairy_items_caption { color:var(--fairy-text-muted); margin-top:10px !important; }
             #fairy_items_summary { border-left:0 !important; background:transparent !important; padding:0 !important; color:var(--fairy-text-muted); font-size:12px !important; margin-top:22px !important; }
-            .modal:has(#submit_items_multi) .modal-body { padding:20px 30px !important; }
+            .modal:has(#submit_items_multi) .modal-body { padding:14px 26px !important; }
+            /* compact: questions 1 and 2 side by side, tighter gaps */
+            .fairy-items-top { display:grid; grid-template-columns:1.5fr 1fr; gap:0 28px; align-items:start; }
+            .fairy-items-top > #fairy_items_count_same[style*='display:none'] { display:none !important; }
+            .fairy-items-quick .fairy-items-q { margin:14px 0 6px !important; }
+            .fairy-items-quick > .fairy-items-q:first-of-type { margin-top:6px !important; }
+            .fairy-items-main { gap:20px; }
+            .fairy-items-opt { padding:6px 12px !important; margin-bottom:2px !important; }
+            #fairy_items_stmts { margin-top:10px !important; padding-top:8px !important; }
+            #fairy_items_summary { margin-top:10px !important; }
+            #fairy_items_caption { margin-top:6px !important; }
           ")),
+          tags$div(class = "fairy-items-top",
           tags$div(id = "fairy_items_q1",
           qh(1, "Do all probabilities use the same items?"),
           tags$div(style = "margin-left:28px;",
@@ -7698,7 +7709,7 @@ server <- shinyServer(function(input, output, session) {
             qh(2, "How many items?", "e.g. 3 different jokes"),
             tags$div(class = "fairy-items-nrow", style = "margin:0 0 4px 28px;",
               tags$input(id = "fairy_items_quick_n", type = "number", min = 1, max = 50, step = 1, value = q_n,
-                class = "form-control", style = "width:80px;", `aria-label` = "Number of items"))),
+                class = "form-control", style = "width:80px;", `aria-label` = "Number of items")))),
           tags$div(id = "fairy_items_two_panel", style = if (adv_diff) "" else "display:none;",
             qh(2, "Which probabilities share a list, and how many items does each list have?"),
             tags$div(style = "margin:0 0 4px 28px; padding:8px 10px; border-radius:8px; background:var(--ct-default, #fff); border:1px solid var(--fairy-border, #d5d9e4);",
