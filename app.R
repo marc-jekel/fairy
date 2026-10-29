@@ -11660,7 +11660,7 @@ server <- shinyServer(function(input, output, session) {
       if (length(select_models_to_plot) > 0 && ncol(matrix_pl_all) == 2) {
         runjs("$('#dim_pick_heading').hide(); $('#dim_1, #dim_2, #dim_3').closest('.form-group').hide(); $('#auto_rotate_plot').prop('checked', false).trigger('change'); $('#auto_rotate_plot').closest('.row').hide();")
         pal1 <- c("#E69F00", "#56B4E9", "#009E73", "#D55E00", "#CC79A7", "#0072B2", "#F0E442", "#000000", "#999999")
-        ax1 <- gsub("[_{}]", "", colnames(matrix_pl_all)[2])
+        ax1 <- plain_axis_name(colnames(matrix_pl_all)[2])
         p1d <- plot_ly(height = 220 + 60 * length(select_models_to_plot))
         for (k1 in seq_along(select_models_to_plot)) {
           nm1 <- select_models_to_plot[k1]; col1 <- pal1[((k1 - 1) %% length(pal1)) + 1]
@@ -11686,7 +11686,7 @@ server <- shinyServer(function(input, output, session) {
       if (length(select_models_to_plot) > 0 && ncol(matrix_pl_all) == 3) {
         runjs("$('#dim_pick_heading').show(); $('#dim_1, #dim_2').closest('.form-group').show(); $('#dim_3').closest('.form-group').hide(); $('#auto_rotate_plot').prop('checked', false).trigger('change'); $('#auto_rotate_plot').closest('.row').hide();")
         pal2 <- c("#E69F00", "#56B4E9", "#009E73", "#D55E00", "#CC79A7", "#0072B2", "#F0E442", "#000000", "#999999")
-        ax_names <- gsub("[_{}]", "", colnames(matrix_pl_all)[2:3])
+        ax_names <- plain_axis_name(colnames(matrix_pl_all)[2:3])
         p2 <- plot_ly()
         for (k2 in seq_along(select_models_to_plot)) {
           nm2 <- select_models_to_plot[k2]; col2 <- pal2[((k2 - 1) %% length(pal2)) + 1]
@@ -11776,19 +11776,19 @@ server <- shinyServer(function(input, output, session) {
           axx <- list(
             nticks = .1,
             range = c(0, 1),
-            title = dim_names[1]
+            title = unicode_axis_name(dim_names[1])
           )
 
           axy <- list(
             nticks = .1,
             range = c(0, 1),
-            title = dim_names[2]
+            title = unicode_axis_name(dim_names[2])
           )
 
           axz <- list(
             nticks = .1,
             range = c(0, 1),
-            title = dim_names[3]
+            title = unicode_axis_name(dim_names[3])
           )
 
           if (loop_pl == 1) {
@@ -11933,8 +11933,9 @@ server <- shinyServer(function(input, output, session) {
   plain_axis_name <- function(nm) {
     # plotly tick text understands <sub>/<sup>: p_{2}^{(1)} reads like the H-description, p<sub>2</sub><sup>(1)</sup>
     sub_p <- function(b) {
+      # only the default names p_{1}; a typed name such as success_rate keeps its underscore
+      if (grepl("^[^_]+_\\{[^}]+\\}$", b)) return(sub("^([^_]+)_\\{([^}]+)\\}$", "\\1<sub>\\2</sub>", b))
       b <- gsub("[{}]", "", b)
-      if (grepl("^.+_.+$", b)) return(sub("^(.+?)_(.+)$", "\\1<sub>\\2</sub>", b, perl = TRUE))
       if (grepl("^[A-Za-z]+[0-9]+$", b)) return(sub("^([A-Za-z]+)([0-9]+)$", "\\1<sub>\\2</sub>", b))
       b
     }
@@ -11956,6 +11957,21 @@ server <- shinyServer(function(input, output, session) {
       if (identical(grp, base_plain)) paste0(sub_p(base_of), "<sup>(", lev, ")</sup>")
       else paste0(sub_p(base_of), " [", grp, " #", lev, "]")
     }, character(1), USE.NAMES = FALSE)
+  }
+
+  # 3D scene titles are drawn by WebGL, which shows <sub>/<sup> tags literally: use the Unicode characters there
+  unicode_axis_name <- function(nm) {
+    sub_d <- c("0" = "\u2080", "1" = "\u2081", "2" = "\u2082", "3" = "\u2083", "4" = "\u2084", "5" = "\u2085", "6" = "\u2086", "7" = "\u2087", "8" = "\u2088", "9" = "\u2089")
+    sup_d <- c("0" = "\u2070", "1" = "\u00b9", "2" = "\u00b2", "3" = "\u00b3", "4" = "\u2074", "5" = "\u2075", "6" = "\u2076", "7" = "\u2077", "8" = "\u2078", "9" = "\u2079", "(" = "\u207d", ")" = "\u207e")
+    conv <- function(x, tag, map) {
+      m <- gregexpr(paste0("<", tag, ">[^<]*</", tag, ">"), x)
+      regmatches(x, m) <- lapply(regmatches(x, m), function(parts) vapply(parts, function(p) {
+        ch <- strsplit(gsub("</?[a-z]+>", "", p), "")[[1]]
+        paste(ifelse(ch %in% names(map), map[ch], ch), collapse = "")
+      }, character(1)))
+      x
+    }
+    vapply(plain_axis_name(nm), function(x) conv(conv(x, "sub", sub_d), "sup", sup_d), character(1), USE.NAMES = FALSE)
   }
 
   # Long decimals like 0.333333333333333 (from thirds, etc.) are hard to
