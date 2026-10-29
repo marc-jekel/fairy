@@ -6443,6 +6443,10 @@ ui <- shinyUI(fluidPage(
           .fairy-items-full #fairy_items_diagram { max-height:none !important; overflow:visible !important; }
           .fairy-items-full #fairy_items_diagram svg { width:100% !important; max-width:1200px; height:auto !important; max-height:calc(100vh - 190px); min-height:0; margin:0 auto; display:block; }
           .fairy-items-full #fairy_items_legend { font-size:14px !important; text-align:center; margin-top:14px !important; }
+          #fairy_items_fade_wrap { font-size:13px !important; color:var(--fairy-text, #1d2433) !important; margin-top:10px !important; padding:6px 12px; border:1px solid var(--fairy-border, #d5d9e4); border-radius:10px; width:fit-content; max-width:100%; }
+          #fairy_items_fade_wrap input { width:16px; height:16px; margin-right:8px !important; vertical-align:-3px !important; }
+          .fairy-items-full #fairy_items_fade_wrap { font-size:17px !important; margin:18px auto 0 !important; padding:9px 18px; border-radius:12px; background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 8%, transparent); }
+          .fairy-items-full #fairy_items_fade_wrap input { width:22px; height:22px; margin-right:12px !important; vertical-align:-5px !important; }
           .fairy-items-full #fairy_items_expand { position:fixed; top:14px; right:18px; z-index:10200; }
           .fairy-items-panel { position:fixed !important; top:64px; left:16px; z-index:10100; width:340px; max-height:calc(100vh - 90px); overflow:auto;
             margin:0 !important; padding:0 14px 12px !important; border-radius:12px; background:var(--fairy-panel, #fff); box-shadow:0 8px 28px rgba(0,0,0,.25); }
