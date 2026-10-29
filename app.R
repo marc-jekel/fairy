@@ -408,7 +408,8 @@ ui <- shinyUI(fluidPage(
         position: fixed;
         right: 24px;
         bottom: 24px;
-        z-index: 1060;
+        /* below dialogs (1050) and their backdrop (1040): Go floats over the page, never over a window */
+        z-index: 1030;
         background: var(--fairy-panel);
         border: 1px solid var(--fairy-border);
         border-radius: 14px;
