@@ -6415,7 +6415,7 @@ ui <- shinyUI(fluidPage(
           #polytope_plot_expand .pp-close { display:none; }
           #polytope_plot_wrap.fairy-plot-full #polytope_plot_expand .pp-open { display:none; }
           #polytope_plot_wrap.fairy-plot-full #polytope_plot_expand .pp-close { display:block; }
-          #polytope_plot_wrap.fairy-plot-full #polytope_plot_expand { top:8px; left:8px; right:auto; bottom:auto; }
+          #polytope_plot_wrap.fairy-plot-full #polytope_plot_expand { bottom:48px; right:8px; }
           #polytope_plot_expand:hover { background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 18%, transparent); color:var(--fairy-primary, #3a6df0); }
           #polytope_plot_wrap.fairy-plot-full { position:fixed !important; inset:0; z-index:2000; background:var(--fairy-panel, #fff); padding:8px; }
           #polytope_plot_wrap.fairy-plot-full #plot { height:calc(100vh - 16px) !important; }
