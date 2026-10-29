@@ -7697,7 +7697,7 @@ server <- shinyServer(function(input, output, session) {
               tags$div(id = "fairy_items_legend", style = "font-size:11px; color:var(--fairy-text-muted); margin-top:8px; line-height:1.7;"),
               tags$label(id = "fairy_items_fade_wrap", style = "display:none; font-weight:normal; font-size:11.5px; margin:6px 0 0; cursor:pointer; color:var(--fairy-text-muted);",
                 tags$input(id = "fairy_items_fade_toggle", type = "checkbox", checked = "checked", style = "margin:0 6px 0 0; vertical-align:-1px;"),
-                "Show comparisons that follow from the others (p1 \u2192 p3)"))),
+                "Show redundant comparisons (they follow from the others, e.g. p1 \u2192 p3)"))),
           tags$div(id = "fairy_items_quick_eps_wrap", style = paste0(if (identical(q_type, "identical")) "" else "display:none;"),
             qh(4, "Are the items of a probability exactly equal, or only approximately?"),
             tags$div(style = "margin-left:28px; font-size:12.5px;",
