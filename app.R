@@ -15894,14 +15894,19 @@ server <- shinyServer(function(input, output, session) {
     blocks <- lapply(all_nms, function(nm) {
       lg <- items_model_legend(nm); if (is.null(lg)) return(NULL)
       N <- length(lg); perm <- qtest_valid_perm(isolate(qtest_perm$map[[nm]]), N)
+      # left: the fixed names QTEST sees (p1, p2, ...); right: the unpacked probabilities, which are moved against them
       tags$div(class = "qo-pane", `data-model` = nm,
-        tags$ul(class = "fairy-qo-list", `data-model` = nm,
-          lapply(seq_len(N), function(j) tags$li(draggable = "true", `data-col` = perm[j],
-            tags$code(paste0("p", j)), tags$span(class = "qo-grip", HTML("&#8942;&#8942;")),
-            tags$span(class = "qo-right", HTML(lg[perm[j]])),
-            tags$span(class = "qo-btns",
-              tags$button(type = "button", class = "qo-up", title = "one up", HTML("&#9650;")),
-              tags$button(type = "button", class = "qo-down", title = "one down", HTML("&#9660;")))))))
+        tags$div(class = "qo-scroll",
+          tags$div(class = "qo-wrap",
+            tags$div(class = "qo-labels", lapply(seq_len(N), function(j) tags$code(paste0("p", j)))),
+            tags$ul(class = "fairy-qo-list", `data-model` = nm,
+              lapply(seq_len(N), function(j) tags$li(draggable = "true", `data-col` = perm[j],
+                tags$span(class = "qo-grip", HTML("&#8942;&#8942;")),
+                tags$span(class = "qo-right", HTML(lg[perm[j]])),
+                tags$input(type = "number", class = "qo-pos", min = 1, max = N, value = j, title = "type a position (1 to the last) to move this row there"),
+                tags$span(class = "qo-btns",
+                  tags$button(type = "button", class = "qo-up", title = "one up", HTML("&#9650;")),
+                  tags$button(type = "button", class = "qo-down", title = "one down", HTML("&#9660;")))))))))
     })
     keep <- !vapply(blocks, is.null, logical(1))
     blocks <- blocks[keep]; shown_nms <- all_nms[keep]
@@ -15923,10 +15928,15 @@ server <- shinyServer(function(input, output, session) {
         .qo-tab { flex:none; max-width:230px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border:1px solid var(--fairy-border, #d5d9e4); border-bottom:0;
           border-radius:8px 8px 0 0; background:transparent; padding:5px 12px; font-size:12.5px; color:var(--fairy-text-muted, #667085); cursor:pointer; }
         .qo-tab.qo-tab-on { background:var(--fairy-panel, #fff); color:var(--fairy-text, #1d2433); font-weight:600; box-shadow:inset 0 2px 0 var(--fairy-primary, #3a6df0); }
-        .fairy-qo-list { list-style:none; padding:0; margin:0; max-height:46vh; overflow-y:auto; }
-        .fairy-qo-list li { display:flex; align-items:center; gap:10px; padding:5px 10px; margin:0 0 3px; border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px; background:var(--fairy-panel, #fff); cursor:grab; }
+        .qo-scroll { max-height:46vh; overflow-y:auto; padding-right:4px; }
+        .qo-wrap { display:grid; grid-template-columns:62px 1fr; gap:10px; align-items:start; }
+        .qo-labels { display:flex; flex-direction:column; gap:3px; }
+        .qo-labels code { height:40px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; font-size:13px; }
+        .fairy-qo-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:3px; }
+        .qo-pos { width:58px; height:28px; padding:2px 6px; border:1px solid var(--fairy-border, #d5d9e4); border-radius:6px; background:var(--fairy-panel, #fff); color:inherit; }
+        .fairy-qo-list li.qo-moved { background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 14%, transparent); border-color:var(--fairy-primary, #3a6df0); }
+        .fairy-qo-list li { display:flex; align-items:center; gap:10px; padding:0 10px; height:40px; box-sizing:border-box; margin:0; border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px; background:var(--fairy-panel, #fff); cursor:grab; }
         .fairy-qo-list li.qo-drag { opacity:.4; }
-        .fairy-qo-list li code { min-width:46px; text-align:center; }
         .qo-grip { color:var(--fairy-text-muted, #667085); letter-spacing:-2px; }
         .qo-right { flex:1; font-size:14px; }
         .qo-btns button { border:0; background:transparent; color:var(--fairy-text-muted, #667085); cursor:pointer; padding:0 4px; }
@@ -15950,12 +15960,15 @@ server <- shinyServer(function(input, output, session) {
             if (window.jQuery) jQuery('.modal').modal('hide');
             setTimeout(function() { var a = document.getElementById(id); if (a) a.click(); }, 450);
           });
-          function relabel(ul) { [].forEach.call(ul.querySelectorAll('li'), function(li, i) { li.querySelector('code').textContent = 'p' + (i + 1); }); }
+          function syncPos(ul) { [].forEach.call(ul.querySelectorAll('li'), function(li, i) { li.querySelector('.qo-pos').value = i + 1; }); }
           function send(ul) {
             var cols = [].map.call(ul.querySelectorAll('li'), function(li) { return parseInt(li.getAttribute('data-col'), 10); });
             if (window.Shiny) Shiny.setInputValue('qtest_perm', { model: ul.getAttribute('data-model'), perm: cols }, { priority: 'event' });
           }
-          function changed(ul) { relabel(ul); send(ul); }
+          function changed(ul, li) {
+            syncPos(ul); send(ul);
+            if (li) { li.classList.add('qo-moved'); setTimeout(function() { li.classList.remove('qo-moved'); }, 1200); }
+          }
           [].forEach.call(document.querySelectorAll('.fairy-qo-list li'), function(li) {
             li.addEventListener('dragstart', function(e) { dragEl = li; li.classList.add('qo-drag'); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', 'x'); } catch (x) {} });
             li.addEventListener('dragend', function() { if (dragEl) dragEl.classList.remove('qo-drag'); dragEl = null; });
@@ -15964,9 +15977,15 @@ server <- shinyServer(function(input, output, session) {
               e.preventDefault(); var r = li.getBoundingClientRect();
               li.parentNode.insertBefore(dragEl, (e.clientY - r.top) > r.height / 2 ? li.nextSibling : li);
             });
-            li.addEventListener('drop', function(e) { e.preventDefault(); changed(li.parentNode); });
-            li.querySelector('.qo-up').addEventListener('click', function() { var p = li.previousElementSibling; if (p) { li.parentNode.insertBefore(li, p); changed(li.parentNode); } });
-            li.querySelector('.qo-down').addEventListener('click', function() { var n = li.nextElementSibling; if (n) { li.parentNode.insertBefore(n, li); changed(li.parentNode); } });
+            li.addEventListener('drop', function(e) { e.preventDefault(); changed(li.parentNode, dragEl || li); });
+            li.querySelector('.qo-pos').addEventListener('change', function() {
+              var ul = li.parentNode, n = ul.children.length, v = Math.max(1, Math.min(n, parseInt(this.value, 10) || 1));
+              var cur = [].indexOf.call(ul.children, li) + 1;
+              if (v !== cur) { var ref = ul.children[v - 1]; ul.insertBefore(li, v > cur ? ref.nextSibling : ref); }
+              changed(ul, li);
+            });
+            li.querySelector('.qo-up').addEventListener('click', function() { var p = li.previousElementSibling; if (p) { li.parentNode.insertBefore(li, p); changed(li.parentNode, li); } });
+            li.querySelector('.qo-down').addEventListener('click', function() { var n = li.nextElementSibling; if (n) { li.parentNode.insertBefore(n, li); changed(li.parentNode, li); } });
           });
         })();
       ")),
