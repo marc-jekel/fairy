@@ -9621,21 +9621,8 @@ server <- shinyServer(function(input, output, session) {
     }
   })
 
-  # Auto-sync parameter count with the highest p_N referenced in any constraint.
-  # Caps at 30 to avoid runaway growth from typos (e.g. accidental "p89").
-  # Also shrinks back when a typo is corrected, but never below 3.
-  observe({
-    n_m      <- counter_input$n
-    if (isTRUE(isolate(restoring_upload()))) return()
-    all_text <- paste(vapply(seq_len(n_m), function(i)
-      input[[paste0("textin_relations_", i)]] %||% "", character(1)), collapse = ";")
-    nums <- suppressWarnings(
-      as.integer(unlist(stringr::str_extract_all(all_text, "(?<=p)\\d+"))))
-    nums <- nums[!is.na(nums) & nums > 0]
-    target <- max(1L, if (length(nums) == 0) 0L else max(nums), isolate(manual_p_floor()))
-    cur <- isolate(counter$n)
-    if (target != cur) counter$n <- target
-  })
+  # (The number of probabilities follows the highest p_N in the typed text in one place only: the debounced
+  # observer further down, which also tells the user what was added and asks before big jumps.)
 
   observeEvent(input$add_ie, {
     counter_input$n <- counter_input$n + 1
