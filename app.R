@@ -7484,16 +7484,17 @@ server <- shinyServer(function(input, output, session) {
     # one segment covering every expanded probability: no need to list them
     all_in_one <- length(out) == 1L && length(out[[1]]$members) == length(param_factors)
     kinds <- unique(vapply(out, function(sg) sg$kind, character(1)))
-    one_kind <- length(kinds) == 1L
-    # same item count everywhere but different kinds: "2 items \u00b7 item by item (p2, p5), average (p3, p4)"
-    if (!one_kind && length(unique(vapply(out, function(sg) sg$n, numeric(1)))) == 1L)
-      return(paste0(out[[1]]$n, " items \u00b7 ", paste(vapply(out, function(sg)
-        paste0(sg$kind, " (", paste(sg$members, collapse = ", "), ")"), character(1)), collapse = ", ")))
-    body <- vapply(out, function(sg)
-      paste0(if (all_in_one) "" else paste0(paste(sg$members, collapse = ", "), ": "),
-             paste0(sg$n, " items", if (one_kind) "" else paste0(", ", sg$kind))), character(1))
-    paste0(paste(body, collapse = "; "), if (one_kind) paste0(" \u00b7 ", kinds) else "")
+    ns <- vapply(out, function(sg) as.numeric(sg$n), numeric(1))
+    mem <- function(sg) paste(sg$members, collapse = ", ")
+    # one rule for every case:  "2 items \u00b7 average"  /  "2 items \u00b7 item by item (p2, p5), average (p3, p4)"
+    #                           "average: p1, p2 (2 items), p3, p4 (3 items); item by item: p5 (2 items)"
+    if (all_in_one) return(paste0(out[[1]]$n, " items \u00b7 ", out[[1]]$kind))
+    if (length(unique(ns)) == 1L)
+      return(paste0(ns[1], " items \u00b7 ", paste(vapply(out, function(sg) paste0(sg$kind, " (", mem(sg), ")"), character(1)), collapse = ", ")))
+    paste(vapply(kinds, function(k) paste0(k, ": ", paste(vapply(Filter(function(sg) sg$kind == k, out), function(sg)
+      paste0(mem(sg), " (", sg$n, " items)"), character(1)), collapse = ", ")), character(1)), collapse = "; ")
   }
+
 
   # Name(s) a single items spec produces. The Go pipeline and the model-row
   # delete handler both need exactly the same name(s) (the handler drops the
@@ -8061,6 +8062,16 @@ server <- shinyServer(function(input, output, session) {
           var chipPal = ['#3a6df0', '#e07b00', '#2a9d6f', '#b04fd0', '#c2385a', '#7a7f8c'];
           function chipLetter(k) { return k < 26 ? String.fromCharCode(65 + k) : String(k + 1); }
           function chipColor(k) { return chipPal[k % chipPal.length]; }
+          // lists can be renamed (the box in the list row); the default is list A, list B, ...
+          var listNames = [];
+          function cleanListName(v) { return String(v || '').replace(/[<>&\"']/g, '').trim().slice(0, 24); }
+          function listTitle(k) { return listNames[k] ? listNames[k] : 'list ' + chipLetter(k); }
+          // two lists with the same name must not become one group: the second one gets its letter appended
+          function groupNameOf(k) {
+            var b = listNames[k];
+            if (!b) return 'group ' + chipLetter(k);
+            return listNames.some(function(x, j) { return j !== k && x === b; }) ? b + ' ' + chipLetter(k) : b;
+          }
           var CHIP_TYPES = [['joint', 'for each item separately'], ['substitutable', 'for every combination of items'], ['identical', 'for the shared value (items equal)'], ['average', 'for the average over the items']];
           function chipRowName(i) {
             var rows = document.querySelectorAll('.fairy-items-row'), sp = rows[i] && rows[i].querySelector('span');
@@ -8104,7 +8115,7 @@ server <- shinyServer(function(input, output, session) {
             chipState.asg.forEach(function(s, i) {
               var b = document.createElement('button');
               b.type = 'button'; b.className = 'fairy-chip'; b.setAttribute('data-p', i);
-              b.textContent = chipRowName(i) + ' ' + String.fromCharCode(183) + ' list ' + chipLetter(s - 1);
+              b.textContent = chipRowName(i) + ' ' + String.fromCharCode(183) + ' ' + listTitle(s - 1);
               b.style.cssText = 'border:1.5px solid ' + chipColor(s - 1) + '; background:' + chipColor(s - 1) + '22; color:inherit; border-radius:14px; padding:3px 11px; font-size:12.5px; cursor:pointer;';
               ch.appendChild(b);
             });
@@ -8112,7 +8123,9 @@ server <- shinyServer(function(input, output, session) {
               var row = document.createElement('div');
               row.style.cssText = 'display:flex; align-items:center; gap:8px; margin:5px 0; flex-wrap:wrap;';
               var dot = document.createElement('span'); dot.style.cssText = 'width:12px; height:12px; border-radius:50%; background:' + chipColor(k) + '; display:inline-block;';
-              var lab = document.createElement('b'); lab.style.fontSize = '12.5px'; lab.textContent = 'Item list ' + chipLetter(k);
+              var lab = document.createElement('input'); lab.type = 'text'; lab.className = 'form-control fairy-set-name'; lab.value = listNames[k] || ''; lab.placeholder = 'list ' + chipLetter(k);
+              lab.maxLength = 24; lab.setAttribute('data-set', k); lab.setAttribute('aria-label', 'Name of list ' + chipLetter(k)); lab.title = 'Click to rename this list';
+              lab.style.cssText = 'width:112px; height:28px; padding:2px 8px; font-size:12.5px; font-weight:600;';
               var members = chipState.asg.map(function(s, i) { return s === k + 1 ? chipRowName(i) : null; }).filter(Boolean).join(', ');
               var mem = document.createElement('span'); mem.style.cssText = 'font-size:12px; color:var(--fairy-text-muted);'; mem.textContent = '(' + members + ')';
               var inp = document.createElement('input'); inp.type = 'number'; inp.min = 1; inp.max = 50; inp.value = st.n; inp.className = 'form-control fairy-set-n';
@@ -8144,7 +8157,7 @@ server <- shinyServer(function(input, output, session) {
               var gIn = row.querySelector('input[id^=items_multi_group_]'), sel = row.querySelector('select[id^=items_multi_type_]'), eIn = row.querySelector('input[id^=items_multi_eps_]');
               if (st.n > 1) {
                 if (sel) { if (sel.selectize) sel.selectize.setValue(st.type); else { sel.value = st.type; $(sel).trigger('change'); } }
-                if (gIn) { gIn.value = 'group ' + chipLetter(k - 1); $(gIn).trigger('input'); }
+                if (gIn) { gIn.value = groupNameOf(k - 1); $(gIn).trigger('input'); }
               }
               if (eIn) { eIn.value = st.type === 'identical' ? epsV : 0; $(eIn).trigger('change'); }
             });
@@ -8195,6 +8208,13 @@ server <- shinyServer(function(input, output, session) {
           $(document).on('change', '.fairy-set-type', function() {
             var k = parseInt(this.getAttribute('data-set'), 10); chipState.sets[k].type = this.value; chipsApply();
           });
+          // renaming a list: chips and picture follow while typing, the group names of the rows when the box is left
+          $(document).on('input', '.fairy-set-name', function() {
+            var k = parseInt(this.getAttribute('data-set'), 10); listNames[k] = cleanListName(this.value);
+            document.querySelectorAll('#fairy_items_chips > button').forEach(function(b) { var i = parseInt(b.getAttribute('data-p'), 10); b.textContent = chipRowName(i) + ' ' + String.fromCharCode(183) + ' ' + listTitle(chipState.asg[i] - 1); });
+            drawItemsDiagram();
+          });
+          $(document).on('change', '.fairy-set-name', function() { chipsApply(); });
           $(document).on('change', '.fairy-set-over', function() {
             var k = parseInt(this.getAttribute('data-set'), 10); chipState.sets[k].over = this.value; quickChrome(); chipsApply();
           });
@@ -8320,7 +8340,7 @@ server <- shinyServer(function(input, output, session) {
             function nm(i) { return i >= nProb ? vN[i - nProb] : chipRowName(i); }
             function spec(i) {
               var si = i >= nProb ? vS[i - nProb] : i, vt = i >= nProb;
-              if (two) { var k = chipState.asg[si], st = chipState.sets[k - 1]; return { name: nm(i), virt: vt, n: st.n, list: k, color: chipColor(k - 1), type: st.over || gType, tag: vt ? '' : ' - list ' + chipLetter(k - 1) }; }
+              if (two) { var k = chipState.asg[si], st = chipState.sets[k - 1]; return { name: nm(i), virt: vt, n: st.n, list: k, color: chipColor(k - 1), type: st.over || gType, tag: vt ? '' : ' - ' + listTitle(k - 1) }; }
               return { name: nm(i), virt: vt, n: n0, list: 1, color: null, type: gType, tag: '' };
             }
             var P0 = window.fairyItemsPairs, pairs0 = null, mlinks = [];
