@@ -8102,11 +8102,10 @@ server <- shinyServer(function(input, output, session) {
           var listNames = [];
           function cleanListName(v) { return String(v || '').replace(/[<>&\"']/g, '').trim().slice(0, 24); }
           function listTitle(k) { return listNames[k] ? listNames[k] : 'list ' + chipLetter(k); }
-          // two lists with the same name must not become one group: the second one gets its letter appended
+          // (two lists with the same name are merged into one when the name is entered, so the names are unique)
           function groupNameOf(k) {
             var b = listNames[k];
-            if (!b) return 'group ' + chipLetter(k);
-            return listNames.some(function(x, j) { return j !== k && x === b; }) ? b + ' ' + chipLetter(k) : b;
+            return b ? b : 'group ' + chipLetter(k);
           }
           var CHIP_TYPES = [['joint', 'for each item separately'], ['substitutable', 'for every combination of items'], ['identical', 'for the shared value (items equal)'], ['average', 'for the average over the items']];
           function chipRowName(i) {
@@ -8140,6 +8139,8 @@ server <- shinyServer(function(input, output, session) {
             used.sort(function(a, b) { return a - b; });
             var map = {}, ns = [];
             used.forEach(function(s, k) { map[s] = k + 1; ns.push(chipState.sets[s - 1] || { n: chipState.sets[0].n, type: chipState.sets[0].type, over: '' }); });
+            // the names of the lists travel with their lists when the numbering changes
+            listNames = used.map(function(s) { return listNames[s - 1] || ''; });
             chipState.asg = chipState.asg.map(function(s) { return map[s]; });
             chipState.sets = ns;
           }
@@ -8250,7 +8251,16 @@ server <- shinyServer(function(input, output, session) {
             document.querySelectorAll('#fairy_items_chips > button').forEach(function(b) { var i = parseInt(b.getAttribute('data-p'), 10); b.textContent = chipRowName(i) + ' ' + String.fromCharCode(183) + ' ' + listTitle(chipState.asg[i] - 1); });
             drawItemsDiagram();
           });
-          $(document).on('change', '.fairy-set-name', function() { chipsApply(); });
+          // the same name means the same list: the probabilities of this list join the list that already has the name
+          $(document).on('change', '.fairy-set-name', function() {
+            var k = parseInt(this.getAttribute('data-set'), 10), nm = cleanListName(this.value).toLowerCase();
+            var j = nm ? listNames.findIndex(function(x, jj) { return jj !== k && x && x.toLowerCase() === nm; }) : -1;
+            if (j >= 0) {
+              chipState.asg = chipState.asg.map(function(s) { return s === k + 1 ? j + 1 : s; });
+              chipsCompact(); chipsRender();
+            }
+            chipsApply();
+          });
           $(document).on('change', '.fairy-set-over', function() {
             var k = parseInt(this.getAttribute('data-set'), 10); chipState.sets[k].over = this.value; quickChrome(); chipsApply();
           });
