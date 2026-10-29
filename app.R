@@ -1642,6 +1642,7 @@ ui <- shinyUI(fluidPage(
         padding-bottom: 8px;
         border-bottom: 1px solid var(--fairy-border);
       }
+      .model-card .fairy-card-tag { display: block; font-size: 12px; font-weight: 400; color: var(--fairy-text-muted, #667085); line-height: 1.45; margin-top: 3px; max-width: 560px; white-space: normal; }
       .model-card .dataTables_wrapper { margin: 0; }
       /* DataTables' own Show-N-entries and Search controls sit on the
          same row with no built-in gap between them — fine when the
@@ -6542,12 +6543,15 @@ ui <- shinyUI(fluidPage(
                 m.removeAttribute('marker-end'); m.style.setProperty('marker-end', 'none');
               });
               copy.setAttribute('xmlns', 'http://www.w3.org/2000/svg'); copy.setAttribute('width', w); copy.setAttribute('height', h);
+              // the standard PDF font has no 'almost equal' sign: a tilde stands in for it
+              var APX = new RegExp(String.fromCharCode(8776), 'g');
+              [].forEach.call(copy.querySelectorAll('text, tspan'), function(tx) { if (tx.children.length === 0 && tx.textContent.indexOf(String.fromCharCode(8776)) >= 0) tx.textContent = tx.textContent.replace(APX, '~'); });
               // the legend goes below the picture (drawn as shapes and text: the standard PDF fonts have no bullet or arrow glyphs)
               var NS = 'http://www.w3.org/2000/svg', vb = (copy.getAttribute('viewBox') || ('0 0 ' + w + ' ' + h)).split(/[ ,]+/).map(Number), f = vb[2] / w;
               h = Math.round(vb[3] / f);   // height of the drawing itself (the element can be taller than it when it is letterboxed)
               var ents = [].filter.call(document.querySelectorAll('#fairy_items_legend span'), function(sp) { return sp.style.display !== 'none'; }).map(function(sp) {
                 var b = sp.querySelector('b'), sym = b ? b.textContent.replace(/\\s/g, '') : '';
-                return { sym: sym, col: b ? getComputedStyle(b).color : '#667085', txt: sp.textContent.replace(b ? b.textContent : '', '').trim() };
+                return { sym: sym, col: b ? getComputedStyle(b).color : '#667085', txt: sp.textContent.replace(b ? b.textContent : '', '').replace(APX, '~').trim() };
               });
               var u = 1.6, W = w / u, x0 = 10, y0 = 16, lx = x0, ly = y0, items = [];   // the legend is drawn 1.6x larger than on screen: it has to stay readable on a slide
               ents.forEach(function(en) {
@@ -8943,7 +8947,7 @@ server <- shinyServer(function(input, output, session) {
       )),
       footer = tagList(
         modalButton("Cancel"),
-        actionBttn("submit_items_multi", "Add", style = "material-flat", color = "primary", size = "sm")
+        actionBttn("submit_items_multi", if (is_edit) "Save" else "Add", style = "material-flat", color = "primary", size = "sm")
       ),
       easyClose = TRUE, fade = TRUE
     ))
@@ -11272,6 +11276,13 @@ server <- shinyServer(function(input, output, session) {
   }
 
   # ---- Export the session as an R script (package 'fairy') ----
+  # Card title: "m1 [long description of the unpacking]" -> the description goes onto a small second line of its own;
+  # the text content stays exactly the full name (the cards are ordered and sized by it).
+  card_title_html <- function(nm) {
+    nm <- as.character(nm)
+    m <- regmatches(nm, regexec("^(.*?) (\\[.*\\])$", nm))[[1]]
+    if (length(m) == 3L) paste0(m[2], "<span class='fairy-card-tag'> ", m[3], "</span>") else nm
+  }
   # the whole input as one URL-safe token (gzipped JSON): used by the share link and by the R script download
   share_token <- function() tryCatch({
     sheets_out <- lapply(isolate(build_user_input()), function(d) { d <- as.data.frame(d); rownames(d) <- NULL; d })
@@ -14707,7 +14718,7 @@ server <- shinyServer(function(input, output, session) {
           )
           equation_all <- paste0(
             count_badge,
-            '<div class="model-card-title">', current_name, '</div>', tbl_html)
+            '<div class="model-card-title">', card_title_html(current_name), '</div>', tbl_html)
 
           # Plain-LaTeX align* block for this model, reusing the same
           # math_of()/row_data/trivial_vec already computed above for the
@@ -14748,7 +14759,7 @@ server <- shinyServer(function(input, output, session) {
           )
           equation_all <- paste0(
             count_badge,
-            '<div class="model-card-title">', current_name, '</div>',
+            '<div class="model-card-title">', card_title_html(current_name), '</div>',
             '<p style="color:#888;font-size:0.9em;">H-representation: ',
             n_equal, ' equalities, ', n_inequal,
             ' inequalities (too many to display).</p>'
