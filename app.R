@@ -11596,6 +11596,7 @@ server <- shinyServer(function(input, output, session) {
         return(layout(p2,
           xaxis = list(title = ax_names[1], range = c(-0.02, 1.02), constrain = "domain", zeroline = FALSE),
           yaxis = list(title = ax_names[2], range = c(-0.02, 1.02), scaleanchor = "x", scaleratio = 1, constrain = "domain", zeroline = FALSE),
+          showlegend = TRUE,   # also for a single model (plotly hides a legend with one entry by itself)
           margin = list(t = 30, b = 50)))
       }
 
@@ -11712,7 +11713,8 @@ server <- shinyServer(function(input, output, session) {
           ),
           # inside the plot area (top left): a legend outside would take width away from the cube, which then
           # moved sideways whenever a model was added or removed
-          legend = list(x = 0.01, y = 0.99, xanchor = "left", yanchor = "top", bgcolor = "rgba(255,255,255,0.6)"),
+          showlegend = TRUE,   # also for a single model
+          legend = list(x = 0.99, y = 0.99, xanchor = "right", yanchor = "top", bgcolor = "rgba(255,255,255,0.6)"),
           margin = list(t = 30, b = 50)
         )
       } else {
