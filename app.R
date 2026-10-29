@@ -6493,7 +6493,7 @@ ui <- shinyUI(fluidPage(
               moved(viz, 'fairy_items_viz_ph'); viz.classList.add('fairy-items-full');
               moved(opts, 'fairy_items_opts_ph'); decorate(opts, 'Options');
               var setup = document.createElement('div'); setup.id = 'fairy_items_setup_panel'; document.body.appendChild(setup);
-              ['fairy_items_count_same', 'fairy_items_two_panel'].forEach(function(id) {
+              ['fairy_items_count_same', 'fairy_items_two_panel', 'fairy_items_quick_eps_wrap'].forEach(function(id) {
                 var n = document.getElementById(id);
                 if (n) { moved(n, id + '_ph'); n.classList.add('fairy-items-count'); setup.appendChild(n); }
               });
@@ -6503,7 +6503,7 @@ ui <- shinyUI(fluidPage(
             }
             function collapse() {
               var viz = active(), opts = document.querySelector('.fairy-items-panel:not(#fairy_items_setup_panel)'), setup = document.getElementById('fairy_items_setup_panel');
-              ['fairy_items_count_same', 'fairy_items_two_panel'].forEach(function(id) {
+              ['fairy_items_count_same', 'fairy_items_two_panel', 'fairy_items_quick_eps_wrap'].forEach(function(id) {
                 var n = document.getElementById(id);
                 if (n) { n.classList.remove('fairy-items-count'); back(n, id + '_ph'); }
               });
