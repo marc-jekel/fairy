@@ -6444,6 +6444,7 @@ ui <- shinyUI(fluidPage(
           .fairy-items-full #fairy_items_expand { position:fixed; top:14px; right:18px; z-index:10200; }
           .fairy-items-panel { position:fixed !important; top:64px; left:16px; z-index:10100; width:340px; max-height:calc(100vh - 90px); overflow:auto;
             margin:0 !important; padding:0 14px 12px !important; border-radius:12px; background:var(--fairy-panel, #fff); box-shadow:0 8px 28px rgba(0,0,0,.25); }
+          .fairy-items-panel .fairy-items-count { margin:0 0 8px; padding-bottom:6px; border-bottom:1px solid var(--fairy-border, #d5d9e4); }
           .fairy-items-panel .fairy-plot-panel-head { margin:0 -14px 10px; }
           .fairy-items-panel-tab { position:fixed; top:64px; left:16px; z-index:10100; padding:6px 14px; border:0; border-radius:8px;
             background:var(--fairy-primary, #3a6df0); color:#fff; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.25); }
@@ -6468,6 +6469,8 @@ ui <- shinyUI(fluidPage(
               head.className = 'fairy-plot-panel-head';
               head.innerHTML = '<span class=\"fairy-plot-panel-grip\">\\u2847\\u2847\\u2847</span><span class=\"fairy-plot-panel-title\">Options</span><button type=\"button\" title=\"Close (the Options button brings it back)\">&times;</button>';
               opts.insertBefore(head, opts.firstChild);
+              var cnt = document.getElementById('fairy_items_count_same');
+              if (cnt) { moved(cnt, 'fairy_items_count_ph'); cnt.classList.add('fairy-items-count'); opts.insertBefore(cnt, head.nextSibling); }
               var tab = document.createElement('button');
               tab.id = 'fairy_items_panel_tab'; tab.type = 'button'; tab.className = 'fairy-items-panel-tab'; tab.textContent = 'Options'; tab.style.display = 'none';
               document.body.appendChild(tab);
@@ -6490,6 +6493,8 @@ ui <- shinyUI(fluidPage(
             function collapse() {
               var viz = active(), opts = document.querySelector('.fairy-items-panel'), tab = document.getElementById('fairy_items_panel_tab');
               if (tab) tab.parentNode.removeChild(tab);
+              var cnt = document.getElementById('fairy_items_count_same');
+              if (cnt) { cnt.classList.remove('fairy-items-count'); back(cnt, 'fairy_items_count_ph'); }
               if (opts) {
                 var h = opts.querySelector('.fairy-plot-panel-head'); if (h) h.parentNode.removeChild(h);
                 opts.classList.remove('fairy-items-panel'); opts.style.left = opts.style.top = opts.style.display = '';
