@@ -8752,9 +8752,10 @@ server <- shinyServer(function(input, output, session) {
           function quickDispatch() {
             var tv = document.querySelector('.fairy-items-quick-type:checked');
             tv = tv ? tv.value : 'joint';
+            // remember the global choice also while there is only one list: the per-list mode starts from it
+            if (tv !== 'perlist') lastGlobalType = tv;
             if (twoKinds()) {
               chipState.sets.forEach(function(st) { if (tv === 'perlist') { if (!st.over) st.over = lastGlobalType; } else st.over = ''; });
-              if (tv !== 'perlist') lastGlobalType = tv;
               chipsRender(); quickChrome(); chipsApply();
             } else {
               if (tv === 'perlist') { var jr = document.querySelector('.fairy-items-quick-type[value=joint]'); if (jr) jr.checked = true; }
@@ -11227,9 +11228,10 @@ server <- shinyServer(function(input, output, session) {
         if (is.na(b) || is.null(sp$factor_types)) { out <- c(out, paste0("# ", row_name[i], ": the unpacking of this model could not be exported")); obj[i] <- NA; next }
         items <- vapply(seq_along(pf), function(k) if (pf[[k]] > 0) as.integer(fcs[[pf[[k]]]]$n) else 1L, integer(1))
         lst <- if (!is.null(sp$lists)) as.character(unname(sp$lists))[seq_along(pf)] else rep("", length(pf))
-        lst[is.na(lst) | !nzchar(lst)] <- paste0("list", unname(pf)[is.na(lst) | !nzchar(lst)])
+        miss <- is.na(lst) | !nzchar(lst)
+        lst[miss] <- ifelse(unname(pf)[miss] > 0, paste0("list", unname(pf)[miss]), paste0("single_p", seq_along(pf)[miss]))   # a probability with one item belongs to no list
         lev <- unique(lst)
-        ty <- vapply(lev, function(l) { k <- which(lst == l)[1]; as.character(sp$factor_types[[pf[[k]]]]) }, character(1))
+        ty <- vapply(lev, function(l) { k <- which(lst == l)[1]; kk <- pf[[k]]; if (kk > 0) as.character(sp$factor_types[[kk]]) else "joint" }, character(1))   # a list of one item belongs to no factor
         eps <- if (!is.null(sp$eps_per_param)) as.numeric(unname(sp$eps_per_param))[seq_along(pf)] else rep(0, length(pf))
         out <- c(out, paste0(obj[i], " <- fairy_unpack("), paste0("  ", obj[b], ","),
           fmt_c("items", items), fmt_c("lists", q(lst)), fmt_c("type", paste0(q(lev), " = ", q(ty))),
