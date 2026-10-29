@@ -8474,7 +8474,6 @@ server <- shinyServer(function(input, output, session) {
               if (hubDrawn) entries.push([C9, 'lines meet here', BL]);
               if (wLab || cLab) entries.push([null, 'labels: ' + (wLab ? 'weight (2' + String.fromCharCode(215) + ' p2)' : '') + (wLab && cLab ? ', ' : '') + (cLab ? 'compared with a number (p5 < 0.1)' : ''), null]);
               if (more) entries.push([String.fromCharCode(8230), 'more items', null]);
-              if (two) entries.push([C9, 'colour: item list', null]);
               legEl.textContent = '';
               entries.forEach(function(en, ei) {
                 var sp = document.createElement('span'); sp.style.cssText = 'white-space:nowrap; margin-right:2px;';
