@@ -5277,7 +5277,7 @@ ui <- shinyUI(fluidPage(
              var targetW = Math.min(natW, availW);
              wrap.style.width = targetW + 'px';
              var scale = targetW / natW;
-             scale = Math.max(0.5, Math.min(scale, 1));
+             scale = Math.max(0.3, Math.min(scale, 1));
              if (scale < 0.995) {
                table.style.transformOrigin = 'top left';
                table.style.transform = 'scale(' + scale + ')';
@@ -7345,6 +7345,10 @@ server <- shinyServer(function(input, output, session) {
     all_in_one <- length(out) == 1L && length(out[[1]]$members) == length(param_factors)
     kinds <- unique(vapply(out, function(sg) sg$kind, character(1)))
     one_kind <- length(kinds) == 1L
+    # same item count everywhere but different kinds: "2 items \u00b7 item by item (p2, p5), average (p3, p4)"
+    if (!one_kind && length(unique(vapply(out, function(sg) sg$n, numeric(1)))) == 1L)
+      return(paste0(out[[1]]$n, " items \u00b7 ", paste(vapply(out, function(sg)
+        paste0(sg$kind, " (", paste(sg$members, collapse = ", "), ")"), character(1)), collapse = ", ")))
     body <- vapply(out, function(sg)
       paste0(if (all_in_one) "" else paste0(paste(sg$members, collapse = ", "), ": "),
              paste0(sg$n, " items", if (one_kind) "" else paste0(", ", sg$kind))), character(1))
