@@ -6444,6 +6444,9 @@ ui <- shinyUI(fluidPage(
           .fairy-items-full #fairy_items_expand { position:fixed; top:14px; right:18px; z-index:10200; }
           .fairy-items-panel { position:fixed !important; top:64px; left:16px; z-index:10100; width:340px; max-height:calc(100vh - 90px); overflow:auto;
             margin:0 !important; padding:0 14px 12px !important; border-radius:12px; background:var(--fairy-panel, #fff); box-shadow:0 8px 28px rgba(0,0,0,.25); }
+          .fairy-items-panel.fairy-items-folded { overflow:hidden; padding-bottom:0 !important; }
+          .fairy-items-panel.fairy-items-folded > :not(.fairy-plot-panel-head) { display:none !important; }
+          .fairy-items-panel.fairy-items-folded .fairy-plot-panel-head { margin-bottom:0; }
           .fairy-items-panel .fairy-items-count { margin:0 0 8px; padding-bottom:6px; border-bottom:1px solid var(--fairy-border, #d5d9e4); }
           .fairy-items-panel #fairy_items_stmts, .fairy-items-panel #fairy_items_caption { display:none !important; }
           .fairy-items-panel .fairy-plot-panel-head { margin:0 -14px 10px; }
@@ -6460,49 +6463,53 @@ ui <- shinyUI(fluidPage(
               if (ph) { ph.parentNode.insertBefore(node, ph); ph.parentNode.removeChild(ph); } else if (node.parentNode) { node.parentNode.removeChild(node); }
             }
             function active() { return document.querySelector('.fairy-items-viz.fairy-items-full'); }
+            function decorate(box, title) {
+              box.classList.add('fairy-items-panel');
+              var head = document.createElement('div');
+              head.className = 'fairy-plot-panel-head';
+              head.innerHTML = '<span class=\"fairy-plot-panel-grip\">\\u2847\\u2847\\u2847</span><span class=\"fairy-plot-panel-title\">' + title + '</span><button type=\"button\" title=\"Shrink / enlarge\">\\u25BE</button>';
+              box.insertBefore(head, box.firstChild);
+              var btn = head.querySelector('button');
+              btn.addEventListener('click', function() {
+                var f = box.classList.toggle('fairy-items-folded'); btn.textContent = f ? '\\u25B8' : '\\u25BE';
+              });
+              var drag = null;
+              head.addEventListener('pointerdown', function(e) {
+                if (e.target.closest('button')) return;
+                var r = box.getBoundingClientRect(); drag = { dx: e.clientX - r.left, dy: e.clientY - r.top }; head.setPointerCapture(e.pointerId);
+              });
+              head.addEventListener('pointermove', function(e) {
+                if (!drag) return;
+                box.style.left = Math.max(0, Math.min(window.innerWidth - 80, e.clientX - drag.dx)) + 'px';
+                box.style.top = Math.max(0, Math.min(window.innerHeight - 40, e.clientY - drag.dy)) + 'px';
+              });
+              head.addEventListener('pointerup', function() { drag = null; });
+            }
             function expand() {
               var viz = document.querySelector('.fairy-items-viz');
               var opts = document.querySelector('.fairy-items-main > div:first-child');
               if (!viz || !opts || active()) return;
               moved(viz, 'fairy_items_viz_ph'); viz.classList.add('fairy-items-full');
-              moved(opts, 'fairy_items_opts_ph'); opts.classList.add('fairy-items-panel');
-              var head = document.createElement('div');
-              head.className = 'fairy-plot-panel-head';
-              head.innerHTML = '<span class=\"fairy-plot-panel-grip\">\\u2847\\u2847\\u2847</span><span class=\"fairy-plot-panel-title\">Options</span><button type=\"button\" title=\"Close (the Options button brings it back)\">&times;</button>';
-              opts.insertBefore(head, opts.firstChild);
-              var cnt = document.getElementById('fairy_items_count_same');
-              if (cnt) { moved(cnt, 'fairy_items_count_ph'); cnt.classList.add('fairy-items-count'); opts.insertBefore(cnt, head.nextSibling); }
-              var two = document.getElementById('fairy_items_two_panel');
-              if (two) { moved(two, 'fairy_items_two_ph'); two.classList.add('fairy-items-count'); opts.insertBefore(two, head.nextSibling); }
-              var tab = document.createElement('button');
-              tab.id = 'fairy_items_panel_tab'; tab.type = 'button'; tab.className = 'fairy-items-panel-tab'; tab.textContent = 'Options'; tab.style.display = 'none';
-              document.body.appendChild(tab);
-              head.querySelector('button').addEventListener('click', function() {
-                opts.style.display = 'none'; tab.style.left = opts.style.left || '16px'; tab.style.top = opts.style.top || '64px'; tab.style.display = 'block';
+              moved(opts, 'fairy_items_opts_ph'); decorate(opts, 'Options');
+              var setup = document.createElement('div'); setup.id = 'fairy_items_setup_panel'; document.body.appendChild(setup);
+              ['fairy_items_count_same', 'fairy_items_two_panel'].forEach(function(id) {
+                var n = document.getElementById(id);
+                if (n) { moved(n, id + '_ph'); n.classList.add('fairy-items-count'); setup.appendChild(n); }
               });
-              tab.addEventListener('click', function() { opts.style.display = ''; tab.style.display = 'none'; });
-              var drag = null;
-              head.addEventListener('pointerdown', function(e) {
-                if (e.target.closest('button')) return;
-                var r = opts.getBoundingClientRect(); drag = { dx: e.clientX - r.left, dy: e.clientY - r.top }; head.setPointerCapture(e.pointerId);
-              });
-              head.addEventListener('pointermove', function(e) {
-                if (!drag) return;
-                opts.style.left = Math.max(0, Math.min(window.innerWidth - 80, e.clientX - drag.dx)) + 'px';
-                opts.style.top = Math.max(0, Math.min(window.innerHeight - 40, e.clientY - drag.dy)) + 'px';
-              });
-              head.addEventListener('pointerup', function() { drag = null; });
+              decorate(setup, 'Items');
+              setup.style.top = (opts.getBoundingClientRect().bottom + 12) + 'px';
+              if (opts.getBoundingClientRect().bottom + 200 > window.innerHeight) { opts.classList.add('fairy-items-folded'); opts.querySelector('button').textContent = '\\u25B8'; setup.style.top = '100px'; }
             }
             function collapse() {
-              var viz = active(), opts = document.querySelector('.fairy-items-panel'), tab = document.getElementById('fairy_items_panel_tab');
-              if (tab) tab.parentNode.removeChild(tab);
-              var two = document.getElementById('fairy_items_two_panel');
-              if (two) { two.classList.remove('fairy-items-count'); back(two, 'fairy_items_two_ph'); }
-              var cnt = document.getElementById('fairy_items_count_same');
-              if (cnt) { cnt.classList.remove('fairy-items-count'); back(cnt, 'fairy_items_count_ph'); }
+              var viz = active(), opts = document.querySelector('.fairy-items-panel:not(#fairy_items_setup_panel)'), setup = document.getElementById('fairy_items_setup_panel');
+              ['fairy_items_count_same', 'fairy_items_two_panel'].forEach(function(id) {
+                var n = document.getElementById(id);
+                if (n) { n.classList.remove('fairy-items-count'); back(n, id + '_ph'); }
+              });
+              if (setup) setup.parentNode.removeChild(setup);
               if (opts) {
                 var h = opts.querySelector('.fairy-plot-panel-head'); if (h) h.parentNode.removeChild(h);
-                opts.classList.remove('fairy-items-panel'); opts.style.left = opts.style.top = opts.style.display = '';
+                opts.classList.remove('fairy-items-panel', 'fairy-items-folded'); opts.style.left = opts.style.top = '';
                 back(opts, 'fairy_items_opts_ph');
               }
               if (viz) { viz.classList.remove('fairy-items-full'); back(viz, 'fairy_items_viz_ph'); }
