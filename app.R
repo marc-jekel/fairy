@@ -384,13 +384,13 @@ ui <- shinyUI(fluidPage(
       /* On short windows the panel sits closer to the corner, so Go stays inside the visible area */
       @media (max-height: 560px) { #sidebar-fab-panel { right: 10px !important; bottom: 10px !important; } }
       /* Until Go has been used once, it glows softly so a first-time visitor finds it */
-      .fairy-dl-group { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 5px; border: 1.5px solid var(--fairy-border);
-        border-radius: 14px; background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 4%, transparent); }
-      .fairy-dl-group > .shiny-html-output { display: block; width: 100%; }
-      .fairy-dl-group .fairy-order-btn { position: relative !important; width: 100% !important; height: 24px !important; border-radius: 8px !important; gap: 4px;
-        font-size: 10.5px !important; font-weight: 700; flex-direction: row !important; line-height: 1; }
-      .fairy-order-btn span { font-size: 10.5px; font-weight: 700; letter-spacing: .02em; }
-      .fairy-order-btn.fairy-order-new::after { content: ''; position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: #e5484d; border: 1.5px solid var(--fairy-panel, #fff); }
+      /* QTEST and multinomineq share the order of the probabilities: Order, QTEST and multinomineq sit in one frame */
+      .fairy-dl-group { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 8px 0; border: 1.5px solid var(--fairy-border); border-radius: 14px; }
+      .fairy-dl-group > .shiny-html-output { display: block; }
+      #qtest_order_open, #qtest_order_open_v { position: relative !important; margin-bottom: 14px !important; }
+      #qtest_order_open::after, #qtest_order_open_v::after { content: 'Order'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
+        border-radius: 7px; background: #d97706; color: #fff; font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; line-height: 14px; text-align: center; white-space: nowrap; box-shadow: 0 0 0 2px var(--fairy-panel, #fff); }
+      .fairy-order-btn.fairy-order-new::before { content: ''; position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: #e5484d; border: 1.5px solid var(--fairy-panel, #fff); z-index: 2; }
       #fairy-running-note { position: fixed; right: 22px; bottom: 92px; z-index: 100000; display: flex; align-items: center; gap: 9px;
         padding: 9px 16px; border-radius: 999px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1d2433); font-size: 13.5px; font-weight: 600;
         border: 1px solid var(--fairy-border, #d5d9e4); box-shadow: 0 8px 24px rgba(20,30,60,.22); }
@@ -15882,12 +15882,12 @@ server <- shinyServer(function(input, output, session) {
   output$qtest_order_btn_ui <- renderUI({
     if (length(items_reactive$names) == 0) return(NULL)
     tags$span(class = "fairy-tooltip", `data-tooltip` = "Order of the probabilities (p1, p2, ...) for unpacked models: used by the QTEST and multinomineq downloads, H and V, and by the R script",
-      actionButton("qtest_order_open", label = tagList(icon("sort"), tags$span("Order")), class = "fairy-toolbar-iconbtn fairy-order-btn fairy-order-new"))
+      actionButton("qtest_order_open", NULL, icon = icon("sort"), class = "fairy-toolbar-iconbtn fairy-order-btn fairy-order-new"))
   })
   output$qtest_order_btn_ui_v <- renderUI({
     if (length(items_reactive$names) == 0) return(NULL)
     tags$span(class = "fairy-tooltip", `data-tooltip` = "Order of the probabilities (p1, p2, ...) for unpacked models: used by the QTEST and multinomineq downloads, H and V, and by the R script",
-      actionButton("qtest_order_open_v", label = tagList(icon("sort"), tags$span("Order")), class = "fairy-toolbar-iconbtn fairy-order-btn fairy-order-new"))
+      actionButton("qtest_order_open_v", NULL, icon = icon("sort"), class = "fairy-toolbar-iconbtn fairy-order-btn fairy-order-new"))
   })
   show_qtest_order <- function(pending = NULL) {
     all_nms <- isolate(items_reactive$names)
