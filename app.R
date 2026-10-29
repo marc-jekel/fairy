@@ -7411,8 +7411,11 @@ server <- shinyServer(function(input, output, session) {
       unlist(lapply(seq_len(factors[[f]]$n), function(lev)
         paste0(sub_html(label_of(p_names[idx_f], idx_f)), "<sup>(", lev, ")</sup>",
                # the list of the dialog ("group D" is list D); default names (p_{1}, ...) would only repeat the probability
-               if (grepl("^p_?\\{?[0-9]+\\}?$", factors[[f]]$name)) "" else
-                 paste0(" <span class='text-muted'>(", gsub("[<>&]", "", sub("^group ", "list ", factors[[f]]$name)), ")</span>"))))
+               {
+                 lst <- as.character(factors[[f]]$list %||% "")[1]
+                 if (!nzchar(lst) && !grepl("^p_?\\{?[0-9]+\\}?$", factors[[f]]$name)) lst <- factors[[f]]$name
+                 if (nzchar(lst)) paste0(" <span class='text-muted'>(", gsub("[<>&]", "", sub("^group ", "list ", lst)), ")</span>") else ""
+               })))
     }))
     c(legend_shared, legend_factors)
   }
@@ -9095,7 +9098,9 @@ server <- shinyServer(function(input, output, session) {
         # (n>=2 filter) even though its groupmates plainly do have a real
         # item count set.
         n = max(member_ns), type = first$type,
-        members = vapply(members, function(m) m$pname, character(1))
+        members = vapply(members, function(m) m$pname, character(1)),
+        # the list of the dialog this row came from (the group is dropped for average / substitutable, the name is not)
+        list = first$group
       )
     })
     rows <- Filter(function(r) r$n >= 2, rows)
@@ -9126,7 +9131,7 @@ server <- shinyServer(function(input, output, session) {
       }
     }
 
-    factors <- lapply(rows, function(r) list(name = r$name, n = r$n))
+    factors <- lapply(rows, function(r) list(name = r$name, n = r$n, list = r$list))
     param_factors <- setNames(rep(0L, length(p_names)), p_names)
     for (fi in seq_along(rows)) param_factors[rows[[fi]]$members] <- fi
     factor_types <- vapply(rows, function(r) r$type, character(1))
