@@ -242,7 +242,7 @@ fairy_write_qtest <- function(models, n_p = NULL, file = NULL, approx_tol = 0, r
 #' @importFrom rcdd q2d d2q
 #' @importFrom utils tar write.table
 #' @export
-fairy_write_multinomineq <- function(models, n_p = NULL, file = NULL, approx_tol = 0, reduce = TRUE) {
+fairy_write_multinomineq <- function(models, n_p = NULL, file = NULL, approx_tol = 0, reduce = TRUE, order = NULL) {
   if (is.null(file)) file <- paste0("multinomineq_", Sys.Date(), ".tar")
   if (!grepl("^/|^~", file)) file <- file.path(getwd(), file)
   file <- path.expand(file)
@@ -254,6 +254,7 @@ fairy_write_multinomineq <- function(models, n_p = NULL, file = NULL, approx_tol
 
   for (nm in names(models)) {
     h <- export_h_of(models[[nm]], n_p, approx_tol, reduce)
+    h <- reorder_h_columns(h, order[[nm]])
     safe_nm <- gsub("[^A-Za-z0-9_.-]", "_", nm)
 
     # an equality row means a.p = -b: add the sign-flipped copy so that both directions are inequalities

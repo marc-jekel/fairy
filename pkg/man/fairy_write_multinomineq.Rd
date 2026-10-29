@@ -9,7 +9,8 @@ fairy_write_multinomineq(
   n_p = NULL,
   file = NULL,
   approx_tol = 0,
-  reduce = TRUE
+  reduce = TRUE,
+  order = NULL
 )
 }
 \arguments{
@@ -25,6 +26,11 @@ string, as accepted by \code{\link[=fairy]{fairy()}}, or an H-representation (fo
 \item{approx_tol}{Numeric. Tolerance for approximate equalities (model strings only). Default \code{0}.}
 
 \item{reduce}{Logical. Remove redundant H-rep rows (model strings only). Default \code{TRUE}.}
+
+\item{order}{Optional named list: for a model (by name) the order of its probabilities in the
+file. \code{order[["m1"]] = c(3, 1, 2)} makes the third probability of the model the first one in
+the QTEST file, the first one the second, and so on. Models that are not listed keep their own
+order. Useful when QTEST expects the probabilities in a different order than they have here.}
 }
 \value{
 Invisibly returns the path to the \code{.tar} file.

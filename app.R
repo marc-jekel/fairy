@@ -6226,6 +6226,7 @@ ui <- shinyUI(fluidPage(
           tags$hr(class = "fairy-toolbar-divider"),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "V-representation for QTEST",
             downloadButton("d_v", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
+          uiOutput("qtest_order_btn_ui_v", inline = TRUE),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "V-representation for multinomineq",
             downloadButton("d_v_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "LaTeX table (words: all/none/fractions)",
@@ -11415,7 +11416,7 @@ server <- shinyServer(function(input, output, session) {
       if (!is.null(pm0) && !is.null(h0) && length(pm0) == ncol(h0) - 2L && setequal(pm0, seq_len(length(pm0))) && !identical(as.integer(pm0), seq_along(pm0))) qo[[nm0]] <- as.integer(pm0)
     }
     qo_lines <- if (length(qo)) c(
-      cm("Order of the probabilities in the QTEST file, as chosen in the app: the first number is the probability of the model that becomes p1 in the file, and so on."),
+      cm("Order of the probabilities in the QTEST and multinomineq files, as chosen in the app: the first number is the probability of the model that becomes p1 in the files, and so on."),
       "qtest_order <- list(", paste0("  ", q(names(qo)), " = c(", vapply(qo, function(p) paste(p, collapse = ", "), character(1)), ")", c(rep(",", length(qo) - 1), "")), ")") else character(0)
     out <- c(out, "", "# all models of the session",
       "models <- list(", paste0("  ", q(row_name[ok]), " = ", obj[ok], c(rep(",", length(ok) - 1), "")), ")", "",
@@ -11464,7 +11465,7 @@ server <- shinyServer(function(input, output, session) {
       qo_lines,
       paste0("fairy_write_qtest(models, file = \"h_representation_qtest.tar\"", if (length(qo)) ", order = qtest_order" else "", ")"),
       cm("multinomineq: A_<model>.csv and b_<model>.csv with A %*% p <= b (an equality is written in both directions)."),
-      "fairy_write_multinomineq(models, file = \"h_representation_multinomineq.tar\")")
+      paste0("fairy_write_multinomineq(models, file = \"h_representation_multinomineq.tar\"", if (length(qo)) ", order = qtest_order" else "", ")"))
     out
   }
   output$download_rscript <- downloadHandler(
@@ -15832,7 +15833,12 @@ server <- shinyServer(function(input, output, session) {
     tags$span(class = "fairy-tooltip", `data-tooltip` = "Order of the probabilities in the QTEST file (unpacked models)",
       actionButton("qtest_order_open", NULL, icon = icon("sort"), class = "fairy-toolbar-iconbtn"))
   })
-  observeEvent(input$qtest_order_open, {
+  output$qtest_order_btn_ui_v <- renderUI({
+    if (length(items_reactive$names) == 0) return(NULL)
+    tags$span(class = "fairy-tooltip", `data-tooltip` = "Order of the probabilities in the downloads (unpacked models), the same as for the H-representation",
+      actionButton("qtest_order_open_v", NULL, icon = icon("sort"), class = "fairy-toolbar-iconbtn"))
+  })
+  observeEvent(list(input$qtest_order_open, input$qtest_order_open_v), {
     blocks <- lapply(isolate(items_reactive$names), function(nm) {
       lg <- items_model_legend(nm); if (is.null(lg)) return(NULL)
       N <- length(lg); perm <- qtest_valid_perm(isolate(qtest_perm$map[[nm]]), N)
@@ -15889,7 +15895,7 @@ server <- shinyServer(function(input, output, session) {
       ")),
       footer = tagList(actionButton("qtest_order_reset", "Reset order"), modalButton("Done")),
       easyClose = TRUE))
-  })
+  }, ignoreInit = TRUE)
   observeEvent(input$qtest_perm, {
     q <- input$qtest_perm
     if (is.null(q$model)) return()
@@ -16006,6 +16012,9 @@ server <- shinyServer(function(input, output, session) {
 
       for (loop_qtest_h in seq_len(numb_models)) {
         A <- isolate(h_reactive[[export_names[loop_qtest_h]]])
+        # the order of the probabilities chosen for an unpacked model (same list as for QTEST)
+        pm_mn <- isolate(qtest_perm$map[[export_names[loop_qtest_h]]])
+        if (!is.null(A) && !is.null(pm_mn) && length(pm_mn) == ncol(A) - 2L && setequal(pm_mn, seq_len(length(pm_mn)))) A <- A[, c(1L, 2L, 2L + pm_mn), drop = FALSE]
         # A's own type column (col 1: 0=inequality, 1=equality) is
         # NEVER included in the exported A/b below -- so an equality
         # row (b + a.p = 0), exported exactly like every inequality
@@ -16109,6 +16118,9 @@ server <- shinyServer(function(input, output, session) {
 
           ####
 
+          # the order of the probabilities chosen for the model (the same one as in the H-representation downloads)
+          pm_v <- isolate(qtest_perm$map[[download_v_names[loop_v_qtest]]])
+          if (!is.null(pm_v) && length(pm_v) == ncol(csv_file) - 2L && setequal(pm_v, seq_len(length(pm_v)))) csv_file <- csv_file[, c(1L, 2L, 2L + pm_v), drop = FALSE]
           csv_file <- csv_file[, 3:ncol(csv_file), drop = FALSE]
           csv_file <- t(csv_file)
 
@@ -16176,6 +16188,9 @@ server <- shinyServer(function(input, output, session) {
         current_model <- if (is.list(vrep_entry) && !is.null(vrep_entry$output))
           vrep_entry$output else vrep_entry
         current_model <- current_model[, 3:ncol(current_model), drop = FALSE]
+        pm_vm <- isolate(qtest_perm$map[[download_v_names[loop_v_qtest]]])
+        pm_vm <- if (!is.null(pm_vm) && length(pm_vm) == ncol(current_model) && setequal(pm_vm, seq_len(length(pm_vm)))) pm_vm else seq_len(ncol(current_model))
+        current_model <- current_model[, pm_vm, drop = FALSE]
 
         # Per-model parameter names, not the shared probs_reactive$value —
         # that reactive holds whichever single model was last processed
@@ -16184,8 +16199,8 @@ server <- shinyServer(function(input, output, session) {
         # column headers. A V-representation's columns 3+ correspond 1:1 with
         # its own H-representation's columns 3+, so pull the names from there.
         h_this <- isolate(h_reactive[[download_v_names[loop_v_qtest]]])
-        colnames(current_model) <- if (!is.null(h_this))
-          colnames(h_this)[-(1:2)] else paste0("V", seq_len(ncol(current_model)))
+        colnames(current_model) <- if (!is.null(h_this) && ncol(h_this) - 2L == ncol(current_model))
+          colnames(h_this)[-(1:2)][pm_vm] else paste0("V", seq_len(ncol(current_model)))
 
         fileName <-
           paste0("V_", str_replace_all(download_v_names[loop_v_qtest], "[^A-Za-z0-9_.-]", "_"), ".csv")

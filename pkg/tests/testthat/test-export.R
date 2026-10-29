@@ -30,3 +30,15 @@ test_that("fairy_write_qtest(order = ) puts the probabilities of a model in the 
   expect_equal(length(ra[[1]]), length(rb[[1]]))
   expect_error(fairy_write_qtest(c(m = "p1 > p2 > p3"), n_p = 3, file = file.path(d, "c.tar"), order = list(m = c(1, 1, 2))), "permutation")
 })
+
+test_that("fairy_write_multinomineq(order = ) reorders the columns of A", {
+  d <- tempfile(); dir.create(d)
+  a <- fairy_write_multinomineq(c(m = "p1 > p2 > p3"), n_p = 3, file = file.path(d, "a.tar"))
+  b <- fairy_write_multinomineq(c(m = "p1 > p2 > p3"), n_p = 3, file = file.path(d, "b.tar"), order = list(m = c(3, 1, 2)))
+  utils::untar(a, exdir = file.path(d, "a")); utils::untar(b, exdir = file.path(d, "b"))
+  Aa <- utils::read.csv(file.path(d, "a", "A_m.csv"), header = TRUE, check.names = FALSE)
+  Ab <- utils::read.csv(file.path(d, "b", "A_m.csv"), header = TRUE, check.names = FALSE)
+  # column j of b is column order[j] of a, and the header follows
+  expect_equal(unname(as.matrix(Ab)), unname(as.matrix(Aa)[, c(3, 1, 2)]))
+  expect_equal(names(Ab), names(Aa)[c(3, 1, 2)])
+})
