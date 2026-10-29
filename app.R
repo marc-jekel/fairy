@@ -6463,6 +6463,7 @@ ui <- shinyUI(fluidPage(
           .fairy-items-add { position:fixed; right:28px; bottom:26px; z-index:10200; padding:11px 34px; border:0; border-radius:12px; font-size:15px; font-weight:600;
             background:var(--fairy-primary, #3a6df0); color:#fff; box-shadow:0 8px 24px rgba(58,109,240,.4); cursor:pointer; }
           .fairy-items-add:hover { filter:brightness(1.08); }
+          .fairy-items-cancel { right:168px; background:var(--fairy-panel, #fff); color:var(--fairy-text, #1d2433); border:1px solid var(--fairy-border, #d5d9e4); box-shadow:0 6px 18px rgba(20,30,60,.18); }
           .fairy-items-panel .fairy-items-count { margin:0 0 8px; padding-bottom:6px; border-bottom:1px solid var(--fairy-border, #d5d9e4); }
           .fairy-items-panel #fairy_items_stmts, .fairy-items-panel #fairy_items_caption { display:none !important; }
           .fairy-items-panel .fairy-plot-panel-head { margin:0 -14px 10px; }
@@ -6521,7 +6522,7 @@ ui <- shinyUI(fluidPage(
               moved(viz, 'fairy_items_viz_ph'); viz.classList.add('fairy-items-full');
               moved(opts, 'fairy_items_opts_ph'); decorate(opts, 'Options');
               var setup = document.createElement('div'); setup.id = 'fairy_items_setup_panel'; document.body.appendChild(setup);
-              ['fairy_items_count_same', 'fairy_items_two_panel', 'fairy_items_quick_eps_wrap'].forEach(function(id) {
+              ['fairy_items_q1', 'fairy_items_count_same', 'fairy_items_two_panel', 'fairy_items_quick_eps_wrap'].forEach(function(id) {
                 var n = document.getElementById(id);
                 if (n) { moved(n, id + '_ph'); n.classList.add('fairy-items-count'); setup.appendChild(n); }
               });
@@ -6532,18 +6533,26 @@ ui <- shinyUI(fluidPage(
                 addb.textContent = sub.textContent.trim() || 'Add';
                 addb.addEventListener('click', function() { collapse(); setTimeout(function() { sub.click(); }, 50); });
                 document.body.appendChild(addb);
+                var canb = document.createElement('button'); canb.type = 'button'; canb.id = 'fairy_items_cancel_here'; canb.className = 'btn fairy-items-add fairy-items-cancel';
+                canb.textContent = 'Cancel';
+                canb.addEventListener('click', function() {
+                  var cx = document.querySelector('.modal:has(#submit_items_multi) .modal-footer [data-dismiss=modal], .modal:has(#submit_items_multi) .modal-footer [data-bs-dismiss=modal]');
+                  collapse(); setTimeout(function() { if (cx) cx.click(); }, 50);
+                });
+                document.body.appendChild(canb);
               }
               setup.style.top = (opts.getBoundingClientRect().bottom + 12) + 'px';
               if (opts.getBoundingClientRect().bottom + 200 > window.innerHeight) { opts.classList.add('fairy-items-folded'); opts.querySelector('button').textContent = '\\u25B8'; setup.style.top = '100px'; }
             }
             function collapse() {
               var viz = active(), opts = document.querySelector('.fairy-items-panel:not(#fairy_items_setup_panel)'), setup = document.getElementById('fairy_items_setup_panel');
-              ['fairy_items_count_same', 'fairy_items_two_panel', 'fairy_items_quick_eps_wrap'].forEach(function(id) {
+              ['fairy_items_q1', 'fairy_items_count_same', 'fairy_items_two_panel', 'fairy_items_quick_eps_wrap'].forEach(function(id) {
                 var n = document.getElementById(id);
                 if (n) { n.classList.remove('fairy-items-count'); back(n, id + '_ph'); }
               });
               if (setup) setup.parentNode.removeChild(setup);
               var addh = document.getElementById('fairy_items_add_here'); if (addh) addh.parentNode.removeChild(addh);
+              var canh = document.getElementById('fairy_items_cancel_here'); if (canh) canh.parentNode.removeChild(canh);
               if (opts) {
                 var h = opts.querySelector('.fairy-plot-panel-head'); if (h) h.parentNode.removeChild(h);
                 opts.classList.remove('fairy-items-panel', 'fairy-items-folded'); opts.style.left = opts.style.top = '';
@@ -7670,6 +7679,7 @@ server <- shinyServer(function(input, output, session) {
             #fairy_items_summary { border-left:0 !important; background:transparent !important; padding:0 !important; color:var(--fairy-text-muted); font-size:12px !important; margin-top:22px !important; }
             .modal:has(#submit_items_multi) .modal-body { padding:20px 30px !important; }
           ")),
+          tags$div(id = "fairy_items_q1",
           qh(1, "Do all probabilities use the same items?"),
           tags$div(style = "margin-left:28px;",
             tags$label(style = "display:block; font-weight:normal; font-size:13px; margin:0 0 4px; cursor:pointer;",
@@ -7679,7 +7689,7 @@ server <- shinyServer(function(input, output, session) {
               tags$input(type = "radio", name = "fairy_items_two_choice", value = "two", class = "fairy-items-two-choice",
                 checked = if (adv_diff) "checked" else NULL, style = "margin-right:6px;"),
               "No, they use different item lists ",
-              tags$span(style = "color:var(--fairy-text-muted); font-size:11.5px;", "(e.g. p1, p2 use a list of 3 jokes, p3, p4 a list of 5 puns)"))),
+              tags$span(style = "color:var(--fairy-text-muted); font-size:11.5px;", "(e.g. p1, p2 use a list of 3 jokes, p3, p4 a list of 5 puns)")))),
           tags$div(id = "fairy_items_count_same", style = if (adv_diff) "display:none;" else "",
             qh(2, "How many items?", "e.g. 3 different jokes"),
             tags$div(class = "fairy-items-nrow", style = "margin:0 0 4px 28px;",
