@@ -6455,7 +6455,7 @@ ui <- shinyUI(fluidPage(
               var cs = getComputedStyle(src);
               ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'opacity', 'font-family', 'font-size', 'font-weight', 'display'].forEach(function(p) { dst.style.setProperty(p, cs.getPropertyValue(p)); });
               if (cs.display === 'none') { dst.setAttribute('display', 'none'); }
-              if (/^(text|tspan)$/.test(src.tagName.toLowerCase())) dst.style.setProperty('font-family', 'helvetica'); dst.setAttribute('font-family', 'helvetica'); dst.style.setProperty('font-weight', parseInt(cs.fontWeight, 10) >= 600 ? 'bold' : 'normal');
+              if (/^(text|tspan)$/.test(src.tagName.toLowerCase())) { dst.style.setProperty('stroke', 'none'); dst.style.setProperty('font-family', 'helvetica'); dst.setAttribute('font-family', 'helvetica'); dst.style.setProperty('font-weight', parseInt(cs.fontWeight, 10) >= 600 ? 'bold' : 'normal'); }
               for (var i = 0; i < src.children.length; i++) inlineStyles(src.children[i], dst.children[i]);
             }
             function makePdf() {
@@ -6472,15 +6472,15 @@ ui <- shinyUI(fluidPage(
                 var b = sp.querySelector('b'), sym = b ? b.textContent.replace(/\\s/g, '') : '';
                 return { sym: sym, col: b ? getComputedStyle(b).color : '#667085', txt: sp.textContent.replace(b ? b.textContent : '', '').trim() };
               });
-              var x0 = 10, y0 = h + 14, lx = x0, ly = y0, items = [];
+              var u = 1.6, W = w / u, x0 = 10, y0 = 16, lx = x0, ly = y0, items = [];   // the legend is drawn 1.6x larger than on screen: it has to stay readable on a slide
               ents.forEach(function(en) {
                 var wd = 24 + en.txt.length * 4.9 + 14;
-                if (lx > x0 && lx + wd > w - 10) { lx = x0; ly += 20; }
+                if (lx > x0 && lx + wd > W - 10) { lx = x0; ly += 22; }
                 items.push({ en: en, x: lx, y: ly }); lx += wd;
               });
-              var legH = ents.length ? ly + 18 - h : 0;
+              var legH = ents.length ? Math.round((ly + 14) * u) : 0;
               copy.setAttribute('height', h + legH); copy.setAttribute('viewBox', vb[0] + ' ' + vb[1] + ' ' + vb[2] + ' ' + (vb[3] + legH * f));
-              var g = document.createElementNS(NS, 'g'); g.setAttribute('transform', 'translate(' + vb[0] + ',' + vb[1] + ') scale(' + f + ')');
+              var g = document.createElementNS(NS, 'g'); g.setAttribute('transform', 'translate(' + vb[0] + ',' + (vb[1] + vb[3]) + ') scale(' + (f * u) + ')');
               var bg = document.createElementNS(NS, 'rect');
               bg.setAttribute('x', vb[0]); bg.setAttribute('y', vb[1]); bg.setAttribute('width', vb[2]); bg.setAttribute('height', vb[3] + legH * f); bg.setAttribute('fill', '#ffffff');
               copy.insertBefore(bg, copy.firstChild);
@@ -6488,6 +6488,10 @@ ui <- shinyUI(fluidPage(
                 var en = it.en, cx = it.x + 6, cy = it.y;
                 if (en.sym.indexOf(String.fromCharCode(9679)) === 0) { var c = document.createElementNS(NS, 'circle'); c.setAttribute('cx', cx); c.setAttribute('cy', cy - 3); c.setAttribute('r', 4); c.setAttribute('fill', en.col); g.appendChild(c); }
                 else if (en.sym.indexOf(String.fromCharCode(8594)) === 0) { var a = document.createElementNS(NS, 'path'); a.setAttribute('d', 'M' + (cx - 5) + ' ' + (cy - 3) + ' L' + (cx + 5) + ' ' + (cy - 3) + ' M' + (cx + 1) + ' ' + (cy - 7) + ' L' + (cx + 5) + ' ' + (cy - 3) + ' L' + (cx + 1) + ' ' + (cy + 1)); a.setAttribute('fill', 'none'); a.setAttribute('stroke', '#3a6df0'); a.setAttribute('stroke-width', 1.4); g.appendChild(a); }
+                else if (en.sym.indexOf(String.fromCharCode(9675)) === 0) { var oc = document.createElementNS(NS, 'circle'); oc.setAttribute('cx', cx); oc.setAttribute('cy', cy - 3); oc.setAttribute('r', 4); oc.setAttribute('fill', '#ffffff'); oc.setAttribute('stroke', en.col); oc.setAttribute('stroke-width', 1.6); g.appendChild(oc); }
+                else if (en.sym.indexOf(String.fromCharCode(8230)) === 0) { [-5, 0, 5].forEach(function(dx) { var d = document.createElementNS(NS, 'circle'); d.setAttribute('cx', cx + dx); d.setAttribute('cy', cy - 1); d.setAttribute('r', 1.3); d.setAttribute('fill', '#667085'); g.appendChild(d); }); }
+                else if (en.sym === '=') { [-5, -1].forEach(function(dy) { var q = document.createElementNS(NS, 'path'); q.setAttribute('d', 'M' + (cx - 5) + ' ' + (cy + dy) + ' L' + (cx + 5) + ' ' + (cy + dy)); q.setAttribute('stroke', '#667085'); q.setAttribute('stroke-width', 1.5); g.appendChild(q); }); }
+                else if (en.sym) { var sq = document.createElementNS(NS, 'rect'); sq.setAttribute('x', cx - 4); sq.setAttribute('y', cy - 7); sq.setAttribute('width', 8); sq.setAttribute('height', 8); sq.setAttribute('rx', 2); sq.setAttribute('fill', '#ffffff'); sq.setAttribute('stroke', en.col); sq.setAttribute('stroke-width', 1.6); g.appendChild(sq); }
                 var t = document.createElementNS(NS, 'text'); t.setAttribute('x', cx + 10); t.setAttribute('y', cy); t.setAttribute('font-size', 10.5); t.setAttribute('font-family', 'helvetica'); t.setAttribute('fill', '#667085');
                 t.textContent = en.txt; g.appendChild(t);
               });
@@ -8465,7 +8469,7 @@ server <- shinyServer(function(input, output, session) {
                 el('line', { x1: X(0) + 6, y1: ys[i], x2: avgX - 8, y2: ys[i], stroke: 'currentColor', 'stroke-width': '1', opacity: '0.4', 'stroke-dasharray': '2 3' }, svg);   // one line (several overlapping ones mixed their dash patterns)
                 // plus signs on the dotted line: the items are added up (and then divided by their number)
                 for (k = 0; k < c - 1; k++) {
-                  var pl = el('text', { x: (X(k) + X(k + 1)) / 2, y: ys[i] - 4, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'none', 'font-size': '16', 'font-weight': '600', opacity: '0.75' }, svg); pl.textContent = '+';
+                  var pl = el('text', { x: (X(k) + X(k + 1)) / 2, y: ys[i] + 5.5, 'text-anchor': 'middle', fill: 'currentColor', stroke: 'var(--ct-default, #f8f8f8)', 'stroke-width': '5', 'paint-order': 'stroke', 'font-size': '16', 'font-weight': '600', opacity: '0.85' }, svg); pl.textContent = '+';
                 }
                 // brackets around the sum, then the division by the number of items (the real one, also when only
                 // 3 dots are drawn): (item 1 + item 2 + item 3) / n
