@@ -8556,7 +8556,7 @@ server <- shinyServer(function(input, output, session) {
               if (hasAvg) entries.push([String.fromCharCode(9675), 'average over the items', BL]);
               if (hasTol) entries.push(['=', 'items equal (' + AP + ': roughly)', null]);
               if (hasDash || hasFade) entries.push([null, 'dashed or faded: the same for the other items', null]);
-              if (hubDrawn) entries.push([C9, 'lines meet here', BL]);
+              if (hubDrawn) entries.push([C9, 'lines meet here: every item above is compared with every item below', BL]);
               if (wLab || cLab) entries.push([null, 'labels: ' + (wLab ? 'weight (2' + String.fromCharCode(215) + ' p2)' : '') + (wLab && cLab ? ', ' : '') + (cLab ? 'compared with a number (p5 < 0.1)' : ''), null]);
               if (more) entries.push([String.fromCharCode(8230), 'more items', null]);
               legEl.textContent = '';
