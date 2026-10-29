@@ -6448,18 +6448,10 @@ ui <- shinyUI(fluidPage(
             margin:0 !important; padding:0 14px 12px !important; border-radius:12px; background:var(--fairy-panel, #fff); box-shadow:0 8px 28px rgba(0,0,0,.25); }
           .shiny-notification { background:var(--fairy-panel, #fff) !important; color:var(--fairy-text, #1d2433) !important; border:1px solid var(--fairy-border, #d5d9e4) !important; border-left:0 !important;
             border-radius:14px !important; box-shadow:0 10px 32px rgba(20,30,60,.22) !important; padding:12px 34px 12px 14px !important; }
-          .fairy-newp { display:flex; gap:12px; align-items:center; }
-          .fairy-newp-icon { flex:none; width:34px; height:34px; border-radius:50%; background:var(--fairy-primary, #3a6df0); color:#fff; font-size:22px; font-weight:600; line-height:34px; text-align:center; }
-          .fairy-newp-title { font-weight:600; font-size:14px; }
-          .fairy-newp-chips { margin:3px 0; }
-          .fairy-newp-chip { display:inline-block; margin:0 5px 3px 0; padding:1px 9px; border-radius:999px; background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 14%, transparent); color:var(--fairy-primary, #3a6df0); font-weight:600; font-size:12.5px; }
-          .fairy-newp-sub { font-size:11.5px; color:var(--fairy-text-muted, #667085); }
           @keyframes fairyFlash { 0% { box-shadow:0 0 0 0 rgba(58,109,240,.6); background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 18%, transparent); } 100% { box-shadow:0 0 0 14px rgba(58,109,240,0); background:transparent; } }
           .fairy-flash { animation:fairyFlash 1.4s ease-out 2; border-radius:10px; }
           #shiny-notification-panel { top:58px !important; bottom:auto !important; right:14px !important; left:auto !important; width:350px; max-width:92vw; z-index:20000; }
           .shiny-notification { overflow:hidden; }
-          .fairy-newp-bar { position:absolute; left:0; bottom:0; height:3px; width:100%; background:var(--fairy-primary, #3a6df0); transform-origin:left; animation:fairyBar 6s linear forwards; }
-          @keyframes fairyBar { from { transform:scaleX(1); } to { transform:scaleX(0); } }
           .shiny-notification { opacity:1; }
           .fairy-items-panel.fairy-items-folded { overflow:hidden; padding-bottom:0 !important; }
           .fairy-items-panel.fairy-items-folded > :not(.fairy-plot-panel-head) { display:none !important; }
@@ -9249,14 +9241,8 @@ server <- shinyServer(function(input, output, session) {
     }
     counter$n <- new_n
   })
-  # "Added p5" card at the top of the page, and the new name fields flash once
+  # the new name fields flash once (no message box: the glow is enough)
   fairy_added_toast <- function(idx, why) {
-    chips <- paste0("<span class='fairy-newp-chip'>p", idx, "</span>", collapse = "")
-    showNotification(HTML(paste0(
-      "<div class='fairy-newp'><span class='fairy-newp-icon'>+</span><div><div class='fairy-newp-title'>",
-      if (length(idx) == 1) "Probability added" else paste0(length(idx), " probabilities added"),
-      "</div><div class='fairy-newp-chips'>", chips, "</div><div class='fairy-newp-sub'>", why,
-      " &middot; remove with \u2212 or by editing the text</div></div><div class='fairy-newp-bar'></div></div>")), type = "message", duration = 6)
     shinyjs::runjs(paste0("setTimeout(function(){ [", paste(idx, collapse = ","),
       "].forEach(function(k){ var e = document.getElementById('textin_name_' + k); if (!e) return; var b = e.closest('.form-group') || e; b.classList.remove('fairy-flash'); void b.offsetWidth; b.classList.add('fairy-flash'); }); }, 400);"))
   }
