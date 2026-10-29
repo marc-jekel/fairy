@@ -6440,7 +6440,7 @@ ui <- shinyUI(fluidPage(
           .fairy-items-viz.fairy-items-full { position:fixed !important; inset:0; z-index:10050; margin:0 !important; border:0 !important; border-radius:0 !important;
             padding:56px 28px 28px 372px !important; overflow:auto; background:var(--fairy-panel, #fff) !important; }
           .fairy-items-full #fairy_items_diagram { max-height:none !important; overflow:visible !important; }
-          .fairy-items-full #fairy_items_diagram svg { width:100% !important; max-width:1500px; height:auto !important; max-height:calc(100vh - 170px); min-height:0; margin:0 auto; }
+          .fairy-items-full #fairy_items_diagram svg { width:100% !important; max-width:900px; height:auto !important; max-height:calc(100vh - 230px); min-height:0; margin:0 auto; display:block; }
           .fairy-items-full #fairy_items_expand { position:fixed; top:14px; right:18px; z-index:10200; }
           .fairy-items-panel { position:fixed !important; top:64px; left:16px; z-index:10100; width:340px; max-height:calc(100vh - 90px); overflow:auto;
             margin:0 !important; padding:0 14px 12px !important; border-radius:12px; background:var(--fairy-panel, #fff); box-shadow:0 8px 28px rgba(0,0,0,.25); }
@@ -6503,7 +6503,10 @@ ui <- shinyUI(fluidPage(
             document.addEventListener('keydown', function(e) {
               if (e.key === 'Escape' && active()) { e.stopImmediatePropagation(); e.preventDefault(); collapse(); }
             }, true);
-            if (window.jQuery) jQuery(document).on('hide.bs.modal', collapse);
+            // only when the dialog itself closes: the conditional panels inside it send 'hide' events as well
+            if (window.jQuery) jQuery(document).on('hide.bs.modal', function(e) {
+              if (e.target && e.target.classList && e.target.classList.contains('modal')) collapse();
+            });
           })();
         ")),
         tags$script(HTML(
