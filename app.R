@@ -385,7 +385,7 @@ ui <- shinyUI(fluidPage(
       @media (max-height: 560px) { #sidebar-fab-panel { right: 10px !important; bottom: 10px !important; } }
       /* Until Go has been used once, it glows softly so a first-time visitor finds it */
       /* QTEST and multinomineq share the order of the probabilities: Order, QTEST and multinomineq sit in one frame */
-      .fairy-dl-group { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 8px 0; border: 1.5px solid var(--fairy-border); border-radius: 14px; }
+      .fairy-dl-group { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 8px 14px 12px; border: 1.5px solid var(--fairy-border); border-radius: 14px; }
       .fairy-dl-group > .shiny-html-output { display: block; }
       #qtest_order_open, #qtest_order_open_v { position: relative !important; margin-bottom: 14px !important; }
       #qtest_order_open::after, #qtest_order_open_v::after { content: 'Order'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
