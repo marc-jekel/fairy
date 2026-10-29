@@ -6435,6 +6435,47 @@ ui <- shinyUI(fluidPage(
             });
           })();
         ")),
+        # PDF of the picture (for slides and papers): drawn at 4x on a white canvas, then placed on a PDF page
+        tags$script(HTML("
+          (function() {
+            var JSPDF = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+            function loadPdf(cb) {
+              if (window.jspdf) return cb();
+              var sc = document.createElement('script'); sc.src = JSPDF; sc.onload = cb;
+              sc.onerror = function() { alert('The PDF library could not be loaded (internet connection?).'); };
+              document.head.appendChild(sc);
+            }
+            // a standalone SVG knows neither CSS variables nor currentColor: write the computed values into the copy
+            function inlineStyles(src, dst) {
+              var cs = getComputedStyle(src);
+              ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'opacity', 'font-family', 'font-size', 'font-weight', 'display'].forEach(function(p) { dst.style.setProperty(p, cs.getPropertyValue(p)); });
+              for (var i = 0; i < src.children.length; i++) inlineStyles(src.children[i], dst.children[i]);
+            }
+            function makePdf() {
+              var svg = document.querySelector('#fairy_items_diagram svg');
+              if (!svg) return;
+              var r = svg.getBoundingClientRect(), w = Math.round(r.width), h = Math.round(r.height), k = 4;
+              var copy = svg.cloneNode(true);
+              inlineStyles(svg, copy);
+              copy.setAttribute('xmlns', 'http://www.w3.org/2000/svg'); copy.setAttribute('width', w); copy.setAttribute('height', h);
+              var url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(copy)], { type: 'image/svg+xml;charset=utf-8' }));
+              var img = new Image();
+              img.onload = function() {
+                var cv = document.createElement('canvas'); cv.width = w * k; cv.height = h * k;
+                var cx = cv.getContext('2d'); cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(img, 0, 0, cv.width, cv.height);
+                URL.revokeObjectURL(url);
+                loadPdf(function() {
+                  var pw = Math.max(w, h) > w ? 'p' : 'l', pad = 24;
+                  var doc = new window.jspdf.jsPDF({ orientation: pw, unit: 'pt', format: [w + 2 * pad, h + 2 * pad], compress: true });
+                  doc.addImage(cv, 'PNG', pad, pad, w, h, undefined, 'SLOW');
+                  doc.save('fairy-items.pdf');
+                });
+              };
+              img.src = url;
+            }
+            document.addEventListener('click', function(e) { if (e.target.closest && e.target.closest('#fairy_items_pdf')) makePdf(); });
+          })();
+        ")),
         # the picture of the "Unpack across items" dialog can fill the window; the options of question 3 float in a
         # small panel (movable, closable) so the mode can be switched while looking at the big picture
         tags$style(HTML("
@@ -7667,6 +7708,10 @@ server <- shinyServer(function(input, output, session) {
             .fairy-items-viz { position:relative; background:var(--ct-default, #fff); border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px; padding:8px 10px; }
             #fairy_items_expand { position:absolute; top:4px; right:4px; z-index:3; width:26px; height:26px; padding:0; display:flex; align-items:center;
               justify-content:center; border:0; border-radius:6px; background:transparent; color:var(--fairy-text-muted, #667085); cursor:pointer; }
+            #fairy_items_pdf { position:absolute; top:4px; right:34px; z-index:3; width:26px; height:26px; padding:0; display:flex; align-items:center;
+              justify-content:center; border:0; border-radius:6px; background:transparent; color:var(--fairy-text-muted, #667085); cursor:pointer; }
+            #fairy_items_pdf:hover { background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 18%, transparent); color:var(--fairy-primary, #3a6df0); }
+            .fairy-items-full #fairy_items_pdf { position:fixed; top:14px; right:56px; z-index:10200; }
             #fairy_items_expand:hover { background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 18%, transparent); color:var(--fairy-primary, #3a6df0); }
             #fairy_items_diagram { max-height:520px; overflow-y:auto; }
             #fairy_items_diagram svg { display:block; max-width:100%; height:auto; margin:0 auto; color:var(--fairy-text-muted); }
@@ -7779,6 +7824,8 @@ server <- shinyServer(function(input, output, session) {
             tags$div(class = "fairy-items-viz",
               tags$button(id = "fairy_items_expand", type = "button", title = "Expand the picture (Esc to close)", `aria-label` = "Expand the picture",
                 HTML("<svg width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M9.5 2.5h4v4M13.5 2.5l-4.5 4.5M6.5 13.5h-4v-4M2.5 13.5l4.5-4.5'/></svg>")),
+              tags$button(id = "fairy_items_pdf", type = "button", title = "Download the picture as PDF (for slides, papers)", `aria-label` = "Download the picture as PDF",
+                HTML("<svg width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M8 2v8M4.5 7 8 10.5 11.5 7M3 13.5h10'/></svg>")),
               tags$div(id = "fairy_items_diagram", `aria-hidden` = "true"),
               tags$div(id = "fairy_items_legend", style = "font-size:11px; color:var(--fairy-text-muted); margin-top:8px; line-height:1.7; display:flex; flex-wrap:wrap; gap:2px 18px; justify-content:center; text-align:center;"),
               tags$label(id = "fairy_items_fade_wrap", style = "display:none; font-weight:normal; font-size:11.5px; margin:6px 0 0; cursor:pointer; color:var(--fairy-text-muted);",
