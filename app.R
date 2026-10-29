@@ -7916,7 +7916,7 @@ server <- shinyServer(function(input, output, session) {
             #fairy_items_summary { display:none !important; }
             .modal:has(#submit_items_multi) .modal-body { padding:12px 24px 8px !important; }
             /* redesign: one settings row, quiet labels, short option list, folded statements */
-            .fairy-eq-tol-modal .fairy-eq-tol-help, #fairy_items_pairs_hint, #fairy_items_caption { display:none !important; }
+            .fairy-eq-tol-modal .fairy-eq-tol-help, #fairy_items_pairs_hint { display:none !important; }
             .fairy-items-top { display:grid !important; grid-template-columns:minmax(150px,0.8fr) minmax(0,2.2fr) 96px; gap:0 20px; align-items:start; margin-bottom:10px; }
             #fairy_items_base_wrap { grid-column:1; grid-row:1; } #fairy_items_q1 { grid-column:2; grid-row:1; } #fairy_items_count_same { grid-column:3; grid-row:1; }
             .fairy-items-top .form-group { margin-bottom:0; }
@@ -8776,7 +8776,7 @@ server <- shinyServer(function(input, output, session) {
             if (q3t) q3t.textContent = cmpAll ? ('Your model (' + cmpAll.slice(0, 5).join(', ') + (cmpAll.length > 5 ? ', ...' : '') + ') holds ' + String.fromCharCode(8230)) : ('Your model holds ' + String.fromCharCode(8230));
             var pair = realPairs ? (cmpTxt.length === 1 ? ('the two probabilities in ' + cmpTxt[0]) : ('two of its probabilities (here ' + cmpTxt.slice(0, 2).join(' and ') + ')')) : 'two probabilities (for example ' + a + ' > ' + b + ')';
             var allType = R.every(function(r) { return r.type === R[0].type; }), t0 = R[0].type, txt;
-            var shortT = { joint: 'Item 1 is compared with item 1, item 2 with item 2, and so on.', substitutable: 'Every item is compared with every other item (item 1 highlighted).', identical: 'All items of a probability are equal, so each probability counts as one value.', average: 'The averages over the items are compared.' };
+            var shortT = { joint: a + ' for item 1 is compared with ' + b + ' for item 1, ' + a + ' for item 2 with ' + b + ' for item 2, and so on.', substitutable: 'Each item of ' + a + ' is compared with each item of ' + b + ', and so on for every pair of probabilities (item 1 highlighted).', identical: 'All items of a probability are equal, so each probability counts as one value.', average: 'The average of ' + a + ' over its items is compared with the average of ' + b + ', and so on.' };
             txt = (two || !allType) ? 'Different item lists: each item of one list is compared with each item of the other list.' : shortT[t0];
             if (realPairs && nProb > nRows) {
               var hidden = []; for (var hz = 0; hz < nProb; hz++) if (idxs.indexOf(hz) < 0) hidden.push(chipRowName(hz));
@@ -8830,7 +8830,7 @@ server <- shinyServer(function(input, output, session) {
                 var stTitle = (realPairs ? 'What this makes of your model' : 'What this would make of a model like p1 > p2');
                 var stBody = document.createElement('div');
                 // folded by default: the picture and the options say most of it already
-                var setOpen = function(o) { window.fairyItemsStmtOpen = o; stBody.style.display = o ? '' : 'none'; stH.textContent = (o ? '\\u25BE ' : '\\u25B8 ') + stTitle; };
+                var setOpen = function(o) { window.fairyItemsStmtOpen = o; stBody.style.display = o ? '' : 'none'; var cp = document.getElementById('fairy_items_caption'); if (cp) cp.style.display = o ? '' : 'none'; stH.textContent = (o ? '\\u25BE ' : '\\u25B8 ') + stTitle; };
                 stH.style.cursor = 'pointer'; stH.addEventListener('click', function() { setOpen(!window.fairyItemsStmtOpen); });
                 stEl.appendChild(stH); stEl.appendChild(stBody);
                 setOpen(!!window.fairyItemsStmtOpen);
@@ -8849,7 +8849,7 @@ server <- shinyServer(function(input, output, session) {
                 }
               }
             }
-            if (cap) cap.textContent = txt;
+            if (cap) { cap.textContent = txt; cap.style.display = window.fairyItemsStmtOpen ? '' : 'none'; }
             // legend: only what is drawn in this picture
             var legEl = document.getElementById('fairy_items_legend');
             if (legEl) {
