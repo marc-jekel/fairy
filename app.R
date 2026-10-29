@@ -6246,7 +6246,7 @@ ui <- shinyUI(fluidPage(
         style = "display:flex; align-items:flex-start; gap:8px; width:100%;",
         div(
           class = "fairy-input-toolbar",
-          style = "display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding:4px; flex:0 0 auto;",
+          style = "display:flex; flex-direction:column; align-items:center; gap:6px; padding:4px; flex:0 0 auto;",
           tags$div(class = "fairy-segmented fairy-card-layout-group",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", icon("table-cells-large")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Free layout: drag the cards anywhere", `data-state` = "free", icon("up-down-left-right")),
