@@ -384,6 +384,9 @@ ui <- shinyUI(fluidPage(
       /* On short windows the panel sits closer to the corner, so Go stays inside the visible area */
       @media (max-height: 560px) { #sidebar-fab-panel { right: 10px !important; bottom: 10px !important; } }
       /* Until Go has been used once, it glows softly so a first-time visitor finds it */
+      .fairy-order-btn { position: relative !important; flex-direction: column !important; height: 48px !important; gap: 1px; line-height: 1; }
+      .fairy-order-btn span { font-size: 9.5px; font-weight: 600; letter-spacing: .02em; }
+      .fairy-order-btn.fairy-order-new::after { content: ''; position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: #e5484d; }
       #fairy-running-note { position: fixed; right: 22px; bottom: 92px; z-index: 100000; display: flex; align-items: center; gap: 9px;
         padding: 9px 16px; border-radius: 999px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1d2433); font-size: 13.5px; font-weight: 600;
         border: 1px solid var(--fairy-border, #d5d9e4); box-shadow: 0 8px 24px rgba(20,30,60,.22); }
@@ -4804,6 +4807,21 @@ ui <- shinyUI(fluidPage(
         document.addEventListener('keydown', function(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') flush(); }, true);
       })();
 
+      // ---- Order of the probabilities (unpacked models): shown once before the first QTEST / multinomineq export ----
+      (function() {
+        window.fairyQtestSeen = false;
+        var IDS = ['d_h', 'd_h_multinomineq', 'd_v', 'd_v_multinomineq'];
+        function hasUnpacked() { return !!(document.getElementById('qtest_order_open') || document.getElementById('qtest_order_open_v')); }
+        document.addEventListener('click', function(e) {
+          var a = e.target.closest && e.target.closest('a');
+          if (!a || IDS.indexOf(a.id) < 0 || window.fairyQtestSeen || !hasUnpacked()) return;
+          e.preventDefault(); e.stopImmediatePropagation();
+          if (window.Shiny) Shiny.setInputValue('qtest_order_prompt', { id: a.id, t: Date.now() }, { priority: 'event' });
+        }, true);
+        function mark() { if (window.fairyQtestSeen) [].forEach.call(document.querySelectorAll('.fairy-order-btn'), function(b) { b.classList.remove('fairy-order-new'); }); }
+        if (window.jQuery) jQuery(document).on('shiny:value shiny:idle', mark);
+      })();
+
       // ---- Go: feedback at once. The server needs a moment before its own progress window appears; until then a small note says it is running ----
       (function() {
         var note = null, since = 0, safety = null;
@@ -9059,8 +9077,15 @@ server <- shinyServer(function(input, output, session) {
             return()
           }
 
-          preview_text <- h_matrix_to_plain_spec(h_preview)
           legend <- items_column_legend(h_base_preview, spec$factors, spec$param_factors)
+          # the order of the probabilities chosen for this model (the same one as in the downloads)
+          nm_prev <- isolate(input[[paste0("textin_relations_name", ii)]]) %||% paste0("m", ii)
+          pm_prev <- isolate(qtest_perm$map[[nm_prev]])
+          if (!is.null(pm_prev) && length(pm_prev) == length(legend) && length(legend) == ncol(h_preview) - 2L && setequal(pm_prev, seq_along(legend))) {
+            h_preview <- h_preview[, c(1L, 2L, 2L + pm_prev), drop = FALSE]
+            legend <- legend[pm_prev]
+          }
+          preview_text <- h_matrix_to_plain_spec(h_preview)
           legend_rows <- lapply(seq_along(legend), function(j)
             tags$li(tags$code(paste0("p", j)), " = ", HTML(legend[j])))
 
@@ -9078,7 +9103,8 @@ server <- shinyServer(function(input, output, session) {
               onclick = "this.select();",
               preview_text
             ),
-            tags$p(class = "fairy-eq-tol-help", style = "margin-top:14px;", tags$b("What each probability is:")),
+            tags$p(class = "fairy-eq-tol-help", style = "margin-top:14px;", tags$b("What each probability is:"), " ",
+              actionLink("qtest_order_open_typed", "Change the order")),
             tags$ul(style = "font-size:13px; line-height:1.6; padding-left:18px;", legend_rows),
             easyClose = TRUE, fade = TRUE
           ))
@@ -15831,14 +15857,14 @@ server <- shinyServer(function(input, output, session) {
   output$qtest_order_btn_ui <- renderUI({
     if (length(items_reactive$names) == 0) return(NULL)
     tags$span(class = "fairy-tooltip", `data-tooltip` = "Order of the probabilities in the QTEST file (unpacked models)",
-      actionButton("qtest_order_open", NULL, icon = icon("sort"), class = "fairy-toolbar-iconbtn"))
+      actionButton("qtest_order_open", label = tagList(icon("sort"), tags$span("Order")), class = "fairy-toolbar-iconbtn fairy-order-btn fairy-order-new"))
   })
   output$qtest_order_btn_ui_v <- renderUI({
     if (length(items_reactive$names) == 0) return(NULL)
     tags$span(class = "fairy-tooltip", `data-tooltip` = "Order of the probabilities in the downloads (unpacked models), the same as for the H-representation",
-      actionButton("qtest_order_open_v", NULL, icon = icon("sort"), class = "fairy-toolbar-iconbtn"))
+      actionButton("qtest_order_open_v", label = tagList(icon("sort"), tags$span("Order")), class = "fairy-toolbar-iconbtn fairy-order-btn fairy-order-new"))
   })
-  observeEvent(list(input$qtest_order_open, input$qtest_order_open_v), {
+  show_qtest_order <- function(pending = NULL) {
     blocks <- lapply(isolate(items_reactive$names), function(nm) {
       lg <- items_model_legend(nm); if (is.null(lg)) return(NULL)
       N <- length(lg); perm <- qtest_valid_perm(isolate(qtest_perm$map[[nm]]), N)
@@ -15873,6 +15899,14 @@ server <- shinyServer(function(input, output, session) {
       tags$script(HTML("
         (function() {
           var dragEl = null;
+          window.fairyQtestSeen = true;
+          [].forEach.call(document.querySelectorAll('.fairy-order-btn'), function(b) { b.classList.remove('fairy-order-new'); });
+          var go = document.getElementById('qtest_order_dl_go');
+          if (go) go.addEventListener('click', function() {
+            var id = go.getAttribute('data-dl');
+            if (window.jQuery) jQuery('.modal').modal('hide');
+            setTimeout(function() { var a = document.getElementById(id); if (a) a.click(); }, 450);
+          });
           function relabel(ul) { [].forEach.call(ul.querySelectorAll('li'), function(li, i) { li.querySelector('code').textContent = 'p' + (i + 1); }); }
           function send(ul) {
             var cols = [].map.call(ul.querySelectorAll('li'), function(li) { return parseInt(li.getAttribute('data-col'), 10); });
@@ -15893,9 +15927,18 @@ server <- shinyServer(function(input, output, session) {
           });
         })();
       ")),
-      footer = tagList(actionButton("qtest_order_reset", "Reset order"), modalButton("Done")),
+      footer = tagList(actionButton("qtest_order_reset", "Reset order"),
+        if (!is.null(pending)) tags$button(type = "button", id = "qtest_order_dl_go", class = "btn btn-primary", `data-dl` = pending, "Download"),
+        modalButton(if (is.null(pending)) "Done" else "Cancel")),
       easyClose = TRUE))
+  }
+  observeEvent(list(input$qtest_order_open, input$qtest_order_open_v, input$qtest_order_open_typed), {
+    # only a real click opens it (a freshly drawn button reports 0 clicks)
+    if (!any(vapply(list(input$qtest_order_open, input$qtest_order_open_v, input$qtest_order_open_typed), function(x) isTRUE(x > 0), logical(1)))) return()
+    show_qtest_order()
   }, ignoreInit = TRUE)
+  # first export of an unpacked model: the order is shown once before the file is written
+  observeEvent(input$qtest_order_prompt, { show_qtest_order(pending = as.character(input$qtest_order_prompt$id)) }, ignoreInit = TRUE)
   observeEvent(input$qtest_perm, {
     q <- input$qtest_perm
     if (is.null(q$model)) return()
