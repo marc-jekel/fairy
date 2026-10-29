@@ -7410,8 +7410,9 @@ server <- shinyServer(function(input, output, session) {
       if (length(idx_f) == 0) return(character(0))
       unlist(lapply(seq_len(factors[[f]]$n), function(lev)
         paste0(sub_html(label_of(p_names[idx_f], idx_f)), "<sup>(", lev, ")</sup>",
-               # (the group names are left out: they did not always match the list letters of the dialog)
-               "")))
+               # the list of the dialog ("group D" is list D); default names (p_{1}, ...) would only repeat the probability
+               if (grepl("^p_?\\{?[0-9]+\\}?$", factors[[f]]$name)) "" else
+                 paste0(" <span class='text-muted'>(", gsub("[<>&]", "", sub("^group ", "list ", factors[[f]]$name)), ")</span>"))))
     }))
     c(legend_shared, legend_factors)
   }
