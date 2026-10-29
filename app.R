@@ -15881,12 +15881,12 @@ server <- shinyServer(function(input, output, session) {
 
   output$qtest_order_btn_ui <- renderUI({
     if (length(items_reactive$names) == 0) return(NULL)
-    tags$span(class = "fairy-tooltip", `data-tooltip` = "Order of the probabilities in the QTEST file (unpacked models)",
+    tags$span(class = "fairy-tooltip", `data-tooltip` = "Order of the probabilities (p1, p2, ...) for unpacked models: used by the QTEST and multinomineq downloads, H and V, and by the R script",
       actionButton("qtest_order_open", label = tagList(icon("sort"), tags$span("Order")), class = "fairy-toolbar-iconbtn fairy-order-btn fairy-order-new"))
   })
   output$qtest_order_btn_ui_v <- renderUI({
     if (length(items_reactive$names) == 0) return(NULL)
-    tags$span(class = "fairy-tooltip", `data-tooltip` = "Order of the probabilities in the downloads (unpacked models), the same as for the H-representation",
+    tags$span(class = "fairy-tooltip", `data-tooltip` = "Order of the probabilities (p1, p2, ...) for unpacked models: used by the QTEST and multinomineq downloads, H and V, and by the R script",
       actionButton("qtest_order_open_v", label = tagList(icon("sort"), tags$span("Order")), class = "fairy-toolbar-iconbtn fairy-order-btn fairy-order-new"))
   })
   show_qtest_order <- function(pending = NULL) {
