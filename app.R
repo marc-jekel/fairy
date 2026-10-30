@@ -7987,10 +7987,10 @@ server <- shinyServer(function(input, output, session) {
           tags$div(id = "fairy_items_pairs_hint", style = "margin:-2px 0 8px 28px; font-size:11.5px; color:var(--fairy-text-muted);"),
           tags$div(class = "fairy-items-main",
             tags$div(
-              opt("joint", "joint", "item 1 with item 1, item 2 with item 2, \u2026", "for each item separately"),
-              opt("substitutable", "substitutable", "every item with every other item", "for every combination of items"),
-              opt("identical", "identical", "all items of a probability are equal", "for the shared value of each probability"),
-              opt("average", "average", "single items may break it", "for the average over the items"),
+              opt("joint", "joint", "item 1 with item 1, item 2 with item 2, \u2026", "position by position"),
+              opt("substitutable", "substitutable", "every item with every item", "all combinations of items"),
+              opt("identical", "identical", "all items of a probability have the same value", "each probability counts as one value"),
+              opt("average", "average", "only the average over the items has to satisfy it", "single items may deviate"),
               tags$div(id = "fairy_items_perlist_wrap", style = "display:none;",
                 opt("perlist", "differently for each list", "choose joint, substitutable, identical or average for every list")),
               tags$div(id = "fairy_items_stmts", style = "font-size:12px;"),
@@ -8204,7 +8204,7 @@ server <- shinyServer(function(input, output, session) {
             var b = listNames[k];
             return b ? b : 'group ' + chipLetter(k);
           }
-          var CHIP_TYPES = [['joint', 'joint (each item separately)'], ['substitutable', 'substitutable (every combination)'], ['identical', 'identical (items equal)'], ['average', 'average (over the items)']];
+          var CHIP_TYPES = [['joint', 'joint (position by position)'], ['substitutable', 'substitutable (all combinations)'], ['identical', 'identical (items equal)'], ['average', 'average (over the items)']];
           function chipRowName(i) {
             var rows = document.querySelectorAll('.fairy-items-row'), sp = rows[i] && rows[i].querySelector('span');
             var t = sp ? sp.textContent.replace(/[_{}]/g, '').trim() : '';
@@ -8895,7 +8895,7 @@ server <- shinyServer(function(input, output, session) {
           function itemsSummary() {
             var el = document.getElementById('fairy_items_summary'), tEl = document.querySelector('.fairy-items-quick-type:checked'), nEl = document.getElementById('fairy_items_quick_n');
             if (!el || !tEl) return;
-            var words = { joint: 'joint (for each item separately)', substitutable: 'substitutable (for every combination of items)', identical: 'identical (for the shared value of each probability)', average: 'average (over the items)' };
+            var words = { joint: 'joint (position by position: item 1 with item 1, item 2 with item 2, ...)', substitutable: 'substitutable (every item with every item)', identical: 'identical (all items of a probability have the same value)', average: 'average (only the average over the items has to satisfy it)' };
             var epsEl = document.getElementById('fairy_items_quick_eps'), epsV = parseFloat(epsEl && epsEl.value) || 0, parts;
             if (twoKinds() && chipState.sets.length > 1) {
               parts = chipState.sets.map(function(st, k) {
