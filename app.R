@@ -15969,6 +15969,15 @@ server <- shinyServer(function(input, output, session) {
             setTimeout(function() { var a = document.getElementById(id); if (a) a.click(); }, 450);
           });
           function syncPos(ul) { [].forEach.call(ul.querySelectorAll('li'), function(li, i) { li.querySelector('.qo-pos').value = i + 1; }); }
+          var rb = document.getElementById('qtest_order_reset');
+          if (rb) rb.addEventListener('click', function() {
+            [].forEach.call(document.querySelectorAll('.fairy-qo-list'), function(ul) {
+              var lis = [].slice.call(ul.querySelectorAll('li'));
+              lis.sort(function(x, y) { return parseInt(x.getAttribute('data-col'), 10) - parseInt(y.getAttribute('data-col'), 10); });
+              lis.forEach(function(li) { ul.appendChild(li); });
+              syncPos(ul);
+            });
+          });
           function send(ul) {
             var cols = [].map.call(ul.querySelectorAll('li'), function(li) { return parseInt(li.getAttribute('data-col'), 10); });
             if (window.Shiny) Shiny.setInputValue('qtest_perm', { model: ul.getAttribute('data-model'), perm: cols }, { priority: 'event' });
@@ -16016,8 +16025,6 @@ server <- shinyServer(function(input, output, session) {
   })
   observeEvent(input$qtest_order_reset, {
     qtest_perm$map <- list()
-    removeModal()
-    shinyjs::runjs("setTimeout(function() { var b = document.getElementById('qtest_order_open'); if (b) b.click(); }, 400);")
   })
 
   output$d_h <- downloadHandler(
