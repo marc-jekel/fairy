@@ -385,6 +385,7 @@ ui <- shinyUI(fluidPage(
       @media (max-height: 560px) { #sidebar-fab-panel { right: 10px !important; bottom: 10px !important; } }
       /* Until Go has been used once, it glows softly so a first-time visitor finds it */
       /* QTEST and multinomineq share the order of the probabilities: Order, QTEST and multinomineq sit in one frame */
+      .fairy-derived-note { position: absolute; right: 12px; bottom: 8px; max-width: 90%; font-size: 11px; line-height: 1.3; color: var(--fairy-text-muted, #667085); font-style: italic; pointer-events: none; z-index: 3; text-align: right; }
       .fairy-dl-group { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 8px 14px 12px; border: 1.5px solid var(--fairy-border); border-radius: 14px; }
       .fairy-dl-group > .shiny-html-output { display: block; }
       #qtest_order_open, #qtest_order_open_v { position: relative !important; margin-bottom: 14px !important; }
@@ -10799,6 +10800,13 @@ server <- shinyServer(function(input, output, session) {
               HTML("&#10530;")
             ),
             box,
+            # an intersection shows the combined constraints of its models: say so, so they are not read as an already computed result
+            if (is_derived && is.null(mix_label) && identical(derived_info$type, "intersection")) tags$div(
+              class = "fairy-derived-note",
+              paste0("Intersection of ", paste(vapply(derived_info$source_idx, function(j)
+                isolate(input[[paste0("textin_relations_name", j)]]) %||% paste0("m", j), character(1)), collapse = ", "),
+                ": the constraints of these models combined")
+            ),
             tags$div(
               style = "display:none;",
               textOutput(paste0("eq_approx_flags_unique_", i))
