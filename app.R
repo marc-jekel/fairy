@@ -4821,17 +4821,11 @@ ui <- shinyUI(fluidPage(
         document.addEventListener('keydown', function(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') flush(); }, true);
       })();
 
-      // ---- Order of the probabilities (unpacked models): shown once before the first QTEST / multinomineq export ----
+      // ---- Order of the probabilities (unpacked models): the Order button; the order window no longer opens by itself on a download ----
       (function() {
         window.fairyQtestSeen = false;
         var IDS = ['d_h', 'd_h_multinomineq', 'd_v', 'd_v_multinomineq'];
         function hasUnpacked() { return !!(document.getElementById('qtest_order_open') || document.getElementById('qtest_order_open_v')); }
-        document.addEventListener('click', function(e) {
-          var a = e.target.closest && e.target.closest('a');
-          if (!a || IDS.indexOf(a.id) < 0 || window.fairyQtestSeen || !hasUnpacked()) return;
-          e.preventDefault(); e.stopImmediatePropagation();
-          if (window.Shiny) Shiny.setInputValue('qtest_order_prompt', { id: a.id, t: Date.now() }, { priority: 'event' });
-        }, true);
         function mark() { if (window.fairyQtestSeen) [].forEach.call(document.querySelectorAll('.fairy-order-btn'), function(b) { b.classList.remove('fairy-order-new'); }); }
         if (window.jQuery) jQuery(document).on('shiny:value shiny:idle', mark);
       })();
