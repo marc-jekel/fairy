@@ -16048,10 +16048,7 @@ server <- shinyServer(function(input, output, session) {
       )
     },
     content = function(file) {
-      shinyalert(
-        text = "Your download has started.<br>Open the files in <a href='https://regenwetterlab.web.illinois.edu/qtest/' target='_blank'>QTEST</a>.",
-        html = TRUE
-      )
+      showNotification(HTML("Your download has started. Open the files in <a href='https://regenwetterlab.web.illinois.edu/qtest/' target='_blank'>QTEST</a>."), type = "message", duration = 9)
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
       files <- NULL
@@ -16125,10 +16122,7 @@ server <- shinyServer(function(input, output, session) {
     },
     content = function(file) {
       
-      shinyalert(
-        text = "Your download has started.<br>To use the H- or V-representation in R, see the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package (<a href='https://modeling-for-everyone.eu/analysis_multinomineq.R' target='_blank'>example script</a>).",
-        html = TRUE
-      )
+      showNotification(HTML("Your download has started. To use the H- or V-representation in R, see the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package (<a href='https://modeling-for-everyone.eu/analysis_multinomineq.R' target='_blank'>example script</a>)."), type = "message", duration = 9)
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
       files <- NULL
@@ -16224,10 +16218,7 @@ server <- shinyServer(function(input, output, session) {
       )
     },
     content = function(file) {
-      shinyalert(
-        text = "Your download has started.<br>Open the files in <a href='https://regenwetterlab.web.illinois.edu/qtest/' target='_blank'>QTEST</a>.",
-        html = TRUE
-      )
+      showNotification(HTML("Your download has started. Open the files in <a href='https://regenwetterlab.web.illinois.edu/qtest/' target='_blank'>QTEST</a>."), type = "message", duration = 9)
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
       files <- NULL
@@ -16309,10 +16300,7 @@ server <- shinyServer(function(input, output, session) {
     },
     content = function(file) {
       
-      shinyalert(
-        text = "Your download has started.<br>To use the H- or V-representation in R, see the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package (<a href='https://modeling-for-everyone.eu/analysis_multinomineq.R' target='_blank'>example script</a>).",
-        html = TRUE
-      )
+      showNotification(HTML("Your download has started. To use the H- or V-representation in R, see the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package (<a href='https://modeling-for-everyone.eu/analysis_multinomineq.R' target='_blank'>example script</a>)."), type = "message", duration = 9)
   
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
