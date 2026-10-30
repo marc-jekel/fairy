@@ -9127,8 +9127,9 @@ server <- shinyServer(function(input, output, session) {
               onclick = "this.select();",
               preview_text
             ),
-            tags$p(class = "fairy-eq-tol-help", style = "margin-top:14px;", tags$b("What each probability is:"), " ",
-              actionLink("qtest_order_open_typed", "Change the order")),
+            tags$p(class = "fairy-eq-tol-help", style = "margin-top:14px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;",
+              tags$b("How p1, p2, ... map to the items"),
+              actionButton("qtest_order_open_typed", "Reorder p1, p2, ...", icon = icon("sort"), class = "btn-sm btn-default")),
             tags$ul(style = "font-size:13px; line-height:1.6; padding-left:18px;", legend_rows),
             easyClose = TRUE, fade = TRUE
           ))
