@@ -8689,8 +8689,9 @@ server <- shinyServer(function(input, output, session) {
                 if (r1.type === 'average') st1.push(avgX + 8); else for (k = 0; k < c1; k++) st1.push(X(k) + 7);
                 var thin = st0.length * st1.length > 1, ga = { 'stroke-dasharray': '4 3' };
                 if (thin) { ga.opacity = '0.6'; ga['stroke-width'] = '1.3'; }
-                st0.forEach(function(sx, ix) { var a0 = Object.assign({ d: 'M' + sx + ' ' + y0 + ' C ' + xr + ' ' + y0 + ' ' + xr + ' ' + ym + ' ' + xr + ' ' + ym }, ga); if (thin && ix > 0) a0.opacity = '0.2'; el('path', a0, g); });
-                st1.forEach(function(sx) { var a1 = Object.assign({ d: 'M' + xr + ' ' + ym + ' C ' + xr + ' ' + y1 + ' ' + xr + ' ' + y1 + ' ' + sx + ' ' + y1 }, ga); el('path', a1, g); });
+                // the curves of one row leave on their own lane (the left dots rise higher), so they no longer run on top of each other through the other dots
+                st0.forEach(function(sx, ix) { var dy = -(st0.length - 1 - ix) * 12; var a0 = Object.assign({ d: 'M' + sx + ' ' + y0 + ' C ' + (sx + 25) + ' ' + (y0 + dy) + ' ' + xr + ' ' + (y0 + dy * 0.3) + ' ' + xr + ' ' + ym }, ga); if (thin && ix > 0) a0.opacity = '0.2'; el('path', a0, g); });
+                st1.forEach(function(sx, ix) { var dy = (st1.length - 1 - ix) * 12; var a1 = Object.assign({ d: 'M' + xr + ' ' + ym + ' C ' + xr + ' ' + (y1 + dy * 0.3) + ' ' + (sx + 25) + ' ' + (y1 + dy) + ' ' + sx + ' ' + y1 }, ga); el('path', a1, g); });
                 el('circle', { cx: xr, cy: ym, r: 3.2, fill: BL, stroke: 'none' }, g); hubDrawn = true;
                 sign(xr + 12, ym, ch);
               } else if (anchor[q].grid && anchor[q2].grid) {
