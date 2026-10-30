@@ -390,7 +390,11 @@ ui <- shinyUI(fluidPage(
       .fairy-dl-group > .shiny-html-output { display: block; }
       #qtest_order_open, #qtest_order_open_v { position: relative !important; margin-bottom: 14px !important; }
       #qtest_order_open::after, #qtest_order_open_v::after { content: 'Order'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
-        border-radius: 7px; background: #d97706; color: #fff; font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; line-height: 14px; text-align: center; white-space: nowrap; box-shadow: 0 0 0 2px var(--fairy-panel, #fff); }
+        border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 10.5px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
+      /* Order is a setting for the two downloads below it, not a third program: plain grey, a thin row, a divider under it */
+      #qtest_order_open.fairy-order-btn, #qtest_order_open_v.fairy-order-btn { flex-direction: row !important; width: 66px !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
+      #qtest_order_open .fa, #qtest_order_open_v .fa, #qtest_order_open svg, #qtest_order_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
+      #qtest_order_open:hover, #qtest_order_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       .fairy-order-btn.fairy-order-new::before { content: ''; position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: #e5484d; border: 1.5px solid var(--fairy-panel, #fff); z-index: 2; }
       #fairy-running-note { position: fixed; right: 22px; bottom: 92px; z-index: 100000; display: flex; align-items: center; gap: 9px;
         padding: 9px 16px; border-radius: 999px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1d2433); font-size: 13.5px; font-weight: 600;
