@@ -11182,7 +11182,7 @@ server <- shinyServer(function(input, output, session) {
               if (is.null(derived_model_sources$value[[as.character(i)]]) && is.null(item_model_spec_idx$value[[as.character(i)]])) conditionalPanel(
                 condition = paste0(
                   "input.textin_relations_complete_", i,
-                  " && input.textin_relations_complete_", i, ".indexOf('=') > -1"
+                  " && input.textin_relations_complete_", i, ".replace(/[<>]=/g, '').indexOf('=') > -1"
                 ),
                 actionButton(
                   paste0("eq_tol_btn_", i), label = NULL, icon = icon("equals"),
