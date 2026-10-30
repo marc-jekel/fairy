@@ -10730,6 +10730,15 @@ server <- shinyServer(function(input, output, session) {
     }, numeric(1))
   }
 
+  # header of a specification box: title, a small info icon with a tooltip, and one line saying what it holds
+  spec_label_info <- function(title, tip, sub) {
+    tagList(
+      tags$span(title,
+        tags$span(class = "fairy-tooltip", `data-tooltip` = tip,
+          style = "margin-left:6px; cursor:help; color:var(--fairy-text-muted, #667085);", icon("circle-info"))),
+      tags$small(style = "display:block; font-weight:400; color:var(--fairy-text-muted, #667085); margin:1px 0 3px;", sub))
+  }
+
   textboxes_relations <- reactive({
     n <- counter_input$n
 
@@ -10749,7 +10758,7 @@ server <- shinyServer(function(input, output, session) {
             shinyjs::disabled(
               textAreaInput(
                 inputId = paste0("textin_relations_", i),
-                label = if (i == 1) "Unique Model Specification" else tags$span(class = "sr-only", paste0("Unique Model Specification (row ", i, ")")),
+                label = if (i == 1) spec_label_info("Unique Model Specification", "Constraints for this model only, e.g. p1 > p2 > p3. Together with the Shared Model Specification they make up the complete model.", "Only for this model.") else tags$span(class = "sr-only", paste0("Unique Model Specification (row ", i, ")")),
                 value = "",
                 width = "100%",
                 height = "130px",
@@ -10765,7 +10774,7 @@ server <- shinyServer(function(input, output, session) {
             shinyjs::disabled(
               textAreaInput(
                 inputId = paste0("textin_relations_", i),
-                label = if (i == 1) "Unique Model Specification" else tags$span(class = "sr-only", paste0("Unique Model Specification (row ", i, ")")),
+                label = if (i == 1) spec_label_info("Unique Model Specification", "Constraints for this model only, e.g. p1 > p2 > p3. Together with the Shared Model Specification they make up the complete model.", "Only for this model.") else tags$span(class = "sr-only", paste0("Unique Model Specification (row ", i, ")")),
                 value = if (!is.null(restored)) restored else AllInputs()[[paste0("textin_relations_", i)]],
                 width = "100%",
                 height = "130px",
@@ -10778,7 +10787,7 @@ server <- shinyServer(function(input, output, session) {
               # Header shown once, above the first model only — repeating
               # it on every row read as clutter once there were more than
               # a couple of models.
-              label = if (i == 1) "Unique Model Specification" else tags$span(class = "sr-only", paste0("Unique Model Specification (row ", i, ")")),
+              label = if (i == 1) spec_label_info("Unique Model Specification", "Constraints for this model only, e.g. p1 > p2 > p3. Together with the Shared Model Specification they make up the complete model.", "Only for this model.") else tags$span(class = "sr-only", paste0("Unique Model Specification (row ", i, ")")),
               value = if (!is.null(restored)) restored else AllInputs()[[paste0("textin_relations_", i)]],
               width = "100%",
               height = "130px",
@@ -10951,7 +10960,7 @@ server <- shinyServer(function(input, output, session) {
             # equalities lives next to Model Name now, alongside the
             # delete button — see textboxes_relations_name().)
             # Header shown once, above the first model only.
-            if (i == 1) tags$label(paste0("Model Specification"), class = "control-label"),
+            if (i == 1) tags$label(spec_label_info("Model Specification", "The complete model that is computed: your own constraints plus the shared ones. You cannot edit it here.", "Own + shared constraints (read-only)."), class = "control-label"),
             # Outer div is a hard overflow:hidden boundary at the fixed
             # box size — see .fairy-model-spec-outer's own comment for why
             # (a Safari-specific scrollbar-space quirk).
