@@ -15927,7 +15927,7 @@ server <- shinyServer(function(input, output, session) {
       showNotification("No unpacked model with computed H-representation yet: click Go first.", type = "warning"); return()
     }
     showModal(modalDialog(
-      title = "Order of the probabilities in the QTEST file",
+      title = "Order of the probabilities (p1, p2, ...)",
       tags$p(class = "fairy-eq-tol-help", "Left: the probability as QTEST and multinomineq will see it (p1, p2, ...). Right: which probability of the unpacked model it is. Drag a row (or type a position number) to change the matching."),
       tags$p(class = "fairy-eq-tol-help", style = "margin-top:-4px;", tags$b("Where it applies: "), "the QTEST and the multinomineq downloads, of the H-representation and of the V-representation (one order for all four), the typed input shown for this model, and the R script from Save R script (.R): it passes the order to fairy_write_qtest() and fairy_write_multinomineq() as order = qtest_order, so the files written by R have the same order."),
       tab_bar,
