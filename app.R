@@ -15941,6 +15941,8 @@ server <- shinyServer(function(input, output, session) {
         .qo-labels { display:flex; flex-direction:column; gap:3px; }
         .qo-labels code { height:40px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; font-size:13px; }
         .fairy-qo-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:3px; }
+        .qo-pos { -moz-appearance:textfield; appearance:textfield; }
+        .qo-pos::-webkit-outer-spin-button, .qo-pos::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
         .qo-pos { width:58px; height:28px; padding:2px 6px; border:1px solid var(--fairy-border, #d5d9e4); border-radius:6px; background:var(--fairy-panel, #fff); color:inherit; }
         .fairy-qo-list li.qo-moved { background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 14%, transparent); border-color:var(--fairy-primary, #3a6df0); }
         .fairy-qo-list li { display:flex; align-items:center; gap:10px; padding:0 10px; height:40px; box-sizing:border-box; margin:0; border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px; background:var(--fairy-panel, #fff); cursor:grab; }
