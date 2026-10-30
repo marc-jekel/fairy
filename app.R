@@ -16048,6 +16048,10 @@ server <- shinyServer(function(input, output, session) {
       )
     },
     content = function(file) {
+      shinyalert(
+        text = "Your download has started.<br>Open the files in <a href='https://regenwetterlab.web.illinois.edu/qtest/' target='_blank'>QTEST</a>.",
+        html = TRUE
+      )
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
       files <- NULL
@@ -16220,6 +16224,10 @@ server <- shinyServer(function(input, output, session) {
       )
     },
     content = function(file) {
+      shinyalert(
+        text = "Your download has started.<br>Open the files in <a href='https://regenwetterlab.web.illinois.edu/qtest/' target='_blank'>QTEST</a>.",
+        html = TRUE
+      )
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
       files <- NULL
