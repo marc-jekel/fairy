@@ -16752,8 +16752,11 @@ server <- shinyServer(function(input, output, session) {
     vtab <- mytable_v_reactive$value
     model_names <- if (n > 0) vapply(seq_len(n), function(i)
       input[[paste0("textin_relations_name", i)]] %||% paste0("m", i), character(1)) else character(0)
-    all_included <- length(model_names) > 0 && !is.null(vtab) && ncol(vtab) >= 2 &&
-      all(model_names %in% vtab[[1]][vtab[[2]] == TRUE])
+    # a mixture row is always included (its own cube is forced on), same rule as the count next to this button
+    all_included <- length(model_names) > 0 && all(vapply(seq_along(model_names), function(i) {
+      (!is.null(mixture_model_flags$value[[as.character(i)]]) && is.null(item_model_spec_idx$value[[as.character(i)]])) ||
+        (!is.null(vtab) && ncol(vtab) >= 2 && model_names[i] %in% vtab[[1]][vtab[[2]] == TRUE])
+    }, logical(1)))
     # Reads the id the always-running observer above already stamped —
     # see vrep_toggle_all_appear_id's own comment for why this output no
     # longer decides the transition itself, and why a one-shot boolean
