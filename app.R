@@ -10734,7 +10734,7 @@ server <- shinyServer(function(input, output, session) {
   spec_label_info <- function(title, tip, sub) {
     tagList(
       tags$span(title,
-        tags$span(class = "fairy-tooltip", `data-tooltip` = tip,
+        tags$span(class = "fairy-tooltip fairy-tooltip-down", `data-tooltip` = tip,
           style = "margin-left:6px; cursor:help; color:var(--fairy-text-muted, #667085);", icon("circle-info"))),
       if (!is.null(sub)) tags$small(style = "display:block; font-weight:400; color:var(--fairy-text-muted, #667085); margin:1px 0 3px;", sub))
   }
