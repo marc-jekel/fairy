@@ -7989,7 +7989,7 @@ server <- shinyServer(function(input, output, session) {
             tags$div(
               opt("joint", "joint", "item 1 with item 1, item 2 with item 2, \u2026", "matching items"),
               opt("substitutable", "substitutable", "every item with every item", "all combinations of items"),
-              opt("identical", "identical", "all items of a probability have the same value", "each probability counts as one value"),
+              opt("identical", "identical", "all items of a probability are equal", "e.g. p1 is the same number for every item"),
               opt("average", "average", "only the average over the items has to satisfy it", "single items may deviate"),
               tags$div(id = "fairy_items_perlist_wrap", style = "display:none;",
                 opt("perlist", "differently for each list", "choose joint, substitutable, identical or average for every list")),
@@ -8895,7 +8895,7 @@ server <- shinyServer(function(input, output, session) {
           function itemsSummary() {
             var el = document.getElementById('fairy_items_summary'), tEl = document.querySelector('.fairy-items-quick-type:checked'), nEl = document.getElementById('fairy_items_quick_n');
             if (!el || !tEl) return;
-            var words = { joint: 'joint (matching items: item 1 with item 1, item 2 with item 2, ...)', substitutable: 'substitutable (every item with every item)', identical: 'identical (all items of a probability have the same value)', average: 'average (only the average over the items has to satisfy it)' };
+            var words = { joint: 'joint (matching items: item 1 with item 1, item 2 with item 2, ...)', substitutable: 'substitutable (every item with every item)', identical: 'identical (each probability is the same for all items)', average: 'average (only the average over the items has to satisfy it)' };
             var epsEl = document.getElementById('fairy_items_quick_eps'), epsV = parseFloat(epsEl && epsEl.value) || 0, parts;
             if (twoKinds() && chipState.sets.length > 1) {
               parts = chipState.sets.map(function(st, k) {
