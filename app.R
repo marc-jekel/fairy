@@ -16113,7 +16113,7 @@ server <- shinyServer(function(input, output, session) {
     content = function(file) {
       
       shinyalert(
-        text = "<a href='https://modeling-for-everyone.eu/analysis_multinomineq.R' target='_blank'>Download</a> R-file for reading the H- or V-representation using <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a>.",
+        text = "Your download has started.<br>To use the H- or V-representation in R, see the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package (<a href='https://modeling-for-everyone.eu/analysis_multinomineq.R' target='_blank'>example script</a>).",
         html = TRUE
       )
       owd <- setwd(tempdir())
@@ -16293,7 +16293,7 @@ server <- shinyServer(function(input, output, session) {
     content = function(file) {
       
       shinyalert(
-        text = "<a href='https://modeling-for-everyone.eu/analysis_multinomineq.R' target='_blank'>Download</a> R-file for reading the H- or V-representation using <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a>.",
+        text = "Your download has started.<br>To use the H- or V-representation in R, see the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package (<a href='https://modeling-for-everyone.eu/analysis_multinomineq.R' target='_blank'>example script</a>).",
         html = TRUE
       )
   
