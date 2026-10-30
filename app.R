@@ -11176,8 +11176,10 @@ server <- shinyServer(function(input, output, session) {
               # tolerances are carried over from (and kept live-synced
               # with) its source models automatically, see
               # derived_model_sources; a manual override here would just
-              # get overwritten the next time a source changes.
-              if (is.null(derived_model_sources$value[[as.character(i)]])) conditionalPanel(
+              # get overwritten the next time a source changes. Nor for an
+              # items model: its equalities come from the unpacked items, and
+              # their tolerance is set in the items dialog (the sliders button).
+              if (is.null(derived_model_sources$value[[as.character(i)]]) && is.null(item_model_spec_idx$value[[as.character(i)]])) conditionalPanel(
                 condition = paste0(
                   "input.textin_relations_complete_", i,
                   " && input.textin_relations_complete_", i, ".indexOf('=') > -1"
