@@ -7990,7 +7990,7 @@ server <- shinyServer(function(input, output, session) {
               opt("joint", "joint", "item 1 with item 1, item 2 with item 2, \u2026", "matching items"),
               opt("substitutable", "substitutable", "every item with every item", "all combinations of items"),
               opt("identical", "identical", "all items of a probability are equal", "e.g. p1 is the same number for every item"),
-              opt("average", "average", "only the average over the items has to satisfy it", "single items may deviate"),
+              opt("average", "average", "only the average over the items has to satisfy it", "e.g. average of p1 > average of p2"),
               tags$div(id = "fairy_items_perlist_wrap", style = "display:none;",
                 opt("perlist", "differently for each list", "choose joint, substitutable, identical or average for every list")),
               tags$div(id = "fairy_items_stmts", style = "font-size:12px;"),
