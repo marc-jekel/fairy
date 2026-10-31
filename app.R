@@ -10091,7 +10091,8 @@ server <- shinyServer(function(input, output, session) {
     # though only THIS row is being removed.
     # mixtures built from this model keep its last shape: its vertices are stored in the mixture, which stays live in its other sources
     dms0 <- isolate(derived_model_sources$value)
-    dep_keys <- names(dms0)[vapply(dms0, function(di) identical(di$type, "mixture") && idx %in% di$source_idx, logical(1))]
+    dep_keys <- names(dms0)[vapply(dms0, function(di) idx %in% di$source_idx &&
+      (identical(di$type, "mixture") || (identical(di$type, "intersection") && isTRUE(di$by_h))), logical(1))]
     dep_keys <- setdiff(dep_keys, as.character(idx))
     v_del <- NULL
     h_del <- isolate(h_reactive[[deleted_name]])
@@ -10149,7 +10150,8 @@ server <- shinyServer(function(input, output, session) {
       if (dk %in% dep_keys) {
         # a mixture: the deleted model leaves its sources and (if it was computed) its vertices are kept inside the mixture
         info$source_idx <- info$source_idx[info$source_idx != idx]
-        if (!is.null(v_del)) info$extra_v <- c(info$extra_v, list(v_del))
+        if (isTRUE(info$by_h)) { if (!is.null(h_del)) info$extra_h <- c(info$extra_h, list(h_del)) }
+        else if (!is.null(v_del)) info$extra_v <- c(info$extra_v, list(v_del))
       }
       info$source_idx <- ifelse(info$source_idx > idx, info$source_idx - 1L, info$source_idx)
       info
@@ -10200,13 +10202,15 @@ server <- shinyServer(function(input, output, session) {
         mix_nm <- isolate(input[[paste0("textin_relations_name", as.integer(dk))]]) %||% paste0("mixture ", dk)
         dk_new <- as.character(as.integer(dk) - (as.integer(dk) > idx))
         info_new <- new_derived[[dk_new]]
-        n_left <- length(info_new$source_idx) + length(info_new$extra_v %||% list())
-        if (is.null(v_del)) {
-          showNotification(paste0("'", deleted_name, "' had no result yet, so it no longer belongs to the mixture '", mix_nm, "'.",
-            if (n_left < 2) " A mixture needs at least two components: it cannot be computed until you add one." else ""),
+        n_left <- length(info_new$source_idx) + length(info_new$extra_v %||% list()) + length(info_new$extra_h %||% list())
+        kind <- if (identical(info_new$type, "mixture")) "mixture" else "intersection"
+        had_result <- if (isTRUE(info_new$by_h)) !is.null(h_del) else !is.null(v_del)
+        if (!had_result) {
+          showNotification(paste0("'", deleted_name, "' had no result yet, so it no longer belongs to the ", kind, " '", mix_nm, "'.",
+            if (n_left < 2) paste0(" A ", kind, " needs at least two components: it cannot be computed until you add one.") else ""),
             type = "warning", duration = 12)
         } else if (n_left < 2) {
-          showNotification(paste0("The mixture '", mix_nm, "' has only one component left and cannot be computed."), type = "warning", duration = 12)
+          showNotification(paste0("The ", kind, " '", mix_nm, "' has only one component left and cannot be computed."), type = "warning", duration = 12)
         }
       }
     }
@@ -14545,6 +14549,7 @@ server <- shinyServer(function(input, output, session) {
         is_mix_h <- identical(info$type, "mixture")
         fairy_run_row(h_row_name, if (is_mix_h) "mixture" else "intersection", h = "run")
         H_src <- lapply(src_nm, function(m) isolate(h_reactive[[m]]))
+        H_src <- c(H_src, info$extra_h %||% list())   # last H-representations of deleted source models
         if (length(H_src) < 2 || any(vapply(H_src, is.null, logical(1)))) {
           fairy_run_row(h_row_name, h = "fail"); next
         }
