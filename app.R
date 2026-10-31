@@ -10133,7 +10133,7 @@ server <- shinyServer(function(input, output, session) {
     new_keys[[as.character(idx)]] <- NULL
     old_flags <- isolate(mixture_model_flags$value)
     for (dk in dep_keys) {
-      if (!is.null(old_flags[[dk]])) old_flags[[dk]] <- paste0(old_flags[[dk]], " (", deleted_name, " was deleted, its last shape stays in)")
+      if (!is.null(old_flags[[dk]])) old_flags[[dk]] <- paste0(old_flags[[dk]], " (", deleted_name, " deleted, last shape stays in)")
     }
     new_flags <- old_flags
     new_flags[[as.character(idx)]] <- NULL
@@ -10167,6 +10167,7 @@ server <- shinyServer(function(input, output, session) {
         info$source_idx <- info$source_idx[info$source_idx != idx]
         if (isTRUE(info$by_h)) { if (!is.null(h_del)) info$extra_h <- c(info$extra_h, list(h_del)) }
         else if (!is.null(v_del)) info$extra_v <- c(info$extra_v, list(v_del))
+        info$deleted_names <- c(info$deleted_names, deleted_name)
       }
       info$source_idx <- ifelse(info$source_idx > idx, info$source_idx - 1L, info$source_idx)
       info
@@ -11506,7 +11507,14 @@ server <- shinyServer(function(input, output, session) {
       # button. Same named-list-keyed-by-row-index-string shape as
       # equality_tolerances_reactive above, so the same toJSON/fromJSON
       # round-trip already proven for that applies here unchanged.
-      derived_sources_json <- toJSON(derived_model_sources$value, auto_unbox = TRUE, null = "null")
+      # the stored shapes of deleted source models (extra_v / extra_h) are matrices: written as {cols, rows}
+      mat_json <- function(m) list(cols = if (is.null(colnames(m))) character(0) else colnames(m), rows = matrix(as.character(m), nrow(m), ncol(m)))
+      derived_for_json <- lapply(derived_model_sources$value, function(info) {
+        if (!is.null(info$extra_v)) info$extra_v <- lapply(info$extra_v, mat_json)
+        if (!is.null(info$extra_h)) info$extra_h <- lapply(info$extra_h, mat_json)
+        info
+      })
+      derived_sources_json <- toJSON(derived_for_json, auto_unbox = TRUE, null = "null", matrix = "rowmajor")
       mixture_flags_json   <- toJSON(mixture_model_flags$value, auto_unbox = TRUE, null = "null")
       item_spec_idx_json   <- toJSON(item_model_spec_idx$value, auto_unbox = TRUE, null = "null")
       # the order of the probabilities chosen for QTEST / multinomineq (one permutation per unpacked model)
@@ -11809,6 +11817,19 @@ server <- shinyServer(function(input, output, session) {
     lapply(raw, function(s) {
       out <- list(type = s$type, source_idx = as.integer(unlist(s$source_idx)))
       if (isTRUE(s$by_h)) out$by_h <- TRUE
+      if (length(s$deleted_names) > 0) out$deleted_names <- as.character(unlist(s$deleted_names))
+      # stored shapes of deleted source models, back to character matrices
+      mat_back <- function(o, rep_type) {
+        rows <- lapply(o$rows, function(r) as.character(unlist(r)))
+        if (length(rows) == 0) return(NULL)
+        m <- do.call(rbind, rows)
+        cn <- as.character(unlist(o$cols))
+        if (length(cn) == ncol(m)) colnames(m) <- cn
+        attr(m, "representation") <- rep_type
+        m
+      }
+      if (length(s$extra_v) > 0) out$extra_v <- Filter(Negate(is.null), lapply(s$extra_v, mat_back, rep_type = "V"))
+      if (length(s$extra_h) > 0) out$extra_h <- Filter(Negate(is.null), lapply(s$extra_h, mat_back, rep_type = "H"))
       out
     })
   }
@@ -14339,6 +14360,19 @@ server <- shinyServer(function(input, output, session) {
           # all components deleted, only their stored shapes are left: the mixture keeps its last result
           if (length(selected_mix) == 0 && length(extra_mix) >= 2) {
             fz <- mixture_cache[[mix_name]]
+            if (is.null(fz)) {
+              # e.g. after loading a saved file: build the mixture from the stored shapes alone
+              fz <- tryCatch({
+                V_comb <- do.call(rbind, extra_mix); attr(V_comb, "representation") <- "V"
+                hh <- scdd(V_comb)$output
+                if (nrow(hh) > 1) { hh <- redundant(hh)$output; attr(hh, "representation") <- "H" }
+                if (!is.null(colnames(extra_mix[[1]]))) colnames(hh) <- colnames(extra_mix[[1]])
+                vv <- scdd(hh)
+                if (!is.null(colnames(extra_mix[[1]])) && ncol(vv$output) == ncol(extra_mix[[1]])) colnames(vv$output) <- colnames(extra_mix[[1]])
+                list(h = hh, v = vv)
+              }, error = function(e) NULL)
+              if (!is.null(fz)) mixture_cache[[mix_name]] <- list(sig = NA_character_, h = fz$h, v = fz$v)
+            }
             if (!is.null(fz)) {
               h_reactive[[mix_name]] <- fz$h
               v_reactive[[mix_name]] <- fz$v
@@ -17279,7 +17313,9 @@ server <- shinyServer(function(input, output, session) {
             # client message (handled near the top of the UI) sets the
             # live DOM placeholder attribute instead.
             src_names <- vapply(src_idx, function(s) input[[paste0("textin_relations_name", s)]] %||% paste0("m", s), character(1))
-            new_label <- paste0("Mixture of ", paste(src_names, collapse = ", "))
+            gone <- info$deleted_names
+            new_label <- paste0("Mixture of ", paste(c(gone, src_names), collapse = ", "),
+              if (length(gone) > 0) paste0(" (", paste(gone, collapse = ", "), " deleted, last shape stays in)") else "")
             isolate({
               # Same self-invalidation risk/guard as the tolerance write
               # below — mixture_model_flags$value is one shared field.
