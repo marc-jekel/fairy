@@ -9742,6 +9742,9 @@ server <- shinyServer(function(input, output, session) {
     n   <- counter_input$n
     cur <- vapply(seq_len(n), function(i) input[[paste0("textin_relations_name", i)]] %||% "", character(1))
     old <- isolate(prev_model_names_for_items())
+    # While a deleted row's neighbours are refilled, every name moves up by one place: that is no rename of a model,
+    # so no items spec may follow it (this used to rewrite the bases of the unpacked rows again and again)
+    if (isTRUE(tol_align_hold())) { prev_model_names_for_items(cur); return() }
     if (length(old) == length(cur)) {
       changed <- which(old != cur & nzchar(old) & nzchar(cur))
       if (length(changed) > 0) {
@@ -10117,7 +10120,7 @@ server <- shinyServer(function(input, output, session) {
       return()
     }
     tol_align_hold(TRUE)
-    shinyjs::delay(1500, { tol_align_hold(FALSE) })
+    shinyjs::delay(3000, { tol_align_hold(FALSE) })
     # the approximate-equality tolerances (and the equations they belong to) move up with their models
     new_tols <- isolate(equality_tolerances_reactive$value)
     new_keys <- isolate(equality_clause_keys$value)
@@ -10203,6 +10206,20 @@ server <- shinyServer(function(input, output, session) {
     mixture_model_flags$value <- new_flags
     derived_model_sources$value <- new_derived
     item_model_spec_idx$value <- new_item_idx
+    # unpacked models built from this model cannot be computed again without it: say so
+    specs_now <- isolate(mytable_items_reactive$value)
+    if (!is.null(specs_now) && length(specs_now) > 0) {
+      for (sp_i in seq_along(specs_now)) {
+        if (identical(specs_now[[sp_i]]$base, deleted_name)) {
+          rows_i <- names(old_item_idx)[vapply(old_item_idx, function(p) identical(p, sp_i), logical(1))]
+          for (rk in rows_i) {
+            nm_u <- isolate(input[[paste0("textin_relations_name", as.integer(rk))]]) %||% paste0("model ", rk)
+            showNotification(paste0("The unpacked model '", nm_u, "' was built from the deleted model '", deleted_name,
+              "' and cannot be computed again. Delete it or unpack another model."), type = "warning", duration = NULL)
+          }
+        }
+      }
+    }
     # a mixture that had this model as a component: say what happened to it
     if (length(dep_keys) > 0) {
       for (dk in dep_keys) {
