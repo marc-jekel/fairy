@@ -9509,6 +9509,11 @@ server <- shinyServer(function(input, output, session) {
   # — so the box can sit visibly blank rather than just briefly default.
   pending_relations_restore <- reactiveVal(NULL)
   pending_relations_name_restore <- reactiveVal(NULL)
+  # The texts parked here (after Copy, an intersection, a mixture, a restore) are only for the rows that are drawn next; if they
+  # stayed, the next redraw (e.g. adding a model) would put the copied text back over what was typed in the meantime
+  observeEvent(counter_input$n, {
+    shinyjs::delay(1500, { pending_relations_restore(NULL); pending_relations_name_restore(NULL) })
+  }, ignoreInit = TRUE)
 
   counter_input <- reactiveValues(n = 1)
 
