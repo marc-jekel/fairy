@@ -16790,6 +16790,16 @@ server <- shinyServer(function(input, output, session) {
   function rowsOf() { return [].slice.call(root.querySelectorAll('.fairy-eq-tol-row')); }
   function refresh() {
     var rows = rowsOf(), adj = {};
+    [].slice.call(root.querySelectorAll('#fairy-eq-tol-terms button')).forEach(function(btn) {
+      var t = btn.getAttribute('data-term'), mine = [];
+      rows.forEach(function(r) {
+        var p = parts(r), sw = r.querySelector('input[type=checkbox]');
+        if (p) { if (sw) { if (p[0] === t || p[1] === t) mine.push(sw); } }
+      });
+      var on = mine.length > 0 && mine.every(function(sw) { return sw.checked; });
+      btn.style.background = on ? '#dbeafe' : '#f8fafc';
+      btn.style.borderColor = on ? '#3b82f6' : '#cbd5e1';
+    });
     rows.forEach(function(r) {
       var p = parts(r), sw = r.querySelector('input[type=checkbox]');
       if (p) { if (sw) { if (!sw.checked) {
@@ -16842,11 +16852,15 @@ server <- shinyServer(function(input, output, session) {
         terms.forEach(function(t) {
           var b = document.createElement('button'); b.type = 'button'; b.textContent = t;
           b.style.cssText = 'margin:0 6px 6px 0; padding:2px 10px; border:1px solid #cbd5e1; border-radius:12px; background:#f8fafc; font-size:12px; cursor:pointer;';
+          b.setAttribute('data-term', t);
           b.addEventListener('click', function() {
+            var mine = [];
             rowsOf().forEach(function(r) {
               var p = parts(r), sw = r.querySelector('input[type=checkbox]');
-              if (p) { if (sw) { if (p[0] === t || p[1] === t) { if (!sw.checked) sw.click(); } } }
+              if (p) { if (sw) { if (p[0] === t || p[1] === t) mine.push(sw); } }
             });
+            var allOn = mine.every(function(sw) { return sw.checked; });
+            mine.forEach(function(sw) { if (sw.checked === allOn) sw.click(); });
             setTimeout(refresh, 150);
           });
           box.appendChild(b);
