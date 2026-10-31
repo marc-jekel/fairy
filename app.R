@@ -7150,6 +7150,7 @@ server <- shinyServer(function(input, output, session) {
   # the equality clauses the saved tolerances belong to (same order as the tolerance vector), so a tolerance
   # follows its equality when the text is changed; NULL = assume the vector fits the current text
   equality_clause_keys <- reactiveValues(value = list())
+  tol_align_hold <- reactiveVal(FALSE)   # TRUE while a deleted row's neighbours are still being refilled with their texts
   equality_pending_reactive <- reactiveValues(value = list())
 
   # Cache for the polytope-overlap (intersection) computation so it only
@@ -10101,6 +10102,8 @@ server <- shinyServer(function(input, output, session) {
       equality_clause_keys$value[[as.character(idx)]] <- NULL
       return()
     }
+    tol_align_hold(TRUE)
+    shinyjs::delay(1500, { tol_align_hold(FALSE) })
     # the approximate-equality tolerances (and the equations they belong to) move up with their models
     new_tols <- isolate(equality_tolerances_reactive$value)
     new_keys <- isolate(equality_clause_keys$value)
@@ -10121,6 +10124,10 @@ server <- shinyServer(function(input, output, session) {
     # source_idx pointing AT the deleted row itself is left as-is (see
     # derived_model_sources's own comment on this known limitation).
     old_derived <- isolate(derived_model_sources$value)
+    # a text-based intersection whose source model is deleted keeps its constraint text and tolerances but becomes an
+    # ordinary model of its own, instead of silently following whatever model ends up at the source's old position
+    old_derived <- old_derived[!vapply(old_derived, function(info)
+      identical(info$type, "intersection") && !isTRUE(info$by_h) && idx %in% info$source_idx, logical(1))]
     new_derived <- lapply(old_derived, function(info) {
       info$source_idx <- ifelse(info$source_idx > idx, info$source_idx - 1L, info$source_idx)
       info
@@ -10785,6 +10792,7 @@ server <- shinyServer(function(input, output, session) {
   observe({
     # while a saved file or link is being loaded the text boxes are filled in step by step: do not move tolerances then
     if (isTRUE(restoring_upload())) { isolate(equality_clause_keys$value <- list()); return() }
+    if (isTRUE(tol_align_hold())) return()
     n <- counter_input$n
     for (i in seq_len(n)) {
       txt <- input[[paste0("textin_relations_complete_", i)]]
