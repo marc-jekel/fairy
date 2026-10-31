@@ -9178,6 +9178,9 @@ server <- shinyServer(function(input, output, session) {
           }
 
           vtab_carry(orig_name, new_model_name)
+          # the approximate-equality tolerances go along with the copy (set before the model count changes, like for intersections)
+          tol_orig <- isolate(equality_tolerances_reactive$value[[as.character(ii)]])
+          if (!is.null(tol_orig)) equality_tolerances_reactive$value[[as.character(new_n)]] <- tol_orig
           counter_input$n <- new_n
         }, ignoreInit = TRUE)
       })
