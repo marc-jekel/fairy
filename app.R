@@ -10716,36 +10716,52 @@ server <- shinyServer(function(input, output, session) {
   equality_flags_str <- function(spec, tol_vec, neighbours = TRUE) {
     raw_clauses <- trimws(unlist(strsplit(spec %||% "", ";")))
     raw_clauses <- raw_clauses[nzchar(raw_clauses)]
-    # Chain-expand each raw clause (see expand_clause_to_rows's own
-    # comment — "p1=p4=0" is one typed clause but two real "=" rows) so
-    # this counts the same one-flag-per-literal-"=" the client-side
-    # subst() substitution actually walks, and the same per-row order
-    # tol_vec (equality_tolerances_reactive) is keyed by.
+    # One flag per literal "=" character of the text (the client-side substitution walks exactly those, left to
+    # right): "1" when the equality between the two terms next to that "=" is approximate (for {p1,p2}=p3: when any of its
+    # equalities is). Equalities between terms that are not next to each other are only visible in the Model Specification. The "=" inside ">=" / "<=" is no equality: "0".
+    # k counts the equality rows in the order the tolerances (equality_tolerances_reactive) are keyed by.
     is_set <- function(k) !is.null(tol_vec) && k <= length(tol_vec) && !is.na(tol_vec[k]) && tol_vec[k] != 0
+    if (!neighbours) {
+      # the read-only Model Specification lists every equality as its own row (chains and {..} sets written out): one flag per row
+      eq_rows_all <- unlist(lapply(raw_clauses, expand_clause_to_rows))
+      eq_rows_all <- eq_rows_all[grepl("=", eq_rows_all)]
+      if (length(eq_rows_all) == 0) return("")
+      return(paste(vapply(seq_along(eq_rows_all), function(k) if (is_set(k)) "1" else "0", character(1)), collapse = ","))
+    }
     flags <- character(0)
     k <- 0L
     for (cl in raw_clauses) {
+      cln <- norm_ops(cl)
+      toks <- regmatches(cl, gregexpr(">=|<=|[=<>]", cl))[[1]]
+      rows <- expand_clause_to_rows(cl)
+      eq_rows <- rows[grepl("=", rows)]
       pc <- pure_prob_chain(cl)
-      if (!is.null(pc) && neighbours) {
-        # a typed chain shows its "=" signs between neighbours: each one reflects the tolerance of that neighbouring pair
-        eq_rows <- unlist(lapply(chain_pair_clauses(pc), expand_clause_to_rows))
-        eq_rows <- eq_rows[grepl("=", eq_rows)]
-        # a "=" is shown as "≈" when any pair that it separates (left of it against right of it, inside its run of "=") is approximate
-        for (i in seq_along(pc$ops)) if (pc$ops[i] == "=") {
-          rs <- i; while (rs > 1 && pc$ops[rs - 1] == "=") rs <- rs - 1
-          re <- i + 1; while (re < length(pc$terms) && pc$ops[re] == "=") re <- re + 1
-          left <- unlist(lapply(pc$terms[rs:i], chain_side_items)); right <- unlist(lapply(pc$terms[(i + 1):re], chain_side_items))
+      terms <- trimws(strsplit(cln, "[=<>]")[[1]]); ops <- regmatches(cln, gregexpr("[=<>]", cln))[[1]]
+      ok <- length(toks) == length(ops) && length(terms) == length(ops) + 1
+      if (!ok) {
+        for (r in eq_rows) { k <- k + 1L; flags <- c(flags, if (is_set(k)) "1" else "0") }
+        next
+      }
+      eq_before <- 0L
+      for (i in seq_along(ops)) {
+        if (toks[i] %in% c(">=", "<=")) { flags <- c(flags, "0"); next }
+        if (ops[i] != "=") next
+        if (!is.null(pc)) {
+          left <- chain_side_items(terms[i]); right <- chain_side_items(terms[i + 1])   # the two terms next to this "="
           hit <- FALSE
           for (a1 in left) for (b1 in right) {
             idx <- match(paste0(a1, "=", b1), eq_rows)
             if (!is.na(idx) && is_set(k + idx)) hit <- TRUE
           }
           flags <- c(flags, if (hit) "1" else "0")
+        } else {
+          n_i <- length(chain_side_items(terms[i])) * length(chain_side_items(terms[i + 1]))
+          hit <- any(vapply(seq_len(n_i), function(m) is_set(k + eq_before + m), logical(1)))
+          eq_before <- eq_before + n_i
+          flags <- c(flags, if (hit) "1" else "0")
         }
-        k <- k + length(eq_rows)
-      } else {
-        for (r in expand_clause_to_rows(cl)) if (grepl("=", r)) { k <- k + 1L; flags <- c(flags, if (is_set(k)) "1" else "0") }
       }
+      k <- k + length(eq_rows)
     }
     if (length(flags) == 0) return("")
     paste(flags, collapse = ",")
@@ -12806,6 +12822,7 @@ server <- shinyServer(function(input, output, session) {
   # resulting pair batch-expanded on its own, exactly like extract_info()
   # itself does (chain-split happens before batch-expansion there too).
   clause_expected_row_count <- function(clause) {
+    clause <- norm_ops(clause)
     pc <- pure_prob_chain(clause)
     if (!is.null(pc)) return(sum(vapply(chain_pair_clauses(pc), clause_expected_row_count, integer(1))))
     op_pos <- gregexpr("[=><]", clause)[[1]]
@@ -12846,6 +12863,11 @@ server <- shinyServer(function(input, output, session) {
   # probabilities, otherwise NULL. Such a chain stands for ALL its pairs (p1=p2, p1=p3, p2=p3),
   # so that each pair can get its own tolerance whatever order the user typed them in.
   # members of one side of a clause: "{p1,p2}" -> p1, p2; anything else is one term
+  # ">=" and "<=" (and the symbols) mean the same as ">" and "<" here, which the app shows as ≥ and ≤
+  norm_ops <- function(x) {
+    x <- gsub("\u2265", ">", x, fixed = TRUE); x <- gsub("\u2264", "<", x, fixed = TRUE)
+    gsub("<=", "<", gsub(">=", ">", x, fixed = TRUE), fixed = TRUE)
+  }
   chain_side_items <- function(side) {
     side <- trimws(side)
     if (grepl("^\\{", side)) unlist(strsplit(gsub("[{} ]", "", side), ",")) else side
@@ -12854,6 +12876,7 @@ server <- shinyServer(function(input, output, session) {
   # A clause in which three or more terms are joined by "=" (also with comparison signs elsewhere in the clause,
   # and with terms like 2*p1, p1+p2 or {p1,p2}): returns its terms and signs, otherwise NULL.
   pure_prob_chain <- function(clause) {
+    clause <- norm_ops(clause)
     if (!grepl("=", clause)) return(NULL)
     terms <- trimws(strsplit(clause, "[=<>]")[[1]])
     ops <- regmatches(clause, gregexpr("[=<>]", clause))[[1]]
@@ -12887,6 +12910,7 @@ server <- shinyServer(function(input, output, session) {
   # the same chain expanded for the text the pipeline reads: "p1=p2=p3" -> "p1=p2; p1=p3; p2=p3"
   expand_equality_chains <- function(spec) {
     if (is.null(spec) || length(spec) == 0 || !nzchar(spec)) return(spec)
+    spec <- norm_ops(spec)
     parts <- strsplit(spec, ";", fixed = TRUE)[[1]]
     parts <- vapply(parts, function(cl) {
       tm <- pure_prob_chain(cl)
@@ -12896,6 +12920,7 @@ server <- shinyServer(function(input, output, session) {
   }
 
   expand_clause_to_rows <- function(clause) {
+    clause <- norm_ops(clause)
     pc <- pure_prob_chain(clause)
     if (!is.null(pc)) return(unlist(lapply(chain_pair_clauses(pc), expand_clause_to_rows)))
     op_pos <- gregexpr("[=><]", clause)[[1]]
@@ -16747,7 +16772,7 @@ server <- shinyServer(function(input, output, session) {
             ),
             tags$p(
               class = "fairy-eq-tol-help",
-              "Turn an equality on to treat it as approximate and set its tolerance — e.g. .05 turns p1 = p2 into p1 - p2 ≤ .05 and -p1 + p2 ≤ .05. Leave off to keep it exact."
+              "Turn an equality on to treat it as approximate and set its tolerance — e.g. .05 turns p1 = p2 into p1 - p2 ≤ .05 and -p1 + p2 ≤ .05. Leave off to keep it exact. A chain like p1 = p2 = p3 stands for all its pairs, so each pair has its own setting."
             ),
             tagList(eq_rows),
             footer = tagList(
