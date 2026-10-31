@@ -87,3 +87,11 @@ test_that("approx_tol can be one tolerance per equality", {
   # a vector of the wrong length is an error
   expect_error(fairy_h("p1 = p2; p3 = p4", n_p = 4, approx_tol = c(0.05, 0.05, 0.05)), "approx_tol")
 })
+
+
+test_that("p1 = p2 and p2 = p1 are one equality, p1 = p1 is dropped", {
+  h <- fairy_h("{p1,p2,p3} = {p1,p2,p3}; p1 = p1", n_p = 3, reduce = FALSE)
+  expect_equal(sum(h[, 1] == "1"), 3L)   # p1=p2, p1=p3, p2=p3
+  h2 <- fairy_h("p1 = p2; p2 = p1", n_p = 2, reduce = FALSE)
+  expect_equal(sum(h2[, 1] == "1"), 1L)
+})

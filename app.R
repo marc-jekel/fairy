@@ -10723,45 +10723,26 @@ server <- shinyServer(function(input, output, session) {
     is_set <- function(k) !is.null(tol_vec) && k <= length(tol_vec) && !is.na(tol_vec[k]) && tol_vec[k] != 0
     if (!neighbours) {
       # the read-only Model Specification lists every equality as its own row (chains and {..} sets written out): one flag per row
-      eq_rows_all <- unlist(lapply(raw_clauses, expand_clause_to_rows))
-      eq_rows_all <- eq_rows_all[grepl("=", eq_rows_all)]
+      eq_rows_all <- spec_eq_rows(spec)
       if (length(eq_rows_all) == 0) return("")
       return(paste(vapply(seq_along(eq_rows_all), function(k) if (is_set(k)) "1" else "0", character(1)), collapse = ","))
     }
     flags <- character(0)
-    k <- 0L
+    uniq_keys <- vapply(spec_eq_rows(spec), eq_row_key, character(1), USE.NAMES = FALSE)   # the list the tolerances belong to
+    set_for <- function(a1, b1) { idx <- match(eq_row_key(paste0(a1, "=", b1)), uniq_keys); !is.na(idx) && is_set(idx) }
     for (cl in raw_clauses) {
       cln <- norm_ops(cl)
       toks <- regmatches(cl, gregexpr(">=|<=|[=<>]", cl))[[1]]
-      rows <- expand_clause_to_rows(cl)
-      eq_rows <- rows[grepl("=", rows)]
-      pc <- pure_prob_chain(cl)
       terms <- trimws(strsplit(cln, "[=<>]")[[1]]); ops <- regmatches(cln, gregexpr("[=<>]", cln))[[1]]
       ok <- length(toks) == length(ops) && length(terms) == length(ops) + 1
-      if (!ok) {
-        for (r in eq_rows) { k <- k + 1L; flags <- c(flags, if (is_set(k)) "1" else "0") }
-        next
-      }
-      eq_before <- 0L
+      if (!ok) next
       for (i in seq_along(ops)) {
         if (toks[i] %in% c(">=", "<=")) { flags <- c(flags, "0"); next }
         if (ops[i] != "=") next
-        if (!is.null(pc)) {
-          left <- chain_side_items(terms[i]); right <- chain_side_items(terms[i + 1])   # the two terms next to this "="
-          hit <- FALSE
-          for (a1 in left) for (b1 in right) {
-            idx <- match(paste0(a1, "=", b1), eq_rows)
-            if (!is.na(idx) && is_set(k + idx)) hit <- TRUE
-          }
-          flags <- c(flags, if (hit) "1" else "0")
-        } else {
-          n_i <- length(chain_side_items(terms[i])) * length(chain_side_items(terms[i + 1]))
-          hit <- any(vapply(seq_len(n_i), function(m) is_set(k + eq_before + m), logical(1)))
-          eq_before <- eq_before + n_i
-          flags <- c(flags, if (hit) "1" else "0")
-        }
+        hit <- FALSE
+        for (a1 in chain_side_items(terms[i])) for (b1 in chain_side_items(terms[i + 1])) if (set_for(a1, b1)) hit <- TRUE
+        flags <- c(flags, if (hit) "1" else "0")
       }
-      k <- k + length(eq_rows)
     }
     if (length(flags) == 0) return("")
     paste(flags, collapse = ",")
@@ -10783,8 +10764,7 @@ server <- shinyServer(function(input, output, session) {
     # Chain-expand — see expand_clause_to_rows's own comment — so this
     # slices by the same per-row occurrence index equality_tolerances_
     # reactive is actually keyed by, not by raw semicolon-clause count.
-    clauses <- unlist(lapply(raw_clauses, expand_clause_to_rows))
-    clauses <- clauses[grepl("=", clauses)]
+    clauses <- spec_eq_rows(spec)
     if (length(clauses) == 0) {
       return(numeric(0))
     }
@@ -10823,10 +10803,7 @@ server <- shinyServer(function(input, output, session) {
       if (is.null(txt)) next
       key <- as.character(i)
       if (!is.null(isolate(derived_model_sources$value[[key]])) || !is.null(isolate(item_model_spec_idx$value[[key]]))) next
-      raw <- trimws(unlist(strsplit(txt, ";")))
-      cl <- unlist(lapply(raw[nzchar(raw)], expand_clause_to_rows))
-      cl <- cl[grepl("=", cl)]
-      cl <- gsub("\\s+", "", cl)
+      cl <- gsub("\\s+", "", spec_eq_rows(txt))
       old_keys <- isolate(equality_clause_keys$value[[key]])
       old_tol <- isolate(equality_tolerances_reactive$value[[key]])
       if (is.null(old_keys) || identical(old_keys, cl)) {
@@ -12909,16 +12886,34 @@ server <- shinyServer(function(input, output, session) {
     }
     out
   }
+  # "p1=p2" and "p2=p1" are the same equality, "p1=p1" says nothing: such rows are left out (inequalities stay as they are)
+  eq_row_key <- function(row) {
+    pr <- trimws(strsplit(row, "=", fixed = TRUE)[[1]])
+    if (length(pr) != 2) return(NA_character_)
+    paste(sort(pr), collapse = "=")
+  }
+  dedupe_eq_rows <- function(rows) {
+    is_eq <- grepl("=", rows) & !grepl("[<>]", rows)
+    keys <- vapply(rows, eq_row_key, character(1), USE.NAMES = FALSE)
+    trivial <- is_eq & vapply(rows, function(r) { p <- trimws(strsplit(r, "=", fixed = TRUE)[[1]]); length(p) == 2 && p[1] == p[2] }, logical(1), USE.NAMES = FALSE)
+    dup <- is_eq & !is.na(keys) & duplicated(ifelse(is_eq, keys, NA_character_))
+    rows[!(trivial | dup)]
+  }
+  # every equality of a specification text, one per row, without duplicates: this is the list the tolerances belong to
+  spec_eq_rows <- function(spec) {
+    raw <- trimws(unlist(strsplit(spec %||% "", ";")))
+    rows <- unlist(lapply(raw[nzchar(raw)], expand_clause_to_rows))
+    rows <- rows[grepl("=", rows) & !grepl("[<>]", rows)]
+    dedupe_eq_rows(rows)
+  }
   # the same chain expanded for the text the pipeline reads: "p1=p2=p3" -> "p1=p2; p1=p3; p2=p3"
   expand_equality_chains <- function(spec) {
     if (is.null(spec) || length(spec) == 0 || !nzchar(spec)) return(spec)
     spec <- norm_ops(spec)
-    parts <- strsplit(spec, ";", fixed = TRUE)[[1]]
-    parts <- vapply(parts, function(cl) {
-      tm <- pure_prob_chain(cl)
-      if (is.null(tm)) cl else paste(chain_pair_clauses(tm), collapse = "; ")
-    }, character(1), USE.NAMES = FALSE)
-    paste(parts, collapse = ";")
+    if (!grepl("=", spec, fixed = TRUE)) return(spec)
+    raw <- trimws(unlist(strsplit(spec, ";", fixed = TRUE)))
+    rows <- dedupe_eq_rows(unlist(lapply(raw[nzchar(raw)], expand_clause_to_rows)))
+    paste(rows, collapse = "; ")
   }
 
   expand_clause_to_rows <- function(clause) {
@@ -16739,8 +16734,7 @@ server <- shinyServer(function(input, output, session) {
           # typed clause but two real "=" rows; without this, every
           # equality typed after a chain silently got the WRONG saved
           # tolerance (or none at all) applied to it.
-          clauses <- unlist(lapply(raw_clauses, expand_clause_to_rows))
-          clauses <- clauses[grepl("=", clauses)]
+          clauses <- spec_eq_rows(spec)
           if (length(clauses) == 0) {
             return()
           }

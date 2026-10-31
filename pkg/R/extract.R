@@ -108,6 +108,14 @@ extract_info <- function(constraints, n_p, approx_tol = 0) {
   }
   test <- test_new
 
+  # ---- "p1=p2" and "p2=p1" are the same equality: keep it once ----
+  is_plain_eq <- grepl("=", test, fixed = TRUE) & !grepl("[<>]", test)
+  eq_key <- vapply(test, function(x) {
+    pr <- strsplit(x, "=", fixed = TRUE)[[1]]
+    if (length(pr) == 2) paste(sort(pr), collapse = "=") else x
+  }, character(1), USE.NAMES = FALSE)
+  test <- test[!(is_plain_eq & duplicated(ifelse(is_plain_eq, eq_key, NA_character_)))]
+
   for (i in seq_along(test)) {
     if (substr(test[i], 1, 1) == ".") test[i] <- paste0("0", test[i])
   }
