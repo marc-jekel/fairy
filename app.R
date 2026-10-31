@@ -16789,24 +16789,43 @@ server <- shinyServer(function(input, output, session) {
   }
   function rowsOf() { return [].slice.call(root.querySelectorAll('.fairy-eq-tol-row')); }
   function refresh() {
-    var rows = rowsOf(), par = {};
-    function find(x) { if (par[x] === undefined) par[x] = x; while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; }
+    var rows = rowsOf(), adj = {};
     rows.forEach(function(r) {
       var p = parts(r), sw = r.querySelector('input[type=checkbox]');
-      if (p) { if (sw) { if (!sw.checked) par[find(p[0])] = find(p[1]); } }
+      if (p) { if (sw) { if (!sw.checked) {
+        if (!adj[p[0]]) adj[p[0]] = [];
+        if (!adj[p[1]]) adj[p[1]] = [];
+        adj[p[0]].push([p[1], p[0] + '=' + p[1]]);
+        adj[p[1]].push([p[0], p[0] + '=' + p[1]]);
+      } } }
     });
+    function route(from, to) {
+      var prev = {}, seen = {}, queue = [from], i = 0;
+      seen[from] = true;
+      while (i < queue.length) {
+        var cur = queue[i]; i = i + 1;
+        if (cur === to) break;
+        (adj[cur] || []).forEach(function(e) {
+          if (!seen[e[0]]) { seen[e[0]] = true; prev[e[0]] = [cur, e[1]]; queue.push(e[0]); }
+        });
+      }
+      if (!seen[to]) return null;
+      var out = [], at = to;
+      while (at !== from) { out.unshift(prev[at][1]); at = prev[at][0]; }
+      return out;
+    }
     rows.forEach(function(r) {
       var p = parts(r), sw = r.querySelector('input[type=checkbox]');
       var hint = r.querySelector('.fairy-eq-tol-hint');
-      var bad = false;
-      if (p) { if (sw) { if (sw.checked) bad = find(p[0]) === find(p[1]); } }
-      if (bad) {
+      var path = null;
+      if (p) { if (sw) { if (sw.checked) path = route(p[0], p[1]); } }
+      if (path) {
         if (!hint) {
           hint = document.createElement('div'); hint.className = 'fairy-eq-tol-hint';
           hint.style.cssText = 'font-size:11.5px; color:#b45309; margin-top:6px; line-height:1.35;';
-          hint.textContent = 'No effect yet: other exact equalities already force these two to be equal. Make those approximate too (see above).';
           r.appendChild(hint);
         }
+        hint.textContent = 'No effect yet: ' + path.join(' and ') + (path.length === 1 ? ' is' : ' are') + ' exact and already force ' + p[0] + ' and ' + p[1] + ' to be equal. Make ' + (path.length === 1 ? 'it' : 'them') + ' approximate too.';
       } else if (hint) { hint.parentNode.removeChild(hint); }
     });
   }
