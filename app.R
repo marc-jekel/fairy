@@ -16774,7 +16774,72 @@ server <- shinyServer(function(input, output, session) {
               class = "fairy-eq-tol-help",
               "Turn an equality on to treat it as approximate and set its tolerance — e.g. .05 turns p1 = p2 into p1 - p2 ≤ .05 and -p1 + p2 ≤ .05. Leave off to keep it exact. A chain like p1 = p2 = p3 stands for all its pairs, so each pair has its own setting."
             ),
+            tags$div(id = "fairy-eq-tol-terms", style = "margin:4px 0 8px;"),
             tagList(eq_rows),
+            tags$script(HTML("
+(function() {
+  var root = document.querySelector('.fairy-eq-tol-modal');
+  if (!root) return;
+  function parts(row) {
+    var code = row.querySelector('.fairy-eq-tol-clause');
+    var t = code ? code.textContent : '';
+    var i = t.indexOf('=');
+    if (i < 0) return null;
+    return [t.slice(0, i).trim(), t.slice(i + 1).trim()];
+  }
+  function rowsOf() { return [].slice.call(root.querySelectorAll('.fairy-eq-tol-row')); }
+  function refresh() {
+    var rows = rowsOf(), par = {};
+    function find(x) { if (par[x] === undefined) par[x] = x; while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; }
+    rows.forEach(function(r) {
+      var p = parts(r), sw = r.querySelector('input[type=checkbox]');
+      if (p) { if (sw) { if (!sw.checked) par[find(p[0])] = find(p[1]); } }
+    });
+    rows.forEach(function(r) {
+      var p = parts(r), sw = r.querySelector('input[type=checkbox]');
+      var hint = r.querySelector('.fairy-eq-tol-hint');
+      var bad = false;
+      if (p) { if (sw) { if (sw.checked) bad = find(p[0]) === find(p[1]); } }
+      if (bad) {
+        if (!hint) {
+          hint = document.createElement('div'); hint.className = 'fairy-eq-tol-hint';
+          hint.style.cssText = 'font-size:11.5px; color:#b45309; margin-top:6px; line-height:1.35;';
+          hint.textContent = 'No effect yet: other exact equalities already force these two to be equal. Make those approximate too (see above).';
+          r.appendChild(hint);
+        }
+      } else if (hint) { hint.parentNode.removeChild(hint); }
+    });
+  }
+  function build() {
+    var box = root.querySelector('#fairy-eq-tol-terms');
+    var rows = rowsOf();
+    if (box) {
+      var count = {};
+      rows.forEach(function(r) { var p = parts(r); if (p) { count[p[0]] = (count[p[0]] || 0) + 1; count[p[1]] = (count[p[1]] || 0) + 1; } });
+      var terms = Object.keys(count).filter(function(t) { return count[t] >= 2 && !/^-?[0-9.\\/]+$/.test(t); });
+      if (terms.length === 0) { box.style.display = 'none'; }
+      else {
+        var lab = document.createElement('div'); lab.style.cssText = 'font-size:12px; color:#667085; margin-bottom:4px;'; lab.textContent = 'Make all pairs with one term approximate:'; box.appendChild(lab);
+        terms.forEach(function(t) {
+          var b = document.createElement('button'); b.type = 'button'; b.textContent = t;
+          b.style.cssText = 'margin:0 6px 6px 0; padding:2px 10px; border:1px solid #cbd5e1; border-radius:12px; background:#f8fafc; font-size:12px; cursor:pointer;';
+          b.addEventListener('click', function() {
+            rowsOf().forEach(function(r) {
+              var p = parts(r), sw = r.querySelector('input[type=checkbox]');
+              if (p) { if (sw) { if (p[0] === t || p[1] === t) { if (!sw.checked) sw.click(); } } }
+            });
+            setTimeout(refresh, 150);
+          });
+          box.appendChild(b);
+        });
+      }
+    }
+    root.addEventListener('change', function() { setTimeout(refresh, 100); });
+    refresh();
+  }
+  setTimeout(build, 250);
+})();
+")),
             footer = tagList(
               modalButton("Cancel"),
               actionBttn(paste0("submit_eq_tol_", ii), "Add", style = "material-flat", color = "primary", size = "sm")
