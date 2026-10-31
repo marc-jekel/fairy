@@ -10482,7 +10482,7 @@ server <- shinyServer(function(input, output, session) {
     combined_spec <- paste(selected_specs[nzchar(trimws(selected_specs))], collapse = "; ")
     combined_name <- paste0("inters_", paste(selected_names, collapse = "_"))
 
-    combined_tol <- unlist(lapply(selected_idx, unique_model_tol_slice))
+    combined_tol <- combine_source_tols(selected_idx)
 
     # A mixture has no constraint text at all (see mixture_model_flags's
     # own comment), and neither does an intersection that itself already
@@ -10824,6 +10824,26 @@ server <- shinyServer(function(input, output, session) {
     vapply(seq_along(clauses), function(k) {
       if (!is.null(tol_vec) && k <= length(tol_vec) && !is.na(tol_vec[k])) tol_vec[k] else 0
     }, numeric(1))
+  }
+
+  # Tolerances of an intersection of the models `src_idx`: one value per equality of the combined text (the same list the
+  # tolerances belong to). An equality that appears in several sources must hold in all of them, so the strictest tolerance
+  # wins: exact (0) beats approximate, a smaller tolerance beats a larger one.
+  combine_source_tols <- function(src_idx) {
+    keys <- character(0); tols <- numeric(0)
+    for (sidx in src_idx) {
+      rows <- spec_eq_rows(input[[paste0("textin_relations_", sidx)]] %||% "")
+      if (length(rows) == 0) next
+      tv <- unique_model_tol_slice(sidx)
+      kk <- vapply(rows, eq_row_key, character(1), USE.NAMES = FALSE)
+      for (m in seq_along(kk)) {
+        pos <- match(kk[m], keys)
+        if (is.na(pos)) { keys <- c(keys, kk[m]); tols <- c(tols, tv[m]) }
+        else if (tv[m] == 0 || tols[pos] == 0) tols[pos] <- 0
+        else tols[pos] <- min(tols[pos], tv[m])
+      }
+    }
+    tols
   }
 
   # Moves the saved tolerances along with their equalities when the specification text changes: an equality that
@@ -17265,7 +17285,7 @@ server <- shinyServer(function(input, output, session) {
           combined <- paste(specs[nzchar(trimws(specs))], collapse = "; ")
           updateTextAreaInput(session, inputId = paste0("textin_relations_", ii), value = combined)
 
-          combined_tol <- unlist(lapply(src_idx, unique_model_tol_slice))
+          combined_tol <- combine_source_tols(src_idx)
           isolate({
             # Guarded: writing to equality_tolerances_reactive$value
             # invalidates EVERY reader of that field (reactiveValues has
