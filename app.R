@@ -10089,6 +10089,19 @@ server <- shinyServer(function(input, output, session) {
     # sharing deleted_name via its own separate, unedited spec entry;
     # matching by name would delete that other row's spec too even
     # though only THIS row is being removed.
+    # mixtures built from this model keep its last shape: its vertices are stored in the mixture, which stays live in its other sources
+    dms0 <- isolate(derived_model_sources$value)
+    dep_keys <- names(dms0)[vapply(dms0, function(di) identical(di$type, "mixture") && idx %in% di$source_idx, logical(1))]
+    dep_keys <- setdiff(dep_keys, as.character(idx))
+    v_del <- NULL
+    h_del <- isolate(h_reactive[[deleted_name]])
+    if (length(dep_keys) > 0 && !is.null(h_del)) {
+      n_p_del <- ncol(h_del) - 2L
+      cube_del <- d2q(rbind(makeH(a1 = -diag(n_p_del), b1 = rep(0, n_p_del)), makeH(a1 = diag(n_p_del), b1 = rep(1, n_p_del))))
+      h_full_del <- rbind(h_del, cube_del); attr(h_full_del, "representation") <- "H"
+      v_out_del <- tryCatch(scdd(h_full_del)$output, error = function(e) NULL)
+      if (!is.null(v_out_del)) v_del <- v_out_del[v_out_del[, 2] == "1", , drop = FALSE]
+    }
     purge_model_cache(deleted_name)
     deleted_spec_pos <- isolate(item_model_spec_idx$value[[as.character(idx)]])
     if (!is.null(deleted_spec_pos)) remove_items_spec_at(deleted_spec_pos)
@@ -10110,6 +10123,9 @@ server <- shinyServer(function(input, output, session) {
     new_tols[[as.character(idx)]] <- NULL
     new_keys[[as.character(idx)]] <- NULL
     old_flags <- isolate(mixture_model_flags$value)
+    for (dk in dep_keys) {
+      if (!is.null(old_flags[[dk]])) old_flags[[dk]] <- paste0(old_flags[[dk]], " (", deleted_name, " was deleted, its last shape stays in)")
+    }
     new_flags <- old_flags
     new_flags[[as.character(idx)]] <- NULL
 
@@ -10128,10 +10144,16 @@ server <- shinyServer(function(input, output, session) {
     # ordinary model of its own, instead of silently following whatever model ends up at the source's old position
     old_derived <- old_derived[!vapply(old_derived, function(info)
       identical(info$type, "intersection") && !isTRUE(info$by_h) && idx %in% info$source_idx, logical(1))]
-    new_derived <- lapply(old_derived, function(info) {
+    new_derived <- setNames(lapply(names(old_derived), function(dk) {
+      info <- old_derived[[dk]]
+      if (dk %in% dep_keys) {
+        # a mixture: the deleted model leaves its sources and (if it was computed) its vertices are kept inside the mixture
+        info$source_idx <- info$source_idx[info$source_idx != idx]
+        if (!is.null(v_del)) info$extra_v <- c(info$extra_v, list(v_del))
+      }
       info$source_idx <- ifelse(info$source_idx > idx, info$source_idx - 1L, info$source_idx)
       info
-    })
+    }), names(old_derived))
     new_derived[[as.character(idx)]] <- NULL
 
     if (idx < n) {
@@ -14241,7 +14263,8 @@ server <- shinyServer(function(input, output, session) {
             isolate(items_reactive$names))
           selected_mix <- selected_mix[selected_mix %in% all_valid_mix]
 
-          if (length(selected_mix) < 2) next
+          extra_mix <- info$extra_v %||% list()   # vertices of deleted components that stay in the mixture
+          if (length(selected_mix) < 1 || length(selected_mix) + length(extra_mix) < 2) next
 
           # unchanged components (same H-representations as at the last Go): reuse the last mixture
           mix_sig <- paste(selected_mix, collapse = "+")
@@ -14249,6 +14272,7 @@ server <- shinyServer(function(input, output, session) {
             h <- isolate(h_reactive[[m]])
             if (is.null(h)) "NULL" else paste(c(dim(h), as.vector(h)), collapse = ",")
           }, character(1))), collapse = "|")
+          if (length(extra_mix) > 0) mix_sig <- paste(c(mix_sig, vapply(extra_mix, function(m) paste(c(dim(m), as.vector(m)), collapse = ","), character(1))), collapse = "|")
           mix_prev <- mixture_cache[[mix_name]]
           if (!is.null(mix_prev) && identical(mix_prev$sig, mix_sig)) {
             h_reactive[[mix_name]] <- mix_prev$h
@@ -14285,6 +14309,7 @@ server <- shinyServer(function(input, output, session) {
             if (is.null(v_out)) return(NULL)
             v_out[v_out[, 2] == "1", , drop = FALSE]
           })
+          V_sel <- c(V_sel, extra_mix)
           V_sel <- Filter(function(v) !is.null(v) && nrow(v) > 0, V_sel)
           if (length(V_sel) == 0) {
             mix_fail_notes <- c(mix_fail_notes, paste0(mix_name, ": its component models have no extreme cases to combine"))
