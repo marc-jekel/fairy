@@ -10684,7 +10684,7 @@ server <- shinyServer(function(input, output, session) {
   # (see their respective eq_approx_flags_*/substForBox() client-side
   # code) so "which = is approximate" is computed exactly once, the same
   # way, in both places.
-  equality_flags_str <- function(spec, tol_vec) {
+  equality_flags_str <- function(spec, tol_vec, neighbours = TRUE) {
     raw_clauses <- trimws(unlist(strsplit(spec %||% "", ";")))
     raw_clauses <- raw_clauses[nzchar(raw_clauses)]
     # Chain-expand each raw clause (see expand_clause_to_rows's own
@@ -10697,7 +10697,7 @@ server <- shinyServer(function(input, output, session) {
     k <- 0L
     for (cl in raw_clauses) {
       pc <- pure_prob_chain(cl)
-      if (!is.null(pc)) {
+      if (!is.null(pc) && neighbours) {
         # a typed chain shows its "=" signs between neighbours: each one reflects the tolerance of that neighbouring pair
         m <- length(pc)
         for (i in seq_len(m - 1)) {
@@ -10891,7 +10891,7 @@ server <- shinyServer(function(input, output, session) {
             flags_id <- paste0("eq_approx_flags_", ii)
             output[[flags_id]] <- renderText({
               spec <- join_specs(input[[paste0("textin_relations_", ii)]], input$add_for_all_models)
-              equality_flags_str(spec, equality_tolerances_reactive$value[[as.character(ii)]])
+              equality_flags_str(spec, equality_tolerances_reactive$value[[as.character(ii)]], neighbours = FALSE)
             })
             # This output lives in a display:none wrapper (it's a pure
             # data channel to the client-side poll, never shown itself) —
