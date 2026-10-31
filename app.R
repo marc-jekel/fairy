@@ -10148,7 +10148,7 @@ server <- shinyServer(function(input, output, session) {
     detach_keys <- setdiff(detach_keys, as.character(idx))
     for (dk in detach_keys) {
       nm_d <- isolate(input[[paste0("textin_relations_name", as.integer(dk))]]) %||% paste0("model ", dk)
-      showNotification(paste0("'", nm_d, "' keeps the constraints of the deleted model '", deleted_name, "' and is now an ordinary model."), type = "message", duration = 10)
+      showNotification(paste0("'", nm_d, "' keeps the constraints of the deleted model '", deleted_name, "' and is now an ordinary model."), type = "message", duration = NULL)
     }
     old_derived <- old_derived[!vapply(old_derived, function(info)
       identical(info$type, "intersection") && !isTRUE(info$by_h) && idx %in% info$source_idx, logical(1))]
@@ -10215,12 +10215,12 @@ server <- shinyServer(function(input, output, session) {
         if (!had_result) {
           showNotification(paste0("'", deleted_name, "' had no result yet, so it no longer belongs to the ", kind, " '", mix_nm, "'.",
             if (n_left < 2) paste0(" A ", kind, " needs at least two components: it cannot be computed until you add one.") else ""),
-            type = "warning", duration = 12)
+            type = "warning", duration = NULL)
         } else if (n_left < 2) {
-          showNotification(paste0("The ", kind, " '", mix_nm, "' has only one component left and cannot be computed."), type = "warning", duration = 12)
+          showNotification(paste0("The ", kind, " '", mix_nm, "' has only one component left and cannot be computed."), type = "warning", duration = NULL)
         } else {
           showNotification(paste0("The ", kind, " '", mix_nm, "' keeps the last shape of the deleted model '", deleted_name, "'; its other models stay live."),
-            type = "message", duration = 10)
+            type = "message", duration = NULL)
         }
       }
     }
