@@ -10728,13 +10728,13 @@ server <- shinyServer(function(input, output, session) {
       pc <- pure_prob_chain(cl)
       if (!is.null(pc) && neighbours) {
         # a typed chain shows its "=" signs between neighbours: each one reflects the tolerance of that neighbouring pair
-        pcl <- chain_pair_clauses(pc)
-        pcl_eq <- pcl[grepl("=", pcl)]
+        eq_rows <- unlist(lapply(chain_pair_clauses(pc), expand_clause_to_rows))
+        eq_rows <- eq_rows[grepl("=", eq_rows)]
         for (i in seq_along(pc$ops)) if (pc$ops[i] == "=") {
-          idx <- match(paste0(pc$terms[i], "=", pc$terms[i + 1]), pcl_eq)
+          idx <- match(paste0(chain_side_items(pc$terms[i])[1], "=", chain_side_items(pc$terms[i + 1])[1]), eq_rows)
           flags <- c(flags, if (!is.na(idx) && is_set(k + idx)) "1" else "0")
         }
-        k <- k + length(pcl_eq)
+        k <- k + length(eq_rows)
       } else {
         for (r in expand_clause_to_rows(cl)) if (grepl("=", r)) { k <- k + 1L; flags <- c(flags, if (is_set(k)) "1" else "0") }
       }
@@ -12794,7 +12794,7 @@ server <- shinyServer(function(input, output, session) {
   # itself does (chain-split happens before batch-expansion there too).
   clause_expected_row_count <- function(clause) {
     pc <- pure_prob_chain(clause)
-    if (!is.null(pc)) return(length(chain_pair_clauses(pc)))
+    if (!is.null(pc)) return(sum(vapply(chain_pair_clauses(pc), clause_expected_row_count, integer(1))))
     op_pos <- gregexpr("[=><]", clause)[[1]]
     if (op_pos[1] == -1) return(1L)
     args <- strsplit(clause, "[=><]")[[1]]
@@ -12832,20 +12832,25 @@ server <- shinyServer(function(input, output, session) {
   # A chain of three or more plain probabilities joined by "=" only (p1=p2=p3): returns the
   # probabilities, otherwise NULL. Such a chain stands for ALL its pairs (p1=p2, p1=p3, p2=p3),
   # so that each pair can get its own tolerance whatever order the user typed them in.
+  # members of one side of a clause: "{p1,p2}" -> p1, p2; anything else is one term
+  chain_side_items <- function(side) {
+    side <- trimws(side)
+    if (grepl("^\\{", side)) unlist(strsplit(gsub("[{} ]", "", side), ",")) else side
+  }
+  chain_is_number <- function(x) grepl("^-?([0-9]+\\.?[0-9]*|\\.[0-9]+)(/[0-9]+)?$", x)
+  # A clause in which three or more terms are joined by "=" (also with comparison signs elsewhere in the clause,
+  # and with terms like 2*p1, p1+p2 or {p1,p2}): returns its terms and signs, otherwise NULL.
   pure_prob_chain <- function(clause) {
-    if (!grepl("=", clause) || !grepl("^[^{}*+()]*$", clause)) return(NULL)
+    if (!grepl("=", clause)) return(NULL)
     terms <- trimws(strsplit(clause, "[=<>]")[[1]])
     ops <- regmatches(clause, gregexpr("[=<>]", clause))[[1]]
-    if (length(terms) < 3 || length(ops) != length(terms) - 1) return(NULL)
-    is_prob <- grepl("^p[0-9]+$", terms)
-    is_num <- grepl("^-?([0-9]+\\.?[0-9]*|\\.[0-9]+)(/[0-9]+)?$", terms)
-    if (!all(is_prob | is_num)) return(NULL)
+    if (length(terms) < 3 || length(ops) != length(terms) - 1 || any(!nzchar(terms))) return(NULL)
     # needs a run of at least three terms joined by "=" only (the part that stands for all its pairs)
     runs <- rle(ops == "=")
     if (!any(runs$values & runs$lengths >= 2)) return(NULL)
     list(terms = terms, ops = ops)
   }
-  # all rows of such a clause: every pair inside a run of "=", and the comparison signs between the runs as before
+  # all clauses of such a clause: every pair inside a run of "=", and the comparison signs between the runs as before
   chain_pair_clauses <- function(pc) {
     terms <- pc$terms; ops <- pc$ops; n <- length(terms)
     out <- character(0); i <- 1L
@@ -12854,9 +12859,10 @@ server <- shinyServer(function(input, output, session) {
       while (j < n && ops[j] == "=") j <- j + 1L
       run <- terms[i:j]
       if (length(run) >= 3) {
-        pr <- utils::combn(length(run), 2)
-        keep <- !(!grepl("^p", run[pr[1, ]]) & !grepl("^p", run[pr[2, ]]))   # number = number says nothing
-        out <- c(out, paste0(run[pr[1, keep]], "=", run[pr[2, keep]]))
+        mem <- unlist(lapply(run, chain_side_items))
+        pr <- utils::combn(length(mem), 2)
+        keep <- !(chain_is_number(mem[pr[1, ]]) & chain_is_number(mem[pr[2, ]]))   # number = number says nothing
+        out <- c(out, paste0(mem[pr[1, keep]], "=", mem[pr[2, keep]]))
       } else if (length(run) == 2) {
         out <- c(out, paste0(run[1], "=", run[2]))
       }
@@ -12878,7 +12884,7 @@ server <- shinyServer(function(input, output, session) {
 
   expand_clause_to_rows <- function(clause) {
     pc <- pure_prob_chain(clause)
-    if (!is.null(pc)) return(chain_pair_clauses(pc))
+    if (!is.null(pc)) return(unlist(lapply(chain_pair_clauses(pc), expand_clause_to_rows)))
     op_pos <- gregexpr("[=><]", clause)[[1]]
     if (op_pos[1] == -1) return(clause)
     args <- strsplit(clause, "[=><]")[[1]]
