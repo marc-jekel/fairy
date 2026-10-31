@@ -11633,6 +11633,21 @@ server <- shinyServer(function(input, output, session) {
       info <- dms[[key]]; ii <- idx_map[[key]]
       if (!is.null(info)) {
         srcs <- obj[info$source_idx[info$source_idx >= 1 & info$source_idx <= n_rows]]
+        # the last shapes of deleted source models (kept inside the model in the app) are written out as vertices
+        stored <- c(info$extra_v %||% list(), lapply(info$extra_h %||% list(), function(h) {
+          n_h <- ncol(h) - 2L
+          cube_s <- d2q(rbind(makeH(a1 = -diag(n_h), b1 = rep(0, n_h)), makeH(a1 = diag(n_h), b1 = rep(1, n_h))))
+          h_full <- rbind(h, cube_s); attr(h_full, "representation") <- "H"
+          v_out <- tryCatch(scdd(h_full)$output, error = function(e) NULL)
+          if (is.null(v_out)) NULL else v_out[v_out[, 2] == "1", , drop = FALSE]
+        }))
+        stored <- Filter(function(m) !is.null(m) && nrow(m) > 0, stored)
+        for (k in seq_along(stored)) {
+          co <- stored[[k]][, -(1:2), drop = FALSE]
+          nm_s <- paste0(obj[i], "_stored", k)
+          out <- c(out, paste0(nm_s, " <- fairy_from_vertices(matrix(c(", paste(q(as.vector(t(co))), collapse = ", "), "), ncol = ", ncol(co), ", byrow = TRUE))   # last shape of a deleted source model of ", row_name[i]))
+          srcs <- c(srcs, nm_s)
+        }
         fn <- if (identical(info$type, "mixture")) "fairy_mixture" else "fairy_intersect"
         out <- c(out, paste0(obj[i], " <- ", fn, "(", paste(srcs, collapse = ", "), ")", com))
       } else if (!is.null(ii) && !is.null(specs) && ii <= length(specs)) {
