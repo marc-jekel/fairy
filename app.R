@@ -10097,8 +10097,15 @@ server <- shinyServer(function(input, output, session) {
       mixture_model_flags$value[[as.character(idx)]] <- NULL
       derived_model_sources$value[[as.character(idx)]] <- NULL
       item_model_spec_idx$value[[as.character(idx)]] <- NULL
+      equality_tolerances_reactive$value[[as.character(idx)]] <- NULL
+      equality_clause_keys$value[[as.character(idx)]] <- NULL
       return()
     }
+    # the approximate-equality tolerances (and the equations they belong to) move up with their models
+    new_tols <- isolate(equality_tolerances_reactive$value)
+    new_keys <- isolate(equality_clause_keys$value)
+    new_tols[[as.character(idx)]] <- NULL
+    new_keys[[as.character(idx)]] <- NULL
     old_flags <- isolate(mixture_model_flags$value)
     new_flags <- old_flags
     new_flags[[as.character(idx)]] <- NULL
@@ -10144,8 +10151,17 @@ server <- shinyServer(function(input, output, session) {
         shifted_item_idx <- new_item_idx[[as.character(j + 1)]]
         new_item_idx[[as.character(j)]] <- shifted_item_idx
         new_item_idx[[as.character(j + 1)]] <- NULL
+
+        old_tols_j <- isolate(equality_tolerances_reactive$value)
+        old_keys_j <- isolate(equality_clause_keys$value)
+        new_tols[[as.character(j)]] <- old_tols_j[[as.character(j + 1)]]
+        new_tols[[as.character(j + 1)]] <- NULL
+        new_keys[[as.character(j)]] <- old_keys_j[[as.character(j + 1)]]
+        new_keys[[as.character(j + 1)]] <- NULL
       }
     }
+    equality_tolerances_reactive$value <- new_tols
+    equality_clause_keys$value <- new_keys
     mixture_model_flags$value <- new_flags
     derived_model_sources$value <- new_derived
     item_model_spec_idx$value <- new_item_idx
