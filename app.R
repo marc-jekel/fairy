@@ -11483,6 +11483,7 @@ server <- shinyServer(function(input, output, session) {
         own <- trimws(isolate(input[[paste0("textin_relations_", i)]]) %||% "")
         txt <- paste(c(if (nzchar(shared)) shared, if (nzchar(own)) own), collapse = "; ")
         txt <- gsub("≥", ">=", gsub("≤", "<=", txt, fixed = TRUE), fixed = TRUE)
+        txt <- expand_equality_chains(txt)   # a chain p1=p2=p3 stands for all its pairs, as in the app
         tv <- as.numeric(unlist(tols[[key]])); tv <- tv[!is.na(tv) & tv > 0]
         tol_arg <- if (length(tv) > 0 && length(unique(tv)) == 1) paste0(", approx_tol = ", tv[1]) else ""
         one <- paste0(obj[i], " <- fairy_h(", q(txt), ", n_p = n_p", tol_arg, ")", com)
