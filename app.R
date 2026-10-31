@@ -10700,11 +10700,12 @@ server <- shinyServer(function(input, output, session) {
       if (!is.null(pc) && neighbours) {
         # a typed chain shows its "=" signs between neighbours: each one reflects the tolerance of that neighbouring pair
         m <- length(pc)
+        pcl <- chain_pair_clauses(pc)
         for (i in seq_len(m - 1)) {
-          idx <- sum(m - seq_len(i - 1)) + 1L
-          flags <- c(flags, if (is_set(k + idx)) "1" else "0")
+          idx <- match(paste0(pc[i], "=", pc[i + 1]), pcl)
+          flags <- c(flags, if (!is.na(idx) && is_set(k + idx)) "1" else "0")
         }
-        k <- k + as.integer(choose(m, 2))
+        k <- k + length(pcl)
       } else {
         for (r in expand_clause_to_rows(cl)) if (grepl("=", r)) { k <- k + 1L; flags <- c(flags, if (is_set(k)) "1" else "0") }
       }
@@ -12716,7 +12717,7 @@ server <- shinyServer(function(input, output, session) {
   # itself does (chain-split happens before batch-expansion there too).
   clause_expected_row_count <- function(clause) {
     pc <- pure_prob_chain(clause)
-    if (!is.null(pc)) return(as.integer(choose(length(pc), 2)))
+    if (!is.null(pc)) return(length(chain_pair_clauses(pc)))
     op_pos <- gregexpr("[=><]", clause)[[1]]
     if (op_pos[1] == -1) return(1L)
     args <- strsplit(clause, "[=><]")[[1]]
@@ -12757,11 +12758,19 @@ server <- shinyServer(function(input, output, session) {
   pure_prob_chain <- function(clause) {
     if (grepl("[<>]", clause) || !grepl("=", clause)) return(NULL)
     terms <- trimws(strsplit(clause, "=", fixed = TRUE)[[1]])
-    if (length(terms) < 3 || !all(grepl("^p[0-9]+$", terms))) return(NULL)
+    is_prob <- grepl("^p[0-9]+$", terms)
+    is_num <- grepl("^-?([0-9]+\\.?[0-9]*|\\.[0-9]+)(/[0-9]+)?$", terms)
+    if (length(terms) < 3 || !all(is_prob | is_num) || sum(is_prob) < 1) return(NULL)
     terms
   }
-  chain_pair_clauses <- function(terms) {
+  # all pairs of a chain, except number = number (it says nothing)
+  chain_pairs <- function(terms) {
     pr <- utils::combn(length(terms), 2)
+    keep <- !(!grepl("^p", terms[pr[1, ]]) & !grepl("^p", terms[pr[2, ]]))
+    pr[, keep, drop = FALSE]
+  }
+  chain_pair_clauses <- function(terms) {
+    pr <- chain_pairs(terms)
     paste0(terms[pr[1, ]], "=", terms[pr[2, ]])
   }
   # the same chain expanded for the text the pipeline reads: "p1=p2=p3" -> "p1=p2; p1=p3; p2=p3"
