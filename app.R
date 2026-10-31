@@ -10143,6 +10143,13 @@ server <- shinyServer(function(input, output, session) {
     old_derived <- isolate(derived_model_sources$value)
     # a text-based intersection whose source model is deleted keeps its constraint text and tolerances but becomes an
     # ordinary model of its own, instead of silently following whatever model ends up at the source's old position
+    detach_keys <- names(old_derived)[vapply(old_derived, function(info)
+      identical(info$type, "intersection") && !isTRUE(info$by_h) && idx %in% info$source_idx && TRUE, logical(1))]
+    detach_keys <- setdiff(detach_keys, as.character(idx))
+    for (dk in detach_keys) {
+      nm_d <- isolate(input[[paste0("textin_relations_name", as.integer(dk))]]) %||% paste0("model ", dk)
+      showNotification(paste0("'", nm_d, "' keeps the constraints of the deleted model '", deleted_name, "' and is now an ordinary model."), type = "message", duration = 10)
+    }
     old_derived <- old_derived[!vapply(old_derived, function(info)
       identical(info$type, "intersection") && !isTRUE(info$by_h) && idx %in% info$source_idx, logical(1))]
     new_derived <- setNames(lapply(names(old_derived), function(dk) {
@@ -10211,6 +10218,9 @@ server <- shinyServer(function(input, output, session) {
             type = "warning", duration = 12)
         } else if (n_left < 2) {
           showNotification(paste0("The ", kind, " '", mix_nm, "' has only one component left and cannot be computed."), type = "warning", duration = 12)
+        } else {
+          showNotification(paste0("The ", kind, " '", mix_nm, "' keeps the last shape of the deleted model '", deleted_name, "'; its other models stay live."),
+            type = "message", duration = 10)
         }
       }
     }
@@ -10401,6 +10411,7 @@ server <- shinyServer(function(input, output, session) {
       class = "fairy-combo-modal",
       tags$div(class = "fairy-combo-header", tags$strong("Add intersection model")),
       tags$p(class = "fairy-combo-help", "Pick two or more models — the new model's Unique Model Specification will be all of their constraints combined."),
+      tags$p(class = "fairy-combo-help", style = "font-size:11.5px;", "If you delete one of these models later, the intersection stays: it keeps that model's last constraints (or last shape); the models that are still there stay live."),
       if (any(vapply(seq_len(n), is_h_only_row, logical(1))))
         tags$p(class = "fairy-combo-help", style = "font-style:italic;",
           "Models unpacked across items can only be combined with other unpacked models that have the same number of items for every probability. The app only checks that; you decide that item k of a probability means the same thing in both models."),
@@ -10537,6 +10548,7 @@ server <- shinyServer(function(input, output, session) {
       class = "fairy-combo-modal",
       tags$div(class = "fairy-combo-header", tags$strong("Add mixture model")),
       tags$p(class = "fairy-combo-help", "Pick two or more models for a mixture."),
+      tags$p(class = "fairy-combo-help", style = "font-size:11.5px;", "If you delete one of these models later, the mixture keeps that model's last shape; the models that are still there stay live."),
       if (any(vapply(seq_len(n), is_h_only_row, logical(1))))
         tags$p(class = "fairy-combo-help", style = "font-style:italic;",
           "Models unpacked across items can only be combined with other unpacked models that have the same number of items for every probability. The app only checks that; you decide that item k of a probability means the same thing in both models."),
