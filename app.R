@@ -14331,6 +14331,17 @@ server <- shinyServer(function(input, output, session) {
           selected_mix <- selected_mix[selected_mix %in% all_valid_mix]
 
           extra_mix <- info$extra_v %||% list()   # vertices of deleted components that stay in the mixture
+          # all components deleted, only their stored shapes are left: the mixture keeps its last result
+          if (length(selected_mix) == 0 && length(extra_mix) >= 2) {
+            fz <- mixture_cache[[mix_name]]
+            if (!is.null(fz)) {
+              h_reactive[[mix_name]] <- fz$h
+              v_reactive[[mix_name]] <- fz$v
+              mixture_names <- c(mixture_names, mix_name)
+              fairy_run_row(mix_name, "mixture", h = "cached", v = "cached")
+            }
+            next
+          }
           if (length(selected_mix) < 1 || length(selected_mix) + length(extra_mix) < 2) next
 
           # unchanged components (same H-representations as at the last Go): reuse the last mixture
