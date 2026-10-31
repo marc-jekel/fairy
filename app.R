@@ -10411,7 +10411,6 @@ server <- shinyServer(function(input, output, session) {
       class = "fairy-combo-modal",
       tags$div(class = "fairy-combo-header", tags$strong("Add intersection model")),
       tags$p(class = "fairy-combo-help", "Pick two or more models — the new model's Unique Model Specification will be all of their constraints combined."),
-      tags$p(class = "fairy-combo-help", style = "font-size:11.5px;", "If you delete one of these models later, the intersection stays: it keeps that model's last constraints (or last shape); the models that are still there stay live."),
       if (any(vapply(seq_len(n), is_h_only_row, logical(1))))
         tags$p(class = "fairy-combo-help", style = "font-style:italic;",
           "Models unpacked across items can only be combined with other unpacked models that have the same number of items for every probability. The app only checks that; you decide that item k of a probability means the same thing in both models."),
@@ -10548,7 +10547,6 @@ server <- shinyServer(function(input, output, session) {
       class = "fairy-combo-modal",
       tags$div(class = "fairy-combo-header", tags$strong("Add mixture model")),
       tags$p(class = "fairy-combo-help", "Pick two or more models for a mixture."),
-      tags$p(class = "fairy-combo-help", style = "font-size:11.5px;", "If you delete one of these models later, the mixture keeps that model's last shape; the models that are still there stay live."),
       if (any(vapply(seq_len(n), is_h_only_row, logical(1))))
         tags$p(class = "fairy-combo-help", style = "font-style:italic;",
           "Models unpacked across items can only be combined with other unpacked models that have the same number of items for every probability. The app only checks that; you decide that item k of a probability means the same thing in both models."),
