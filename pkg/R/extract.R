@@ -48,19 +48,36 @@ extract_info <- function(constraints, n_p, approx_tol = 0) {
   if (any(test == "")) test <- test[test != ""]
 
   # ---- split chained constraints (a < b < c -> a<b, b<c) ----
-  numb_test <- length(test)
-  for (loop_test in seq_len(numb_test)) {
-    pos_signs <- str_locate_all(test[loop_test], "[=><]")[[1]][, 1]
-    signs <- character()
-    for (k in seq_along(pos_signs)) {
-      signs <- c(signs, substr(test[loop_test], pos_signs[k], pos_signs[k]))
+  # A run of three or more terms joined by "=" (p1 = p2 = p3) stands for ALL its pairs (p1=p2, p1=p3, p2=p3),
+  # so that each pair can have its own tolerance, as in the Fairy app; number = number pairs are dropped.
+  is_number <- function(x) grepl("^-?([0-9]+\\.?[0-9]*|\\.[0-9]+)(/[0-9]+)?$", x)
+  members <- function(term) if (grepl("{", term, fixed = TRUE)) unlist(strsplit(gsub("[{}]", "", term), ",")) else term
+  split_chain <- function(clause) {
+    pos_signs <- str_locate_all(clause, "[=><]")[[1]][, 1]
+    signs <- substr(rep(clause, length(pos_signs)), pos_signs, pos_signs)
+    arguments <- strsplit(clause, "[=><]")[[1]]
+    n_arg <- length(arguments)
+    if (n_arg < 2) return(character(0))
+    out <- character(0); i <- 1L
+    while (i <= n_arg) {
+      j <- i
+      while (j < n_arg && signs[j] == "=") j <- j + 1L
+      run <- arguments[i:j]
+      if (length(run) >= 3) {
+        mem <- unlist(lapply(run, members))
+        pr <- utils::combn(length(mem), 2)
+        keep <- !(is_number(mem[pr[1, ]]) & is_number(mem[pr[2, ]]))
+        out <- c(out, paste0(mem[pr[1, keep]], "=", mem[pr[2, keep]]))
+      } else if (length(run) == 2) {
+        out <- c(out, paste0(run[1], "=", run[2]))
+      }
+      if (j < n_arg) out <- c(out, paste0(arguments[j], signs[j], arguments[j + 1]))
+      i <- j + 1L
     }
-    arguments <- strsplit(test[loop_test], "[=><]")[[1]]
-    for (k in seq_len(length(arguments) - 1)) {
-      test <- c(test, paste0(arguments[k], signs[k], arguments[k + 1]))
-    }
+    out
   }
-  test <- test[-(seq_len(numb_test))]
+  parts_all <- unlist(lapply(test, split_chain))
+  test <- parts_all
 
   # ---- expand {p1,p2} > {p3,p4} batch notation ----
   expand_scalar <- function(scalar) {
@@ -359,26 +376,38 @@ extract_info <- function(constraints, n_p, approx_tol = 0) {
   }
 
   # ---- approximate equalities ----
-  if (approx_tol != 0) {
+  # approx_tol: one number for all equalities, or one number per equality in the order they appear in the model
+  # (0 keeps that equality exact).
+  eq_idx <- which(all_operators == "equal")
+  tol <- as.numeric(approx_tol)
+  if (length(tol) > 1 && length(tol) != length(eq_idx) && length(eq_idx) > 0) {
+    stop("approx_tol has ", length(tol), " values but the model has ", length(eq_idx), " equalities (one value per equality, or a single value for all).")
+  }
+  tol_each <- if (length(eq_idx) == 0) numeric(0) else if (length(tol) == 1) rep(tol, length(eq_idx)) else tol
+  tol_each[is.na(tol_each)] <- 0
+  if (any(tol_each != 0)) {
     add_left  <- matrix(character(0), 0, n_p)
     add_right <- character()
     add_ops   <- character()
+    relaxed   <- logical(length(all_operators))
 
-    eq_idx <- which(all_operators == "equal")
-    for (i in eq_idx) {
+    for (m in seq_along(eq_idx)) {
+      i <- eq_idx[m]
+      if (tol_each[m] == 0) next
+      relaxed[i] <- TRUE
       add_left  <- rbind(add_left,
         ineq_eq_left[i, ],
         d2q(-1 * q2d(ineq_eq_left[i, ]))
       )
       add_right <- c(add_right,
-        d2q(q2d(ineq_eq_right[i])  + approx_tol),
-        d2q(-q2d(ineq_eq_right[i]) + approx_tol)
+        d2q(q2d(ineq_eq_right[i])  + tol_each[m]),
+        d2q(-q2d(ineq_eq_right[i]) + tol_each[m])
       )
       add_ops <- c(add_ops, "below", "below")
     }
 
-    keep          <- all_operators != "equal"
-    ineq_eq_left  <- rbind(ineq_eq_left[keep, ], add_left)
+    keep          <- !relaxed
+    ineq_eq_left  <- rbind(ineq_eq_left[keep, , drop = FALSE], add_left)
     ineq_eq_right <- c(ineq_eq_right[keep], add_right)
     all_operators <- c(all_operators[keep], add_ops)
   }

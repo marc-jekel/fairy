@@ -64,3 +64,26 @@ test_that("unnamed models get auto-names M1, M2, ...", {
   res <- fairy(c("p1 > p2", "p2 > p3"), n_p = 3)
   expect_equal(names(res), c("M1", "M2"))
 })
+
+
+test_that("a chain of equalities stands for all its pairs", {
+  h <- fairy_h("p1 = p2 = p3", n_p = 3, reduce = FALSE)
+  is_eq <- h[, 1] == "1"
+  expect_equal(sum(is_eq), 3L)   # p1=p2, p1=p3, p2=p3
+  # a chain with a comparison: only the pairs of the equality part, then the comparison
+  h2 <- fairy_h("p1 = p2 = p3 > p4", n_p = 4, reduce = FALSE)
+  expect_equal(sum(h2[, 1] == "1"), 3L)
+})
+
+test_that("approx_tol can be one tolerance per equality", {
+  h <- fairy_h("p1 = p2 = p3", n_p = 3, approx_tol = c(0.05, 0.05, 0.02), reduce = FALSE)
+  expect_equal(sum(h[, 1] == "1"), 0L)
+  b <- rcdd::q2d(h[, 2])
+  tol_rows <- sort(round(b[b > 0 & b < 0.5], 4))
+  expect_equal(tol_rows, c(0.02, 0.02, 0.05, 0.05, 0.05, 0.05))
+  # 0 keeps an equality exact
+  h3 <- fairy_h("p1 = p2; p3 = p4", n_p = 4, approx_tol = c(0, 0.05), reduce = FALSE)
+  expect_equal(sum(h3[, 1] == "1"), 1L)
+  # a vector of the wrong length is an error
+  expect_error(fairy_h("p1 = p2; p3 = p4", n_p = 4, approx_tol = c(0.05, 0.05, 0.05)), "approx_tol")
+})

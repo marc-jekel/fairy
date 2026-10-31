@@ -11577,7 +11577,7 @@ server <- shinyServer(function(input, output, session) {
         obj[i] <- NA
       } else {
         own <- trimws(isolate(input[[paste0("textin_relations_", i)]]) %||% "")
-        txt <- paste(c(if (nzchar(shared)) shared, if (nzchar(own)) own), collapse = "; ")
+        txt <- paste(c(if (nzchar(own)) own, if (nzchar(shared)) shared), collapse = "; ")   # same order as the app (the tolerances follow it)
         txt <- gsub("≥", ">=", gsub("≤", "<=", txt, fixed = TRUE), fixed = TRUE)
         txt <- expand_equality_chains(txt)   # a chain p1=p2=p3 stands for all its pairs, as in the app
         tv <- as.numeric(unlist(tols[[key]])); tv <- tv[!is.na(tv) & tv > 0]
@@ -11586,11 +11586,13 @@ server <- shinyServer(function(input, output, session) {
         eq_rows <- unlist(lapply(trimws(strsplit(txt, ";")[[1]]), function(cl) if (nzchar(cl)) expand_clause_to_rows(cl) else NULL))
         n_eq <- sum(grepl("=", eq_rows))
         tv_all <- as.numeric(unlist(tols[[key]])); tv_all <- c(tv_all, rep(0, max(0, n_eq - length(tv_all))))[seq_len(n_eq)]; tv_all[is.na(tv_all)] <- 0
-        tol_arg <- if (n_eq > 0 && all(tv_all > 0) && length(unique(tv_all)) == 1) paste0(", approx_tol = ", tv_all[1]) else ""
+        tol_arg <- if (n_eq > 0 && any(tv_all > 0)) {
+          if (all(tv_all > 0) && length(unique(tv_all)) == 1) paste0(", approx_tol = ", tv_all[1])
+          else paste0(", approx_tol = c(", paste(tv_all, collapse = ", "), ")")   # one tolerance per equality, in the order of the model
+        } else ""
         one <- paste0(obj[i], " <- fairy_h(", q(txt), ", n_p = n_p", tol_arg, ")", com)
         out <- c(out, if (nchar(one) <= 78) one else c(paste0(obj[i], " <- fairy_h("), paste0("  ", q(txt), ","),
           paste0("  n_p = n_p", tol_arg), paste0(")", com)))
-        if (length(tv) > 0 && !nzchar(tol_arg)) out <- c(out, cm("NOTE: in this model only some equalities are approximate, or their tolerances differ; fairy_h() has one tolerance for all of them, so they are not part of this script."))
       }
     }
     ok <- which(!is.na(obj))

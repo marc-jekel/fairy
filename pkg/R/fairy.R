@@ -14,8 +14,12 @@
 #'   If omitted, inferred from the highest `p` index mentioned in the model.
 #' @param p_names Optional character vector of length `n_p` with
 #'   human-readable labels for the probabilities (used as column names).
-#' @param approx_tol Numeric. If > 0, equality constraints are relaxed
-#'   to `|a*p - b| <= approx_tol` (two inequalities). Default `0`.
+#' @param approx_tol Numeric. Equality constraints with a tolerance > 0 are relaxed
+#'   to `|a*p - b| <= approx_tol` (two inequalities). One number applies to all
+#'   equalities of the model; a vector gives one tolerance per equality, in the
+#'   order they appear in the model (0 keeps that equality exact). A chain
+#'   `p1 = p2 = p3` counts as all its pairs (`p1 = p2`, `p1 = p3`, `p2 = p3`).
+#'   Default `0`.
 #' @param reduce Logical. Remove redundant rows via [rcdd::redundant()]?
 #'   Default `TRUE`.
 #'

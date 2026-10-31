@@ -19,8 +19,12 @@ If omitted, inferred from the highest \code{p} index mentioned in the model.}
 \item{p_names}{Optional character vector of length \code{n_p} with
 human-readable labels for the probabilities (used as column names).}
 
-\item{approx_tol}{Numeric. If > 0, equality constraints are relaxed
-to \verb{|a*p - b| <= approx_tol} (two inequalities). Default \code{0}.}
+\item{approx_tol}{Numeric. Equality constraints with a tolerance > 0 are relaxed
+to \verb{|a*p - b| <= approx_tol} (two inequalities). One number applies to all
+equalities of the model; a vector gives one tolerance per equality, in the
+order they appear in the model (0 keeps that equality exact). A chain
+\code{p1 = p2 = p3} counts as all its pairs (\code{p1 = p2}, \code{p1 = p3}, \code{p2 = p3}).
+Default \code{0}.}
 
 \item{reduce}{Logical. Remove redundant rows via \code{\link[rcdd:redundant]{rcdd::redundant()}}?
 Default \code{TRUE}.}

@@ -23,7 +23,7 @@ string, as accepted by \code{\link[=fairy]{fairy()}}, or an H-representation (fo
 \item{file}{Path for the output \code{.tar} file. Defaults to
 \code{"multinomineq_YYYY-MM-DD.tar"} in the current directory.}
 
-\item{approx_tol}{Numeric. Tolerance for approximate equalities (model strings only). Default \code{0}.}
+\item{approx_tol}{Numeric. Tolerance for approximate equalities (model strings only): one number for all, or one per equality. Default \code{0}.}
 
 \item{reduce}{Logical. Remove redundant H-rep rows (model strings only). Default \code{TRUE}.}
 

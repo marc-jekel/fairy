@@ -149,7 +149,7 @@ format_qtest_substitution_note <- function(elim, orig_names) {
 #' @param n_p Integer. Number of probabilities; only needed for model strings.
 #' @param file Path for the output `.tar` file. Defaults to
 #'   `"qtest_YYYY-MM-DD.tar"` in the current directory.
-#' @param approx_tol Numeric. Tolerance for approximate equalities (model strings only). Default `0`.
+#' @param approx_tol Numeric. Tolerance for approximate equalities (model strings only): one number for all, or one per equality. Default `0`.
 #' @param reduce Logical. Remove redundant H-rep rows (model strings only). Default `TRUE`.
 #' @param order Optional named list: for a model (by name) the order of its probabilities in the
 #'   file. `order[["m1"]] = c(3, 1, 2)` makes the third probability of the model the first one in
