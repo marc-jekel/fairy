@@ -10730,9 +10730,17 @@ server <- shinyServer(function(input, output, session) {
         # a typed chain shows its "=" signs between neighbours: each one reflects the tolerance of that neighbouring pair
         eq_rows <- unlist(lapply(chain_pair_clauses(pc), expand_clause_to_rows))
         eq_rows <- eq_rows[grepl("=", eq_rows)]
+        # a "=" is shown as "≈" when any pair that it separates (left of it against right of it, inside its run of "=") is approximate
         for (i in seq_along(pc$ops)) if (pc$ops[i] == "=") {
-          idx <- match(paste0(chain_side_items(pc$terms[i])[1], "=", chain_side_items(pc$terms[i + 1])[1]), eq_rows)
-          flags <- c(flags, if (!is.na(idx) && is_set(k + idx)) "1" else "0")
+          rs <- i; while (rs > 1 && pc$ops[rs - 1] == "=") rs <- rs - 1
+          re <- i + 1; while (re < length(pc$terms) && pc$ops[re] == "=") re <- re + 1
+          left <- unlist(lapply(pc$terms[rs:i], chain_side_items)); right <- unlist(lapply(pc$terms[(i + 1):re], chain_side_items))
+          hit <- FALSE
+          for (a1 in left) for (b1 in right) {
+            idx <- match(paste0(a1, "=", b1), eq_rows)
+            if (!is.na(idx) && is_set(k + idx)) hit <- TRUE
+          }
+          flags <- c(flags, if (hit) "1" else "0")
         }
         k <- k + length(eq_rows)
       } else {
