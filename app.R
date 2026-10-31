@@ -7147,6 +7147,9 @@ server <- shinyServer(function(input, output, session) {
   #     dialog's own Save handler (by occurrence index, not by text) to
   #     know which eq_tol_switch_/eq_tol_value_ ids to collect.
   equality_tolerances_reactive <- reactiveValues(value = list())
+  # the equality clauses the saved tolerances belong to (same order as the tolerance vector), so a tolerance
+  # follows its equality when the text is changed; NULL = assume the vector fits the current text
+  equality_clause_keys <- reactiveValues(value = list())
   equality_pending_reactive <- reactiveValues(value = list())
 
   # Cache for the polytope-overlap (intersection) computation so it only
@@ -10744,6 +10747,51 @@ server <- shinyServer(function(input, output, session) {
     }, numeric(1))
   }
 
+  # Moves the saved tolerances along with their equalities when the specification text changes: an equality that
+  # is still there keeps its tolerance, one that was edited in place keeps the tolerance of its position,
+  # a new one starts exact, a deleted one takes its tolerance with it.
+  align_tolerances <- function(old_keys, old_tol, new_keys) {
+    new_tol <- rep(NA_real_, length(new_keys))
+    used <- rep(FALSE, length(old_keys))
+    for (i in seq_along(new_keys)) {
+      j <- which(!used & old_keys == new_keys[i])[1]
+      if (!is.na(j)) { used[j] <- TRUE; new_tol[i] <- if (j <= length(old_tol)) old_tol[j] else 0 }
+    }
+    left_new <- which(is.na(new_tol))
+    left_old <- which(!used)
+    for (m in seq_len(min(length(left_new), length(left_old)))) {
+      j <- left_old[m]
+      new_tol[left_new[m]] <- if (j <= length(old_tol)) old_tol[j] else 0
+    }
+    new_tol[is.na(new_tol)] <- 0
+    new_tol
+  }
+  observe({
+    # while a saved file or link is being loaded the text boxes are filled in step by step: do not move tolerances then
+    if (isTRUE(restoring_upload())) { isolate(equality_clause_keys$value <- list()); return() }
+    n <- counter_input$n
+    for (i in seq_len(n)) {
+      txt <- input[[paste0("textin_relations_complete_", i)]]
+      if (is.null(txt)) next
+      key <- as.character(i)
+      if (!is.null(isolate(derived_model_sources$value[[key]])) || !is.null(isolate(item_model_spec_idx$value[[key]]))) next
+      raw <- trimws(unlist(strsplit(txt, ";")))
+      cl <- unlist(lapply(raw[nzchar(raw)], expand_clause_to_rows))
+      cl <- cl[grepl("=", cl)]
+      cl <- gsub("\\s+", "", cl)
+      old_keys <- isolate(equality_clause_keys$value[[key]])
+      old_tol <- isolate(equality_tolerances_reactive$value[[key]])
+      if (is.null(old_keys) || identical(old_keys, cl)) {
+        if (!identical(old_keys, cl)) equality_clause_keys$value[[key]] <- cl
+        next
+      }
+      if (!is.null(old_tol) && length(old_tol) > 0) {
+        equality_tolerances_reactive$value[[key]] <- align_tolerances(old_keys, old_tol, cl)
+      }
+      equality_clause_keys$value[[key]] <- cl
+    }
+  })
+
   # header of a specification box: title, a small info icon with a tooltip, and one line saying what it holds
   spec_label_info <- function(title, tip, sub) {
     tagList(
@@ -11751,6 +11799,7 @@ server <- shinyServer(function(input, output, session) {
     # there instead, which fromJSON() will fail to parse — caught here so
     # older files still load, just without their approx settings, same
     # graceful-degradation as the sheets-9-12-missing case below.
+    equality_clause_keys$value <- list()
     equality_tolerances_reactive$value <- tryCatch({
       raw <- fromJSON(read_excel(upload_file(), 8)$json[1], simplifyVector = FALSE)
       lapply(raw, function(x) as.numeric(unlist(x)))
