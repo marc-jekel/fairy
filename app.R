@@ -10609,7 +10609,7 @@ server <- shinyServer(function(input, output, session) {
     specs <- lapply(seq_len(n), function(i) input[[paste0("textin_relations_", i)]])
     for (i in seq_len(n)) {
       updateTextAreaInput(session, paste0("textin_relations_complete_", i),
-        value = join_specs(specs[[i]], shared))
+        value = expand_equality_chains(join_specs(specs[[i]], shared)))
     }
   })
 
@@ -10692,14 +10692,24 @@ server <- shinyServer(function(input, output, session) {
     # this counts the same one-flag-per-literal-"=" the client-side
     # subst() substitution actually walks, and the same per-row order
     # tol_vec (equality_tolerances_reactive) is keyed by.
-    clauses <- unlist(lapply(raw_clauses, expand_clause_to_rows))
-    clauses <- clauses[grepl("=", clauses)]
-    if (length(clauses) == 0) {
-      return("")
+    is_set <- function(k) !is.null(tol_vec) && k <= length(tol_vec) && !is.na(tol_vec[k]) && tol_vec[k] != 0
+    flags <- character(0)
+    k <- 0L
+    for (cl in raw_clauses) {
+      pc <- pure_prob_chain(cl)
+      if (!is.null(pc)) {
+        # a typed chain shows its "=" signs between neighbours: each one reflects the tolerance of that neighbouring pair
+        m <- length(pc)
+        for (i in seq_len(m - 1)) {
+          idx <- sum(m - seq_len(i - 1)) + 1L
+          flags <- c(flags, if (is_set(k + idx)) "1" else "0")
+        }
+        k <- k + as.integer(choose(m, 2))
+      } else {
+        for (r in expand_clause_to_rows(cl)) if (grepl("=", r)) { k <- k + 1L; flags <- c(flags, if (is_set(k)) "1" else "0") }
+      }
     }
-    flags <- vapply(seq_along(clauses), function(k) {
-      if (!is.null(tol_vec) && k <= length(tol_vec) && !is.na(tol_vec[k]) && tol_vec[k] != 0) "1" else "0"
-    }, character(1))
+    if (length(flags) == 0) return("")
     paste(flags, collapse = ",")
   }
 
@@ -12705,6 +12715,8 @@ server <- shinyServer(function(input, output, session) {
   # resulting pair batch-expanded on its own, exactly like extract_info()
   # itself does (chain-split happens before batch-expansion there too).
   clause_expected_row_count <- function(clause) {
+    pc <- pure_prob_chain(clause)
+    if (!is.null(pc)) return(as.integer(choose(length(pc), 2)))
     op_pos <- gregexpr("[=><]", clause)[[1]]
     if (op_pos[1] == -1) return(1L)
     args <- strsplit(clause, "[=><]")[[1]]
@@ -12739,7 +12751,33 @@ server <- shinyServer(function(input, output, session) {
   # bug this fixed: a model with a chained "=" clause silently applied an
   # approximate-equality tolerance to the WRONG (or no) later equality,
   # because the popup was counting raw semicolon-clauses instead of rows.
+  # A chain of three or more plain probabilities joined by "=" only (p1=p2=p3): returns the
+  # probabilities, otherwise NULL. Such a chain stands for ALL its pairs (p1=p2, p1=p3, p2=p3),
+  # so that each pair can get its own tolerance whatever order the user typed them in.
+  pure_prob_chain <- function(clause) {
+    if (grepl("[<>]", clause) || !grepl("=", clause)) return(NULL)
+    terms <- trimws(strsplit(clause, "=", fixed = TRUE)[[1]])
+    if (length(terms) < 3 || !all(grepl("^p[0-9]+$", terms))) return(NULL)
+    terms
+  }
+  chain_pair_clauses <- function(terms) {
+    pr <- utils::combn(length(terms), 2)
+    paste0(terms[pr[1, ]], "=", terms[pr[2, ]])
+  }
+  # the same chain expanded for the text the pipeline reads: "p1=p2=p3" -> "p1=p2; p1=p3; p2=p3"
+  expand_equality_chains <- function(spec) {
+    if (is.null(spec) || length(spec) == 0 || !nzchar(spec)) return(spec)
+    parts <- strsplit(spec, ";", fixed = TRUE)[[1]]
+    parts <- vapply(parts, function(cl) {
+      tm <- pure_prob_chain(cl)
+      if (is.null(tm)) cl else paste(chain_pair_clauses(tm), collapse = "; ")
+    }, character(1), USE.NAMES = FALSE)
+    paste(parts, collapse = ";")
+  }
+
   expand_clause_to_rows <- function(clause) {
+    pc <- pure_prob_chain(clause)
+    if (!is.null(pc)) return(chain_pair_clauses(pc))
     op_pos <- gregexpr("[=><]", clause)[[1]]
     if (op_pos[1] == -1) return(clause)
     args <- strsplit(clause, "[=><]")[[1]]
