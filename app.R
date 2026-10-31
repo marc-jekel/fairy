@@ -10194,6 +10194,22 @@ server <- shinyServer(function(input, output, session) {
     mixture_model_flags$value <- new_flags
     derived_model_sources$value <- new_derived
     item_model_spec_idx$value <- new_item_idx
+    # a mixture that had this model as a component: say what happened to it
+    if (length(dep_keys) > 0) {
+      for (dk in dep_keys) {
+        mix_nm <- isolate(input[[paste0("textin_relations_name", as.integer(dk))]]) %||% paste0("mixture ", dk)
+        dk_new <- as.character(as.integer(dk) - (as.integer(dk) > idx))
+        info_new <- new_derived[[dk_new]]
+        n_left <- length(info_new$source_idx) + length(info_new$extra_v %||% list())
+        if (is.null(v_del)) {
+          showNotification(paste0("'", deleted_name, "' had no result yet, so it no longer belongs to the mixture '", mix_nm, "'.",
+            if (n_left < 2) " A mixture needs at least two components: it cannot be computed until you add one." else ""),
+            type = "warning", duration = 12)
+        } else if (n_left < 2) {
+          showNotification(paste0("The mixture '", mix_nm, "' has only one component left and cannot be computed."), type = "warning", duration = 12)
+        }
+      }
+    }
     counter_input$n <- n - 1
   }
 
