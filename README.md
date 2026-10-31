@@ -96,3 +96,9 @@ shiny::runApp("app.R")
 
 This is a research tool under active development. Bug reports and feedback
 are very welcome — email mjekel@uni-koeln.de or open an issue on this repo.
+
+## Tests
+
+- R package: `devtools::test("pkg")`
+- App helpers (the functions of `app.R` that read the specification text: chains, duplicates, tolerances):
+  `Rscript -e 'testthat::test_file("tests/test-app-helpers.R")'`
