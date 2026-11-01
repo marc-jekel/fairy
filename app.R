@@ -7695,7 +7695,7 @@ server <- shinyServer(function(input, output, session) {
     if (length(queue) == 0 && length(procs) == 0) {
       v_state$active <- FALSE
       af <- isolate(v_state$after)
-      if (is.function(af)) isolate(af(isolate(v_state$skipped)))
+      if (is.function(af)) isolate(af(character(0), isolate(v_state$skipped)))
     }
   })
   # one model is skipped: its process is stopped (or it leaves the queue), the others go on
@@ -7717,7 +7717,7 @@ server <- shinyServer(function(input, output, session) {
     v_state$active <- FALSE
     for (m in left) fairy_run_row(m, v = "cancel")
     af <- isolate(v_state$after)
-    if (is.function(af)) isolate(af(unique(c(isolate(v_state$skipped), left))))
+    if (is.function(af)) isolate(af(left, isolate(v_state$skipped)))
   })
   session$onSessionEnded(function() { for (p in isolate(v_state$procs)) try(p$kill_tree(), silent = TRUE) })
   fairy_empty_set_note <- function(empty_set) {
@@ -16314,9 +16314,10 @@ server <- shinyServer(function(input, output, session) {
         }
       }
       if (isTRUE(v_async)) {
-        v_state$after <- function(cancelled = character(0)) {
+        v_state$after <- function(cancelled = character(0), skipped = character(0)) {
           note <- v_pending_note
-          if (length(cancelled) > 0) note <- paste0("<b>Skipped or cancelled:</b> the V-representation of ", paste(htmltools::htmlEscape(cancelled), collapse = ", "), " was not computed.<br>", note)
+          if (length(cancelled) > 0) note <- paste0("<b>Cancelled:</b> the V-representation of ", paste(htmltools::htmlEscape(cancelled), collapse = ", "), " was not computed.<br>", note)
+          if (length(skipped) > 0) note <- paste0("<b>Skipped by you:</b> the V-representation of ", paste(htmltools::htmlEscape(skipped), collapse = ", "), " was not computed.<br>", note)
           fairy_run_end(note)
           tryCatch(render_v_tail(), error = function(e) fairy_report_error(e, "go"))
         }
@@ -18099,7 +18100,8 @@ server <- shinyServer(function(input, output, session) {
       '  "<b>Note</b>: empty if all went well, otherwise why a value",',
       '  "is missing or unreliable.</p>",',
       '  "</details>",',
-      '  legend, html_table(key, key_cls),',
+      '  legend, if (any(nzchar(results$note))) html_table(key, key_cls)',
+      '          else html_table(key[, -5, drop = FALSE], key_cls[, -5, drop = FALSE]),',
       '  if (any(nzchar(results$note))) c("<h3>Models with a note</h3>",',
       '    paste0("<p class=problem><b>",',
       '           esc(results$model[nzchar(results$note)]), "</b>: ",',
