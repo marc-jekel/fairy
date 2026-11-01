@@ -4946,6 +4946,41 @@ ui <- shinyUI(fluidPage(
         if (window.jQuery) jQuery(document).one('shiny:connected', function() { setTimeout(arm, 1500); setTimeout(arm, 4000); });
       })();
 
+      // ---- Auto-save: the browser keeps the last state; the next visit offers to restore it ----
+      (function() {
+        var KEY = 'fairy_autosave';
+        function read() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+        function hasLink() { return /^#s=[A-Za-z0-9_-]+$/.test(location.hash || ''); }
+        if (window.Shiny) {
+          Shiny.addCustomMessageHandler('fairy_autosave', function(m) {
+            try { localStorage.setItem(KEY, JSON.stringify({ t: Date.now(), token: m.token })); } catch (e) {}
+          });
+        }
+        function offer(saved) {
+          var d = document.createElement('div'); d.id = 'fairy-restore-offer'; d.setAttribute('role', 'status');
+          d.style.cssText = 'position:fixed; top:64px; left:50%; transform:translateX(-50%); z-index:100000; padding:10px 16px; border-radius:10px; background:var(--fairy-panel, #fff); color:var(--fairy-text, #1d2433); border:1.5px solid var(--fairy-primary, #3a6df0); font-size:13px; box-shadow:0 6px 20px rgba(0,0,0,.25); display:flex; gap:12px; align-items:center;';
+          var when = new Date(saved.t).toLocaleString();
+          var txt = document.createElement('span'); txt.textContent = 'Restore your last session (' + when + ')?';
+          var yes = document.createElement('button'); yes.type = 'button'; yes.textContent = 'Restore'; yes.className = 'btn btn-primary btn-sm';
+          var no = document.createElement('button'); no.type = 'button'; no.textContent = 'No, thanks'; no.className = 'btn btn-default btn-sm';
+          yes.addEventListener('click', function() { d.remove(); location.hash = '#s=' + saved.token; });
+          no.addEventListener('click', function() { d.remove(); try { localStorage.removeItem(KEY); } catch (e) {} });
+          d.appendChild(txt); d.appendChild(yes); d.appendChild(no);
+          document.body.appendChild(d);
+        }
+        if (window.jQuery) jQuery(document).one('shiny:connected', function() {
+          var embedded = false;
+          try { embedded = window.parent !== window; } catch (e) {}
+          if (embedded) return;
+          var saved = read();
+          if (hasLink()) return;
+          if (saved === null) return;
+          if (!saved.token) return;
+          if (Date.now() - saved.t > 30 * 24 * 3600 * 1000) return;
+          setTimeout(function() { offer(saved); }, 1500);
+        });
+      })();
+
       // ---- Share link: the whole input lives in the URL hash (#s=...) ----
       (function() {
         function toast(msg) {
@@ -12004,6 +12039,17 @@ server <- shinyServer(function(input, output, session) {
       return()
     }
     session$sendCustomMessage("fairy_share", list(token = tok))
+  })
+  # Auto-save: every 30 seconds the state is sent to the browser (only when it changed since the start of the session)
+  autosave_state <- reactiveValues(base = NULL, last = NULL)
+  observe({
+    invalidateLater(30000)
+    tok <- tryCatch(isolate(share_token()), error = function(e) NULL)
+    if (is.null(tok)) return()
+    if (is.null(isolate(autosave_state$base))) { autosave_state$base <- tok; return() }
+    if (identical(tok, isolate(autosave_state$base)) || identical(tok, isolate(autosave_state$last))) return()
+    autosave_state$last <- tok
+    session$sendCustomMessage("fairy_autosave", list(token = tok))
   })
   observeEvent(input$share_payload, {
     tok <- as.character(input$share_payload)
