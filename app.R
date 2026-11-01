@@ -1932,6 +1932,18 @@ ui <- shinyUI(fluidPage(
         background: var(--fairy-primary-contrast-bg) !important;
         color: #fff !important;
       }
+      /* Day mode: a light bar (white, thin line) instead of the heavy dark one; the dark bar stays for night mode */
+      body:not(.dark-mode) .navbar { background-color: #ffffff !important; border-bottom: 1px solid var(--fairy-border); box-shadow: none; }
+      body:not(.dark-mode) .navbar-default .navbar-nav > li > a { color: var(--fairy-text-muted) !important; }
+      body:not(.dark-mode) .navbar-default .navbar-nav > li > a:hover { color: var(--fairy-primary) !important; background: color-mix(in srgb, var(--fairy-primary) 8%, transparent) !important; }
+      body:not(.dark-mode) .navbar-default .navbar-nav > li:last-child > a { color: var(--fairy-primary) !important; }
+      body:not(.dark-mode) .navbar-default .navbar-nav > .active > a,
+      body:not(.dark-mode) .navbar-default .navbar-nav > .active > a:hover,
+      body:not(.dark-mode) .navbar-default .navbar-nav > .active > a:focus,
+      body:not(.dark-mode) .navbar-default .navbar-nav > li:last-child.active > a { color: #ffffff !important; background: var(--fairy-primary-contrast-bg) !important; }
+      body:not(.dark-mode) .navbar-default .navbar-brand { color: var(--fairy-text) !important; }
+      body:not(.dark-mode) #dm-toggle, body:not(.dark-mode) #tips-toggle { background: rgba(0,0,0,0.06); color: var(--fairy-text-muted); }
+      body:not(.dark-mode) #dm-toggle:hover, body:not(.dark-mode) #tips-toggle:hover { background: rgba(0,0,0,0.12); }
 
       /* Buttons - keep shinyWidgets 'jelly'/'unite' styles but recolor
          primary. --fairy-primary-contrast-bg (not --fairy-primary
