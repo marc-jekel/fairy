@@ -2583,6 +2583,10 @@ ui <- shinyUI(fluidPage(
         content: 'LaTeX';
         background: #0f766e;
       }
+      /* every export frame has its caption (QTEST, multinomineq, LaTeX); the buttons carry the action, like Data and Run */
+      #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_v_multinomineq::after, #d_latex::after, #d_v_latex::after {
+        content: 'Download' !important; background: transparent !important; color: var(--fairy-text-muted, #667085) !important;
+      }
       /* Stale results: Go/Compute itself blinks instead of a separate
          badge next to it — see the observers toggling this class + the
          button's own data-tooltip together, so hovering the SAME
@@ -6605,8 +6609,10 @@ ui <- shinyUI(fluidPage(
               actionButton("mn_run_open", NULL, icon = icon("play"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
             uiOutput("mn_results_btn_ui", inline = TRUE)
             ),
-          tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the H-representation as a LaTeX file",
-            downloadButton("d_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
+          tags$div(class = "fairy-dl-group", `data-cap` = "LaTeX",
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the H-representation as a LaTeX file",
+              downloadButton("d_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
+          )
         ),
         div(style = "flex: 1 1 auto; min-width: 0;",
       mainPanel(
@@ -6742,8 +6748,10 @@ ui <- shinyUI(fluidPage(
               actionButton("mn_run_open_v", NULL, icon = icon("play"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
             uiOutput("mn_results_btn_ui_v", inline = TRUE)
             ),
-          tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the V-representation as a LaTeX table (words: all/none/fractions)",
-            downloadButton("d_v_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
+          tags$div(class = "fairy-dl-group", `data-cap` = "LaTeX",
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the V-representation as a LaTeX table (words: all/none/fractions)",
+              downloadButton("d_v_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
+          )
         ),
         div(style = "flex: 1 1 auto; min-width: 0;",
       mainPanel(
@@ -17707,7 +17715,7 @@ server <- shinyServer(function(input, output, session) {
       '    }, "")',
       '    paste0("<tr>", paste(cells, collapse = ""), "</tr>")',
       '  }, "")',
-      '  c("<table>", paste0("<tr>", head, "</tr>"), body, "</table>")',
+      '  c("<div class=tw><table>", paste0("<tr>", head, "</tr>"), body, "</table></div>")',
       '}',
       '# labels like p_{1}^{(2)} as html: stacked index and exponent',
       'lab_html <- function(x) {',
@@ -17862,20 +17870,20 @@ server <- shinyServer(function(input, output, session) {
       '  ".small{color:var(--mut);font-size:.9em;margin:.2em 0}",',
       '  "table{border-collapse:collapse;width:100%;margin:.7em 0;",',
       '  "border:1px solid var(--line)}",',
+      '  ".tw{overflow-x:auto;max-width:100%}",',
+      '  "th{vertical-align:bottom}th:first-child,th:nth-child(2),",',
+      '  "th:last-child{white-space:nowrap}",',
       '  "th{background:var(--head);text-align:left;font-weight:600;",',
       '  "font-size:.85em;color:var(--mut)}",',
       '  "th,td{padding:7px 12px;border-bottom:1px solid var(--line)}",',
       '  "tr:last-child td{border-bottom:0}",',
-      '  ".b10{background:#16794a;color:#fff}",',
-      '  ".b9{background:#1f9d62;color:#fff}",',
-      '  ".b8{background:#6cc596}",',
-      '  ".b7{background:rgba(26,155,90,.28)}",',
-      '  ".b6{background:rgba(26,155,90,.10)}",',
-      '  ".b5{background:rgba(229,72,77,.10)}",',
-      '  ".b4{background:rgba(229,72,77,.28)}",',
-      '  ".b3{background:#ee9a9d}",',
-      '  ".b2{background:#d6383d;color:#fff}",',
-      '  ".b1{background:#a8282d;color:#fff}",',
+      '  ".b10{--c:#16794a}.b9{--c:#1f9d62}.b8{--c:#4cb883}",',
+      '  ".b7{--c:#8fd0b0}.b6{--c:#b9e0cb}",',
+      '  ".b5{--c:#f2b6b8}.b4{--c:#ec8f93}.b3{--c:#e0595f}",',
+      '  ".b2{--c:#c9353b}.b1{--c:#a8282d}",',
+      '  ".b1,.b2,.b3,.b4,.b5,.b6,.b7,.b8,.b9,.b10{",',
+      '  "background:color-mix(in srgb,var(--c) 16%,transparent);",',
+      '  "box-shadow:inset 4px 0 0 var(--c)}",',
       '  ".warn{background:rgba(245,158,11,.28)}",',
       '  ".ok{background:rgba(26,155,90,.22)}",',
       '  ".bad{background:rgba(229,72,77,.30)}",',
@@ -17899,7 +17907,8 @@ server <- shinyServer(function(input, output, session) {
       '  "line-height:1}.ss sup,.ss sub{display:block;font-size:.7em;",',
       '  "line-height:1.15}",',
       '  ".legend span{display:inline-block;padding:2px 10px;",',
-      '  "margin:2px 6px 2px 0;border-radius:10px;font-size:.85em}",',
+      '  "margin:2px 6px 2px 0;padding-left:14px;border-radius:10px;",',
+      '  "font-size:.85em}",',
       '  ".track{position:relative;height:10px;min-width:170px;",',
       '  "background:var(--line);border-radius:5px}",',
       '  ".range{position:absolute;top:0;height:10px;border-radius:5px;",',
