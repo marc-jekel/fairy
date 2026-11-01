@@ -5532,7 +5532,7 @@ ui <- shinyUI(fluidPage(
               if (/^p[0-9]+$/.test(a) && !isNaN(num(b))) { k = a; v = num(b); less = op.charAt(0) === '<'; }
               else if (/^p[0-9]+$/.test(b) && !isNaN(num(a))) { k = b; v = num(a); less = op.charAt(0) === '>'; }
               else return;
-              var st = op.indexOf('=') < 0;
+              var st = false;   // the app works with closed sets: < counts like <=, so p1 > .5; p1 < .5 is the point .5, not an empty set
               if (less) upHi(k, v, st); else upLo(k, v, st);
             });
           });
@@ -5545,7 +5545,7 @@ ui <- shinyUI(fluidPage(
             if (!ops || opd.length !== ops.length + 1) return;
             ops.forEach(function(op, i) {
               if (op === '=') return;
-              var a = opd[i], b = opd[i + 1], st = op.indexOf('=') < 0, lt = op.charAt(0) === '<';
+              var a = opd[i], b = opd[i + 1], st = false, lt = op.charAt(0) === '<';
               var va = /^p[0-9]+$/.test(a), vb = /^p[0-9]+$/.test(b);
               if (va && vb) { addV(a); addV(b); if (a === b) { if (selfCmp.indexOf(a) < 0) selfCmp.push(a); } else if (lt) edge(b, a, 0, st); else edge(a, b, 0, st); }
               else if (va && !isNaN(num(b))) { addV(a); if (lt) edge('Z', a, num(b), st); else edge(a, 'Z', -num(b), st); }
@@ -7549,7 +7549,7 @@ server <- shinyServer(function(input, output, session) {
         if (isvar(a) && !is.na(num(b))) { k <- trimws(a); v <- num(b); less <- grepl("^<", op) }
         else if (isvar(b) && !is.na(num(a))) { k <- trimws(b); v <- num(a); less <- grepl("^>", op) }  # 5 < p1 means p1 > 5
         else next
-        st <- !grepl("=", op)
+        st <- FALSE   # closed sets: < counts like <=
         if (less) upd_hi(k, v, st) else upd_lo(k, v, st)
       }
     }
@@ -7568,7 +7568,7 @@ server <- shinyServer(function(input, output, session) {
         for (i in seq_along(ops)) {
           op <- ops[i]; a <- opd[i]; b <- opd[i + 1]
           if (op == "=") next
-          st <- !grepl("=", op)
+          st <- FALSE   # closed sets: < counts like <=
           if (isvar(a) && isvar(b)) {
             vars <- c(vars, a, b)
             if (grepl("^<", op)) add_edge(b, a, 0, st) else add_edge(a, b, 0, st)     # a - b <= 0  /  b - a <= 0
@@ -11064,7 +11064,10 @@ server <- shinyServer(function(input, output, session) {
   order_by_page <- function(nms) {
     nms <- as.character(nms)
     po <- page_model_order()
-    key <- match(sub(" ?\\[.*\\]$", "", nms), po)
+    # first the row with exactly this name (an unpacked model can be a row of its own), else the row of its base model
+    key <- match(nms, po)
+    miss <- is.na(key)
+    key[miss] <- match(sub(" ?\\[.*\\]$", "", nms[miss]), po)
     key[is.na(key)] <- length(po) + 1L
     nms[order(key, seq_along(nms))]
   }
