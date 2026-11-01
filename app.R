@@ -197,6 +197,10 @@ ui <- shinyUI(fluidPage(
       body.dark-mode .selectize-input, body.dark-mode .selectize-input.full, body.dark-mode .selectize-input.input-active, body.dark-mode .selectize-input.dropdown-active {
         background-color: var(--fairy-panel) !important; background-image: none !important; color: var(--fairy-text) !important; box-shadow: none !important; border-color: var(--fairy-border) !important; }
       body.dark-mode .selectize-input .item, body.dark-mode .selectize-input > input { color: var(--fairy-text) !important; background: transparent !important; }
+      /* plain download buttons (PDF, CSV, ...) were dark text on dark in night mode */
+      body.dark-mode a.btn.btn-default.shiny-download-link, body.dark-mode .btn-default.btn-sm {
+        background-color: transparent !important; background-image: none !important; color: var(--fairy-primary) !important; border-color: var(--fairy-primary) !important; }
+      body.dark-mode a.btn.btn-default.shiny-download-link:hover, body.dark-mode .btn-default.btn-sm:hover { background-color: color-mix(in srgb, var(--fairy-primary) 16%, transparent) !important; }
       body.dark-mode .material-switch > label::after { background: #8b93a7 !important; box-shadow: none !important; }
       body.dark-mode select, body.dark-mode .form-control { background-color: var(--fairy-panel) !important; background-image: none; color: var(--fairy-text) !important; border-color: var(--fairy-border) !important; }
       html:has(body.dark-mode) { background-color: #0e1117 !important; }
