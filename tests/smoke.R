@@ -97,19 +97,19 @@ test_that("the analysis runs inside the app and shows the results", {
   ok <- FALSE
   for (i in 1:120) {                      # up to 2 minutes
     Sys.sleep(1)
-    if (isTRUE(jsv("!!document.querySelector('iframe[srcdoc]')"))) { ok <- TRUE; break }
+    if (isTRUE(jsv("!!document.querySelector('#mn_results_host')"))) { ok <- TRUE; break }
   }
   expect_true(ok)
-  expect_true(jsv("document.querySelector('iframe[srcdoc]').getAttribute('srcdoc').indexOf('Bayes factors') > 0"))
+  expect_true(jsv("document.querySelector('#mn_results_host').shadowRoot.textContent.indexOf('Bayes factors') > 0"))
   # only one model was analysed: tabs = overview + 1
-  expect_equal(jsv("(document.querySelector('iframe[srcdoc]').getAttribute('srcdoc').match(/<label for=tab/g) || []).length"), 2)
+  expect_equal(jsv("document.querySelector('#mn_results_host').shadowRoot.querySelectorAll('nav label').length"), 2)
   js("[].forEach.call(document.querySelectorAll('.modal [data-dismiss=modal]'), function(b) { b.click(); });")
   Sys.sleep(2)
   # the results can be opened again after closing the window
   expect_true(jsv("!!document.getElementById('mn_results_open')"))
   js("document.getElementById('mn_results_open').click();")
   Sys.sleep(3)
-  expect_true(jsv("!!document.querySelector('iframe[srcdoc]')"))
+  expect_true(jsv("!!document.querySelector('#mn_results_host')"))
   # and the download of the results works
   f <- app$get_download("mn_results_dl")
   fl <- utils::untar(f, list = TRUE)

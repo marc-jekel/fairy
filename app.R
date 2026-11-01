@@ -17245,6 +17245,9 @@ server <- shinyServer(function(input, output, session) {
         checkboxGroupInput("mn_models", "Models to analyse (the downloads always contain all of them)",
                            choices = mn_model_choices(), selected = unname(mn_model_choices()), inline = TRUE),
       checkboxInput("mn_final", "More samples (slower, uses more of the shared server)", value = FALSE),
+      if (identical(isolate(mn_source()), "V"))
+        tags$div(style = "background:rgba(58,109,240,.10); border-left:4px solid #3a6df0; border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
+          tags$b("Tip:"), " the analysis from the vertices (V) is much slower than from the inequalities (H) and gives the same result: a few seconds against a fraction of a second for small models, minutes for larger ones. For larger models open this window from the H-representation tab."),
       tags$div(style = "background:rgba(245,158,11,.16); border-left:4px solid #f59e0b; border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
         tags$b("Running here uses our shared server."), " Please keep it small: a few models, the default number of samples. For larger or repeated analyses download the files (the download buttons next to Data) and run ",
         tags$code("analysis_multinomineq.R"), " on your own computer. It needs only R with the packages ", tags$code("multinomineq"), ", ", tags$code("rcdd"), " and ", tags$code("coda"), "."),
@@ -17384,24 +17387,22 @@ server <- shinyServer(function(input, output, session) {
     showModal(modalDialog(
       title = paste0("Results of the multinomineq analysis (", format(isolate(mn_result$time), "%H:%M"), ")"), size = "l", easyClose = TRUE,
       tags$p(class = "fairy-eq-tol-help", "This ran on our shared server. For larger or repeated analyses, download the results below: the download contains the files and ", tags$code("analysis_multinomineq.R"), ", which you can run on your own computer."),
-      tags$iframe(id = "mn_results_frame", srcdoc = page, style = "width:100%; height:70vh; border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px;"),
-      # the frame grows to the height of its page, so the whole window scrolls (scrolling inside a frame inside a window is unreliable)
+      # the page is put into the window itself (in a shadow root, so its styles stay apart from the app's): no frame to scroll in
+      tags$textarea(id = "mn_results_src", style = "display:none;", page),
+      tags$div(id = "mn_results_host"),
       tags$script(HTML("
         (function() {
-          var f = document.getElementById('mn_results_frame');
-          if (!f) return;
-          function fit() {
-            try { f.style.height = Math.max(300, f.contentDocument.documentElement.scrollHeight + 6) + 'px'; } catch (e) {}
-          }
-          f.addEventListener('load', function() {
-            fit(); setTimeout(fit, 150); setTimeout(fit, 600); setTimeout(fit, 1500);
-            try { f.contentDocument.addEventListener('click', function() { setTimeout(fit, 60); }); } catch (e) {}
-          });
-          fit(); setTimeout(fit, 300);
-          window.addEventListener('resize', fit);
+          var src = document.getElementById('mn_results_src');
+          var host = document.getElementById('mn_results_host');
+          if (!src || !host) return;
+          var doc = new DOMParser().parseFromString(src.value, 'text/html');
+          var css = [].map.call(doc.querySelectorAll('style'), function(s) { return s.textContent; }).join('\\n');
+          css = css.replace(/html,body\\{/g, '.page{').replace(/(^|[}\\s])body\\{/g, '$1.page{').replace(/:root/g, ':host');
+          var root = host.shadowRoot || host.attachShadow({ mode: 'open' });
+          root.innerHTML = '<style>:host{display:block;} ' + css + '</style><div class=\"page\">' + doc.body.innerHTML + '</div>';
           var nt = document.getElementById('mn_results_newtab');
           if (nt) nt.addEventListener('click', function() {
-            var b = new Blob([f.getAttribute('srcdoc')], { type: 'text/html' });
+            var b = new Blob([src.value], { type: 'text/html' });
             window.open(URL.createObjectURL(b), '_blank');
           });
         })();
