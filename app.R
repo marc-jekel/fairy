@@ -402,7 +402,7 @@ ui <- shinyUI(fluidPage(
       #qtest_order_open:hover, #qtest_order_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       /* Data: same small grey row as Order, for the multinomineq data file */
       #mn_data_open, #mn_data_open_v, #mn_run_open, #mn_run_open_v { position: relative !important; margin-bottom: 14px !important; }
-      #mn_data_open::after, #mn_data_open_v::after, #mn_run_open::after, #mn_run_open_v::after { content: 'Data'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
+      #mn_data_open::after, #mn_data_open_v::after, #mn_run_open::after, #mn_run_open_v::after { content: 'Data & settings'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
         border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 12px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
       /* Order is a setting for the two downloads below it, not a third program: plain grey, a thin row, a divider under it */
       #mn_data_open.fairy-order-btn, #mn_data_open_v.fairy-order-btn, #mn_run_open.fairy-order-btn, #mn_run_open_v.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
