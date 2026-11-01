@@ -20188,23 +20188,27 @@ server <- shinyServer(function(input, output, session) {
       ed <- edge_data(); n <- nrow(ed$v)
       if (n <= EDGE_MAX_FRAMES) return(NULL)
       tagList(
-        tags$p(class = "fairy-eq-tol-help", sprintf("This model has %s vertices. The overview shows %s of them, evenly spread (one row each, the colour is the value of the probability); the slider below goes through the vertices one at a time.",
-                                                    format(n, big.mark = ","), format(min(n, 500), big.mark = ","))),
-        plotlyOutput("plot_edge_heat", height = "300px"),
+        tags$p(class = "fairy-eq-tol-help", sprintf("This model has %s vertices. The table shows for every probability its smallest and largest value and at how many vertices it is 0, 1 or in between; the slider below goes through the vertices one at a time.",
+                                                    format(n, big.mark = ","))),
+        uiOutput("edge_summary_ui"),
         sliderInput("edge_vertex", "Vertex", min = 1, max = n, value = 1, step = 1, width = "100%",
                     animate = animationOptions(interval = 700, loop = TRUE)))
     })
-    output$plot_edge_heat <- renderPlotly({
+    output$edge_summary_ui <- renderUI({
       ed <- edge_data(); n <- nrow(ed$v)
       req(n > EDGE_MAX_FRAMES)
-      idx <- unique(round(seq(1, n, length.out = min(n, 500))))
-      plot_ly(z = ed$v[idx, , drop = FALSE], x = ed$names, y = idx, type = "heatmap", zmin = 0, zmax = 1,
-              colorscale = list(c(0, "#f4f6fa"), c(1, "#3a6df0")),
-              hovertemplate = "Vertex %{y}<br>%{x}: %{z:.3g}<extra></extra>") %>%
-        layout(xaxis = list(title = "", type = "category", tickangle = if (length(ed$names) > 6) -60 else 0,
-                            tickfont = list(size = if (length(ed$names) > 12) 9 else 12)),
-               yaxis = list(title = "Vertex", autorange = "reversed"),
-               margin = list(b = 90))
+      fr <- function(x) as.character(fractions(x))
+      rows <- lapply(seq_along(ed$names), function(j) {
+        x <- ed$v[, j]
+        at0 <- sum(abs(x) < 1e-9); at1 <- sum(abs(x - 1) < 1e-9)
+        tags$tr(tags$td(ed$names[j]), tags$td(fr(min(x))), tags$td(fr(max(x))),
+                tags$td(format(at0, big.mark = ",")), tags$td(format(at1, big.mark = ",")), tags$td(format(n - at0 - at1, big.mark = ",")))
+      })
+      tags$div(style = "overflow-x:auto; margin-bottom:10px;",
+        tags$table(class = "table table-condensed", style = "width:auto; text-align:center;",
+          tags$thead(tags$tr(tags$th("Probability"), tags$th("Smallest value"), tags$th("Largest value"),
+                             tags$th("Vertices with 0"), tags$th("Vertices with 1"), tags$th("Vertices in between"))),
+          tags$tbody(rows)))
     })
     output$plot_example <- renderPlotly({
       ed <- edge_data()
