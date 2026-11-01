@@ -18272,9 +18272,9 @@ server <- shinyServer(function(input, output, session) {
       title = "Run the multinomineq analysis here", size = "m", easyClose = TRUE,
       tags$style(HTML(".mn-foot .btn { margin: 0 !important; }")),
       tags$p(class = "fairy-eq-tol-help",
-        "The analysis uses the numbers and settings saved under ", tags$b("Data"), ": ",
-        if (own) "your own numbers" else "the example numbers (you have not saved your own yet)", "; ",
-        format(mb, big.mark = ","), " samples for the Bayes factors and ", format(mp, big.mark = ","), " for the posterior. ",
+        HTML(paste0("The analysis uses the numbers and settings saved under <b>Data</b>: ",
+          if (own) "your own numbers" else "the example numbers (you have not saved your own yet)",
+          "; ", format(mb, big.mark = ","), " samples for the Bayes factors and ", format(mp, big.mark = ","), " for the posterior. ")),
         actionLink("mn_run_to_data", "Change the data or settings")),
       if (length(mn_model_choices()) > 1)
         checkboxGroupInput("mn_models", "Models to analyse (the downloads always contain all of them)",
