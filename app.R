@@ -7656,7 +7656,7 @@ server <- shinyServer(function(input, output, session) {
     v_state$dir <- d; v_state$models <- models; v_state$queue <- models; v_state$procs <- list(); v_state$after <- NULL; v_state$skipped <- character(0)
     v_state$parallel <- isTRUE(isolate(input$use_parallel))
     v_state$active <- TRUE
-    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "v_cancel", label = "Cancel all"))
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "v_cancel", label = if (length(models) > 1) "Cancel all" else "Cancel"))
   }
   v_finish_models <- function(m, res) {
     h_cn <- colnames(isolate(h_reactive[[m]]))
@@ -18549,7 +18549,7 @@ server <- shinyServer(function(input, output, session) {
     run_cols(c("Posterior", "Bayes factors"))
     fairy_run_begin("Running the analysis", c("Posterior", "Bayes factors"), skippable = TRUE)
     for (m in mn_proc$row_of) { fairy_run_cell(m, "Posterior", "wait"); fairy_run_cell(m, "Bayes factors", "wait") }
-    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "mn_cancel", label = "Cancel all"))
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "mn_cancel", label = if (length(sel) > 1) "Cancel all" else "Cancel"))
     session$sendCustomMessage("fairy_run_limit", list(seconds = if (is.finite(mn_proc$limit)) mn_proc$limit else 0, nolimit = !is.finite(mn_proc$limit), label = "analysis"))
   })
   mn_proc <- reactiveValues(active = FALSE, dir = NULL, start = NULL, elapsed = 0, limit = 900, stems = character(0), row_of = NULL,
