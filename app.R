@@ -193,6 +193,13 @@ ui <- shinyUI(fluidPage(
         background-color: var(--fairy-panel) !important;
         color: var(--fairy-text) !important;
       }
+      /* the dropdown boxes and switch knobs keep a Bootstrap white gradient/fill without these */
+      body.dark-mode .selectize-input, body.dark-mode .selectize-input.full, body.dark-mode .selectize-input.input-active, body.dark-mode .selectize-input.dropdown-active {
+        background-color: var(--fairy-panel) !important; background-image: none !important; color: var(--fairy-text) !important; box-shadow: none !important; border-color: var(--fairy-border) !important; }
+      body.dark-mode .selectize-input .item, body.dark-mode .selectize-input > input { color: var(--fairy-text) !important; background: transparent !important; }
+      body.dark-mode .material-switch > label::after { background: #8b93a7 !important; box-shadow: none !important; }
+      body.dark-mode select, body.dark-mode .form-control { background-color: var(--fairy-panel) !important; background-image: none; color: var(--fairy-text) !important; border-color: var(--fairy-border) !important; }
+      html:has(body.dark-mode) { background-color: var(--fairy-bg, #0e1117); }
       body.dark-mode .selectize-dropdown { background: var(--fairy-panel) !important; color: var(--fairy-text) !important; border-color: var(--fairy-border) !important; }
       body.dark-mode .selectize-dropdown .option:hover,
       body.dark-mode .selectize-dropdown .option.active { background: var(--ct-diag) !important; }
@@ -6067,6 +6074,17 @@ ui <- shinyUI(fluidPage(
                // did for gl3d. paper_bgcolor/plot_bgcolor below already
                // paint the correct internal .bg rect via react().
                layout.plot_bgcolor = plot;
+               // the animation slider and the Play button of Plotly are light by default
+               if (layout.sliders) layout.sliders.forEach(function(sl) {
+                 sl.bgcolor = isDark ? '#2d3347' : '#f2f2f2'; sl.activebgcolor = isDark ? '#4c6dc6' : '#aaaaaa';
+                 sl.bordercolor = isDark ? '#2d3347' : '#bbbbbb'; sl.tickcolor = isDark ? '#2d3347' : '#666666';
+                 sl.font = Object.assign({}, sl.font, { color: font });
+                 if (sl.currentvalue) sl.currentvalue.font = Object.assign({}, sl.currentvalue.font, { color: font });
+               });
+               if (layout.updatemenus) layout.updatemenus.forEach(function(um) {
+                 um.bgcolor = isDark ? '#1d2433' : '#ffffff'; um.bordercolor = isDark ? '#4a5270' : '#999999';
+                 um.font = Object.assign({}, um.font, { color: font });
+               });
                layout.font = Object.assign({}, layout.font, { color: font });
                ['xaxis', 'yaxis'].forEach(function(ax) {
                  layout[ax] = layout[ax] || {};
