@@ -20187,18 +20187,27 @@ server <- shinyServer(function(input, output, session) {
     output$edge_extra_ui <- renderUI({
       ed <- edge_data(); n <- nrow(ed$v)
       if (n <= EDGE_MAX_FRAMES) return(NULL)
-      tags$p(class = "fairy-eq-tol-help", sprintf("This model has %s vertices. The plot shows %d of them, evenly spread over the list of all vertices.",
-                                                  format(n, big.mark = ","), EDGE_MAX_FRAMES))
+      nb <- ceiling(n / EDGE_MAX_FRAMES)
+      tagList(
+        tags$p(class = "fairy-eq-tol-help", sprintf("This model has %s vertices. They are shown in blocks of %d (every block is a small animation, only one block is loaded at a time): choose the block.",
+                                                    format(n, big.mark = ","), EDGE_MAX_FRAMES)),
+        sliderInput("edge_block", "Block", min = 1, max = nb, value = 1, step = 1, width = "100%", post = paste0(" of ", format(nb, big.mark = ","))))
     })
     output$plot_example <- renderPlotly({
       ed <- edge_data()
       parameter_names <- ed$names
       n_vert <- nrow(ed$v)
       vert_ids <- seq_len(n_vert)
+      block_title <- NULL
       if (n_vert > EDGE_MAX_FRAMES) {
-        # one animation frame per vertex gets far too big: an evenly spread selection is shown
-        vert_ids <- unique(round(seq(1, n_vert, length.out = EDGE_MAX_FRAMES)))
+        # one animation frame per vertex gets far too big: one block of vertices at a time
+        nb <- ceiling(n_vert / EDGE_MAX_FRAMES)
+        b <- input$edge_block
+        b <- if (is.null(b) || is.na(b)) 1L else max(1L, min(nb, as.integer(b)))
+        vert_ids <- ((b - 1L) * EDGE_MAX_FRAMES + 1L):min(n_vert, b * EDGE_MAX_FRAMES)
         ed$v <- ed$v[vert_ids, , drop = FALSE]
+        block_title <- paste0("Vertices ", format(vert_ids[1], big.mark = ","), " to ", format(vert_ids[length(vert_ids)], big.mark = ","),
+                              " of ", format(n_vert, big.mark = ","))
       }
       n_frames <- length(vert_ids)
 
@@ -20227,7 +20236,9 @@ server <- shinyServer(function(input, output, session) {
           type = "scatter", mode = "markers", marker = list(size = 10)
         )
       }
-      p %>% edge_axes(parameter_names, if (n_frames > 1) 150 else 90)
+      p <- p %>% edge_axes(parameter_names, if (n_frames > 1) 150 else 90)
+      if (!is.null(block_title)) p <- p %>% layout(title = list(text = block_title, font = list(size = 14)))
+      p
     })
   })
 })
