@@ -20201,7 +20201,7 @@ server <- shinyServer(function(input, output, session) {
       rows <- lapply(seq_along(ed$names), function(j) {
         x <- ed$v[, j]
         at0 <- sum(abs(x) < 1e-9); at1 <- sum(abs(x - 1) < 1e-9)
-        tags$tr(tags$td(ed$names[j]), tags$td(fr(min(x))), tags$td(fr(max(x))),
+        tags$tr(tags$td(HTML(ed$names[j])), tags$td(fr(min(x))), tags$td(fr(max(x))),
                 tags$td(format(at0, big.mark = ",")), tags$td(format(at1, big.mark = ",")), tags$td(format(n - at0 - at1, big.mark = ",")))
       })
       tags$div(style = "overflow-x:auto; margin-bottom:10px;",
