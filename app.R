@@ -4912,9 +4912,21 @@ ui <- shinyUI(fluidPage(
         // pasting a link into a tab where the app is already open only changes the hash: reload so it gets restored
         window.addEventListener('hashchange', function() { if (/^#s=[A-Za-z0-9_-]+$/.test(location.hash || '')) location.reload(); });
         // opening a link with #s=... restores that input once the app is up
+        // while a shared input is being loaded (it takes a few seconds) the page says so, so an empty form is not mistaken for the result
+        function shareBanner(on) {
+          var old = document.getElementById('fairy-share-loading'); if (old) old.remove();
+          if (!on) return;
+          var d = document.createElement('div'); d.id = 'fairy-share-loading'; d.setAttribute('role', 'status');
+          d.style.cssText = 'position:fixed; top:64px; left:50%; transform:translateX(-50%); z-index:100000; padding:8px 16px; border-radius:10px; background:var(--fairy-primary, #3a6df0); color:#fff; font-size:13px; box-shadow:0 6px 20px rgba(0,0,0,.25);';
+          d.textContent = 'Loading the shared input ... this can take up to 30 seconds';
+          document.body.appendChild(d);
+          setTimeout(function() { shareBanner(false); }, 90000);
+        }
+        if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_share_done', function(msg) { shareBanner(false); });
         $(document).one('shiny:connected', function() {
           var m = /^#s=([A-Za-z0-9_-]+)$/.exec(location.hash || '');
           if (!m) return;
+          shareBanner(true);
           $(document).one('shiny:idle', function() {
             setTimeout(function() {
               Shiny.setInputValue('share_payload', m[1], { priority: 'event' });
@@ -12105,6 +12117,7 @@ server <- shinyServer(function(input, output, session) {
     # fire mid-restore and clobber a just-restored name.
     shinyjs::delay(1600, {
       restoring_upload(FALSE)
+      session$sendCustomMessage("fairy_share_done", list())
     })
   })
 
