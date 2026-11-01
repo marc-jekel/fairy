@@ -5184,39 +5184,6 @@ ui <- shinyUI(fluidPage(
         });
       })();
 
-      // ---- Is the session still alive on the server? After an update the server forgets all open sessions, the page does not notice
-      // (downloads then answer 404, buttons do nothing): a heartbeat checks it and the page says so ----
-      (function() {
-        var lastPong = Date.now(), shown = false, bar = null;
-        function showLost() {
-          if (shown) return; shown = true;
-          bar = document.createElement('div');
-          bar.setAttribute('role', 'alert');
-          bar.style.cssText = 'position:fixed; z-index:300000; left:50%; top:14px; transform:translateX(-50%); max-width:min(560px, 94vw); background:#fff8e6; color:#5b3a00; border:1px solid #f59e0b; border-radius:10px; box-shadow:0 6px 24px rgba(0,0,0,.25); padding:12px 16px; font-size:14px; line-height:1.4; display:flex; gap:12px; align-items:center;';
-          var t = document.createElement('span');
-          t.textContent = 'The connection to the server was lost (for example after an update of the app). Downloads and buttons will not work until you reload the page; your input can be restored afterwards.';
-          var b = document.createElement('button'); b.type = 'button'; b.textContent = 'Reload';
-          b.style.cssText = 'padding:6px 14px; border:1px solid #f59e0b; border-radius:8px; background:#f59e0b; color:#fff; font-weight:600; cursor:pointer;';
-          b.addEventListener('click', function() { location.reload(); });
-          bar.appendChild(t); bar.appendChild(b); document.body.appendChild(bar);
-          if (window.parent && window.parent !== window) { try { window.parent.postMessage({ type: 'fairy-app-disconnected' }, '*'); } catch (e) {} }
-        }
-        function ping() { if (window.Shiny && Shiny.setInputValue) Shiny.setInputValue('fairy_ping', Date.now(), { priority: 'event' }); }
-        if (window.jQuery) jQuery(document).on('shiny:connected', function() { lastPong = Date.now(); ping(); });
-        document.addEventListener('DOMContentLoaded', function() {
-          if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_pong', function() { lastPong = Date.now(); if (shown && bar) { bar.remove(); shown = false; } });
-        });
-        setInterval(function() { ping(); if (Date.now() - lastPong > 50000) showLost(); }, 15000);
-        // back on this tab after a pause: check at once
-        document.addEventListener('visibilitychange', function() { if (!document.hidden) { ping(); setTimeout(function() { if (Date.now() - lastPong > 6000) showLost(); }, 6000); } });
-        // a download of a dead session would just answer 404: say so before
-        document.addEventListener('click', function(e) {
-          var a = e.target.closest ? e.target.closest('a.shiny-download-link') : null;
-          if (!a) return;
-          if (Date.now() - lastPong > 40000) { e.preventDefault(); e.stopPropagation(); ping(); setTimeout(function() { if (Date.now() - lastPong > 3000) showLost(); }, 3000); }
-        }, true);
-      })();
-
       // ---- Fairy dust: five quick clicks on the title of the analysis window switch its time limit off (and on again) ----
       (function() {
         var st = document.createElement('style');
@@ -7732,8 +7699,6 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   # one model is skipped: its process is stopped (or it leaves the queue), the others go on
-  # heartbeat of the page (see the script there): the page learns that this session is still alive
-  observeEvent(input$fairy_ping, session$sendCustomMessage("fairy_pong", list(t = as.numeric(Sys.time()))), ignoreInit = TRUE)
   observeEvent(input$v_skip_model, {
     if (!isTRUE(isolate(v_state$active))) return()
     m <- input$v_skip_model
