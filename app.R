@@ -1585,6 +1585,21 @@ ui <- shinyUI(fluidPage(
         cursor: pointer;
       }
       #fairy-run-close.visible { visibility: visible; }
+      #fairy-run-cancel {
+        display: none;
+        padding: 8px 26px;
+        font-size: 14px;
+        font-weight: 600;
+        border: 1.5px solid var(--fairy-border, #c8cdd8);
+        border-radius: 8px;
+        background: transparent;
+        color: var(--fairy-text, #1d2433);
+        cursor: pointer;
+        margin-right: 10px;
+      }
+      #fairy-run-cancel.visible { display: inline-block; }
+      #fairy-run-cancel:disabled { opacity: .6; cursor: default; }
+      .fairy-run-cell.st-cancel { color: #b05000; }
       #fairy-run-close:focus-visible { outline: 3px solid var(--fairy-primary, #3a6df0); outline-offset: 2px; }
       @media (prefers-reduced-motion: reduce) {
         #fairy-run-overlay, #fairy-run-bar-fill { transition: none; }
@@ -4153,7 +4168,9 @@ ui <- shinyUI(fluidPage(
           )
         ),
         tags$div(id = "fairy-run-note"),
-        tags$div(id = "fairy-run-actions", tags$button(id = "fairy-run-close", type = "button", "Close"))
+        tags$div(id = "fairy-run-actions",
+          tags$button(id = "fairy-run-cancel", type = "button", "Cancel"),
+          tags$button(id = "fairy-run-close", type = "button", "Close"))
       )
     ),
     tags$script(HTML(
@@ -4161,13 +4178,15 @@ ui <- shinyUI(fluidPage(
       // Large run window: a table of all models with an H and a V state each,
       // updated in place. Opens once per Go click, stays until closed.
       (function() {
-        var LABEL = { wait: 'waiting', run: 'computing', done: 'done', cached: 'unchanged', warn: 'empty set', fail: 'failed' };
-        var ICON  = { wait: '\\u25CB', run: '\\u25D0', done: '\\u2713', cached: '\\u2713', warn: '\\u26A0', fail: '\\u2715' };
+        var LABEL = { wait: 'waiting', run: 'computing', done: 'done', cached: 'unchanged', warn: 'empty set', fail: 'failed', cancel: 'cancelled' };
+        var ICON  = { wait: '\\u25CB', run: '\\u25D0', done: '\\u2713', cached: '\\u2713', warn: '\\u26A0', fail: '\\u2715', cancel: '\\u2715' };
         var rows = {}, showTimer = null, idleTimer = null, shown = false, dismissed = false, everRan = false, running = false;
+        var cancelable = false, t0 = 0, tick = null;
         // Safety net: if the run dies without a final message (an R error in
         // the middle of a Go), offer the Close button after 45 s of silence.
         function armIdle() {
           if (idleTimer) clearTimeout(idleTimer);
+          if (cancelable) return;
           idleTimer = setTimeout(function() {
             if (running) $id('fairy-run-close').classList.add('visible');
           }, 45000);
@@ -4209,11 +4228,13 @@ ui <- shinyUI(fluidPage(
               var st = rows[n][c].getAttribute('data-state');
               if (st === 'none') return;
               total++;
-              if (st === 'done' || st === 'cached' || st === 'warn' || st === 'fail') done++;
-              if (st === 'warn' || st === 'fail') bad++;
+              if (st === 'done' || st === 'cached' || st === 'warn' || st === 'fail' || st === 'cancel') done++;
+              if (st === 'warn' || st === 'fail' || st === 'cancel') bad++;
             });
           });
-          $id('fairy-run-sub').textContent = total ? (done + ' of ' + total + ' steps done') : '';
+          var el = running ? Math.round((Date.now() - t0) / 1000) : 0;
+          var elTxt = running ? ' \\u00b7 ' + Math.floor(el / 60) + ':' + ('0' + (el % 60)).slice(-2) + ' elapsed' : '';
+          $id('fairy-run-sub').textContent = total ? (done + ' of ' + total + ' steps done' + elTxt) : '';
           $id('fairy-run-bar-fill').style.width = (total ? Math.round(100 * done / total) : 0) + '%';
           return { total: total, done: done, bad: bad };
         }
@@ -4228,7 +4249,9 @@ ui <- shinyUI(fluidPage(
           $id('fairy-run-note').innerHTML = '';
           $id('fairy-run-close').classList.remove('visible');
           $id('fairy-run-table-wrap').scrollTop = 0;
-          dismissed = false; everRan = false; running = true; refresh(); armIdle();
+          dismissed = false; everRan = false; running = true; t0 = Date.now(); refresh(); armIdle();
+          if (tick) clearInterval(tick);
+          tick = setInterval(function() { if (running) refresh(); }, 1000);
           if (showTimer) clearTimeout(showTimer);
           // only show it if the work takes a moment (instant runs need no window)
           showTimer = setTimeout(function() { showTimer = null; if (running) show(); }, 300);
@@ -4240,8 +4263,16 @@ ui <- shinyUI(fluidPage(
           refresh(); armIdle();
           if ((msg.h === 'run' || msg.v === 'run') && shown) r.tr.scrollIntoView({ block: 'nearest' });
         });
+        // while the vertices are computed in a separate process the run can be cancelled
+        Shiny.addCustomMessageHandler('fairy_run_cancelable', function(msg) {
+          cancelable = !!msg.on;
+          var b = $id('fairy-run-cancel');
+          b.classList.toggle('visible', cancelable);
+          if (cancelable) { b.disabled = false; b.textContent = 'Cancel'; if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; } }
+        });
         Shiny.addCustomMessageHandler('fairy_run_end', function(msg) {
-          running = false;
+          running = false; cancelable = false; $id('fairy-run-cancel').classList.remove('visible');
+          if (tick) { clearInterval(tick); tick = null; }
           if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
           if (showTimer) { clearTimeout(showTimer); showTimer = null; }
           var c = refresh();
@@ -4253,13 +4284,18 @@ ui <- shinyUI(fluidPage(
           if (shown) $id('fairy-run-close').focus();
         });
         Shiny.addCustomMessageHandler('fairy_run_hide', function(msg) {
-          running = false;
+          running = false; cancelable = false; $id('fairy-run-cancel').classList.remove('visible');
+          if (tick) { clearInterval(tick); tick = null; }
           if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
           hide();
         });
         function dismiss() { dismissed = true; hide(); }
         document.addEventListener('DOMContentLoaded', function() {
           $id('fairy-run-close').addEventListener('click', dismiss);
+          $id('fairy-run-cancel').addEventListener('click', function() {
+            this.disabled = true; this.textContent = 'Cancelling ...';
+            Shiny.setInputValue('v_cancel', Date.now(), { priority: 'event' });
+          });
           $id('fairy-run-overlay').addEventListener('click', function(e) {
             if (!running && e.target === this) dismiss();
           });
@@ -7209,6 +7245,79 @@ server <- shinyServer(function(input, output, session) {
     )
   }
   fairy_run_hide <- function() session$sendCustomMessage("fairy_run_hide", list())
+
+  # V-representations (vertex enumeration with scdd) run in separate R processes, so the window stays alive: it shows what is
+  # computed and can be cancelled. State of the running job; `after` is what the Go run does when all vertices are there.
+  v_state <- reactiveValues(active = FALSE, dir = NULL, models = character(0), queue = character(0), procs = list(),
+                            parallel = FALSE, after = NULL)
+  v_kill_all <- function() {
+    for (p in isolate(v_state$procs)) try(p$kill_tree(), silent = TRUE)
+    v_state$procs <- list()
+  }
+  v_start_jobs <- function(models) {
+    v_kill_all()
+    d <- tempfile("vrun_"); dir.create(d)
+    writeLines(c("suppressMessages(library(rcdd))", "a <- commandArgs(TRUE)", "h <- readRDS(a[1])",
+                 "res <- tryCatch(scdd(h), error = function(e) NULL)", "saveRDS(res, a[2])"), file.path(d, "job.R"))
+    for (i in seq_along(models)) saveRDS(isolate(h_reactive[[models[i]]]), file.path(d, paste0("h", i, ".rds")))
+    v_state$dir <- d; v_state$models <- models; v_state$queue <- models; v_state$procs <- list(); v_state$after <- NULL
+    v_state$parallel <- isTRUE(isolate(input$use_parallel))
+    v_state$active <- TRUE
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE))
+  }
+  v_finish_models <- function(m, res) {
+    h_cn <- colnames(isolate(h_reactive[[m]]))
+    if (is.null(res) || nrow(data.frame(res)) == 0) {
+      fairy_run_row(m, v = "fail")
+    } else {
+      pn <- isolate(probs_reactive$value)
+      colnames(res$output) <- if (!is.null(h_cn) && length(h_cn) == ncol(res$output)) h_cn else c("", "", pn[, 2])
+      v_reactive[[m]] <- res
+      fairy_run_row(m, v = "done")
+    }
+  }
+  observe({
+    if (!isTRUE(v_state$active)) return()
+    invalidateLater(400)
+    d <- isolate(v_state$dir); models <- isolate(v_state$models)
+    procs <- isolate(v_state$procs); queue <- isolate(v_state$queue)
+    # collect what has finished
+    for (m in names(procs)) {
+      if (!procs[[m]]$is_alive()) {
+        idx <- match(m, models)
+        res <- tryCatch(readRDS(file.path(d, paste0("v", idx, ".rds"))), error = function(e) NULL)
+        v_finish_models(m, res)
+        procs[[m]] <- NULL
+      }
+    }
+    # start the next one(s): one at a time, or all at once in parallel mode
+    max_run <- if (isolate(v_state$parallel)) length(models) else 1L
+    while (length(queue) > 0 && length(procs) < max_run) {
+      m <- queue[1]; queue <- queue[-1]
+      idx <- match(m, models)
+      p <- tryCatch(processx::process$new(file.path(R.home("bin"), "Rscript"),
+                      c(file.path(d, "job.R"), file.path(d, paste0("h", idx, ".rds")), file.path(d, paste0("v", idx, ".rds"))),
+                      cleanup_tree = TRUE), error = function(e) NULL)
+      if (is.null(p)) { fairy_run_row(m, v = "fail") } else { procs[[m]] <- p; fairy_run_row(m, v = "run") }
+    }
+    v_state$procs <- procs; v_state$queue <- queue
+    if (length(queue) == 0 && length(procs) == 0) {
+      v_state$active <- FALSE
+      af <- isolate(v_state$after)
+      if (is.function(af)) isolate(af())
+    }
+  })
+  observeEvent(input$v_cancel, {
+    if (!isTRUE(isolate(v_state$active))) return()
+    left <- c(names(isolate(v_state$procs)), isolate(v_state$queue))
+    v_kill_all()
+    v_state$queue <- character(0)
+    v_state$active <- FALSE
+    for (m in left) fairy_run_row(m, v = "cancel")
+    af <- isolate(v_state$after)
+    if (is.function(af)) isolate(af(left))
+  })
+  session$onSessionEnded(function() { for (p in isolate(v_state$procs)) try(p$kill_tree(), silent = TRUE) })
   fairy_empty_set_note <- function(empty_set) {
     if (length(empty_set) == 0) return("")
     paste0("<b>Warning:</b> do not interpret the H- and V-descriptions of model(s) ",
@@ -14973,6 +15082,7 @@ server <- shinyServer(function(input, output, session) {
         names_p_multi <- c("", "", probs_tmp[, 2])
       }
 
+      v_async <- FALSE; v_pending_note <- ""
       if (!is.null(mytable_v) && sum(mytable_v[, 2]) > 0) {
         mytable_v_reactive$value$`Model name` <- sync_model_rows(mytable_v$`Model name`)
         mytable_v$`Model name` <- sync_model_rows(mytable_v$`Model name`)
@@ -14996,59 +15106,18 @@ server <- shinyServer(function(input, output, session) {
         for (m_run in models_picked_for_v_representation)
           fairy_run_row(m_run, v = if (m_run %in% models_to_compute_v) "wait" else "cached")
 
-        if (length(models_to_compute_v) > 0 && isTRUE(isolate(input$use_parallel))) {
-          # Each model's V-representation (vertex enumeration via scdd()) is
-          # independent of the others, so this is the actual heavy lifting
-          # worth parallelizing. All models run at once here, so there is no
-          # meaningful "currently computing" single model to name — the
-          # popup instead acknowledges parallel mode and the core count.
-          for (m_run in models_to_compute_v) fairy_run_row(m_run, v = "run")
-
-          h_v_snapshot <- setNames(
-            lapply(models_to_compute_v, function(m) isolate(h_reactive[[m]])),
-            models_to_compute_v
-          )
-          v_results <- par_lapply(models_to_compute_v, function(m) {
-            h_m <- h_v_snapshot[[m]]
-            list(res = tryCatch(scdd(h_m), error = function(e) NULL), h_cn_m = colnames(h_m))
-          })
-          names(v_results) <- models_to_compute_v
-
-          for (m in models_to_compute_v) {
-            res <- v_results[[m]]$res
-            h_cn_m <- v_results[[m]]$h_cn_m
-            if (is.null(res) || nrow(data.frame(res)) == 0) {
-              invalid_model <- c(invalid_model, m)
-              fairy_run_row(m, v = "fail")
-            } else {
-              colnames(res$output) <- if (!is.null(h_cn_m) && length(h_cn_m) == ncol(res$output)) h_cn_m else names_p_multi
-              v_reactive[[m]] <- res
-              fairy_run_row(m, v = "done")
-            }
-          }
-        } else if (length(models_to_compute_v) > 0) {
-          # Not in parallel mode: compute one model at a time, same
-          # current-vs-done popup style as the H-representation loop above.
-          for (m in models_to_compute_v) {
-            fairy_run_row(m, v = "run")
-
-            h_m <- isolate(h_reactive[[m]])
-            res <- tryCatch(scdd(h_m), error = function(e) NULL)
-            if (is.null(res) || nrow(data.frame(res)) == 0) {
-              invalid_model <- c(invalid_model, m)
-              fairy_run_row(m, v = "fail")
-            } else {
-              h_cn_m <- colnames(h_m)
-              colnames(res$output) <- if (!is.null(h_cn_m) && length(h_cn_m) == ncol(res$output)) h_cn_m else names_p_multi
-              v_reactive[[m]] <- res
-              fairy_run_row(m, v = "done")
-            }
-          }
-        }
-
-        fairy_run_end(paste0(fairy_empty_set_note(empty_set),
+        v_run_note <- paste0(fairy_empty_set_note(empty_set),
           if (length(mix_fail_notes)) paste0("<br><b>Mixture failed</b> - ", paste(htmltools::htmlEscape(mix_fail_notes), collapse = "; ")) else "",
-          if (length(hint_notes)) paste0("<br><b>Intersection failed</b> - ", paste(htmltools::htmlEscape(hint_notes), collapse = "; ")) else ""))
+          if (length(hint_notes)) paste0("<br><b>Intersection failed</b> - ", paste(htmltools::htmlEscape(hint_notes), collapse = "; ")) else "")
+        if (length(models_to_compute_v) > 0) {
+          # the vertices are computed in separate processes (the window shows the progress and can cancel); the tables of the
+          # V-representation are built when they are there (render_v_tail, see below)
+          v_async <- TRUE
+          v_pending_note <- v_run_note
+          v_start_jobs(models_to_compute_v)
+        } else {
+          fairy_run_end(v_run_note)
+        }
       } else {
         hideTab(inputId = "tabs", target = "V-representation")
         hideTab(inputId = "tabs", target = "Plot Polytope(s)")
@@ -15430,179 +15499,193 @@ server <- shinyServer(function(input, output, session) {
       equation_all_total_reactive$value <- equation_all_total
       equation_all_total_latex_reactive$value <- equation_all_total_latex
 
-      ####* Tables V-representation ####
+      # the tables of the V-representation need the vertices: built right here, or - when they are computed in separate
+      # processes - as soon as all of them are there
+      render_v_tail <- function() {
+        ####* Tables V-representation ####
 
-      show_table <- names(v_reactive)
+        show_table <- names(v_reactive)
 
-      all_displayable <- unique(c(names_models_reactive$value, intersection_names, mixture_names, items_names))
-      # Same Input-tab row-order fix as all_display_names above (see its
-      # own comment) — row_order was already computed there, in this
-      # same server execution, so it's reused here rather than
-      # recomputed.
-      all_displayable <- c(intersect(row_order, all_displayable), setdiff(all_displayable, row_order))
-      show_table <- show_table[show_table %in% all_displayable]
-      show_table <- all_displayable[all_displayable %in% show_table]
+        all_displayable <- unique(c(names_models_reactive$value, intersection_names, mixture_names, items_names))
+        # Same Input-tab row-order fix as all_display_names above (see its
+        # own comment) — row_order was already computed there, in this
+        # same server execution, so it's reused here rather than
+        # recomputed.
+        all_displayable <- c(intersect(row_order, all_displayable), setdiff(all_displayable, row_order))
+        show_table <- show_table[show_table %in% all_displayable]
+        show_table <- all_displayable[all_displayable %in% show_table]
 
-      updatePickerInput(session,
-        inputId = "go_example",
-        choices = show_table,
-        # Otherwise this starts with nothing selected and the Edge-Cases
-        # plot is just blank until the user manually picks a model —
-        # default to the first one so something renders immediately.
-        selected = if (length(show_table) > 0) show_table[1] else character(0)
-      )
+        updatePickerInput(session,
+          inputId = "go_example",
+          choices = show_table,
+          # Otherwise this starts with nothing selected and the Edge-Cases
+          # plot is just blank until the user manually picks a model —
+          # default to the first one so something renders immediately.
+          selected = if (length(show_table) > 0) show_table[1] else character(0)
+        )
 
-      if (length(show_table) > 0) {
-        showTab(inputId = "tabs", target = "V-representation")
+        if (length(show_table) > 0) {
+          showTab(inputId = "tabs", target = "V-representation")
 
-        counter_table <- 1
-        v_table_list <- list()
+          counter_table <- 1
+          v_table_list <- list()
 
-        for (loop_table in show_table) {
+          for (loop_table in show_table) {
 
-          v_table <- data.frame(v_reactive[[loop_table]])
+            v_table <- data.frame(v_reactive[[loop_table]])
 
-          if (length(v_table) > 0) {
-            v_table <- v_table[, 3:ncol(v_table), drop = FALSE]
-            v_table <- cbind(loop_table, v_table)
+            if (length(v_table) > 0) {
+              v_table <- v_table[, 3:ncol(v_table), drop = FALSE]
+              v_table <- cbind(loop_table, v_table)
 
-            rownames(v_table) <-
-              paste("V_", 1:nrow(v_table), sep = "")
+              rownames(v_table) <-
+                paste("V_", 1:nrow(v_table), sep = "")
 
-            h_cn_lt <- colnames(isolate(h_reactive[[loop_table]]))
-            v_p_names_lt <- if (!is.null(h_cn_lt) && length(h_cn_lt) > 2) h_cn_lt[-(1:2)] else names_p_multi[-(1:2)]
-            colnames(v_table) <- c("model_name", v_p_names_lt)
+              h_cn_lt <- colnames(isolate(h_reactive[[loop_table]]))
+              v_p_names_lt <- if (!is.null(h_cn_lt) && length(h_cn_lt) > 2) h_cn_lt[-(1:2)] else names_p_multi[-(1:2)]
+              colnames(v_table) <- c("model_name", v_p_names_lt)
 
-            v_table_list[[counter_table]] <- v_table
+              v_table_list[[counter_table]] <- v_table
+            }
+            counter_table <- counter_table + 1
           }
-          counter_table <- counter_table + 1
-        }
 
-        output$v_representation_table <- renderUI({
-          # Same flow-left-to-right-and-wrap layout as the H-representation
-          # cards (see fairy-h-cards-wrap), rather than one full-width
-          # stack — most V-rep tables are narrow enough that stacking them
-          # left a lot of empty space to their right.
-          div(
-            class = "fairy-h-cards-wrap",
-            lapply(as.list(seq_len(length(v_table_list))), function(i) {
-              id <- paste0("v_representation_table", i)
-              model_nm <- tryCatch(as.character(v_table_list[[i]][1, 1]), error = function(e) "")
-              # A NULL/empty entry in v_table_list (e.g. a slot never
-              # populated for a skipped model) makes [1, 1] come back as
-              # character(0) without throwing, which crashed the if() below
-              # (a zero-length condition is a runtime error, not FALSE).
-              if (length(model_nm) == 0) model_nm <- ""
-              div(
-                class = "model-card",
-                if (nzchar(model_nm)) div(class = "model-card-title", model_nm),
-                uiOutput(paste0("v_meta_", i)),
-                DT::dataTableOutput(id)
-              )
-            })
-          )
-        })
-
-        # every model's vertices as comparable keys (for "mark vertices that other models share")
-        derived_names_now <- derived_row_names()
-        vkey_tab <- lapply(v_table_list, function(t) {
-          if (is.null(t) || nrow(t) == 0) return(NULL)
-          m <- matrix(q2d(unlist(t[, 2:ncol(t)])), nrow = nrow(t))
-          nm_t <- as.character(t[1, 1])
-          list(name = nm_t, derived = nm_t %in% derived_names_now, keys = apply(m, 1, function(r) paste(round(r, 6), collapse = ",")))
-        })
-
-        for (loop_table in seq_len(length(v_table_list))) {
-          if (is.null(v_table_list[[loop_table]]) == F) {
-            local({
-              id <- paste0("v_representation_table", loop_table)
-              pl_t <- v_table_list[[loop_table]]
-              colnames_pl_t <- colnames(pl_t)
-              num_v <- matrix(q2d(unlist(pl_t[, 2:ncol(pl_t)])), nrow = nrow(pl_t))
-              my_i <- loop_table
-              pl_t <- cbind(pl_t[, 1], matrix(as.character(fractions(q2d(unlist(pl_t[, 2:ncol(pl_t)])))), ncol = ncol(pl_t) - 1))
-              colnames(pl_t) <- colnames_pl_t
-              colnames(pl_t)[1] <- "Model Name"
-              # DT column headers are raw text, not run through MathJax like
-              # the H-representation table's HTML output is — wrap each
-              # parameter name in \(...\) and rely on the drawCallback below
-              # to retypeset after DT (re)draws, or these show as literal
-              # LaTeX source ("{p_{1}}^{(1)}") instead of rendering.
-              colnames(pl_t)[-1] <- paste0("\\(", tex_name(colnames_pl_t[-1]), "\\)")
-              # line under the title: size of the model; with the sharing marks on, how many vertices are shared with
-              # another model and how many are unique to this one
-              output[[paste0("v_meta_", my_i)]] <- renderUI({
-                txt <- sprintf("%d vertices \u00b7 %d probabilities", nrow(num_v), ncol(num_v))
-                if ((isTRUE(input$v_shared) || isTRUE(input$v_unique)) && !is.null(vkey_tab[[my_i]]) && !isTRUE(vkey_tab[[my_i]]$derived)) {
-                  comp <- Filter(function(o) o != my_i && !is.null(vkey_tab[[o]]) && !isTRUE(vkey_tab[[o]]$derived), seq_along(vkey_tab))
-                  if (length(comp) > 0) {
-                    uniq <- !(vkey_tab[[my_i]]$keys %in% unlist(lapply(comp, function(o) vkey_tab[[o]]$keys)))
-                    txt <- paste0(txt, sprintf(" \u00b7 %d shared, %d unique", sum(!uniq), sum(uniq)))
-                  }
-                }
-                div(class = "fairy-v-meta", txt)
+          output$v_representation_table <- renderUI({
+            # Same flow-left-to-right-and-wrap layout as the H-representation
+            # cards (see fairy-h-cards-wrap), rather than one full-width
+            # stack — most V-rep tables are narrow enough that stacking them
+            # left a lot of empty space to their right.
+            div(
+              class = "fairy-h-cards-wrap",
+              lapply(as.list(seq_len(length(v_table_list))), function(i) {
+                id <- paste0("v_representation_table", i)
+                model_nm <- tryCatch(as.character(v_table_list[[i]][1, 1]), error = function(e) "")
+                # A NULL/empty entry in v_table_list (e.g. a slot never
+                # populated for a skipped model) makes [1, 1] come back as
+                # character(0) without throwing, which crashed the if() below
+                # (a zero-length condition is a runtime error, not FALSE).
+                if (length(model_nm) == 0) model_nm <- ""
+                div(
+                  class = "model-card",
+                  if (nzchar(model_nm)) div(class = "model-card-title", model_nm),
+                  uiOutput(paste0("v_meta_", i)),
+                  DT::dataTableOutput(id)
+                )
               })
-              output[[id]] <- DT::renderDataTable({
-                # Reads input$v_rep_words live, inside the render expression
-                # (not baked in once at Go-time) — same trap as the earlier
-                # "Model insights" checkbox: a value computed once outside a
-                # render*()/reactive() block doesn't retrigger when the
-                # checkbox changes afterward, only when Go runs again.
-                display_t <- pl_t
-                if (isTRUE(input$v_rep_words)) {
-                  # Cast 0/1 vertex coordinates as words ("none"/"all"),
-                  # same convention as Tables 1-2 in the paper: "a randomly
-                  # drawn person cringes with probability one precisely
-                  # when everybody in that (sub)population cringes," and
-                  # probability zero precisely when nobody does. Fractional
-                  # coordinates (e.g. 2/3) are left as fractions, matching
-                  # Table 2, which uses the same mixed convention.
-                  display_t[, -1][display_t[, -1] == "0"] <- "none"
-                  display_t[, -1][display_t[, -1] == "1"] <- "all"
-                }
-                # Show N entries / Search only earn their place with more than one page of vertices
-                many_rows <- nrow(display_t) > 10
-                # first column numbers the vertices (the model name is the card's title);
-                # optional tag: this vertex is shared with another plotted model
-                v_lab <- paste0("V", seq_len(nrow(display_t)))
-                uniq_flags <- rep(FALSE, nrow(display_t)); n_other <- 0
-                if ((isTRUE(input$v_shared) || isTRUE(input$v_unique)) && !is.null(vkey_tab[[my_i]]) && !isTRUE(vkey_tab[[my_i]]$derived)) {
-                  mine <- vkey_tab[[my_i]]$keys
-                  # compared with the other ordinary models only (intersections and mixtures share vertices with their sources by construction)
-                  comp <- Filter(function(o) o != my_i && !is.null(vkey_tab[[o]]) && !isTRUE(vkey_tab[[o]]$derived), seq_along(vkey_tab))
-                  n_other <- length(comp)
-                  if (n_other > 0) uniq_flags <- !(mine %in% unlist(lapply(comp, function(o) vkey_tab[[o]]$keys)))
-                  if (isTRUE(input$v_shared)) v_lab <- vapply(seq_along(v_lab), function(j) {
-                    others <- unlist(lapply(comp, function(o) if (mine[j] %in% vkey_tab[[o]]$keys) vkey_tab[[o]]$name))
-                    if (!length(others)) return(v_lab[j])
-                    lab <- if (length(others) == 1) paste("also in", short_model_name(others)) else paste("shared by", length(others) + 1L)
-                    paste0(v_lab[j], " <span class='fairy-v-shared' title='", htmltools::htmlEscape(paste("also in:", paste(others, collapse = " | ")), attribute = TRUE), "'>", htmltools::htmlEscape(lab), "</span>")
-                  }, character(1))
-                }
-                display_t[, 1] <- v_lab
-                # optional: only the vertices that no other plotted model has
-                if (isTRUE(input$v_unique) && n_other > 0) {
-                  display_t <- display_t[uniq_flags, , drop = FALSE]
-                  uniq_flags <- uniq_flags[uniq_flags]
-                  many_rows <- nrow(display_t) > 10
-                }
-                colnames(display_t)[1] <- "Vertex"
-                DT::datatable(display_t, escape = FALSE, options = list(
-                  scrollX = TRUE,
-                  rowCallback = DT::JS(sprintf("function(row, data, index) { var u = %s; if (u[index]) $(row).addClass('fairy-v-unique'); }", jsonlite::toJSON(as.logical(uniq_flags & isTRUE(input$v_shared))))),
-                  dom = if (many_rows) "lfrtip" else "t",
-                  paging = many_rows,
-                  drawCallback = DT::JS(
-                    "function() { if (window.MathJax && MathJax.Hub) {",
-                    "setTimeout(function() { MathJax.Hub.Queue(['Typeset', MathJax.Hub]); }, 30); } }"
-                  )
-                ))
-              }, server = FALSE)   # client-side paging: Show N entries must not need a round trip to the R process
-            })
-          }
-        }
+            )
+          })
 
-        function_plot(v_table_list, length(v_table_list))
+          # every model's vertices as comparable keys (for "mark vertices that other models share")
+          derived_names_now <- derived_row_names()
+          vkey_tab <- lapply(v_table_list, function(t) {
+            if (is.null(t) || nrow(t) == 0) return(NULL)
+            m <- matrix(q2d(unlist(t[, 2:ncol(t)])), nrow = nrow(t))
+            nm_t <- as.character(t[1, 1])
+            list(name = nm_t, derived = nm_t %in% derived_names_now, keys = apply(m, 1, function(r) paste(round(r, 6), collapse = ",")))
+          })
+
+          for (loop_table in seq_len(length(v_table_list))) {
+            if (is.null(v_table_list[[loop_table]]) == F) {
+              local({
+                id <- paste0("v_representation_table", loop_table)
+                pl_t <- v_table_list[[loop_table]]
+                colnames_pl_t <- colnames(pl_t)
+                num_v <- matrix(q2d(unlist(pl_t[, 2:ncol(pl_t)])), nrow = nrow(pl_t))
+                my_i <- loop_table
+                pl_t <- cbind(pl_t[, 1], matrix(as.character(fractions(q2d(unlist(pl_t[, 2:ncol(pl_t)])))), ncol = ncol(pl_t) - 1))
+                colnames(pl_t) <- colnames_pl_t
+                colnames(pl_t)[1] <- "Model Name"
+                # DT column headers are raw text, not run through MathJax like
+                # the H-representation table's HTML output is — wrap each
+                # parameter name in \(...\) and rely on the drawCallback below
+                # to retypeset after DT (re)draws, or these show as literal
+                # LaTeX source ("{p_{1}}^{(1)}") instead of rendering.
+                colnames(pl_t)[-1] <- paste0("\\(", tex_name(colnames_pl_t[-1]), "\\)")
+                # line under the title: size of the model; with the sharing marks on, how many vertices are shared with
+                # another model and how many are unique to this one
+                output[[paste0("v_meta_", my_i)]] <- renderUI({
+                  txt <- sprintf("%d vertices \u00b7 %d probabilities", nrow(num_v), ncol(num_v))
+                  if ((isTRUE(input$v_shared) || isTRUE(input$v_unique)) && !is.null(vkey_tab[[my_i]]) && !isTRUE(vkey_tab[[my_i]]$derived)) {
+                    comp <- Filter(function(o) o != my_i && !is.null(vkey_tab[[o]]) && !isTRUE(vkey_tab[[o]]$derived), seq_along(vkey_tab))
+                    if (length(comp) > 0) {
+                      uniq <- !(vkey_tab[[my_i]]$keys %in% unlist(lapply(comp, function(o) vkey_tab[[o]]$keys)))
+                      txt <- paste0(txt, sprintf(" \u00b7 %d shared, %d unique", sum(!uniq), sum(uniq)))
+                    }
+                  }
+                  div(class = "fairy-v-meta", txt)
+                })
+                output[[id]] <- DT::renderDataTable({
+                  # Reads input$v_rep_words live, inside the render expression
+                  # (not baked in once at Go-time) — same trap as the earlier
+                  # "Model insights" checkbox: a value computed once outside a
+                  # render*()/reactive() block doesn't retrigger when the
+                  # checkbox changes afterward, only when Go runs again.
+                  display_t <- pl_t
+                  if (isTRUE(input$v_rep_words)) {
+                    # Cast 0/1 vertex coordinates as words ("none"/"all"),
+                    # same convention as Tables 1-2 in the paper: "a randomly
+                    # drawn person cringes with probability one precisely
+                    # when everybody in that (sub)population cringes," and
+                    # probability zero precisely when nobody does. Fractional
+                    # coordinates (e.g. 2/3) are left as fractions, matching
+                    # Table 2, which uses the same mixed convention.
+                    display_t[, -1][display_t[, -1] == "0"] <- "none"
+                    display_t[, -1][display_t[, -1] == "1"] <- "all"
+                  }
+                  # Show N entries / Search only earn their place with more than one page of vertices
+                  many_rows <- nrow(display_t) > 10
+                  # first column numbers the vertices (the model name is the card's title);
+                  # optional tag: this vertex is shared with another plotted model
+                  v_lab <- paste0("V", seq_len(nrow(display_t)))
+                  uniq_flags <- rep(FALSE, nrow(display_t)); n_other <- 0
+                  if ((isTRUE(input$v_shared) || isTRUE(input$v_unique)) && !is.null(vkey_tab[[my_i]]) && !isTRUE(vkey_tab[[my_i]]$derived)) {
+                    mine <- vkey_tab[[my_i]]$keys
+                    # compared with the other ordinary models only (intersections and mixtures share vertices with their sources by construction)
+                    comp <- Filter(function(o) o != my_i && !is.null(vkey_tab[[o]]) && !isTRUE(vkey_tab[[o]]$derived), seq_along(vkey_tab))
+                    n_other <- length(comp)
+                    if (n_other > 0) uniq_flags <- !(mine %in% unlist(lapply(comp, function(o) vkey_tab[[o]]$keys)))
+                    if (isTRUE(input$v_shared)) v_lab <- vapply(seq_along(v_lab), function(j) {
+                      others <- unlist(lapply(comp, function(o) if (mine[j] %in% vkey_tab[[o]]$keys) vkey_tab[[o]]$name))
+                      if (!length(others)) return(v_lab[j])
+                      lab <- if (length(others) == 1) paste("also in", short_model_name(others)) else paste("shared by", length(others) + 1L)
+                      paste0(v_lab[j], " <span class='fairy-v-shared' title='", htmltools::htmlEscape(paste("also in:", paste(others, collapse = " | ")), attribute = TRUE), "'>", htmltools::htmlEscape(lab), "</span>")
+                    }, character(1))
+                  }
+                  display_t[, 1] <- v_lab
+                  # optional: only the vertices that no other plotted model has
+                  if (isTRUE(input$v_unique) && n_other > 0) {
+                    display_t <- display_t[uniq_flags, , drop = FALSE]
+                    uniq_flags <- uniq_flags[uniq_flags]
+                    many_rows <- nrow(display_t) > 10
+                  }
+                  colnames(display_t)[1] <- "Vertex"
+                  DT::datatable(display_t, escape = FALSE, options = list(
+                    scrollX = TRUE,
+                    rowCallback = DT::JS(sprintf("function(row, data, index) { var u = %s; if (u[index]) $(row).addClass('fairy-v-unique'); }", jsonlite::toJSON(as.logical(uniq_flags & isTRUE(input$v_shared))))),
+                    dom = if (many_rows) "lfrtip" else "t",
+                    paging = many_rows,
+                    drawCallback = DT::JS(
+                      "function() { if (window.MathJax && MathJax.Hub) {",
+                      "setTimeout(function() { MathJax.Hub.Queue(['Typeset', MathJax.Hub]); }, 30); } }"
+                    )
+                  ))
+                }, server = FALSE)   # client-side paging: Show N entries must not need a round trip to the R process
+              })
+            }
+          }
+
+          function_plot(v_table_list, length(v_table_list))
+        }
+      }
+      if (isTRUE(v_async)) {
+        v_state$after <- function(cancelled = character(0)) {
+          note <- v_pending_note
+          if (length(cancelled) > 0) note <- paste0("<b>Cancelled:</b> the V-representation of ", paste(htmltools::htmlEscape(cancelled), collapse = ", "), " was not computed.<br>", note)
+          fairy_run_end(note)
+          tryCatch(render_v_tail(), error = function(e) fairy_report_error(e, "go"))
+        }
+      } else {
+        render_v_tail()
       }
     } else {
       shinyalert("Error", "Please type in all model specifications.",
