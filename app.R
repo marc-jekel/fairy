@@ -7246,13 +7246,11 @@ ui <- shinyUI(fluidPage(
             materialSwitch("ALG", "Algorithms", value = FALSE, status = "primary", right = TRUE)
           ),
           conditionalPanel("input.ALG",
-            tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
-              `data-tooltip` = "General-purpose, recommended",
-              materialSwitch("CB", "Cooling Bodies", value = TRUE, status = "primary", right = TRUE)
-            ),
-            # the two other algorithms are rarely needed: folded behind a link (still reachable, and both switched off by default)
-            tags$a(id = "fairy_more_algos_toggle", href = "#", style = "display:block; font-size:11.5px; margin:2px 0 4px 4px;", "more algorithms \u25be"),
-            tags$div(id = "fairy_more_algos_wrap", style = "display:none;",
+            div(style = "margin-left:14px;",
+              tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
+                `data-tooltip` = "General-purpose, recommended",
+                materialSwitch("CB", "Cooling Bodies", value = TRUE, status = "primary", right = TRUE)
+              ),
               tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
                 `data-tooltip` = "Gaussian annealing",
                 materialSwitch("CG", "Cooling Gaussian", value = FALSE, status = "primary", right = TRUE)
@@ -7261,7 +7259,7 @@ ui <- shinyUI(fluidPage(
                 `data-tooltip` = "Ball-based annealing",
                 materialSwitch("SoB", "Sequ. of Balls", value = FALSE, status = "primary", right = TRUE)
               )
-            ),
+            )
           ),
           div(class = "fairy-fab-action-row",
             tags$span(class = "fairy-tooltip fairy-tooltip-left", `data-tooltip` = "Algorithm settings",
@@ -16471,7 +16469,8 @@ server <- shinyServer(function(input, output, session) {
         Algorithm      = as.character(parsim_display$Algorithm),
         Dimensionality = parsim_display$Dimensionality,
         Volume         = ifelse(startsWith(parsim_display$Dimensionality, "Not full-dimensional"), "0",
-                          ifelse(is.na(parsim_display$Volume), "—", vapply(parsim_display$Volume, function(v) if (is.na(v)) "—" else vol_str(v), character(1)))),
+                          ifelse(parsim_display$Algorithm == "Exact" & is.finite(exact_vol), vapply(exact_vol, function(v) if (is.finite(v)) vol_str(v) else "—", character(1)),
+                          ifelse(is.na(parsim_display$Volume), "—", vapply(parsim_display$Volume, function(v) if (is.na(v)) "—" else vol_str(v), character(1))))),
         `Max BF`       = ifelse(startsWith(parsim_display$Dimensionality, "Not full-dimensional"), "∞",
                           ifelse(is.na(maxbf_use), "\u2014", vapply(maxbf_use, bf_str, character(1)))),
         `Exact volume` = vapply(seq_along(exact_vol), function(i) {
@@ -16482,7 +16481,8 @@ server <- shinyServer(function(input, output, session) {
         }, character(1)),
         check.names    = FALSE
       )
-      if (!exact_on) simple_tbl[["Exact volume"]] <- NULL
+      # the separate Exact column is only needed when estimates of algorithms stand next to the exact values
+      if (!exact_on || all(as.character(parsim_display$Algorithm) == "Exact")) simple_tbl[["Exact volume"]] <- NULL
       # Sort: base models first, intersections (containing ∩) below
       is_intersection <- grepl("∩", simple_tbl$Model)
       simple_tbl <- rbind(simple_tbl[!is_intersection, ], simple_tbl[is_intersection, ])
@@ -16634,7 +16634,7 @@ server <- shinyServer(function(input, output, session) {
         Model          = gsub("^\\[(.*)\\]$", "\\1", as.character(parsim_display$Model)),
         Algorithm      = as.character(parsim_display$Algorithm),
         Dimensionality = as.character(parsim_display$Dimensionality),
-        Volume         = ifelse(nfd, 0, as.numeric(parsim_display$Volume)),
+        Volume         = ifelse(nfd, 0, ifelse(as.character(parsim_display$Algorithm) == "Exact" & is.finite(exact_vol), exact_vol, as.numeric(parsim_display$Volume))),
         Max_BF         = ifelse(nfd, Inf, as.numeric(maxbf_use)),
         Exact_volume   = ifelse(is.nan(exact_vol), NA_real_, exact_vol),
         stringsAsFactors = FALSE
@@ -17508,12 +17508,17 @@ server <- shinyServer(function(input, output, session) {
       '  "Monte-Carlo error; &lt; x: no sample fell inside the model,",',
       '  "so the value is below about x.</p>",',
       '  "<details><summary>What do the columns mean?</summary>",',
-      '  "<p class=small><b>Unconstrained</b>: all probabilities free",',
-      '  "(an equality such as p1 = p2 belongs to the model and is",',
-      '  "tested too). <b>Complement</b>: everything the model forbids",',
-      '  "(for p1 &gt; p2 &gt; p3: every other ordering); not defined",',
-      '  "with equalities. <b>Note</b>: empty if all went well,",',
-      '  "otherwise why a value is missing or unreliable.</p>",',
+      '  "<p class=small><b>Model vs. unconstrained</b>: how much better",',
+      '  "the data fit the model than a model in which all",',
+      '  "probabilities are free. Above 1 favours the model. An",',
+      '  "equality in the model, such as p1 = p2, is part of the",',
+      '  "model and is tested with it.",',
+      '  "<b>Model vs. complement</b>: the model against everything",',
+      '  "it forbids (for p1 &gt; p2 &gt; p3: all other orderings of",',
+      '  "the probabilities). This comparison is not available for",',
+      '  "models with an equality, so the cell stays empty.",',
+      '  "<b>Note</b>: empty if all went well, otherwise why a value",',
+      '  "is missing or unreliable.</p>",',
       '  "</details>",',
       '  legend, html_table(key, key_cls),',
       '  if (any(nzchar(results$note))) c("<h3>Models with a note</h3>",',
