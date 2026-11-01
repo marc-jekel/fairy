@@ -1657,7 +1657,8 @@ ui <- shinyUI(fluidPage(
       @media (prefers-reduced-motion: reduce) { #fairy-run-cancel.fairy-run-nudge { animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--fairy-primary, #3a6df0) 35%, transparent); } }
       .fairy-run-cell.st-cancel { color: #b05000; }
       .fairy-run-cell.st-na, .fairy-run-cell.st-skip { color: var(--fairy-text-muted, #667085); }
-      .fairy-run-skip { margin-left: 10px; padding: 0 8px; min-height: 22px; font-size: 12px; font-weight: 600; border: 1px solid var(--fairy-border, #e2e6ee); border-radius: 6px; background: transparent; color: var(--fairy-text-muted, #667085); cursor: pointer; }
+      .fairy-run-act { width: 1%; white-space: nowrap; text-align: right; }
+      .fairy-run-skip { padding: 2px 12px; min-height: 28px; font-size: 13px; font-weight: 600; border: 1px solid var(--fairy-border, #e2e6ee); border-radius: 8px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1f2430); cursor: pointer; }
       .fairy-run-skip:hover { color: var(--fairy-primary, #3a6df0); border-color: var(--fairy-primary, #3a6df0); }
       .fairy-run-cell.st-stop { color: #b05000; }
       #fairy-run-close:focus-visible { outline: 3px solid var(--fairy-primary, #3a6df0); outline-offset: 2px; }
@@ -4291,14 +4292,15 @@ ui <- shinyUI(fluidPage(
             var tr = document.createElement('tr');
             var tn = document.createElement('td'); tn.className = 'fairy-run-name'; tn.textContent = name;
             tr.appendChild(tn);
-            if (skippable) {
-              var sb = document.createElement('button'); sb.type = 'button'; sb.className = 'fairy-run-skip'; sb.textContent = 'skip';
-              sb.title = 'Skip this model: it is not analysed';
-              sb.addEventListener('click', function() { if (window.Shiny) Shiny.setInputValue(cancelInput === 'mn_cancel' ? 'mn_skip_model' : 'v_skip_model', name, { priority: 'event' }); });
-              tn.appendChild(sb);
-            }
             var cells = [];
             for (var ci = 0; ci < ncols; ci++) { var tc = document.createElement('td'); noneCell(tc); tr.appendChild(tc); cells.push(tc); }
+            if (skippable) {
+              var ta = document.createElement('td'); ta.className = 'fairy-run-act';
+              var sb = document.createElement('button'); sb.type = 'button'; sb.className = 'fairy-run-skip'; sb.textContent = 'Skip';
+              sb.title = 'Skip this model: it is not calculated, the others go on';
+              sb.addEventListener('click', function() { if (window.Shiny) Shiny.setInputValue(cancelInput === 'mn_cancel' ? 'mn_skip_model' : 'v_skip_model', name, { priority: 'event' }); });
+              ta.appendChild(sb); tr.appendChild(ta);
+            }
             $id('fairy-run-body').appendChild(tr);
             r = rows[name] = { tr: tr, name: tn, cells: cells, kind: null };
           }
@@ -4313,7 +4315,7 @@ ui <- shinyUI(fluidPage(
           var total = 0, done = 0, bad = 0;
           // the skip button of a row is only there while something of that row is still to be done
           Object.keys(rows).forEach(function(n) {
-            var sbtn = rows[n].name.querySelector('.fairy-run-skip');
+            var sbtn = rows[n].tr.querySelector('.fairy-run-skip');
             var lastc = rows[n].cells[rows[n].cells.length - 1];
             var lst = lastc ? lastc.getAttribute('data-state') : '';
             if (sbtn) sbtn.style.display = (lst === 'wait' || lst === 'run' || lst === 'step') ? '' : 'none';
@@ -4348,6 +4350,7 @@ ui <- shinyUI(fluidPage(
           var htr = document.querySelector('.fairy-run-table thead tr');
           htr.innerHTML = '';
           ['Model'].concat(cols).forEach(function(t) { var th = document.createElement('th'); th.textContent = t; htr.appendChild(th); });
+          if (msg && msg.skippable) { var tha = document.createElement('th'); tha.className = 'fairy-run-act'; htr.appendChild(tha); }
           skippable = !!(msg && msg.skippable);
           cancelInput = 'v_cancel'; limitLabel = 'exact volume'; $id('fairy-run-cancel').textContent = 'Cancel';
           $id('fairy-run-title').textContent = (msg && msg.title) ? msg.title : 'Calculating';
@@ -4367,10 +4370,12 @@ ui <- shinyUI(fluidPage(
         Shiny.addCustomMessageHandler('fairy_run_limit', function(msg) { limitSec = msg.seconds || 0; noLimit = !!msg.nolimit; limitLabel = msg.label || 'exact volume'; refresh(); });
         Shiny.addCustomMessageHandler('fairy_run_addcol', function(msg) {
           var htr = document.querySelector('.fairy-run-table thead tr');
-          var th = document.createElement('th'); th.textContent = msg.name; htr.appendChild(th);
+          var th = document.createElement('th'); th.textContent = msg.name;
+          htr.insertBefore(th, htr.querySelector('th.fairy-run-act'));
           ncols++;
           Object.keys(rows).forEach(function(n) {
-            var tc = document.createElement('td'); noneCell(tc); rows[n].tr.appendChild(tc); rows[n].cells.push(tc);
+            var tc = document.createElement('td'); noneCell(tc);
+            rows[n].tr.insertBefore(tc, rows[n].tr.querySelector('td.fairy-run-act')); rows[n].cells.push(tc);
           });
         });
         Shiny.addCustomMessageHandler('fairy_run_row', function(msg) {
