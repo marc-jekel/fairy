@@ -1635,7 +1635,6 @@ ui <- shinyUI(fluidPage(
       .fairy-run-cell.st-cancel { color: #b05000; }
       .fairy-run-cell.st-na { color: var(--fairy-text-muted, #667085); }
       .fairy-run-cell.st-stop { color: #b05000; }
-      .fairy-run-table.one-col th:nth-child(3), .fairy-run-table.one-col td:nth-child(3) { display: none; }
       #fairy-run-close:focus-visible { outline: 3px solid var(--fairy-primary, #3a6df0); outline-offset: 2px; }
       @media (prefers-reduced-motion: reduce) {
         #fairy-run-overlay, #fairy-run-bar-fill { transition: none; }
@@ -4235,7 +4234,7 @@ ui <- shinyUI(fluidPage(
         var LABEL = { wait: 'waiting', run: 'computing', done: 'done', cached: 'unchanged', warn: 'empty set', fail: 'failed', cancel: 'cancelled', na: 'not available', stop: 'stopped' };
         var ICON  = { wait: '\\u25CB', run: '\\u25D0', done: '\\u2713', cached: '\\u2713', warn: '\\u26A0', fail: '\\u2715', cancel: '\\u2715', na: '\\u2013', stop: '\\u25A0' };
         var rows = {}, showTimer = null, idleTimer = null, shown = false, dismissed = false, everRan = false, running = false;
-        var cancelable = false, t0 = 0, tick = null, cancelInput = 'v_cancel';
+        var cancelable = false, t0 = 0, tick = null, cancelInput = 'v_cancel', ncols = 2;
         // Safety net: if the run dies without a final message (an R error in
         // the middle of a Go), offer the Close button after 45 s of silence.
         function armIdle() {
@@ -4262,11 +4261,11 @@ ui <- shinyUI(fluidPage(
           if (!r) {
             var tr = document.createElement('tr');
             var tn = document.createElement('td'); tn.className = 'fairy-run-name'; tn.textContent = name;
-            var th = document.createElement('td'); noneCell(th);
-            var tv = document.createElement('td'); noneCell(tv);
-            tr.appendChild(tn); tr.appendChild(th); tr.appendChild(tv);
+            tr.appendChild(tn);
+            var cells = [];
+            for (var ci = 0; ci < ncols; ci++) { var tc = document.createElement('td'); noneCell(tc); tr.appendChild(tc); cells.push(tc); }
             $id('fairy-run-body').appendChild(tr);
-            r = rows[name] = { tr: tr, name: tn, h: th, v: tv, kind: null };
+            r = rows[name] = { tr: tr, name: tn, cells: cells, kind: null };
           }
           if (kind && kind !== 'model' && !r.kind) {
             r.kind = kind;
@@ -4278,8 +4277,8 @@ ui <- shinyUI(fluidPage(
         function refresh() {
           var total = 0, done = 0, bad = 0;
           Object.keys(rows).forEach(function(n) {
-            ['h', 'v'].forEach(function(c) {
-              var st = rows[n][c].getAttribute('data-state');
+            rows[n].cells.forEach(function(cell) {
+              var st = cell.getAttribute('data-state');
               if (st === 'none') return;
               total++;
               if (st === 'done' || st === 'cached' || st === 'warn' || st === 'fail' || st === 'cancel' || st === 'na' || st === 'stop') done++;
@@ -4300,9 +4299,10 @@ ui <- shinyUI(fluidPage(
         Shiny.addCustomMessageHandler('fairy_run_begin', function(msg) {
           rows = {}; $id('fairy-run-body').innerHTML = '';
           var cols = (msg && msg.cols) ? [].concat(msg.cols) : ['H-representation', 'V-representation'];
-          var ths = document.querySelectorAll('.fairy-run-table th');
-          ths[1].textContent = cols[0]; ths[2].textContent = cols.length > 1 ? cols[1] : '';
-          document.querySelector('.fairy-run-table').classList.toggle('one-col', cols.length < 2);
+          ncols = cols.length;
+          var htr = document.querySelector('.fairy-run-table thead tr');
+          htr.innerHTML = '';
+          ['Model'].concat(cols).forEach(function(t) { var th = document.createElement('th'); th.textContent = t; htr.appendChild(th); });
           cancelInput = 'v_cancel'; $id('fairy-run-cancel').textContent = 'Cancel';
           $id('fairy-run-title').textContent = (msg && msg.title) ? msg.title : 'Calculating';
           $id('fairy-run-note').innerHTML = '';
@@ -4317,8 +4317,9 @@ ui <- shinyUI(fluidPage(
         });
         Shiny.addCustomMessageHandler('fairy_run_row', function(msg) {
           var r = ensureRow(msg.name, msg.kind);
-          if (msg.h) { setCell(r.h, msg.h); if (msg.h === 'run') everRan = true; }
-          if (msg.v) { setCell(r.v, msg.v); if (msg.v === 'run') everRan = true; }
+          if (msg.h) { setCell(r.cells[0], msg.h); if (msg.h === 'run') everRan = true; }
+          if (msg.v) { setCell(r.cells[1], msg.v); if (msg.v === 'run') everRan = true; }
+          if (msg.col !== undefined && msg.state) { setCell(r.cells[msg.col], msg.state); if (msg.state === 'run') everRan = true; }
           refresh(); armIdle();
           if ((msg.h === 'run' || msg.v === 'run') && shown) r.tr.scrollIntoView({ block: 'nearest' });
         });
@@ -7353,6 +7354,12 @@ server <- shinyServer(function(input, output, session) {
     session$sendCustomMessage("fairy_run_row", msg)
   }
   fairy_run_end <- function(note = "") session$sendCustomMessage("fairy_run_end", list(note = note))
+  # the columns of the Parsimony run window (exact volume, one column per algorithm) and a state in one of them
+  run_cols <- reactiveVal(character(0))
+  fairy_run_cell <- function(name, col, state) {
+    i <- match(col, isolate(run_cols()))
+    if (!is.na(i)) session$sendCustomMessage("fairy_run_row", list(name = as.character(name), col = i - 1L, state = state))
+  }
   # last mixture results by name, with a signature of the component models they were built from
   mixture_cache <- new.env()
   hint_cache <- new.env()   # results of rows built from H-representations of their sources (intersections with mixtures, unpacked models)
@@ -8126,6 +8133,7 @@ server <- shinyServer(function(input, output, session) {
   # instead, and disappears the moment real results exist.
   parsim_has_results <- reactiveVal(FALSE)
   parsim_csv_data <- reactiveVal(NULL)
+  parsim_bar_data <- reactiveVal(NULL)   # model, algorithm and volume of the bars of the chart (for the PDF)
 
   output$parsimony_placeholder_ui <- renderUI({
     if (isTRUE(parsim_has_results())) return(NULL)
@@ -12271,6 +12279,49 @@ server <- shinyServer(function(input, output, session) {
       paste0("fairy_write_multinomineq(models, file = \"multinomineq_H-representation.tar\"", if (length(qo)) ", order = qtest_order" else "", ")"))
     out
   }
+  # the "Volume by model" chart as a PDF (vector graphic), drawn with base graphics: same bars, colours and axis as on the screen
+  parsimony_pdf <- function(df, file) {
+    algo_colors <- c("Cooling Bodies" = "#3a6df0", "Cooling Gaussian" = "#f0ad4e", "Sequence of Balls" = "#5cb85c", "Exact" = "#2b2f3a")
+    models <- unique(df$Model); algos <- unique(df$Algorithm)
+    pos <- df$Volume[is.finite(df$Volume) & df$Volume > 0]
+    use_log <- length(pos) > 0 && min(pos) < 0.01
+    k <- length(algos); n <- length(models)
+    grDevices::pdf(file, width = 8, height = max(2.8, 1.9 + n * (0.3 + 0.18 * k)))
+    on.exit(grDevices::dev.off())
+    labs <- vapply(models, function(z) paste(strwrap(z, 38), collapse = "\n"), character(1))
+    graphics::par(mai = c(0.9, 0.5, 0.6, 0.2))
+    lw <- max(graphics::strwidth(labs, units = "inches", cex = 0.8)) + 0.25
+    graphics::par(mai = c(0.9, lw, 0.6, 0.2))
+    xlim <- if (use_log) c(min(pos) / 3, 1) else c(0, 1)
+    graphics::plot(NA, xlim = xlim, ylim = c(0.5, n + 0.5), log = if (use_log) "x" else "", xaxt = "n", yaxt = "n",
+                   xlab = if (use_log) "Volume (log scale)" else "Volume", ylab = "", bty = "n")
+    if (use_log) {
+      ex <- seq(floor(log10(xlim[1])), 0)
+      graphics::axis(1, at = 10^ex, labels = parse(text = paste0("10^", ex)))
+      graphics::abline(v = 10^ex, col = "grey88")
+    } else {
+      graphics::axis(1)
+      graphics::abline(v = seq(0, 1, 0.2), col = "grey88")
+    }
+    bh <- 0.8 / k
+    for (i in seq_len(n)) for (j in seq_len(k)) {
+      v <- df$Volume[df$Model == models[i] & df$Algorithm == algos[j]]
+      if (length(v) == 1 && is.finite(v) && v > 0) {
+        top <- n - i + 1 + 0.4 - (j - 1) * bh
+        graphics::rect(xlim[1], top - bh * 0.9, v, top, col = unname(algo_colors[algos[j]]), border = NA)
+      }
+    }
+    graphics::axis(2, at = n:1, labels = labs, las = 1, tick = FALSE, cex.axis = 0.8)
+    if (k > 1) graphics::legend("topleft", legend = algos, fill = unname(algo_colors[algos]), horiz = TRUE, bty = "n",
+                                inset = c(0, -0.13), xpd = NA, cex = 0.8)
+    invisible(file)
+  }
+  output$download_parsimony_pdf <- downloadHandler(
+    filename = function() paste0("volume_by_model_", Sys.Date(), ".pdf"),
+    content = function(file) { d <- parsim_bar_data(); req(d); parsimony_pdf(d, file) },
+    contentType = "application/pdf"
+  )
+  outputOptions(output, "download_parsimony_pdf", suspendWhenHidden = FALSE)
   output$download_parsimony_csv <- downloadHandler(
     filename = function() paste0("Parsimony_results_", Sys.Date(), ".csv"),
     content = function(file) utils::write.csv(parsim_csv_data(), file, row.names = FALSE)
@@ -16110,7 +16161,7 @@ server <- shinyServer(function(input, output, session) {
     pv$parallel <- isTRUE(isolate(input$use_parallel))
     parsim_state$results <- NULL
     pv$active <- TRUE
-    for (m in unique(sub("\\|[^|]*$", "", keys))) fairy_run_row(m, v = "wait")
+    for (k in keys) fairy_run_cell(sub("\\|[^|]*$", "", k), c(CB = "Cooling Bodies", CG = "Cooling Gaussian", SoB = "Sequence of Balls")[[sub("^.*\\|", "", k)]], "wait")
     session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "pv_cancel", label = "Cancel"))
   }
   observe({
@@ -16124,8 +16175,7 @@ server <- shinyServer(function(input, output, session) {
         v <- tryCatch(readRDS(file.path(d, paste0("out", idx, ".rds"))), error = function(e) NA_real_)
         res[[k]] <- if (is.numeric(v) && length(v) == 1) v else NA_real_
         procs[[k]] <- NULL
-        m_k <- sub("\\|[^|]*$", "", k)
-        if (!any(sub("\\|[^|]*$", "", c(names(procs), queue)) == m_k)) fairy_run_row(m_k, v = "done")
+        fairy_run_cell(sub("\\|[^|]*$", "", k), c(CB = "Cooling Bodies", CG = "Cooling Gaussian", SoB = "Sequence of Balls")[[sub("^.*\\|", "", k)]], "done")
       }
     }
     max_run <- if (isolate(pv$parallel)) length(keys) else 1L
@@ -16135,9 +16185,9 @@ server <- shinyServer(function(input, output, session) {
       p <- tryCatch(processx::process$new(file.path(R.home("bin"), "Rscript"),
                       c(file.path(d, "job.R"), file.path(d, paste0("in", idx, ".rds")), file.path(d, paste0("out", idx, ".rds"))),
                       cleanup_tree = TRUE), error = function(e) NULL)
-      if (is.null(p)) { res[[k]] <- NA_real_; fairy_run_row(sub("\\|[^|]*$", "", k), v = "fail") } else {
+      if (is.null(p)) { res[[k]] <- NA_real_; fairy_run_cell(sub("\\|[^|]*$", "", k), c(CB = "Cooling Bodies", CG = "Cooling Gaussian", SoB = "Sequence of Balls")[[sub("^.*\\|", "", k)]], "fail") } else {
         procs[[k]] <- p
-        fairy_run_row(sub("\\|[^|]*$", "", k), v = "run")
+        fairy_run_cell(sub("\\|[^|]*$", "", k), c(CB = "Cooling Bodies", CG = "Cooling Gaussian", SoB = "Sequence of Balls")[[sub("^.*\\|", "", k)]], "run")
       }
     }
     pv$procs <- procs; pv$queue <- queue
@@ -16199,7 +16249,7 @@ server <- shinyServer(function(input, output, session) {
     ex$dir <- d; ex$names <- u; ex$procs <- procs; ex$res <- res; ex$start <- Sys.time(); ex$elapsed <- 0; ex$skip <- FALSE
     ex$prev_snap <- isolate(pv$prev_snap)
     ex$active <- TRUE
-    for (i in seq_along(u)) fairy_run_row(u[i], h = if (as.character(i) %in% names(procs)) "run" else "na")
+    for (i in seq_along(u)) fairy_run_cell(u[i], "Exact volume", if (as.character(i) %in% names(procs)) "run" else "na")
     session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "ex_skip", label = "Skip, use the algorithm"))
   }
   observe({
@@ -16211,14 +16261,14 @@ server <- shinyServer(function(input, output, session) {
       if (!procs[[k]]$is_alive()) {
         v <- tryCatch(readRDS(file.path(d, paste0("v", k, ".rds"))), error = function(e) NA_real_)
         res[[u[as.integer(k)]]] <- if (is.numeric(v) && length(v) == 1) v else NA_real_
-        fairy_run_row(u[as.integer(k)], h = if (is.finite(res[[u[as.integer(k)]]])) "done" else "na")
+        fairy_run_cell(u[as.integer(k)], "Exact volume", if (is.finite(res[[u[as.integer(k)]]])) "done" else "na")
         procs[[k]] <- NULL
       }
     }
     if (length(procs) > 0 && (el > EXACT_VOLUME_LIMIT || isTRUE(isolate(ex$skip)))) {
       for (k in names(procs)) {
         try(procs[[k]]$kill_tree(), silent = TRUE); res[[u[as.integer(k)]]] <- NaN
-        fairy_run_row(u[as.integer(k)], h = "stop")
+        fairy_run_cell(u[as.integer(k)], "Exact volume", "stop")
       }
       procs <- list()
     }
@@ -16242,7 +16292,11 @@ server <- shinyServer(function(input, output, session) {
     go_now <- isolate(input$go)
     if (!identical(go_now, isolate(parsim_state$go_seen))) {
       parsim_state$go_seen <- go_now
-      fairy_run_begin("Calculating the volumes", c("Exact volume", "Algorithm volume"))
+      algo_names_all <- c(CB = "Cooling Bodies", CG = "Cooling Gaussian", SoB = "Sequence of Balls")
+      sel_b <- c(CB = isTRUE(isolate(input$CB)), CG = isTRUE(isolate(input$CG)), SoB = isTRUE(isolate(input$SoB)))
+      if (!isTRUE(isolate(input$ALG)) || !any(sel_b)) sel_b <- c(CB = TRUE, CG = FALSE, SoB = FALSE)   # the backup algorithm
+      run_cols(c(if (!identical(isolate(input$EX), FALSE)) "Exact volume", unname(algo_names_all[names(sel_b)[sel_b]])))
+      fairy_run_begin("Calculating the volumes", isolate(run_cols()))
       parsim_state$exact <- NULL; parsim_state$exact_done <- FALSE
       parsim_state$results <- NULL
       pv$prev_snap <- isolate(last_parsimony_snapshot())
@@ -16757,6 +16811,7 @@ server <- shinyServer(function(input, output, session) {
         bar_df <- rbind(bar_df, ex_df)
       }
       n_algos_used <- length(unique(bar_df$Algorithm))
+      parsim_bar_data(bar_df)
 
       # Shared between the compact overview chart and its "expand" modal
       # view — same data/colors/ordering, only the font/margin sizing
@@ -16766,7 +16821,9 @@ server <- shinyServer(function(input, output, session) {
         if (nrow(bar_df) == 0) return(NULL)
         # Keep models in the same top-to-bottom order as the table above
         # rather than plotly's default (alphabetical/appearance) order.
-        bar_df$Model <- factor(bar_df$Model, levels = rev(unique(bar_df$Model)))
+        # long model names are wrapped, otherwise they squeeze the plot into a narrow strip
+        wrap_lab <- function(x) vapply(x, function(z) paste(strwrap(z, 26), collapse = "<br>"), character(1), USE.NAMES = FALSE)
+        bar_df$Model <- factor(wrap_lab(bar_df$Model), levels = rev(unique(wrap_lab(bar_df$Model))))
         algo_colors <- c("Cooling Bodies" = "#3a6df0", "Cooling Gaussian" = "#f0ad4e", "Sequence of Balls" = "#5cb85c", "Exact" = "#2b2f3a")
         fsize <- if (large) 15 else 11
         # very small volumes are invisible on a 0-1 axis: then the axis is logarithmic (models with volume 0 have no bar)
@@ -16803,9 +16860,10 @@ server <- shinyServer(function(input, output, session) {
             # since plotly draws the axis title relative to the actual
             # tick labels, not a fixed offset a legend's y can reliably
             # clear. Above the bars there's nothing else to collide with.
-            legend = if (n_algos_used > 1) list(orientation = "h", x = 0, y = if (large) 1.1 else 1.2, font = list(size = fsize - 1)) else list(visible = FALSE, showlegend = FALSE),
-            margin = if (large) list(l = 10, r = 30, t = if (n_algos_used > 1) 50 else 20, b = 50, pad = 6)
-                     else list(l = 10, r = 20, t = if (n_algos_used > 1) 34 else 10, b = 34, pad = 4)
+            legend = if (n_algos_used > 1) list(orientation = "h", x = 0, xanchor = "left", y = 1.02, yanchor = "bottom", font = list(size = fsize - 1)) else list(visible = FALSE, showlegend = FALSE),
+            # room above the plot for the legend, also when it wraps to one entry per line in a narrow chart
+            margin = if (large) list(l = 10, r = 30, t = if (n_algos_used > 1) 30 + 22 * n_algos_used else 20, b = 50, pad = 6)
+                     else list(l = 10, r = 20, t = if (n_algos_used > 1) 20 + 20 * n_algos_used else 10, b = 34, pad = 4)
           ) %>%
           # the only button is the download, as a vector graphic (SVG)
           config(displayModeBar = if (large) TRUE else "hover", displaylogo = FALSE,
@@ -16867,7 +16925,7 @@ server <- shinyServer(function(input, output, session) {
       # Extra fixed room at the top for the legend row (see the matching
       # top margin in output$parsimony_bar_plot) when more than one
       # algorithm is shown.
-      legend_h <- if (n_algos > 1) 50 else 0
+      legend_h <- if (n_algos > 1) 20 + 20 * n_algos else 0
       plot_h <- min(400, max(140, 55 + legend_h + n_models * (20 + n_algos * 14)))
       tagList(
         div(
@@ -16882,11 +16940,14 @@ server <- shinyServer(function(input, output, session) {
             # click-to-expand already uses, instead of a bounded
             # Bootstrap modalDialog with its own margins/max-width that
             # never actually reached full-screen.
-            tags$button(
-              id = "expand_parsimony_plot_btn", type = "button",
-              class = "fairy-plot-expand-btn fairy-tooltip",
-              `data-tooltip` = "Expand",
-              icon("expand")
+            div(style = "display:flex; align-items:center; gap:8px;",
+              downloadButton("download_parsimony_pdf", "PDF", class = "btn-sm"),
+              tags$button(
+                id = "expand_parsimony_plot_btn", type = "button",
+                class = "fairy-plot-expand-btn fairy-tooltip",
+                `data-tooltip` = "Expand",
+                icon("expand")
+              )
             )
           ),
           plotlyOutput("parsimony_bar_plot", height = paste0(plot_h, "px"))
@@ -17975,7 +18036,7 @@ server <- shinyServer(function(input, output, session) {
       if (length(mn_model_choices()) > 1)
         checkboxGroupInput("mn_models", "Models to analyse (the downloads always contain all of them)",
                            choices = mn_model_choices(), selected = unname(mn_model_choices()), inline = TRUE, width = "100%"),
-      checkboxInput("mn_final", "More samples (slower, uses more of the shared server)", value = FALSE, width = "100%"),
+      checkboxInput("mn_final", "More samples: 100,000 instead of 10,000 samples for the Bayes factors and 20,000 instead of 5,000 for the posterior (smaller Monte-Carlo error, but slower and uses more of the shared server)", value = FALSE, width = "100%"),
       if (identical(isolate(mn_source()), "V"))
         tags$div(style = "background:rgba(58,109,240,.10); border-left:4px solid #3a6df0; border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
           tags$b("Tip:"), " the analysis from the vertices (V) is much slower than from the inequalities (H) and gives the same result: a few seconds against a fraction of a second for small models, minutes for larger ones. For larger models open this window from the H-representation tab."),
