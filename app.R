@@ -1126,6 +1126,14 @@ ui <- shinyUI(fluidPage(
       /* Same jelly/default style as the other add/remove buttons on this
          page, just darkened a bit for contrast against the pnames card's
          own tinted background. */
+      /* tap targets: at least 24 px (WCAG 2.2), about 40 px on touch screens */
+      .fairy-del-model-btn, [id^='copy_model_btn_'], [id^='vrep_toggle_btn_'], #rm_prob, #add_prob, #rm_ie, #add_ie,
+      .fairy-compact-toggle-btn, #dm-toggle, .fairy-plot-expand-btn, #show_items_modal { min-width: 24px; min-height: 24px; }
+      .fairy-del-model-btn { padding: 2px 4px !important; }
+      @media (pointer: coarse) {
+        .fairy-del-model-btn, [id^='copy_model_btn_'], [id^='vrep_toggle_btn_'], #rm_prob, #add_prob, #rm_ie, #add_ie,
+        .fairy-compact-toggle-btn, #dm-toggle, .fairy-plot-expand-btn, #show_items_modal { min-width: 40px; min-height: 40px; }
+      }
       #rm_prob, #rm_ie { background-color: #9aa0ab !important; color: #222 !important; border-color: #8a919e !important; }
       body.dark-mode #rm_prob, body.dark-mode #rm_ie { background-color: #454b56 !important; color: #f0f0f0 !important; border-color: #333844 !important; }
       /* Card container around the model-specification area, matching the
@@ -4234,7 +4242,7 @@ ui <- shinyUI(fluidPage(
         var LABEL = { wait: 'waiting', run: 'computing', done: 'done', cached: 'unchanged', warn: 'empty set', fail: 'failed', cancel: 'cancelled', na: 'not available', stop: 'stopped' };
         var ICON  = { wait: '\\u25CB', run: '\\u25D0', done: '\\u2713', cached: '\\u2713', warn: '\\u26A0', fail: '\\u2715', cancel: '\\u2715', na: '\\u2013', stop: '\\u25A0' };
         var rows = {}, showTimer = null, idleTimer = null, shown = false, dismissed = false, everRan = false, running = false;
-        var cancelable = false, t0 = 0, tick = null, cancelInput = 'v_cancel', ncols = 2, limitSec = 0;
+        var cancelable = false, t0 = 0, tick = null, cancelInput = 'v_cancel', ncols = 2, limitSec = 0, noLimit = false, dustClicks = [];
         // Safety net: if the run dies without a final message (an R error in
         // the middle of a Go), offer the Close button after 45 s of silence.
         function armIdle() {
@@ -4287,7 +4295,7 @@ ui <- shinyUI(fluidPage(
           });
           var el = running ? Math.round((Date.now() - t0) / 1000) : 0;
           var mmss = function(x) { return Math.floor(x / 60) + ':' + ('0' + (x % 60)).slice(-2); };
-          var elTxt = running ? ' \\u00b7 ' + mmss(el) + ' elapsed' + (limitSec > 0 ? ' (exact volume: at most ' + mmss(limitSec) + ')' : '') : '';
+          var elTxt = running ? ' \\u00b7 ' + mmss(el) + ' elapsed' + (noLimit ? ' (no time limit \\u2728)' : (limitSec > 0 ? ' (exact volume: at most ' + mmss(limitSec) + ')' : '')) : '';
           $id('fairy-run-sub').textContent = total ? (done + ' of ' + total + ' steps done' + elTxt) : '';
           $id('fairy-run-bar-fill').style.width = (total ? Math.round(100 * done / total) : 0) + '%';
           return { total: total, done: done, bad: bad };
@@ -4319,7 +4327,7 @@ ui <- shinyUI(fluidPage(
         });
         // a column that is only needed once it is used (e.g. the backup algorithm when an exact volume could not be calculated)
         // longest time of the phase that is running now (0: none); shown next to the elapsed time
-        Shiny.addCustomMessageHandler('fairy_run_limit', function(msg) { limitSec = msg.seconds || 0; refresh(); });
+        Shiny.addCustomMessageHandler('fairy_run_limit', function(msg) { limitSec = msg.seconds || 0; noLimit = !!msg.nolimit; refresh(); });
         Shiny.addCustomMessageHandler('fairy_run_addcol', function(msg) {
           var htr = document.querySelector('.fairy-run-table thead tr');
           var th = document.createElement('th'); th.textContent = msg.name; htr.appendChild(th);
@@ -4355,6 +4363,17 @@ ui <- shinyUI(fluidPage(
           $id('fairy-run-close').classList.add('visible');
           show();
           if (shown) $id('fairy-run-close').focus();
+          // all fine and nothing to read: the window closes itself (not while the mouse is over it)
+          if (c.bad === 0 && !(msg && msg.note)) {
+            var tries = 0;
+            (function closeLater() {
+              setTimeout(function() {
+                if (running || !shown) return;
+                if ($id('fairy-run-card').matches(':hover') && tries++ < 20) return closeLater();
+                dismiss();
+              }, 2200);
+            })();
+          }
         });
         Shiny.addCustomMessageHandler('fairy_run_hide', function(msg) {
           running = false; cancelable = false; $id('fairy-run-cancel').classList.remove('visible');
@@ -4363,6 +4382,20 @@ ui <- shinyUI(fluidPage(
           hide();
         });
         function dismiss() { dismissed = true; hide(); }
+        // fairy dust: five quick clicks on the title or on the time line switch the time limit of the exact calculation off (and on again)
+        document.addEventListener('click', function(e) {
+          var t = e.target.closest ? e.target.closest('#fairy-run-title, #fairy-run-sub') : null;
+          if (!t || !running || !shown) return;
+          var now = Date.now();
+          dustClicks = dustClicks.filter(function(c) { return now - c < 1500; });
+          dustClicks.push(now);
+          if (dustClicks.length >= 5) {
+            dustClicks = [];
+            var r = t.getBoundingClientRect();
+            if (window.fairyBurst) window.fairyBurst(r.left + r.width / 2, r.top + r.height / 2);
+            if (window.Shiny) Shiny.setInputValue('ex_unlock', Date.now(), { priority: 'event' });
+          }
+        });
         document.addEventListener('DOMContentLoaded', function() {
           $id('fairy-run-close').addEventListener('click', dismiss);
           $id('fairy-run-cancel').addEventListener('click', function() {
@@ -5074,7 +5107,9 @@ ui <- shinyUI(fluidPage(
           '@keyframes mn-spark { from { opacity: 1; transform: translate(0, 0) scale(1); } to { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.4) rotate(120deg); } }';
         document.head.appendChild(st);
         var clicks = [];
+        window.fairyBurst = null;
         function burst(x, y) {
+          window.fairyBurst = burst;
           var glyphs = ['\\u2728', '\\u2b50', '\\u2726', '\\u22c6'];
           for (var i = 0; i < 16; i++) {
             var sp = document.createElement('span');
@@ -7034,6 +7069,7 @@ ui <- shinyUI(fluidPage(
             border-radius:14px !important; box-shadow:0 10px 32px rgba(20,30,60,.22) !important; padding:12px 34px 12px 14px !important; }
           @keyframes fairyFlash { 0% { box-shadow:0 0 0 0 rgba(58,109,240,.6); background:color-mix(in srgb, var(--fairy-primary, #3a6df0) 18%, transparent); } 100% { box-shadow:0 0 0 14px rgba(58,109,240,0); background:transparent; } }
           .fairy-flash { animation:fairyFlash 1.4s ease-out 2; border-radius:10px; }
+          body:has(#fairy-run-overlay.active) #shiny-notification-panel { top:auto !important; bottom:56px !important; }
           #shiny-notification-panel { top:58px !important; bottom:auto !important; right:14px !important; left:auto !important; width:350px; max-width:92vw; z-index:20000; }
           .shiny-notification { overflow:hidden; }
           .shiny-notification { opacity:1; }
@@ -16268,7 +16304,7 @@ server <- shinyServer(function(input, output, session) {
     ex$active <- TRUE
     for (i in seq_along(u)) fairy_run_cell(u[i], "Exact volume", if (as.character(i) %in% names(procs)) "run" else "na")
     session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "ex_skip", label = "Skip, use the algorithm"))
-    session$sendCustomMessage("fairy_run_limit", list(seconds = EXACT_VOLUME_LIMIT))
+    session$sendCustomMessage("fairy_run_limit", list(seconds = if (isTRUE(isolate(ex_nolimit()))) 0 else EXACT_VOLUME_LIMIT, nolimit = isTRUE(isolate(ex_nolimit()))))
   }
   observe({
     if (!isTRUE(ex$active)) return()
@@ -16283,7 +16319,7 @@ server <- shinyServer(function(input, output, session) {
         procs[[k]] <- NULL
       }
     }
-    if (length(procs) > 0 && (el > EXACT_VOLUME_LIMIT || isTRUE(isolate(ex$skip)))) {
+    if (length(procs) > 0 && ((!isTRUE(isolate(ex_nolimit())) && el > EXACT_VOLUME_LIMIT) || isTRUE(isolate(ex$skip)))) {
       for (k in names(procs)) {
         try(procs[[k]]$kill_tree(), silent = TRUE); res[[u[as.integer(k)]]] <- NaN
         fairy_run_cell(u[as.integer(k)], "Exact volume", "stop")
@@ -16302,6 +16338,14 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   observeEvent(input$ex_skip, { if (isTRUE(isolate(ex$active))) ex$skip <- TRUE })
+  # fairy dust (five quick clicks on the title or the time of the run window): no time limit for the exact calculation
+  ex_nolimit <- reactiveVal(FALSE)
+  observeEvent(input$ex_unlock, {
+    ex_nolimit(!isTRUE(ex_nolimit()))
+    if (isTRUE(isolate(ex$active))) session$sendCustomMessage("fairy_run_limit", list(seconds = if (ex_nolimit()) 0 else EXACT_VOLUME_LIMIT, nolimit = ex_nolimit()))
+    showNotification(if (ex_nolimit()) "\u2728 Fairy dust: no time limit for the exact volume (five quick clicks on the title switch it off again)." else paste0("The time limit is back (", EXACT_VOLUME_LIMIT_TXT, ")."),
+                     type = "message", duration = 6)
+  })
   session$onSessionEnded(function() { for (p in isolate(ex$procs)) try(p$kill_tree(), silent = TRUE) })
 
   observe_guarded(list(input$go, parsim_state$resume), {
@@ -16803,7 +16847,7 @@ server <- shinyServer(function(input, output, session) {
             autoWidth = FALSE,
             pageLength = 12,
             lengthMenu = c(6, 12, 18, 24, 48, 96),
-            dom = "ltp",
+            dom = if (nrow(simple_tbl) > 6) "ltp" else "t",
             # a short explanation when the mouse is over a column header
             headerCallback = DT::JS(paste0("function(thead) { var t = { 'Algorithm': 'Exact: calculated from the corner points of the model, not sampled, does not change between runs. The other rows: estimated by random sampling with that algorithm; they change from run to run, by an amount that depends on the model. By default only shown for models without an exact volume.', 'Volume': 'The share of the parameter space that fits the model. n/a: the exact calculation was stopped (time limit of ", EXACT_VOLUME_LIMIT_TXT, " or skipped); then the algorithm estimates the volume.', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume of that row.'}; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }")),
             columnDefs = list(
@@ -16866,6 +16910,7 @@ server <- shinyServer(function(input, output, session) {
           hovertemplate = "%{fullData.name}: %{x:.3g}<extra></extra>"
         ) %>%
           layout(
+            showlegend = TRUE,
             barmode = "group",
             bargap = 0.35, bargroupgap = 0.15,
             # one label per model row, wherever the mouse is on that row (not only at the end of a bar), listing the
@@ -16889,16 +16934,15 @@ server <- shinyServer(function(input, output, session) {
             # since plotly draws the axis title relative to the actual
             # tick labels, not a fixed offset a legend's y can reliably
             # clear. Above the bars there's nothing else to collide with.
-            legend = if (n_algos_used > 1) list(orientation = "h", x = 0, xanchor = "left", y = 1.02, yanchor = "bottom", font = list(size = fsize - 1)) else list(visible = FALSE, showlegend = FALSE),
+            legend = if (n_algos_used >= 1) list(orientation = "h", x = 0, xanchor = "left", y = 1.02, yanchor = "bottom", font = list(size = fsize - 1)) else list(visible = FALSE, showlegend = FALSE),
             # room above the plot for the legend, also when it wraps to one entry per line in a narrow chart
-            margin = if (large) list(l = 10, r = 30, t = if (n_algos_used > 1) 30 + 22 * n_algos_used else 20, b = 50, pad = 6)
-                     else list(l = 10, r = 20, t = if (n_algos_used > 1) 20 + 20 * n_algos_used else 10, b = 34, pad = 4)
+            margin = if (large) list(l = 10, r = 30, t = if (n_algos_used >= 1) 30 + 22 * n_algos_used else 20, b = 50, pad = 6)
+                     else list(l = 10, r = 20, t = if (n_algos_used >= 1) 20 + 20 * n_algos_used else 10, b = 34, pad = 4)
           ) %>%
           # the only button is the download, as a vector graphic (SVG)
           config(displayModeBar = if (large) TRUE else "hover", displaylogo = FALSE,
                  modeBarButtons = list(list("toImage")),
                  toImageButtonOptions = list(format = "svg", filename = "volume_by_model"))
-        if (n_algos_used <= 1) p <- p %>% layout(showlegend = FALSE)
         p
       }
 
@@ -16952,7 +16996,7 @@ server <- shinyServer(function(input, output, session) {
       # Extra fixed room at the top for the legend row (see the matching
       # top margin in output$parsimony_bar_plot) when more than one
       # algorithm is shown.
-      legend_h <- if (n_algos > 1) 20 + 20 * n_algos else 0
+      legend_h <- 20 + 20 * n_algos
       plot_h <- min(400, max(140, 55 + legend_h + n_models * (20 + n_algos * 14)))
       tagList(
         div(
