@@ -16886,6 +16886,8 @@ server <- shinyServer(function(input, output, session) {
       '  "color:#fff;padding:1.6em 2em}",',
       '  "header h1{margin:0;font-size:1.7em}",',
       '  "header p{margin:.4em 0 0;opacity:.9}",',
+      '  "html,body{max-width:100%;overflow-x:hidden}",',
+      '  "p,summary,td,th{overflow-wrap:anywhere}",',
       '  "main{max-width:66em;margin:0 auto;padding:.5em 2em 3em}",',
       '  "h2{margin:1.2em 0 .2em;font-size:1.3em}",',
       '  "h3{margin:1.6em 0 .2em;font-size:1.05em}",',
@@ -17222,14 +17224,17 @@ server <- shinyServer(function(input, output, session) {
       if (length(mn_model_choices()) > 1)
         checkboxGroupInput("mn_models", "Models to analyse (the downloads always contain all of them)",
                            choices = mn_model_choices(), selected = unname(mn_model_choices()), inline = TRUE),
-      checkboxInput("mn_final", "More samples (slower, smaller error)", value = FALSE),
+      checkboxInput("mn_final", "More samples (slower, uses more of the shared server)", value = FALSE),
+      tags$div(style = "background:rgba(245,158,11,.16); border-left:4px solid #f59e0b; border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
+        tags$b("Running here uses our shared server."), " Please keep it small: a few models, the default number of samples. For larger or repeated analyses download the files (the download buttons next to Data) and run ",
+        tags$code("analysis_multinomineq.R"), " on your own computer. It needs only R with the packages ", tags$code("multinomineq"), ", ", tags$code("rcdd"), " and ", tags$code("coda"), "."),
       footer = tags$div(class = "mn-foot", style = "display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; align-items:center; width:100%;",
         tags$div(style = "display:flex; gap:8px;",
           if (has_unpacked) actionButton("mn_data_to_order", "Change order"),
           actionButton("mn_data_reset", "Reset")),
         tags$div(style = "display:flex; gap:8px;",
           modalButton("Cancel"), actionButton("mn_data_save", "Save"),
-          actionButton("mn_run", "Run analysis", class = "btn-primary")))))
+          actionButton("mn_run", "Run here (small)", class = "btn-primary")))))
   }
   mn_source <- reactiveVal("H")   # the analysis uses the representation of the tab the window was opened from
   for (btn_id in c("mn_data_open", "mn_data_open_v")) local({
@@ -17265,6 +17270,9 @@ server <- shinyServer(function(input, output, session) {
     choices_mn <- mn_model_choices()
     sel <- if (length(choices_mn) > 1) input$mn_models else unname(choices_mn)
     if (length(sel) == 0) { showNotification("Choose at least one model to analyse.", type = "warning"); return() }
+    if (length(sel) > 10) {
+      showNotification("That is a larger analysis and it may take a while. Next time you can also download the files and run analysis_multinomineq.R on your own computer.", type = "message", duration = 10)
+    }
     removeModal()
     d <- tempfile("mn_run_"); dir.create(d)
     ok <- tryCatch(withProgress(message = "Running the analysis ...", detail = "up to 2 minutes", value = 0.2, {
@@ -17301,8 +17309,31 @@ server <- shinyServer(function(input, output, session) {
     page <- paste(readLines(file.path(d, "results.html"), warn = FALSE, encoding = "UTF-8"), collapse = "\n")
     showModal(modalDialog(
       title = paste0("Results of the multinomineq analysis (", format(isolate(mn_result$time), "%H:%M"), ")"), size = "l", easyClose = TRUE,
-      tags$iframe(srcdoc = page, style = "width:100%; height:70vh; border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px;"),
-      footer = tagList(downloadButton("mn_results_dl", "Download results (tar)"), modalButton("Close"))))
+      tags$p(class = "fairy-eq-tol-help", "This ran on our shared server. For larger or repeated analyses, download the results below: the download contains the files and ", tags$code("analysis_multinomineq.R"), ", which you can run on your own computer."),
+      tags$iframe(id = "mn_results_frame", srcdoc = page, style = "width:100%; height:70vh; border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px;"),
+      # the frame grows to the height of its page, so the whole window scrolls (scrolling inside a frame inside a window is unreliable)
+      tags$script(HTML("
+        (function() {
+          var f = document.getElementById('mn_results_frame');
+          if (!f) return;
+          function fit() {
+            try { f.style.height = Math.max(300, f.contentDocument.documentElement.scrollHeight + 6) + 'px'; } catch (e) {}
+          }
+          f.addEventListener('load', function() {
+            fit(); setTimeout(fit, 150); setTimeout(fit, 600); setTimeout(fit, 1500);
+            try { f.contentDocument.addEventListener('click', function() { setTimeout(fit, 60); }); } catch (e) {}
+          });
+          fit(); setTimeout(fit, 300);
+          window.addEventListener('resize', fit);
+          var nt = document.getElementById('mn_results_newtab');
+          if (nt) nt.addEventListener('click', function() {
+            var b = new Blob([f.getAttribute('srcdoc')], { type: 'text/html' });
+            window.open(URL.createObjectURL(b), '_blank');
+          });
+        })();
+      ")),
+      footer = tagList(tags$button(id = "mn_results_newtab", type = "button", class = "btn btn-default", "Open in new tab"),
+                       downloadButton("mn_results_dl", "Download results (tar)"), modalButton("Close"))))
   }
   for (btn_id in c("mn_results_open", "mn_results_open_v")) local({
     id <- btn_id
