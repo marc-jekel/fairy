@@ -16367,7 +16367,7 @@ server <- shinyServer(function(input, output, session) {
           "    vn <- q2d(scdd(hh)$output)",
           "    if (any(vn[, 2] == 0)) NA_real_ else {",
           "      pts <- vn[vn[, 2] == 1, -(1:2), drop = FALSE]",
-          "      if (ncol(pts) == 1) diff(range(pts)) else if (nrow(pts) <= ncol(pts)) 0 else as.numeric(geometry::convhulln(pts, options = \"FA\")$vol)",
+          "      if (nrow(pts) <= ncol(pts)) 0 else if (qr(sweep(pts, 2, pts[1, ]), tol = 1e-9)$rank < ncol(pts)) 0 else if (ncol(pts) == 1) diff(range(pts)) else as.numeric(geometry::convhulln(pts, options = \"FA\")$vol)",
           "    }",
           "  }",
           "}, error = function(e) NA_real_)",
