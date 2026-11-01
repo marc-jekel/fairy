@@ -8233,12 +8233,17 @@ server <- shinyServer(function(input, output, session) {
               });
             });
             var uniform = info.every(function(x) { return !x.g && x.n === info[0].n && x.t === info[0].t; });
-            var asg = [], sets = [], keyIdx = {};
+            var asg = [], sets = [], keyIdx = {}, gNames = [];
             info.forEach(function(x, i) {
               var key = uniform ? 'all' : (x.g ? 'g:' + x.g : 's:' + i);
-              if (!(key in keyIdx)) { keyIdx[key] = sets.length + 1; sets.push({ n: x.n, type: x.t }); }
+              if (!(key in keyIdx)) {
+                keyIdx[key] = sets.length + 1; sets.push({ n: x.n, type: x.t });
+                // a list name that was given earlier (opening the dialog again): not the default group A, group B, ...
+                gNames.push((!uniform && x.g && !/^group [A-Z0-9]+$/.test(x.g)) ? x.g : '');
+              }
               asg.push(keyIdx[key]);
             });
+            if (!listNames.some(Boolean)) listNames = gNames;
             var diffT = sets.some(function(x) { return x.type !== sets[0].type; });
             sets.forEach(function(x) { x.over = diffT ? x.type : ''; });
             chipState = { asg: asg, sets: sets, counts: info.map(function(x) { return x.n; }) };
