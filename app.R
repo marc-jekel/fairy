@@ -13474,6 +13474,87 @@ server <- shinyServer(function(input, output, session) {
     format(x, scientific = FALSE, trim = TRUE, digits = 15)
   }
 
+  # numeric version (probing with doubles): only for what the exact reader above does not understand (1e-3, sqrt(2), pi, ...)
+  normalize_constraint_numeric <- function(cstr, n_p) {
+    if (is.na(cstr) || cstr == "") return(cstr)
+
+    # the app treats "<" as "<=", so >=/<= collapse onto >/<
+    cstr <- str_replace_all(cstr, ">=|=>", ">")
+    cstr <- str_replace_all(cstr, "<=|=<", "<")
+
+    # only single-relation constraints (chains are split earlier)
+    if (str_count(cstr, "<|>|=") != 1) return(cstr)
+
+    op <- str_extract(cstr, "<|>|=")
+    sides <- str_split_fixed(cstr, "<|>|=", 2)
+    lhs <- sides[1]
+    rhs <- sides[2]
+    if (lhs == "" || rhs == "") return(cstr)
+
+    ev <- function(s, vals) {
+      env <- as.list(vals)
+      names(env) <- paste0("p", seq_along(vals))
+      tryCatch(as.numeric(eval(parse(text = s), envir = env)),
+        error = function(e) NA_real_, warning = function(w) NA_real_
+      )
+    }
+
+    # a value is usable only if it is a single finite number; 1/(p1+p2) at
+    # p = 0 yields Inf, which must NOT be treated as a valid evaluation
+    ok_num <- function(x) length(x) == 1 && !is.na(x) && is.finite(x)
+
+    # probe points: 0 and two generic interior points. Using non-zero probes
+    # keeps expressions such as 1/(p1+p2) from being evaluated only at a pole.
+    zero <- rep(0, n_p)
+    base <- rep(0.25, n_p)
+
+    c_l <- ev(lhs, zero)
+    c_r <- ev(rhs, zero)
+    if (!ok_num(c_l) || !ok_num(c_r)) return(cstr)
+
+    coef <- numeric(n_p)
+    for (i in seq_len(n_p)) {
+      e_i <- zero
+      e_i[i] <- 1
+      a <- ev(lhs, e_i)
+      b <- ev(rhs, e_i)
+      if (!ok_num(a) || !ok_num(b)) return(cstr)
+      coef[i] <- (a - c_l) - (b - c_r)
+    }
+
+    # verify linearity: the difference must scale exactly with the step size,
+    # both at a doubled step and around a shifted base point
+    for (i in seq_len(n_p)) {
+      e_i <- zero
+      e_i[i] <- 2
+      a <- ev(lhs, e_i)
+      b <- ev(rhs, e_i)
+      if (!ok_num(a) || !ok_num(b)) return(cstr)
+      d2 <- ((a - c_l) - (b - c_r)) - 2 * coef[i]
+      if (!ok_num(d2) || abs(d2) > 1e-9) return(cstr)
+
+      f_l <- ev(lhs, base)
+      f_r <- ev(rhs, base)
+      s_i <- base
+      s_i[i] <- s_i[i] + 1
+      g_l <- ev(lhs, s_i)
+      g_r <- ev(rhs, s_i)
+      if (!ok_num(f_l) || !ok_num(f_r) || !ok_num(g_l) || !ok_num(g_r)) return(cstr)
+      d3 <- ((g_l - f_l) - (g_r - f_r)) - coef[i]
+      if (!ok_num(d3) || abs(d3) > 1e-9) return(cstr)
+    }
+
+    if (all(coef == 0)) return(cstr)
+
+    terms <- paste0(
+      ifelse(coef >= 0, "+", "-"),
+      vapply(abs(coef), num2str_lin, character(1)),
+      "*p", seq_len(n_p)
+    )
+
+    paste0(paste(terms, collapse = ""), op, num2str_lin(c_r - c_l))
+  }
+
   normalize_constraint <- function(cstr, n_p) {
     if (is.na(cstr) || cstr == "") return(cstr)
 
@@ -13494,7 +13575,7 @@ server <- shinyServer(function(input, output, session) {
     # so unusual input still falls through to the original parser
     l <- linear_form(lhs, n_p)
     r <- linear_form(rhs, n_p)
-    if (is.null(l) || is.null(r)) return(cstr)
+    if (is.null(l) || is.null(r)) return(normalize_constraint_numeric(cstr, n_p))
 
     coef <- qmq(l$a, r$a)
     const <- qmq(r$c, l$c)

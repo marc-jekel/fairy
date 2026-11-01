@@ -49,7 +49,21 @@ fairy_h <- function(model, n_p = NULL, p_names = NULL,
     n_p <- max(idx)
   }
 
-  parsed <- extract_info(model, n_p = n_p, approx_tol = approx_tol)
+  # constraints that are not linear in the probabilities (p1*p2 > .1, 1/(p1+p2) > p3, p1^2 > p2) or not understood:
+  # name them instead of failing with an R message
+  bad <- not_linear_constraints(model, n_p)
+  if (length(bad) > 0) {
+    stop("This constraint is not linear in the probabilities: ", paste(bad, collapse = "; "),
+         ". A model is a polytope, so a probability may not be divided by, multiplied by, or raised to the power of another ",
+         "probability. Rewrite the constraint so that each probability appears only multiplied by a number.", call. = FALSE)
+  }
+  parsed <- tryCatch(
+    withCallingHandlers(extract_info(model, n_p = n_p, approx_tol = approx_tol),
+                        warning = function(w) stop(conditionMessage(w), call. = FALSE)),
+    error = function(e) stop("Could not read the model specification '", paste(model, collapse = "; "), "': ",
+                             conditionMessage(e), ". Separate constraints with \";\" or \",\" and use only linear terms in the probabilities.",
+                             call. = FALSE)
+  )
 
   iel   <- parsed$ineq_eq_left
   ier   <- parsed$ineq_eq_right

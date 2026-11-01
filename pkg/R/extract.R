@@ -426,3 +426,22 @@ extract_info <- function(constraints, n_p, approx_tol = 0) {
     all_operators = all_operators
   )
 }
+
+# The single constraints of a model text that contain a probability but are not linear in it (or not understood).
+not_linear_constraints <- function(model, n_p) {
+  txt <- paste(model, collapse = ";")
+  txt <- gsub("[{}]", "", txt)            # shortcuts {p1,p2} < p3 are expanded elsewhere; their parts are checked as they are
+  parts <- trimws(unlist(strsplit(txt, "[;,]")))
+  parts <- gsub("[[:space:]]", "", parts)
+  parts <- parts[nzchar(parts) & grepl("p[0-9]", parts) & stringr::str_count(parts, "<|>|=") == 1L]
+  parts <- gsub(">=|=>", ">", gsub("<=|=<", "<", gsub("\u2264", "<", gsub("\u2265", ">", parts))))
+  parts <- gsub("==", "=", parts)
+  n <- max(n_p, 1L)
+  is_bad <- function(x) {
+    sides <- stringr::str_split_fixed(x, "<|>|=", 2)
+    # a side that is linear but cancels out (p1 = p1) is fine; only text that is not understood counts
+    if (!is.null(linear_form(sides[1], n)) && !is.null(linear_form(sides[2], n))) return(FALSE)
+    identical(normalize_constraint(x, n), x)
+  }
+  parts[vapply(parts, is_bad, logical(1))]
+}
