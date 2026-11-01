@@ -17842,16 +17842,17 @@ server <- shinyServer(function(input, output, session) {
       'n_tab <- length(mods) + 1',
       'tabs <- seq_len(n_tab)',
       'css <- c(',
-      '  ":root{--bg:#fff;--fg:#1d2433;--mut:#667085;--line:#e4e7ec;",',
-      '  "--head:#f4f6fb}",',
-      '  "@media(prefers-color-scheme:dark){:root{--bg:#14171f;",',
-      '  "--fg:#e6e9f0;--mut:#9aa3b5;--line:#2a3040;--head:#1c2130}}",',
+      '  ":root{--bg:#fff;--fg:#1f2430;--mut:#667085;--line:#e2e6ee;",',
+      '  "--head:#f4f6fa;--prim:#3a6df0}",',
+      '  "@media(prefers-color-scheme:dark){:root{--bg:#161b27;",',
+      '  "--fg:#e6e9f0;--mut:#9aa3b5;--line:#2d3347;--head:#1c2230;",',
+      '  "--prim:#6089f8}}",',
       '  "body{background:var(--bg);color:var(--fg);margin:0;",',
-      '  "font-family:system-ui,sans-serif}",',
-      '  "header{background:linear-gradient(120deg,#3a6df0,#7a4df0);",',
-      '  "color:#fff;padding:1.6em 2em}",',
-      '  "header h1{margin:0;font-size:1.7em}",',
-      '  "header p{margin:.4em 0 0;opacity:.9}",',
+      '  "font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,",',
+      '  "Ubuntu,Helvetica Neue,Arial,sans-serif;line-height:1.5}",',
+      '  "header{padding:1.2em 2em .4em}",',
+      '  "header h1{margin:0;font-size:1.25em;font-weight:650}",',
+      '  "header p{margin:.3em 0 0;color:var(--mut);font-size:.9em}",',
       '  "html,body{max-width:100%;overflow-x:hidden}",',
       '  "p,summary,td,th,h2,h3,h4,label{overflow-wrap:anywhere}",',
       '  "main{max-width:66em;margin:0 auto;padding:.5em 2em 3em}",',
@@ -17865,8 +17866,8 @@ server <- shinyServer(function(input, output, session) {
       '  "font-size:.85em;color:var(--mut)}",',
       '  "th,td{padding:7px 12px;border-bottom:1px solid var(--line)}",',
       '  "tr:last-child td{border-bottom:0}",',
-      '  ".b10{background:#0f6b3a;color:#fff}",',
-      '  ".b9{background:#1a9b5a;color:#fff}",',
+      '  ".b10{background:#16794a;color:#fff}",',
+      '  ".b9{background:#1f9d62;color:#fff}",',
       '  ".b8{background:#6cc596}",',
       '  ".b7{background:rgba(26,155,90,.28)}",',
       '  ".b6{background:rgba(26,155,90,.10)}",',
@@ -17874,7 +17875,7 @@ server <- shinyServer(function(input, output, session) {
       '  ".b4{background:rgba(229,72,77,.28)}",',
       '  ".b3{background:#ee9a9d}",',
       '  ".b2{background:#d6383d;color:#fff}",',
-      '  ".b1{background:#9c1f23;color:#fff}",',
+      '  ".b1{background:#a8282d;color:#fff}",',
       '  ".warn{background:rgba(245,158,11,.28)}",',
       '  ".ok{background:rgba(26,155,90,.22)}",',
       '  ".bad{background:rgba(229,72,77,.30)}",',
@@ -17893,7 +17894,7 @@ server <- shinyServer(function(input, output, session) {
       '  paste0(paste0("#tab", tabs, ":checked~nav label[for=tab", tabs, "]",',
       '                collapse = ","),',
       '         "{color:var(--fg);font-weight:600;",',
-      '         "border-bottom-color:#3a6df0}"),',
+      '         "border-bottom-color:var(--prim)}"),',
       '  ".ss{display:inline-block;vertical-align:middle;",',
       '  "line-height:1}.ss sup,.ss sub{display:block;font-size:.7em;",',
       '  "line-height:1.15}",',
@@ -17904,7 +17905,7 @@ server <- shinyServer(function(input, output, session) {
       '  ".range{position:absolute;top:0;height:10px;border-radius:5px;",',
       '  "background:rgba(58,109,240,.4)}",',
       '  ".dot{position:absolute;top:-2px;width:14px;height:14px;",',
-      '  "margin-left:-7px;border-radius:50%;background:#3a6df0}",',
+      '  "margin-left:-7px;border-radius:50%;background:var(--prim)}",',
       '  ".plots{background:#fff;border-radius:8px;padding:6px;",',
       '  "max-width:50em}.plots svg{width:100%;height:auto}")',
       'legend <- paste0("<p class=legend><b>For the model</b> ",',
@@ -17919,7 +17920,7 @@ server <- shinyServer(function(input, output, session) {
       '  "<span class=b3>1/30-1/10 strong</span>",',
       '  "<span class=b2>1/100-1/30 very strong</span>",',
       '  "<span class=b1>&lt; 1/100 extreme</span></p>",',
-      '  "<p class=small>Categories after Jeffreys (1961), as given by",',
+      '  "<p class=small>Categories after Jeffreys (1961), as given by ",',
       '  "Lee and Wagenmakers (2013).</p>")',
       'page <- c(',
       '  "<!DOCTYPE html><html><head><meta charset=utf-8>",',
@@ -18483,8 +18484,8 @@ server <- shinyServer(function(input, output, session) {
           // the colours follow the mode of the app (light or dark), not the setting of the operating system
           var dark = document.body.classList.contains('dark-mode');
           var ds = document.createElement('style');
-          ds.textContent = dark ? ':host{--bg:#14171f;--fg:#e6e9f0;--mut:#9aa3b5;--line:#2a3040;--head:#1c2130}'
-                                : ':host{--bg:#fff;--fg:#1d2433;--mut:#667085;--line:#e4e7ec;--head:#f4f6fb}';
+          ds.textContent = dark ? ':host{--bg:#161b27;--fg:#e6e9f0;--mut:#9aa3b5;--line:#2d3347;--head:#1c2230;--prim:#6089f8}'
+                                : ':host{--bg:#fff;--fg:#1f2430;--mut:#667085;--line:#e2e6ee;--head:#f4f6fa;--prim:#3a6df0}';
           root.appendChild(ds);
           var nt = document.getElementById('mn_results_newtab');
           if (nt) nt.addEventListener('click', function() {
