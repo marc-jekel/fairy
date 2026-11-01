@@ -796,6 +796,25 @@ ui <- shinyUI(fluidPage(
       #fairy-card-overlay-content[data-h-view='aligned-color'] .fairy-h-aligned-color-table { display: inline-table !important; }
       #fairy-card-overlay-content[data-h-view='compact'] .fairy-h-packed-plain-table { display: inline-table !important; }
       #fairy-card-overlay-content[data-h-view='compact-color'] .fairy-h-packed-color-table { display: inline-table !important; }
+      /* A model with many probabilities (e.g. an unpacked items model) is shown in the compact layout whatever the layout toggle says:
+         one reserved column per probability would make the aligned table very wide and mostly empty. The colour toggle still works. */
+      .fairy-auto-pack-note { font-size: 11.5px; color: var(--fairy-text-muted, #667085); margin: -4px 0 6px; }
+      #outP .model-card:has(.fairy-auto-pack-flag) .fairy-h-aligned-plain-table,
+      #outP .model-card:has(.fairy-auto-pack-flag) .fairy-h-aligned-color-table { display: none !important; }
+      #outP .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-plain-table { display: inline-table !important; }
+      #outP[data-h-view='aligned-color'] .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-plain-table,
+      #outP[data-h-view='compact-color'] .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-plain-table { display: none !important; }
+      #outP[data-h-view='aligned-color'] .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-color-table,
+      #outP[data-h-view='compact-color'] .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-color-table { display: inline-table !important; }
+      #outP[data-h-view='compact'] .fairy-auto-pack-note, #outP[data-h-view='compact-color'] .fairy-auto-pack-note { display: none; }
+      #fairy-card-overlay-content .model-card:has(.fairy-auto-pack-flag) .fairy-h-aligned-plain-table,
+      #fairy-card-overlay-content .model-card:has(.fairy-auto-pack-flag) .fairy-h-aligned-color-table { display: none !important; }
+      #fairy-card-overlay-content .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-plain-table { display: inline-table !important; }
+      #fairy-card-overlay-content[data-h-view='aligned-color'] .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-plain-table,
+      #fairy-card-overlay-content[data-h-view='compact-color'] .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-plain-table { display: none !important; }
+      #fairy-card-overlay-content[data-h-view='aligned-color'] .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-color-table,
+      #fairy-card-overlay-content[data-h-view='compact-color'] .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-color-table { display: inline-table !important; }
+      #fairy-card-overlay-content[data-h-view='compact'] .fairy-auto-pack-note, #fairy-card-overlay-content[data-h-view='compact-color'] .fairy-auto-pack-note { display: none; }
       /* Segmented (3-button) control shared by both the Trivial bounds
          and Table layout toggles above — replaces what used to be a
          single button silently cycling through 3 states (reported as
@@ -1687,6 +1706,10 @@ ui <- shinyUI(fluidPage(
         border-bottom: 1px solid var(--fairy-border);
       }
       .model-card .fairy-card-tag { display: block; font-size: 12px; font-weight: 400; color: var(--fairy-text-muted, #667085); line-height: 1.45; margin-top: 3px; max-width: 560px; white-space: normal; }
+      /* A long model name must not make the card wide (and leave the table with a lot of empty space next to it): the name, the
+         line below it and the note are at most 250px wide and wrap (also inside a name without spaces). */
+      .fairy-h-cards-wrap .model-card .fairy-card-name { display: inline-block; vertical-align: top; max-width: 250px; overflow-wrap: anywhere; }
+      .fairy-h-cards-wrap .model-card .fairy-card-tag, .fairy-h-cards-wrap .model-card .fairy-auto-pack-note { max-width: 250px; }
       .model-card .dataTables_wrapper { margin: 0; }
       /* DataTables' own Show-N-entries and Search controls sit on the
          same row with no built-in gap between them — fine when the
@@ -4894,6 +4917,22 @@ ui <- shinyUI(fluidPage(
             } else { setTimeout(wait, 100); }
           })();
         }, true);
+      })();
+
+      // ---- Cards of the H and V tabs: arrange them again once the tab is shown or the cards are drawn ----
+      // (the arranging script otherwise measures the cards in an in-between state and makes them too narrow)
+      (function() {
+        if (!window.jQuery) return;
+        var t = null;
+        jQuery(document).on('shown.bs.tab shiny:value', function(e) {
+          if (e.type === 'shiny:value') { if (e.name !== 'h') { if (e.name !== 'v_representation_table') return; } }
+          clearTimeout(t);
+          t = setTimeout(function() {
+            window.dispatchEvent(new Event('resize'));
+            // the formulas are typeset one after the other: measure again when MathJax is done
+            if (window.MathJax && MathJax.Hub) MathJax.Hub.Queue(function() { window.dispatchEvent(new Event('resize')); });
+          }, 250);
+        });
       })();
 
       // ---- Fairy dust: five quick clicks on the title of the analysis window switch its time limit off (and on again) ----
@@ -11888,7 +11927,8 @@ server <- shinyServer(function(input, output, session) {
   card_title_html <- function(nm) {
     nm <- as.character(nm)
     m <- regmatches(nm, regexec("^(.*?) (\\[.*\\])$", nm))[[1]]
-    if (length(m) == 3L) paste0(m[2], "<span class='fairy-card-tag'> ", m[3], "</span>") else nm
+    if (length(m) == 3L) paste0("<span class='fairy-card-name'>", m[2], "</span><span class='fairy-card-tag'> ", m[3], "</span>")
+    else paste0("<span class='fairy-card-name'>", nm, "</span>")
   }
   # the whole input as one URL-safe token (gzipped JSON): used by the share link and by the R script download
   share_token <- function() tryCatch({
@@ -15468,9 +15508,13 @@ server <- shinyServer(function(input, output, session) {
             '<div class="fairy-h-count-badge fairy-tooltip" data-tooltip="Excludes the automatic 0-1 bounds">',
             n_equal, ' eq · ', n_inequal_real, ' ineq</div>'
           )
+          # many probabilities: one reserved column per probability makes the aligned table very wide and mostly empty
+          # (an unpacked items model easily has 15 or more), so such a card is shown compactly (see the CSS .fairy-auto-pack-flag)
+          pack_flag <- if (n_p_lt > 8) paste0('<span class="fairy-auto-pack-flag"></span>',
+            '<div class="fairy-auto-pack-note">Compact layout: the model has many probabilities.</div>') else ''
           equation_all <- paste0(
             count_badge,
-            '<div class="model-card-title">', card_title_html(current_name), '</div>', tbl_html)
+            '<div class="model-card-title">', card_title_html(current_name), '</div>', pack_flag, tbl_html)
 
           # Plain-LaTeX align* block for this model, reusing the same
           # math_of()/row_data/trivial_vec already computed above for the
@@ -16181,22 +16225,48 @@ server <- shinyServer(function(input, output, session) {
 
       # Build display table: one row per model × algorithm
       parsim_display <- as.data.frame(parsim[order(parsim$Model, parsim$Algorithm), ])
-      # Exact volume from the vertices (convex hull), only for few parameters: the estimates of the algorithms are noisy for thin
-      # shapes, this one is not. NA if it cannot be computed (many parameters, unbounded, degenerate, geometry missing).
-      exact_volume_h <- function(nm) {
-        h <- isolate(h_reactive[[nm]])
-        if (is.null(h) || ncol(h) - 2L > 7L || !requireNamespace("geometry", quietly = TRUE)) return(NA_real_)
-        tryCatch({
-          if (any(q2d(h)[, 1] > 0)) return(0)
-          hh <- matrix(as.character(h), ncol = ncol(h)); attr(hh, "representation") <- "H"
-          vn <- q2d(scdd(hh)$output)
-          if (any(vn[, 2] == 0)) return(NA_real_)
-          pts <- vn[vn[, 2] == 1, -(1:2), drop = FALSE]
-          if (nrow(pts) <= ncol(pts)) return(0)
-          as.numeric(geometry::convhulln(pts, options = "FA")$vol)
-        }, error = function(e) NA_real_)
+      # Exact volume from the vertices (convex hull): the estimates of the algorithms are noisy for thin shapes, this one is not.
+      # Every model is computed in its own R process and everything has 10 seconds in total: a model with very many vertices
+      # can take very long, then the cell says so (NaN) instead of blocking the app. NA = no exact volume exists / can be computed.
+      exact_volumes <- function(nms, limit = 10) {
+        u <- unique(nms)
+        out <- stats::setNames(rep(NA_real_, length(u)), u)
+        if (length(u) == 0 || !requireNamespace("geometry", quietly = TRUE)) return(out[nms])
+        d <- tempfile("exact_"); dir.create(d)
+        writeLines(c("suppressMessages(library(rcdd))", "a <- commandArgs(TRUE)", "h <- readRDS(a[1])",
+          "res <- tryCatch({",
+          "  if (any(q2d(h)[, 1] > 0)) 0 else {",
+          "    hh <- matrix(as.character(h), ncol = ncol(h)); attr(hh, \"representation\") <- \"H\"",
+          "    vn <- q2d(scdd(hh)$output)",
+          "    if (any(vn[, 2] == 0)) NA_real_ else {",
+          "      pts <- vn[vn[, 2] == 1, -(1:2), drop = FALSE]",
+          "      if (nrow(pts) <= ncol(pts)) 0 else as.numeric(geometry::convhulln(pts, options = \"FA\")$vol)",
+          "    }",
+          "  }",
+          "}, error = function(e) NA_real_)",
+          "saveRDS(res, a[2])"), file.path(d, "job.R"))
+        procs <- list()
+        for (i in seq_along(u)) {
+          h <- isolate(h_reactive[[u[i]]])
+          if (is.null(h)) next
+          saveRDS(h, file.path(d, paste0("h", i, ".rds")))
+          procs[[as.character(i)]] <- tryCatch(processx::process$new(file.path(R.home("bin"), "Rscript"),
+            c(file.path(d, "job.R"), file.path(d, paste0("h", i, ".rds")), file.path(d, paste0("v", i, ".rds"))), cleanup_tree = TRUE),
+            error = function(e) NULL)
+        }
+        deadline <- Sys.time() + limit
+        while (Sys.time() < deadline && any(vapply(procs, function(p) !is.null(p) && p$is_alive(), logical(1)))) Sys.sleep(0.1)
+        for (k in names(procs)) {
+          p <- procs[[k]]
+          if (is.null(p)) next
+          if (p$is_alive()) { try(p$kill_tree(), silent = TRUE); out[as.integer(k)] <- NaN; next }
+          v <- tryCatch(readRDS(file.path(d, paste0("v", k, ".rds"))), error = function(e) NA_real_)
+          out[as.integer(k)] <- if (is.numeric(v) && length(v) == 1) v else NA_real_
+        }
+        unlink(d, recursive = TRUE)
+        out[nms]
       }
-      exact_vol <- vapply(as.character(parsim_display$Model), exact_volume_h, numeric(1))
+      exact_vol <- unname(exact_volumes(as.character(parsim_display$Model)))
       # Plain decimal rounds tiny volumes to "0.0000", and as.character()'s
       # default scientific notation ("5e-04") is inconsistent with the rest
       # of the app's number formatting — show a fixed "< m.mm x 10^-n" form
@@ -16210,7 +16280,7 @@ server <- shinyServer(function(input, output, session) {
         if (x <= 0) return("0")
         exp  <- floor(log10(x))
         mant <- x / 10^exp
-        sprintf("< %.2f x 10^%d", mant, exp)
+        sprintf("%.2f x 10^%d", mant, exp)
       }
       # Same idea as vol_str above, mirrored for Max BF (= 1/volume, so a
       # tiny volume means a huge BF here) — a plain round() left values
@@ -16250,10 +16320,9 @@ server <- shinyServer(function(input, output, session) {
                           vapply(parsim_display$Max_BF, bf_str, character(1))),
         `Exact volume` = vapply(seq_along(exact_vol), function(i) {
           v <- exact_vol[i]
+          if (is.nan(v)) return("n/a (took longer than 10 s)")
           if (!is.na(v)) return(vol_str(v))
-          # not computed: more than 7 probabilities (too costly), or the model has no volume to compute
-          nd <- suppressWarnings(as.integer(sub(".*\\(([0-9]+)D\\).*", "\\1", as.character(parsim_display$Dimensionality[i]))))
-          if (!is.na(nd) && nd > 7) "n/a (more than 7 probabilities)" else "—"
+          "—"
         }, character(1)),
         check.names    = FALSE
       )
@@ -16394,7 +16463,7 @@ server <- shinyServer(function(input, output, session) {
         Dimensionality = as.character(parsim_display$Dimensionality),
         Volume         = ifelse(nfd, 0, as.numeric(parsim_display$Volume)),
         Max_BF         = ifelse(nfd, Inf, as.numeric(parsim_display$Max_BF)),
-        Exact_volume   = exact_vol,
+        Exact_volume   = ifelse(is.nan(exact_vol), NA_real_, exact_vol),
         stringsAsFactors = FALSE
       )
       parsim_csv_data(csv_tbl[order(grepl("∩", csv_tbl$Model)), , drop = FALSE])
@@ -16411,7 +16480,7 @@ server <- shinyServer(function(input, output, session) {
         HTML("<p style='font-size:13px; color:#555; margin:0;'>
           <b>Volume</b> — proportion of the parameter space consistent with the model; smaller = more restrictive and more precise.
           <b>Max BF</b> — the largest Bayes factor this model could achieve relative to the unconstrained model.
-          <b>Exact volume</b> — computed exactly from the vertices (up to 7 probabilities); the algorithm columns are estimates, which are noisy for thin shapes.
+          <b>Exact volume</b> — computed exactly from the vertices (it is skipped when it takes longer than 10 seconds); the algorithm columns are estimates, which are noisy for thin shapes.
         </p>")
       )
     })
