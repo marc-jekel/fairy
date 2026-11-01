@@ -97,8 +97,8 @@ ui <- shinyUI(fluidPage(
         --fairy-bg: #f4f6fa;
         --fairy-panel: #ffffff;
         --fairy-border: #e2e6ee;
-        --fairy-primary: #3a6df0;
-        --fairy-primary-dark: #2851c4;
+        --fairy-primary: #593196;
+        --fairy-primary-dark: #4a2a7a;
         /* Background for any element with WHITE/light text sitting
            directly on it (active toggle buttons, primary filled
            buttons, the active navbar tab, …) — separate from
@@ -107,8 +107,8 @@ ui <- shinyUI(fluidPage(
            (its own contrast requirement runs the other direction). In
            light mode --fairy-primary itself already passes WCAG AA
            (4.5:1) for white text, so this is identical to it here. */
-        --fairy-primary-contrast-bg: #3a6df0;
-        --fairy-primary-contrast-bg-hover: #2851c4;
+        --fairy-primary-contrast-bg: #593196;
+        --fairy-primary-contrast-bg-hover: #4a2a7a;
         --fairy-accent: #16a37a;
         --fairy-text: #1f2430;
         --fairy-text-muted: #667085;
@@ -17277,7 +17277,7 @@ server <- shinyServer(function(input, output, session) {
     output$parsimony_results_header_ui <- renderUI({
       div(style = "margin-bottom:10px;",
         h5("Parsimony results", style = "margin:0 0 6px 0;"),
-        HTML(paste0("<details style='font-size:13px; color:#555; line-height:1.55;'><summary style='cursor:pointer; color:#3a6df0;'>What do the columns mean?</summary>
+        HTML(paste0("<details style='font-size:13px; color:#555; line-height:1.55;'><summary style='cursor:pointer; color:var(--fairy-primary);'>What do the columns mean?</summary>
           <div><b>Volume</b> &ndash; the share of the parameter space that fits the model. Each model has one row per method (column Algorithm).</div>
           <div><b>Exact</b> &ndash; calculated, not sampled, from the corner points of the model's region. The result does not change between runs; numerical rounding only affects digits far beyond those shown (e.g. the 10th significant digit, even for extremely small volumes). <b>By default, no algorithm is run for a model when an exact volume can be calculated</b> (switch Algorithms on to run them anyway). n/a: the calculation was stopped (time limit of ", EXACT_VOLUME_LIMIT_TXT, " or skipped); then the algorithm estimates the volume.</div>
           <div><b>Cooling Bodies, Cooling Gaussian, Sequence of Balls</b> &ndash; the same share, estimated by random sampling. It differs from run to run, and how much depends on the model (typically more with many dimensions or thin shapes). For more precise values lower the error in the algorithm settings (slower).</div>
@@ -18533,7 +18533,7 @@ server <- shinyServer(function(input, output, session) {
         "Even more: 1,000,000 and 100,000 (can take a long time and uses a lot of the shared server)" = "max",
         "Custom: the numbers under Advanced" = "custom")),
       tags$details(style = "margin:4px 0 8px 0;",
-        tags$summary(style = "cursor:pointer; color:#3a6df0; font-size:13px;", "Advanced"),
+        tags$summary(style = "cursor:pointer; color:var(--fairy-primary); font-size:13px;", "Advanced"),
         tags$div(style = "display:flex; flex-wrap:wrap; gap:12px; margin-top:6px;",
           numericInput("mn_m_bf", "Samples, Bayes factors", value = (function(x) if (is.null(x)) 10000 else x)(isolate(mn_settings())$mb), min = 100, step = 1000, width = "190px"),
           numericInput("mn_m_post", "Samples, posterior", value = (function(x) if (is.null(x)) 5000 else x)(isolate(mn_settings())$mp), min = 100, step = 1000, width = "170px"),
@@ -18577,7 +18577,7 @@ server <- shinyServer(function(input, output, session) {
         checkboxGroupInput("mn_models", "Models to analyse (the downloads always contain all of them)",
                            choices = mn_model_choices(), selected = unname(mn_model_choices()), inline = TRUE, width = "100%"),
       if (identical(isolate(mn_source()), "V"))
-        tags$div(style = "background:rgba(58,109,240,.10); border-left:4px solid #3a6df0; border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
+        tags$div(style = "background:color-mix(in srgb, var(--fairy-primary) 10%, transparent); border-left:4px solid var(--fairy-primary); border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
           tags$b("Tip:"), " the analysis from the vertices (V) is much slower than from the inequalities (H) and gives the same result: a few seconds against a fraction of a second for small models, minutes for larger ones. For larger models use Run in the H-representation tab."),
       tags$div(style = "background:rgba(245,158,11,.16); border-left:4px solid #f59e0b; border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
         tags$b("Running here uses our shared server."), " Please keep it small: a few models, the default number of samples. For larger or repeated analyses download the files (the download buttons next to Data) and run ",
