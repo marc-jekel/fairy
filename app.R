@@ -1615,8 +1615,8 @@ ui <- shinyUI(fluidPage(
       .fairy-run-cell { white-space: nowrap; }
       .fairy-run-ico { display: inline-block; width: 1.4em; }
       .fairy-run-cell.st-wait, .fairy-run-cell.st-none { color: var(--fairy-text-muted, #667085); }
-      .fairy-run-cell.st-run { color: var(--fairy-primary, #3a6df0); font-weight: 600; }
-      .fairy-run-cell.st-run .fairy-run-ico { animation: fairy-soft-fade 2.8s ease-in-out infinite; }
+      .fairy-run-cell.st-run, .fairy-run-cell.st-step { color: var(--fairy-primary, #3a6df0); font-weight: 600; }
+      .fairy-run-cell.st-run .fairy-run-ico, .fairy-run-cell.st-step .fairy-run-ico { animation: fairy-soft-fade 2.8s ease-in-out infinite; }
       .fairy-run-cell.st-done, .fairy-run-cell.st-cached { color: #2e7d32; }
       .fairy-run-cell.st-warn { color: #b05000; font-weight: 600; }
       .fairy-run-cell.st-fail { color: #c62828; font-weight: 600; }
@@ -4257,8 +4257,8 @@ ui <- shinyUI(fluidPage(
       // Large run window: a table of all models with an H and a V state each,
       // updated in place. Opens once per Go click, stays until closed.
       (function() {
-        var LABEL = { wait: 'waiting', run: 'computing', done: 'done', cached: 'unchanged', warn: 'empty set', fail: 'failed', cancel: 'cancelled', na: 'not available', stop: 'stopped' };
-        var ICON  = { wait: '\\u25CB', run: '\\u25D0', done: '\\u2713', cached: '\\u2713', warn: '\\u26A0', fail: '\\u2715', cancel: '\\u2715', na: '\\u2013', stop: '\\u25A0' };
+        var LABEL = { wait: 'waiting', run: 'computing', done: 'done', cached: 'unchanged', warn: 'empty set', fail: 'failed', cancel: 'cancelled', na: 'not available', stop: 'stopped', step: 'computing (stepwise)' };
+        var ICON  = { wait: '\\u25CB', run: '\\u25D0', done: '\\u2713', cached: '\\u2713', warn: '\\u26A0', fail: '\\u2715', cancel: '\\u2715', na: '\\u2013', stop: '\\u25A0', step: '\\u25D0' };
         var rows = {}, showTimer = null, idleTimer = null, shown = false, dismissed = false, everRan = false, running = false;
         var cancelable = false, t0 = 0, tick = null, cancelInput = 'v_cancel', ncols = 2, limitSec = 0, noLimit = false, limitLabel = 'exact volume', dustClicks = [];
         // Safety net: if the run dies without a final message (an R error in
@@ -4360,7 +4360,7 @@ ui <- shinyUI(fluidPage(
           var r = ensureRow(msg.name, msg.kind);
           if (msg.h) { setCell(r.cells[0], msg.h); if (msg.h === 'run') everRan = true; }
           if (msg.v) { setCell(r.cells[1], msg.v); if (msg.v === 'run') everRan = true; }
-          if (msg.col !== undefined && msg.state) { setCell(r.cells[msg.col], msg.state); if (msg.state === 'run') everRan = true; }
+          if (msg.col !== undefined && msg.state) { setCell(r.cells[msg.col], msg.state); if (msg.state === 'run' || msg.state === 'step') everRan = true; }
           refresh(); armIdle();
           if ((msg.h === 'run' || msg.v === 'run') && shown) r.tr.scrollIntoView({ block: 'nearest' });
         });
@@ -18472,7 +18472,7 @@ server <- shinyServer(function(input, output, session) {
     mn_proc$elapsed <- el
     # states of the run window from the progress lines "[i/n] model: step": the model of the last line is the one that runs now,
     # the models before it are done
-    parsed <- regmatches(st, regexec("^\\[([0-9]+)/([0-9]+)\\] (.*): (.*)$", st))
+    parsed <- regmatches(st, regexec("^\\[([0-9]+)/([0-9]+)\\] ([^:]*): (.*)$", st))
     if (length(parsed) > 0) {
       last <- parsed[[length(parsed)]]
       cur_model <- last[4]; step <- last[5]
@@ -18484,7 +18484,9 @@ server <- shinyServer(function(input, output, session) {
       if (grepl("posterior", step, ignore.case = TRUE)) {
         fairy_run_cell(cur_model, "Posterior", "run")
       } else {
-        fairy_run_cell(cur_model, "Posterior", "done"); fairy_run_cell(cur_model, "Bayes factors", "run")
+        fairy_run_cell(cur_model, "Posterior", "done")
+        # a very small model: no sample fell inside it, the package then works one constraint at a time
+        fairy_run_cell(cur_model, "Bayes factors", if (grepl("stepwise", step, fixed = TRUE)) "step" else "run")
       }
     }
     mn_end <- function() {
