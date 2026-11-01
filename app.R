@@ -2602,20 +2602,6 @@ ui <- shinyUI(fluidPage(
         background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_v_multinomineq::after, #d_latex::after, #d_v_latex::after {
         font-size: 12px !important; font-weight: 600 !important; border-radius: 7px; }
-      /* every button of the rail looks like the export buttons: icon and label in one plain row, the chosen one tinted */
-      #v_shared_btn, #v_unique_btn, .fairy-input-toolbar .fairy-segmented button {
-        box-sizing: border-box !important; display: flex !important; flex-direction: row !important; align-items: center; justify-content: center;
-        width: 84px !important; height: 24px !important; padding: 3px 4px !important; margin: 0 !important; gap: 4px !important;
-        background: transparent !important; border: 1px solid transparent !important; border-radius: 7px !important; box-shadow: none !important;
-        color: var(--fairy-text-muted, #667085) !important; font-size: 11px !important; }
-      #v_shared_btn::after, #v_unique_btn::after, .fairy-input-toolbar .fairy-segmented button::after {
-        content: attr(data-label); font-size: 12px; font-weight: 600; white-space: nowrap; }
-      #v_shared_btn svg, #v_unique_btn svg, .fairy-input-toolbar .fairy-segmented button svg { width: 11px; height: 11px; color: inherit !important; }
-      #v_shared_btn:hover, #v_unique_btn:hover, .fairy-input-toolbar .fairy-segmented button:hover {
-        background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; color: var(--fairy-primary, #3a6df0) !important; }
-      #v_shared_btn.active, #v_unique_btn.active, #v_shared_btn[aria-pressed=true], #v_unique_btn[aria-pressed=true], .fairy-input-toolbar .fairy-segmented button.active {
-        background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 22%, transparent) !important; color: var(--fairy-primary, #3a6df0) !important; }
-      .fairy-input-toolbar .fairy-segmented { flex-direction: column; border-color: transparent; background: transparent; gap: 2px; }
       /* Stale results: Go/Compute itself blinks instead of a separate
          badge next to it — see the observers toggling this class + the
          button's own data-tooltip together, so hovering the SAME
@@ -6588,9 +6574,9 @@ ui <- shinyUI(fluidPage(
           # (trivial-gray/trivial-hide) as before, just set directly by
           # each button instead of advanced by one shared cycling button.
           tags$div(class = "fairy-segmented", id = "trivial_ineq_toggle_group", `data-cap` = "Bounds",
-            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Show trivial bounds", `data-state` = "shown", `data-label` = "Show", icon("eye")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Gray out trivial bounds", `data-state` = "gray", `data-label` = "Gray", icon("circle-half-stroke")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Hide trivial bounds", `data-state` = "hide", `data-label` = "Hide", icon("eye-slash"))
+            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Show trivial bounds", `data-state` = "shown", icon("eye")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Gray out trivial bounds", `data-state` = "gray", icon("circle-half-stroke")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Hide trivial bounds", `data-state` = "hide", icon("eye-slash"))
           ),
           # Two ways to lay out each H-rep table (all four Layout x
           # Color variants rendered server-side up front, see
@@ -6608,8 +6594,8 @@ ui <- shinyUI(fluidPage(
           # reason a single Aligned/Compact/Compact+color button used to
           # have.
           tags$div(class = "fairy-segmented", id = "h_layout_toggle_group", `data-cap` = "Layout",
-            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Aligned layout: one column per parameter", `data-state` = "aligned", `data-label` = "Aligned", icon("table-cells")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Compact layout: terms packed per row", `data-state` = "compact", `data-label` = "Compact", icon("bars"))
+            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Aligned layout: one column per parameter", `data-state` = "aligned", icon("table-cells")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Compact layout: terms packed per row", `data-state` = "compact", icon("bars"))
           ),
           # Color (by parameter, see param_color_map) used to be
           # available ONLY under Compact, bundled into the same 3-way
@@ -6622,13 +6608,13 @@ ui <- shinyUI(fluidPage(
           # a hidden boolean on click still doesn't SHOW which state is
           # active without reading its own color/tooltip.
           tags$div(class = "fairy-segmented", id = "h_color_toggle_group", `data-cap` = "Colour",
-            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "No color", `data-state` = "off", `data-label` = "None", icon("droplet-slash")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Color terms by parameter", `data-state` = "on", `data-label` = "By term", icon("droplet"))
+            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "No color", `data-state` = "off", icon("droplet-slash")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Color terms by parameter", `data-state` = "on", icon("droplet"))
           ),
           tags$div(class = "fairy-segmented fairy-card-layout-group", `data-cap` = "Arrange",
-            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", `data-label` = "Flow", icon("table-cells-large")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Free layout: drag the cards anywhere", `data-state` = "free", `data-label` = "Free", icon("up-down-left-right")),
-            tags$button(type = "button", class = "fairy-tooltip fairy-card-reset", `data-tooltip` = "Reset order, positions and sizes", `data-state` = "reset", `data-label` = "Reset", icon("rotate-left"))
+            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", icon("table-cells-large")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Free layout: drag the cards anywhere", `data-state` = "free", icon("up-down-left-right")),
+            tags$button(type = "button", class = "fairy-tooltip fairy-card-reset", `data-tooltip` = "Reset order, positions and sizes", `data-state` = "reset", icon("rotate-left"))
           ),
           # Separates the display toggles above (Trivial bounds, Layout,
           # Color — all affect how the SAME data looks) from the
@@ -6766,15 +6752,15 @@ ui <- shinyUI(fluidPage(
           class = "fairy-input-toolbar",
           style = "display:flex; flex-direction:column; align-items:center; gap:6px; padding:4px; flex:0 0 auto;",
           tags$div(class = "fairy-segmented fairy-card-layout-group", `data-cap` = "Arrange",
-            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", `data-label` = "Flow", icon("table-cells-large")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Free layout: drag the cards anywhere", `data-state` = "free", `data-label` = "Free", icon("up-down-left-right")),
-            tags$button(type = "button", class = "fairy-tooltip fairy-card-reset", `data-tooltip` = "Reset order, positions and sizes", `data-state` = "reset", `data-label` = "Reset", icon("rotate-left"))
+            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", icon("table-cells-large")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Free layout: drag the cards anywhere", `data-state` = "free", icon("up-down-left-right")),
+            tags$button(type = "button", class = "fairy-tooltip fairy-card-reset", `data-tooltip` = "Reset order, positions and sizes", `data-state` = "reset", icon("rotate-left"))
           ),
           tags$div(id = "v_compare_cap", class = "fairy-rail-cap", "Compare"),
           tags$span(id = "v_shared_wrap", class = "fairy-tooltip", `data-tooltip` = "Mark vertices that other models share (vertices only this model has are tinted)",
-            tags$button(id = "v_shared_btn", type = "button", class = "fairy-toolbar-iconbtn", `data-label` = "Shared", `aria-pressed` = "false", `aria-label` = "Mark shared vertices", icon("link"))),
+            tags$button(id = "v_shared_btn", type = "button", class = "fairy-toolbar-iconbtn", `aria-pressed` = "false", `aria-label` = "Mark shared vertices", icon("link"))),
           tags$span(id = "v_unique_wrap", class = "fairy-tooltip", `data-tooltip` = "Show only the vertices that no other model has",
-            tags$button(id = "v_unique_btn", type = "button", class = "fairy-toolbar-iconbtn", `data-label` = "Unique", `aria-pressed` = "false", `aria-label` = "Show only unique vertices", icon("filter"))),
+            tags$button(id = "v_unique_btn", type = "button", class = "fairy-toolbar-iconbtn", `aria-pressed` = "false", `aria-label` = "Show only unique vertices", icon("filter"))),
           tags$hr(class = "fairy-toolbar-divider"),
           tags$div(class = "fairy-rail-cap", "Export"),
             uiOutput("qtest_order_btn_ui_v", inline = TRUE),
