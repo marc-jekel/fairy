@@ -51,6 +51,9 @@ if (!require("forstringr")) install.packages("forstringr")
 library("forstringr")
 library("parallel")
 
+# total time (seconds) for the exact volumes of one Parsimony run; used in the calculation and in every text that mentions it
+EXACT_VOLUME_LIMIT <- 60
+
 options(warn = -1)
 
 fairy_svg <- HTML(
@@ -7239,7 +7242,7 @@ ui <- shinyUI(fluidPage(
             materialSwitch("CB", "Cooling Bodies", value = TRUE, status = "primary", right = TRUE)
           ),
           tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
-            `data-tooltip` = "Exact volume from the vertices (up to 60 s in total); does not change between runs",
+            `data-tooltip` = paste0("Exact volume from the vertices (up to ", EXACT_VOLUME_LIMIT, " s in total); does not change between runs"),
             materialSwitch("EX", "Exact volume", value = TRUE, status = "primary", right = TRUE)
           ),
           # the two other algorithms are rarely needed: folded behind a link (still reachable, and both switched off by default)
@@ -16350,9 +16353,9 @@ server <- shinyServer(function(input, output, session) {
       # Build display table: one row per model × algorithm
       parsim_display <- as.data.frame(parsim[order(parsim$Model, parsim$Algorithm), ])
       # Exact volume from the vertices (convex hull): the estimates of the algorithms are noisy for thin shapes, this one is not.
-      # Every model is computed in its own R process and everything has 60 seconds in total: a model with very many vertices
+      # Every model is computed in its own R process and everything has EXACT_VOLUME_LIMIT seconds in total: a model with very many vertices
       # can take very long, then the cell says so (NaN) instead of blocking the app. NA = no exact volume exists / can be computed.
-      exact_volumes <- function(nms, limit = 60) {
+      exact_volumes <- function(nms, limit = EXACT_VOLUME_LIMIT) {
         u <- unique(nms)
         out <- stats::setNames(rep(NA_real_, length(u)), u)
         if (length(u) == 0 || !requireNamespace("geometry", quietly = TRUE)) return(out[nms])
@@ -16447,7 +16450,7 @@ server <- shinyServer(function(input, output, session) {
                           vapply(maxbf_use, bf_str, character(1))),
         `Exact volume` = vapply(seq_along(exact_vol), function(i) {
           v <- exact_vol[i]
-          if (is.nan(v)) return("n/a (took longer than 60 s)")
+          if (is.nan(v)) return(paste0("n/a (took longer than ", EXACT_VOLUME_LIMIT, " s)"))
           if (!is.na(v)) return(vol_str(v))
           "—"
         }, character(1)),
@@ -16500,7 +16503,7 @@ server <- shinyServer(function(input, output, session) {
             lengthMenu = c(6, 12, 18, 24, 48, 96),
             dom = "ltp",
             # a short explanation when the mouse is over a column header
-            headerCallback = DT::JS("function(thead) { var t = { 'Volume': 'The same share, estimated by random sampling: it changes from run to run, by an amount that depends on the model. Use the exact volume where it is shown.', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume (from the exact volume when there is one).', 'Exact volume': 'The precise value, calculated from the vertices; it does not change between runs. n/a means it took longer than 60 seconds: then only the estimate is available.' }; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }"),
+            headerCallback = DT::JS(paste0("function(thead) { var t = { 'Volume': 'The same share, estimated by random sampling: it changes from run to run, by an amount that depends on the model. Use the exact volume where it is shown.', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume (from the exact volume when there is one).', 'Exact volume': 'The precise value, calculated from the vertices; it does not change between runs. n/a means it took longer than ", EXACT_VOLUME_LIMIT, " seconds: then only the estimate is available.' }; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }")),
             columnDefs = list(
               list(className = "dt-left", targets = 0),
               list(visible = FALSE, targets = ncol(simple_tbl) - 1)
@@ -16622,11 +16625,11 @@ server <- shinyServer(function(input, output, session) {
     output$parsimony_results_header_ui <- renderUI({
       div(style = "margin-bottom:10px;",
         h5("Parsimony results", style = "margin:0 0 6px 0;"),
-        HTML("<div style='font-size:13px; color:#555; line-height:1.55;'>
+        HTML(paste0("<div style='font-size:13px; color:#555; line-height:1.55;'>
           <div><b>Exact volume</b> &ndash; the precise share of the parameter space that fits the model. <b>If a number is shown here, use it</b>: it does not change between runs.</div>
-          <div><b>Volume</b> &ndash; the same share, but estimated by random sampling, so it differs from run to run, and how much depends on the model (typically more with many dimensions or thin shapes). The exact volume has no such problem; it is only missing (n/a) when it could not be calculated within the time limit of 60 seconds. Where both are shown, use the exact one. If only the estimate exists and you need more precise values, lower the error in the algorithm settings (slower).</div>
+          <div><b>Volume</b> &ndash; the same share, but estimated by random sampling, so it differs from run to run, and how much depends on the model (typically more with many dimensions or thin shapes). The exact volume has no such problem; it is only missing (n/a) when it could not be calculated within the time limit of ", EXACT_VOLUME_LIMIT, " seconds. Where both are shown, use the exact one. If only the estimate exists and you need more precise values, lower the error in the algorithm settings (slower).</div>
           <div><b>Max BF</b> &ndash; the largest Bayes factor the model can reach against the unconstrained model (1 / volume; taken from the exact volume where there is one). Smaller volume = more restrictive model = larger Max BF.</div>
-        </div>")
+        </div>"))
       )
     })
 
