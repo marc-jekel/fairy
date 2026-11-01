@@ -1136,11 +1136,11 @@ ui <- shinyUI(fluidPage(
       .tab-content { padding-bottom: 110px; }
       /* tap targets: at least 24 px (WCAG 2.2), about 40 px on touch screens */
       .fairy-del-model-btn, [id^='copy_model_btn_'], [id^='vrep_toggle_btn_'], #rm_prob, #add_prob, #rm_ie, #add_ie,
-      .fairy-compact-toggle-btn, #dm-toggle, .fairy-plot-expand-btn, #show_items_modal { min-width: 24px; min-height: 24px; }
+      .fairy-compact-toggle-btn, #dm-toggle, .fairy-plot-expand-btn, .fairy-expand-btn, #show_items_modal { min-width: 24px; min-height: 24px; }
       .fairy-del-model-btn { padding: 2px 4px !important; }
       @media (pointer: coarse) {
         .fairy-del-model-btn, [id^='copy_model_btn_'], [id^='vrep_toggle_btn_'], #rm_prob, #add_prob, #rm_ie, #add_ie,
-        .fairy-compact-toggle-btn, #dm-toggle, .fairy-plot-expand-btn, #show_items_modal { min-width: 40px; min-height: 40px; }
+        .fairy-compact-toggle-btn, #dm-toggle, .fairy-plot-expand-btn, .fairy-expand-btn, #show_items_modal { min-width: 40px; min-height: 40px; }
       }
       #rm_prob, #rm_ie { background-color: #9aa0ab !important; color: #222 !important; border-color: #8a919e !important; }
       body.dark-mode #rm_prob, body.dark-mode #rm_ie { background-color: #454b56 !important; color: #f0f0f0 !important; border-color: #333844 !important; }
