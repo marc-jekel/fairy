@@ -102,3 +102,8 @@ are very welcome — email mjekel@uni-koeln.de or open an issue on this repo.
 - R package: `devtools::test("pkg")`
 - App helpers (the functions of `app.R` that read the specification text: chains, duplicates, tolerances):
   `Rscript -e 'testthat::test_file("tests/test-app-helpers.R")'`
+
+
+## Publishing
+
+`./deploy.sh` checks the syntax, runs the tests (helper functions and a browser smoke test in `tests/smoke.R`), pushes to git, uploads `app.R` to the server, restarts it and compares the md5. `./deploy.sh --quick` skips the browser smoke test. The smoke test alone: `NOT_CRAN=true Rscript -e 'testthat::test_file("tests/smoke.R")'`.

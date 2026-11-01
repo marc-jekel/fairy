@@ -4852,6 +4852,40 @@ ui <- shinyUI(fluidPage(
         }, true);
       })();
 
+      // ---- Hints while typing a specification: say what is wrong instead of failing silently ----
+      (function() {
+        var st = document.createElement('style');
+        st.textContent = '.fairy-spec-hint { color: #d6383d; font-size: 12px; margin: 2px 0 6px 0; line-height: 1.35; }';
+        document.head.appendChild(st);
+        function problems(txt) {
+          var m = [];
+          if (/p_\\{?\\d+\\}?/i.test(txt)) m.push('Write p1, p2, ... (no underscore or braces), not p_{1}.');
+          else if (/[{}_]/.test(txt)) m.push('The characters { } _ are not used here: write p1, p2, ...');
+          if (/(^|[^A-Za-z0-9])p(?![0-9A-Za-z_])/i.test(txt)) m.push('A p needs its number: p1, p2, ...');
+          var open = (txt.match(/\\(/g) || []).length, close = (txt.match(/\\)/g) || []).length;
+          if (open !== close) m.push('The brackets do not match.');
+          var lines = txt.split(/[;\\n]/);
+          for (var i = 0; i < lines.length; i++) {
+            if (/[<>=+*\\/-]\\s*$/.test(lines[i])) { m.push('A line ends with an operator: ' + lines[i].trim()); break; }
+          }
+          return m;
+        }
+        var timers = {};
+        function update(el) {
+          var hint = el.parentNode.querySelector('.fairy-spec-hint');
+          var m = problems(el.value || '');
+          if (m.length === 0) { if (hint) hint.parentNode.removeChild(hint); return; }
+          if (!hint) { hint = document.createElement('div'); hint.className = 'fairy-spec-hint'; el.parentNode.appendChild(hint); }
+          hint.textContent = m.join(' ');
+        }
+        document.addEventListener('input', function(e) {
+          var el = e.target;
+          if (!el.id || !/^(textin_relations_\\d+|add_for_all_models)$/.test(el.id)) return;
+          clearTimeout(timers[el.id]);
+          timers[el.id] = setTimeout(function() { update(el); }, 400);
+        }, true);
+      })();
+
       // ---- Order of the probabilities (unpacked models): the Order button; the order window no longer opens by itself on a download ----
       (function() {
         window.fairyQtestSeen = false;
