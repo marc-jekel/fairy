@@ -1916,7 +1916,7 @@ ui <- shinyUI(fluidPage(
 
       /* Model Properties tab — visually distinct, rightmost */
       .navbar-default .navbar-nav > li:last-child > a {
-        color: #8db0ff !important;   /* light enough on the dark bar (contrast >= 4.5) */
+        color: #cdb9f2 !important;   /* light enough on the dark bar (contrast >= 4.5); the light tint of the theme purple */
         font-weight: 600 !important;
         border-left: 2px solid var(--fairy-border);
         margin-left: 6px;
@@ -1925,6 +1925,7 @@ ui <- shinyUI(fluidPage(
       .navbar-default .navbar-nav > li:last-child > a:hover {
         background: var(--ct-diag) !important;
       }
+      body.dark-mode .navbar-default .navbar-nav > li:last-child > a { color: #8db0ff !important; }
       .navbar-default .navbar-nav > li:last-child.active > a,
       .navbar-default .navbar-nav > li:last-child.active > a:hover,
       .navbar-default .navbar-nav > li:last-child.active > a:focus {
