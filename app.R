@@ -16435,11 +16435,10 @@ server <- shinyServer(function(input, output, session) {
       'M_bf <- if (final) 100000 else 10000     # Bayes factor samples',
       '',
       '#### Packages (installed if missing) ####',
-      'for (p in c("multinomineq", "rcdd", "readr", "coda")) {',
+      'for (p in c("multinomineq", "rcdd", "coda")) {',
       '  if (!requireNamespace(p, quietly = TRUE)) install.packages(p)',
       '}',
       'library("rcdd")',
-      'library("readr")',
       'library("multinomineq")',
       'library("coda")',
       'set.seed(1234)',
@@ -16528,14 +16527,16 @@ server <- shinyServer(function(input, output, session) {
       '  file_V <- paste0("V_", model_name, ".csv")',
       '  A <- b <- V <- NULL',
       '  if (file.exists(file_A)) {',
-      '    A_raw <- read_csv(file_A, show_col_types = FALSE)',
+      '    A_raw <- read.csv(file_A, check.names = FALSE,',
+      '                      stringsAsFactors = FALSE)',
       '    A <- read_q(A_raw); colnames(A) <- colnames(A_raw)',
-      '    b <- unlist(read_csv(paste0("b_", model_name, ".csv"),',
-      '                  col_names = FALSE, show_col_types = FALSE))',
+      '    b <- unlist(read.csv(paste0("b_", model_name, ".csv"),',
+      '                  header = FALSE, stringsAsFactors = FALSE))',
       '    if (!is.numeric(b)) b <- q2d(b)',
       '  }',
       '  if (file.exists(file_V)) {',
-      '    V_raw <- read_csv(file_V, show_col_types = FALSE)',
+      '    V_raw <- read.csv(file_V, check.names = FALSE,',
+      '                      stringsAsFactors = FALSE)',
       '    V <- read_q(V_raw); colnames(V) <- colnames(V_raw)',
       '  }',
       '  n_p <- if (!is.null(A)) ncol(A) else ncol(V)',
@@ -16546,7 +16547,7 @@ server <- shinyServer(function(input, output, session) {
       '                 "data_choices.csv")',
       '  data_file <- data_file[file.exists(data_file)][1]',
       '  if (is.na(data_file)) stop("no data file found")',
-      '  dat <- read_csv(data_file, show_col_types = FALSE)',
+      '  dat <- read.csv(data_file, stringsAsFactors = FALSE)',
       '  n <- dat$n',
       '  choices <- dat$frequency',
       '  if (length(choices) != n_p)',
@@ -16982,10 +16983,12 @@ server <- shinyServer(function(input, output, session) {
         ": how often the outcome the probability stands for was observed, out of n. The numbers go into the data files of the next multinomineq download (H and V); the script then runs without any editing. Until you save your own, the files contain example numbers."),
       if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Every unpacked model has its own tab, because its probabilities can mean something of their own; the models with the same probabilities share one. If the probabilities of an unpacked model mean the same as those of the other models, tick the box in its tab to use their numbers instead. The rows are in the order of the downloaded files, and the numbers move with their probability when you change the order."),
       tags$div(style = "max-height:50vh; overflow-y:auto;", body),
+      checkboxInput("mn_final", "More samples for the final numbers (slower, smaller error)", value = FALSE),
       footer = tagList(
         if (has_unpacked) actionButton("mn_data_to_order", "Change order of the probabilities"),
         actionButton("mn_data_reset", "Reset to example"), modalButton("Cancel"),
-        actionButton("mn_data_save", "Save", class = "btn-primary")),
+        actionButton("mn_data_save", "Save"),
+        actionButton("mn_run", "Run the analysis here", class = "btn-primary")),
       easyClose = TRUE))
   }
   for (btn_id in c("mn_data_open", "mn_data_open_v")) local({
@@ -17006,6 +17009,51 @@ server <- shinyServer(function(input, output, session) {
     show_qtest_order(back = TRUE)
   })
   observeEvent(input$qtest_order_back_data, { show_mn_data() })
+
+  # Run the analysis in the app: the same files and the same script as in the download, run in a separate R process
+  mn_result <- reactiveValues(dir = NULL)
+  observeEvent(input$mn_run, {
+    groups <- mn_np_labels()
+    if (length(groups) == 0) { showNotification("No H-representation yet: click Go first.", type = "warning"); return() }
+    if (!mn_collect(groups, strict = TRUE)) {
+      showNotification("n and frequency must be whole numbers, n at least 1, and frequency between 0 and n.", type = "error"); return()
+    }
+    final <- isTRUE(input$mn_final)
+    removeModal()
+    d <- tempfile("mn_run_"); dir.create(d)
+    ok <- tryCatch(withProgress(message = "Running the analysis ...", detail = "up to 2 minutes", value = 0.2, {
+      mn_h_content(file.path(d, "in.tar"), quiet = TRUE)
+      utils::untar(file.path(d, "in.tar"), exdir = d)
+      scr <- file.path(d, "analysis_multinomineq.R")
+      txt <- readLines(scr, warn = FALSE)
+      if (final) txt <- sub("^final <- FALSE.*", "final <- TRUE", txt)
+      writeLines(txt, scr)
+      setProgress(0.4)
+      old <- setwd(d); on.exit(setwd(old), add = TRUE)
+      out <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), "analysis_multinomineq.R",
+                                      stdout = TRUE, stderr = TRUE, timeout = if (final) 400 else 150))
+      file.exists(file.path(d, "results.html"))
+    }), error = function(e) FALSE)
+    if (!isTRUE(ok)) {
+      showNotification("The analysis did not finish (too slow or an error). Try fewer models, or download the files and run the script in R.", type = "error", duration = NULL)
+      return()
+    }
+    mn_result$dir <- d
+    page <- paste(readLines(file.path(d, "results.html"), warn = FALSE, encoding = "UTF-8"), collapse = "\n")
+    showModal(modalDialog(
+      title = "Results of the multinomineq analysis", size = "l", easyClose = TRUE,
+      tags$iframe(srcdoc = page, style = "width:100%; height:70vh; border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px;"),
+      footer = tagList(downloadButton("mn_results_dl", "Download results (tar)"), modalButton("Close"))))
+  })
+  output$mn_results_dl <- downloadHandler(
+    filename = function() paste0("multinomineq_results_", Sys.Date(), ".tar"),
+    content = function(file) {
+      d <- isolate(mn_result$dir)
+      req(!is.null(d))
+      old <- setwd(d); on.exit(setwd(old), add = TRUE)
+      tar(file, intersect(c("results.html", "results.csv", "posterior.csv", "analysis_multinomineq.R"), list.files(d)))
+    }
+  )
   output$qtest_order_btn_ui <- renderUI({
     if (length(items_reactive$names) == 0) return(NULL)
     tags$span(class = "fairy-tooltip", `data-tooltip` = "Order of the probabilities (p1, p2, ...) for unpacked models: used by the QTEST and multinomineq downloads, H and V, and by the R script",
@@ -17214,17 +17262,9 @@ server <- shinyServer(function(input, output, session) {
 
   #####* Download H-representation multinomineq ####
 
-  output$d_h_multinomineq <- downloadHandler(
-    filename = function() {
-      paste("multinomineq_H-representation_",
-        Sys.Date(),
-        ".tar",
-        sep = ""
-      )
-    },
-    content = function(file) {
+  mn_h_content <- function(file, quiet = FALSE) {
       
-      showNotification(HTML("Your download has started. It contains <b>analysis_multinomineq.R</b>, an R script for the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package, and a <b>data_choices</b> csv file with example data: replace the numbers by your own and run the script."), type = "message", duration = 9)
+      if (!quiet) showNotification(HTML("Your download has started. It contains <b>analysis_multinomineq.R</b>, an R script for the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package, and a <b>data_choices</b> csv file with example data: replace the numbers by your own and run the script."), type = "message", duration = 9)
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
       files <- NULL
@@ -17316,7 +17356,16 @@ server <- shinyServer(function(input, output, session) {
 
       # zip::zip(file, files)
       tar(file, files)
-    }
+  }
+  output$d_h_multinomineq <- downloadHandler(
+    filename = function() {
+      paste("multinomineq_H-representation_",
+        Sys.Date(),
+        ".tar",
+        sep = ""
+      )
+    },
+    content = function(file) mn_h_content(file)
   )
 
   #####* V-representation QTEST  ####

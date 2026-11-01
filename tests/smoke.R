@@ -83,6 +83,23 @@ test_that("the script runs on the downloaded files", {
   expect_true(all(is.finite(res$bf_0u)))
 })
 
+test_that("the analysis runs inside the app and shows the results", {
+  js("[].slice.call(document.querySelectorAll('[id*=tabs] a')).filter(function(a) { return /H-representation/.test(a.textContent); })[0].click();")
+  Sys.sleep(3)
+  js("document.getElementById('mn_data_open').click();")
+  Sys.sleep(3)
+  js("document.getElementById('mn_run').click();")
+  ok <- FALSE
+  for (i in 1:120) {                      # up to 2 minutes
+    Sys.sleep(1)
+    if (isTRUE(jsv("!!document.querySelector('iframe[srcdoc]')"))) { ok <- TRUE; break }
+  }
+  expect_true(ok)
+  expect_true(jsv("document.querySelector('iframe[srcdoc]').getAttribute('srcdoc').indexOf('Bayes factors') > 0"))
+  js("[].forEach.call(document.querySelectorAll('.modal [data-dismiss=modal]'), function(b) { b.click(); });")
+  Sys.sleep(2)
+})
+
 test_that("deleting a model leaves one", {
   # deleting happens on the Input tab (the boxes are only redrawn while it is visible)
   js("[].slice.call(document.querySelectorAll('[id*=tabs] a')).filter(function(a) { return /^Input$/.test(a.textContent.trim()); })[0].click();")
