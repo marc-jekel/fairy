@@ -17323,7 +17323,10 @@ server <- shinyServer(function(input, output, session) {
     el <- mn_proc$elapsed
     tagList(
       tags$p(style = "font-size:15px; margin-bottom:6px;", st),
-      tags$p(class = "fairy-eq-tol-help", sprintf("%d:%02d elapsed. ", as.integer(el %/% 60), as.integer(round(el) %% 60)),
+      tags$div(style = "height:6px; background:var(--fairy-border, #e4e7ec); border-radius:3px; margin:6px 0 4px 0;",
+        tags$div(style = paste0("height:6px; border-radius:3px; background:var(--fairy-primary, #3a6df0); width:", round(100 * min(1, el / mn_proc$limit)), "%;"))),
+      tags$p(class = "fairy-eq-tol-help", sprintf("%d:%02d elapsed, stops automatically after %d:%02d. ",
+               as.integer(el %/% 60), as.integer(round(el) %% 60), as.integer(mn_proc$limit %/% 60), as.integer(mn_proc$limit %% 60)),
              "This runs on our shared server, so please keep it small. You can cancel at any time; the files from the downloads can also be run on your own computer."))
   })
   observe({
