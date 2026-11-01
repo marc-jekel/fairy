@@ -16900,7 +16900,7 @@ server <- shinyServer(function(input, output, session) {
       '  "header h1{margin:0;font-size:1.7em}",',
       '  "header p{margin:.4em 0 0;opacity:.9}",',
       '  "html,body{max-width:100%;overflow-x:hidden}",',
-      '  "p,summary,td,th{overflow-wrap:anywhere}",',
+      '  "p,summary,td,th,h2,h3,h4,label{overflow-wrap:anywhere}",',
       '  "main{max-width:66em;margin:0 auto;padding:.5em 2em 3em}",',
       '  "h2{margin:1.2em 0 .2em;font-size:1.3em}",',
       '  "h3{margin:1.6em 0 .2em;font-size:1.05em}",',
@@ -17322,7 +17322,7 @@ server <- shinyServer(function(input, output, session) {
     st <- sub("^\\[([0-9]+)/([0-9]+)\\] ([^:]*): (.*)$", "Model \\1 of \\2: \\3 \u2013 \\4", mn_proc$status)
     el <- mn_proc$elapsed
     tagList(
-      tags$p(style = "font-size:15px; margin-bottom:6px;", st),
+      tags$p(style = "font-size:15px; margin-bottom:6px; overflow-wrap:anywhere;", st),
       tags$div(style = "height:6px; background:var(--fairy-border, #e4e7ec); border-radius:3px; margin:6px 0 4px 0;",
         tags$div(style = paste0("height:6px; border-radius:3px; background:var(--fairy-primary, #3a6df0); width:", round(100 * min(1, el / mn_proc$limit)), "%;"))),
       tags$p(class = "fairy-eq-tol-help", sprintf("%d:%02d elapsed, stops automatically after %d:%02d. ",
