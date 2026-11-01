@@ -4819,6 +4819,29 @@ ui <- shinyUI(fluidPage(
         document.addEventListener('mousedown', function(e) { if (e.target.closest && e.target.closest('#go_v_h, #go')) flush(); }, true);
         document.addEventListener('touchstart', function(e) { if (e.target.closest && e.target.closest('#go_v_h, #go')) flush(); }, true);
         document.addEventListener('keydown', function(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') flush(); }, true);
+        // The server then still needs a moment (debounce, follow-up updates). A click on Go within that moment is held back until the last
+        // input is older than the debounce and Shiny is idle again (at most 8 s), then it is released.
+        var lastInput = 0, held = false, release = false;
+        function noteInput(e) { var t = e.target; if (t && t.id && /^(textin_|add_for_all_models)/.test(t.id)) lastInput = Date.now(); }
+        document.addEventListener('input', noteInput, true);
+        document.addEventListener('change', noteInput, true);
+        function busy() { return !!(window.jQuery && jQuery('html').hasClass('shiny-busy')); }
+        function pending() { var d = Date.now() - lastInput; return d < 1300 || (d < 8000 && busy()); }
+        document.addEventListener('click', function(e) {
+          var b = e.target.closest && e.target.closest('#go_v_h, #go');
+          if (!b || release) return;
+          if (!pending()) return;
+          e.preventDefault(); e.stopImmediatePropagation();
+          if (held) return;
+          held = true; b.classList.add('disabled');
+          var t0 = Date.now();
+          (function wait() {
+            if (!pending() || Date.now() - t0 > 8000) {
+              held = false; b.classList.remove('disabled'); release = true;
+              try { b.click(); } finally { release = false; }
+            } else { setTimeout(wait, 100); }
+          })();
+        }, true);
       })();
 
       // ---- Order of the probabilities (unpacked models): the Order button; the order window no longer opens by itself on a download ----
@@ -7670,6 +7693,7 @@ server <- shinyServer(function(input, output, session) {
   # output$parsimony_placeholder_ui) that tells the user what to do
   # instead, and disappears the moment real results exist.
   parsim_has_results <- reactiveVal(FALSE)
+  parsim_csv_data <- reactiveVal(NULL)
 
   output$parsimony_placeholder_ui <- renderUI({
     if (isTRUE(parsim_has_results())) return(NULL)
@@ -11799,6 +11823,12 @@ server <- shinyServer(function(input, output, session) {
       paste0("fairy_write_multinomineq(models, file = \"multinomineq_H-representation.tar\"", if (length(qo)) ", order = qtest_order" else "", ")"))
     out
   }
+  output$download_parsimony_csv <- downloadHandler(
+    filename = function() paste0("Parsimony_results_", Sys.Date(), ".csv"),
+    content = function(file) utils::write.csv(parsim_csv_data(), file, row.names = FALSE)
+  )
+  outputOptions(output, "download_parsimony_csv", suspendWhenHidden = FALSE)
+
   output$download_rscript <- downloadHandler(
     filename = function() paste0("Fairy_R-script_", Sys.Date(), ".R"),
     content = function(file) writeLines(build_r_script(), file, useBytes = TRUE)
@@ -15998,6 +16028,18 @@ server <- shinyServer(function(input, output, session) {
       # actually shown. Always compute it instead.
       outputOptions(output, "parsimony_bar_plot_large", suspendWhenHidden = FALSE)
 
+      # numeric version of the table for the CSV download (volume and Max BF unformatted, 0 / Inf for models that are not full-dimensional)
+      nfd <- startsWith(as.character(parsim_display$Dimensionality), "Not full-dimensional")
+      csv_tbl <- data.frame(
+        Model          = gsub("^\\[(.*)\\]$", "\\1", as.character(parsim_display$Model)),
+        Algorithm      = as.character(parsim_display$Algorithm),
+        Dimensionality = as.character(parsim_display$Dimensionality),
+        Volume         = ifelse(nfd, 0, as.numeric(parsim_display$Volume)),
+        Max_BF         = ifelse(nfd, Inf, as.numeric(parsim_display$Max_BF)),
+        stringsAsFactors = FALSE
+      )
+      parsim_csv_data(csv_tbl[order(grepl("∩", csv_tbl$Model)), , drop = FALSE])
+
       parsim_has_results(TRUE)
 
     }
@@ -16067,7 +16109,9 @@ server <- shinyServer(function(input, output, session) {
       # This tab's whole purpose is this per-algorithm results table, so it
       # is always shown directly — no collapsed <details> to click through.
       div(style = "width:100%;",
-        h5("Detailed per-algorithm results", style = "margin:0 0 8px 0;"),
+        div(style = "display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;",
+          h5("Detailed per-algorithm results", style = "margin:0;"),
+          downloadButton("download_parsimony_csv", "CSV", class = "btn-sm")),
         DT::dataTableOutput("parsim_table", width = "100%")
       )
     })
