@@ -199,7 +199,14 @@ ui <- shinyUI(fluidPage(
       body.dark-mode .selectize-input .item, body.dark-mode .selectize-input > input { color: var(--fairy-text) !important; background: transparent !important; }
       body.dark-mode .material-switch > label::after { background: #8b93a7 !important; box-shadow: none !important; }
       body.dark-mode select, body.dark-mode .form-control { background-color: var(--fairy-panel) !important; background-image: none; color: var(--fairy-text) !important; border-color: var(--fairy-border) !important; }
-      html:has(body.dark-mode) { background-color: var(--fairy-bg, #0e1117); }
+      html:has(body.dark-mode) { background-color: var(--fairy-bg, #0e1117) !important; }
+      /* shinyWidgets pickers (bootstrap-select) */
+      body.dark-mode .bootstrap-select > .dropdown-toggle, body.dark-mode .bootstrap-select > .dropdown-toggle.btn-default, body.dark-mode .bootstrap-select .btn-default {
+        background-color: var(--fairy-panel) !important; background-image: none !important; color: var(--fairy-text) !important; border-color: var(--fairy-border) !important; box-shadow: none !important; }
+      body.dark-mode .bootstrap-select .dropdown-menu { background-color: var(--fairy-panel) !important; border-color: var(--fairy-border) !important; }
+      body.dark-mode .bootstrap-select .dropdown-menu li a { color: var(--fairy-text) !important; }
+      body.dark-mode .bootstrap-select .dropdown-menu li a:hover, body.dark-mode .bootstrap-select .dropdown-menu li.selected a { background-color: var(--ct-diag) !important; }
+      body.dark-mode .bootstrap-select .filter-option, body.dark-mode .bootstrap-select .filter-option-inner-inner { color: var(--fairy-text) !important; }
       body.dark-mode .selectize-dropdown { background: var(--fairy-panel) !important; color: var(--fairy-text) !important; border-color: var(--fairy-border) !important; }
       body.dark-mode .selectize-dropdown .option:hover,
       body.dark-mode .selectize-dropdown .option.active { background: var(--ct-diag) !important; }
@@ -6056,6 +6063,7 @@ ui <- shinyUI(fluidPage(
            try {
              var layout = JSON.parse(JSON.stringify(div.layout || {}));
              layout.paper_bgcolor = bg;
+             layout.legend = Object.assign({}, layout.legend, { bgcolor: isDark ? '#1d2433' : 'rgba(255,255,255,0.85)', font: Object.assign({}, layout.legend && layout.legend.font, { color: font }) });
              if (isScene) {
                layout.scene = layout.scene || {};
                layout.scene.bgcolor = plot;
