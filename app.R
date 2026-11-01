@@ -18046,11 +18046,33 @@ server <- shinyServer(function(input, output, session) {
   # settings of the analysis chosen in the data window (number of samples, burn-in, prior, seed): they are written into the
   # script of every download and used when the analysis runs here, so a downloaded script replicates the app
   mn_settings <- reactiveVal(list())
+  mn_sample_presets <- list(std = c(mb = 10000, mp = 5000), more = c(mb = 100000, mp = 20000), max = c(mb = 1000000, mp = 100000))
+  observeEvent(input$mn_samples, {
+    pr <- mn_sample_presets[[if (is.null(input$mn_samples)) "" else input$mn_samples]]
+    if (!is.null(pr)) {
+      updateNumericInput(session, "mn_m_bf", value = pr[["mb"]])
+      updateNumericInput(session, "mn_m_post", value = pr[["mp"]])
+    }
+  }, ignoreInit = TRUE)
+  observeEvent(list(input$mn_m_bf, input$mn_m_post), {
+    mb <- input$mn_m_bf; mp <- input$mn_m_post
+    if (is.null(mb) || is.null(mp) || is.na(mb) || is.na(mp)) return()
+    hit <- names(Filter(function(pr) pr[["mb"]] == mb && pr[["mp"]] == mp, mn_sample_presets))
+    want <- if (length(hit) > 0) hit[1] else "custom"
+    if (!identical(input$mn_samples, want)) updateSelectInput(session, "mn_samples", selected = want)
+  }, ignoreInit = TRUE)
   mn_settings_collect <- function() {
     num <- function(x, d) if (is.null(x) || length(x) != 1 || is.na(x)) d else as.numeric(x)
     st <- list(samples = if (is.null(input$mn_samples)) "std" else input$mn_samples,
+               mb = num(input$mn_m_bf, 10000), mp = num(input$mn_m_post, 5000),
                bp = num(input$mn_burnin_post, 10), bb = num(input$mn_burnin_bf, 5),
                pa = num(input$mn_prior_a, 1), pb = num(input$mn_prior_b, 1), seed = num(input$mn_seed, 1234))
+    if (st$mb < 100 || st$mp < 100 || st$mb != round(st$mb) || st$mp != round(st$mp)) {
+      showNotification("The numbers of samples must be whole numbers, 100 or more.", type = "error"); return(FALSE)
+    }
+    if (st$mb > 1000000 || st$mp > 100000) {
+      showNotification("That is a large number of samples: it can take a very long time and uses a lot of the shared server. For this, download the files and run analysis_multinomineq.R on your own computer.", type = "warning", duration = 10)
+    }
     if (st$bp < 0 || st$bb < 0 || st$bp != round(st$bp) || st$bb != round(st$bb)) {
       showNotification("Burn-in must be a whole number, 0 or more.", type = "error"); return(FALSE)
     }
@@ -18065,13 +18087,12 @@ server <- shinyServer(function(input, output, session) {
     st <- isolate(mn_settings())
     g <- function(nm, d) if (is.null(st[[nm]])) d else st[[nm]]
     fmt <- function(x) format(x, scientific = FALSE, trim = TRUE)
-    samples <- g("samples", "std")
+    mb <- g("mb", 10000); mp <- g("mp", 5000)
     ln <- strsplit(txt, "\n", fixed = TRUE)[[1]]
-    if (samples %in% c("more", "max")) ln <- sub("^final <- FALSE.*", "final <- TRUE", ln)
-    if (identical(samples, "max")) {
-      ln <- sub("^M_post <- .*", "M_post <- 100000", ln)
-      ln <- sub("^M_bf <- .*", "M_bf <- 1000000", ln)
-    }
+    # "final" only says that more than the default number of samples is used (the notes of the results refer to it)
+    if (mb > 10000 || mp > 5000) ln <- sub("^final <- FALSE.*", "final <- TRUE", ln)
+    ln <- sub("^M_post <- .*", paste0("M_post <- ", fmt(mp)), ln)
+    ln <- sub("^M_bf <- .*", paste0("M_bf <- ", fmt(mb)), ln)
     ln <- sub("^burnin_post <- [0-9.]+", paste0("burnin_post <- ", fmt(g("bp", 10))), ln)
     ln <- sub("^burnin_bf <- [0-9.]+", paste0("burnin_bf <- ", fmt(g("bb", 5))), ln)
     ln <- sub("^prior <- c\\(1, 1\\)", paste0("prior <- c(", fmt(g("pa", 1)), ", ", fmt(g("pb", 1)), ")"), ln)
@@ -18211,16 +18232,20 @@ server <- shinyServer(function(input, output, session) {
       selectInput("mn_samples", "Number of samples", width = "100%", selected = (function(x) if (is.null(x)) "std" else x)(isolate(mn_settings())$samples), choices = c(
         "Standard: 10,000 samples for the Bayes factors, 5,000 for the posterior" = "std",
         "More: 100,000 and 20,000 (smaller Monte-Carlo error, slower)" = "more",
-        "Even more: 1,000,000 and 100,000 (can take a long time and uses a lot of the shared server)" = "max")),
+        "Even more: 1,000,000 and 100,000 (can take a long time and uses a lot of the shared server)" = "max",
+        "Custom: the numbers under Advanced" = "custom")),
       tags$details(style = "margin:4px 0 8px 0;",
         tags$summary(style = "cursor:pointer; color:#3a6df0; font-size:13px;", "Advanced"),
         tags$div(style = "display:flex; flex-wrap:wrap; gap:12px; margin-top:6px;",
+          numericInput("mn_m_bf", "Samples, Bayes factors", value = (function(x) if (is.null(x)) 10000 else x)(isolate(mn_settings())$mb), min = 100, step = 1000, width = "190px"),
+          numericInput("mn_m_post", "Samples, posterior", value = (function(x) if (is.null(x)) 5000 else x)(isolate(mn_settings())$mp), min = 100, step = 1000, width = "170px"),
           numericInput("mn_burnin_post", "Burn-in, posterior", value = (function(x) if (is.null(x)) 10 else x)(isolate(mn_settings())$bp), min = 0, step = 10, width = "150px"),
           numericInput("mn_burnin_bf", "Burn-in, Bayes factors", value = (function(x) if (is.null(x)) 5 else x)(isolate(mn_settings())$bb), min = 0, step = 5, width = "170px"),
           numericInput("mn_prior_a", "Prior, a (Beta)", value = (function(x) if (is.null(x)) 1 else x)(isolate(mn_settings())$pa), min = 0.001, step = 0.5, width = "130px"),
           numericInput("mn_prior_b", "Prior, b (Beta)", value = (function(x) if (is.null(x)) 1 else x)(isolate(mn_settings())$pb), min = 0.001, step = 0.5, width = "130px"),
           numericInput("mn_seed", "Random seed", value = (function(x) if (is.null(x)) 1234 else x)(isolate(mn_settings())$seed), step = 1, width = "130px")),
         tags$p(style = "font-size:12px; color:#667085; margin:4px 0 0 0;",
+          "Samples: the number of draws for the Bayes factors and for the posterior; the choice above sets them to a ready-made pair, and a number of your own switches the choice to Custom. More samples give a smaller Monte-Carlo error but take longer (the package default is 10,000 and 5,000). ",
           "Burn-in: draws discarded at the start of each run (the package default is 10 for the posterior and 5 per step for the Bayes factors). ",
           "Prior: Beta(a, b) on every probability; Beta(1, 1) is uniform and the Bayes factors depend on it. ",
           "The seed makes a run repeatable.")),
