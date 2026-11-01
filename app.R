@@ -7238,6 +7238,10 @@ ui <- shinyUI(fluidPage(
             `data-tooltip` = "General-purpose, recommended",
             materialSwitch("CB", "Cooling Bodies", value = TRUE, status = "primary", right = TRUE)
           ),
+          tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
+            `data-tooltip` = "Exact volume from the vertices (up to 30 s in total); does not change between runs",
+            materialSwitch("EX", "Exact volume", value = TRUE, status = "primary", right = TRUE)
+          ),
           # the two other algorithms are rarely needed: folded behind a link (still reachable, and both switched off by default)
           tags$a(id = "fairy_more_algos_toggle", href = "#", style = "display:block; font-size:11.5px; margin:2px 0 4px 4px;", "more algorithms \u25be"),
           tags$div(id = "fairy_more_algos_wrap", style = "display:none;",
@@ -16386,7 +16390,8 @@ server <- shinyServer(function(input, output, session) {
         unlink(d, recursive = TRUE)
         out[nms]
       }
-      exact_vol <- unname(exact_volumes(as.character(parsim_display$Model)))
+      exact_on <- !identical(isolate(input$EX), FALSE)
+      exact_vol <- if (exact_on) unname(exact_volumes(as.character(parsim_display$Model))) else rep(NA_real_, nrow(parsim_display))
       # Max BF = 1 / volume: taken from the exact volume where there is one, else from the estimate of the algorithm
       maxbf_use <- ifelse(is.finite(exact_vol) & exact_vol > 0, 1 / exact_vol, parsim_display$Max_BF)
       # Plain decimal rounds tiny volumes to "0.0000", and as.character()'s
@@ -16448,6 +16453,7 @@ server <- shinyServer(function(input, output, session) {
         }, character(1)),
         check.names    = FALSE
       )
+      if (!exact_on) simple_tbl[["Exact volume"]] <- NULL
       # Sort: base models first, intersections (containing ∩) below
       is_intersection <- grepl("∩", simple_tbl$Model)
       simple_tbl <- rbind(simple_tbl[!is_intersection, ], simple_tbl[is_intersection, ])
@@ -16476,7 +16482,7 @@ server <- shinyServer(function(input, output, session) {
       output$parsim_table <- DT::renderDataTable({
         DT::datatable(simple_tbl,
           rownames = FALSE,
-          escape = c(1, 2, 3, 7),   # the number columns carry a real superscript (10<sup>-8</sup>)
+          escape = c(1, 2, 3, ncol(simple_tbl)),   # the number columns carry a real superscript (10<sup>-8</sup>)
           options = list(
             scrollX   = FALSE,
             # autoWidth measures the table's CONTAINER at the exact
@@ -16604,6 +16610,7 @@ server <- shinyServer(function(input, output, session) {
         Exact_volume   = ifelse(is.nan(exact_vol), NA_real_, exact_vol),
         stringsAsFactors = FALSE
       )
+      if (!exact_on) csv_tbl$Exact_volume <- NULL
       parsim_csv_data(csv_tbl[order(grepl("∩", csv_tbl$Model)), , drop = FALSE])
 
       parsim_has_results(TRUE)
