@@ -4315,6 +4315,15 @@ ui <- shinyUI(fluidPage(
           // only show it if the work takes a moment (instant runs need no window)
           showTimer = setTimeout(function() { showTimer = null; if (running) show(); }, 300);
         });
+        // a column that is only needed once it is used (e.g. the backup algorithm when an exact volume could not be calculated)
+        Shiny.addCustomMessageHandler('fairy_run_addcol', function(msg) {
+          var htr = document.querySelector('.fairy-run-table thead tr');
+          var th = document.createElement('th'); th.textContent = msg.name; htr.appendChild(th);
+          ncols++;
+          Object.keys(rows).forEach(function(n) {
+            var tc = document.createElement('td'); noneCell(tc); rows[n].tr.appendChild(tc); rows[n].cells.push(tc);
+          });
+        });
         Shiny.addCustomMessageHandler('fairy_run_row', function(msg) {
           var r = ensureRow(msg.name, msg.kind);
           if (msg.h) { setCell(r.cells[0], msg.h); if (msg.h === 'run') everRan = true; }
@@ -7358,6 +7367,10 @@ server <- shinyServer(function(input, output, session) {
   run_cols <- reactiveVal(character(0))
   fairy_run_cell <- function(name, col, state) {
     i <- match(col, isolate(run_cols()))
+    if (is.na(i)) {
+      run_cols(c(isolate(run_cols()), col)); i <- length(isolate(run_cols()))
+      session$sendCustomMessage("fairy_run_addcol", list(name = col))
+    }
     if (!is.na(i)) session$sendCustomMessage("fairy_run_row", list(name = as.character(name), col = i - 1L, state = state))
   }
   # last mixture results by name, with a signature of the component models they were built from
@@ -16294,7 +16307,7 @@ server <- shinyServer(function(input, output, session) {
       parsim_state$go_seen <- go_now
       algo_names_all <- c(CB = "Cooling Bodies", CG = "Cooling Gaussian", SoB = "Sequence of Balls")
       sel_b <- c(CB = isTRUE(isolate(input$CB)), CG = isTRUE(isolate(input$CG)), SoB = isTRUE(isolate(input$SoB)))
-      if (!isTRUE(isolate(input$ALG)) || !any(sel_b)) sel_b <- c(CB = TRUE, CG = FALSE, SoB = FALSE)   # the backup algorithm
+      if (!isTRUE(isolate(input$ALG))) sel_b[] <- FALSE   # the backup algorithm gets its column only if it is needed
       run_cols(c(if (!identical(isolate(input$EX), FALSE)) "Exact volume", unname(algo_names_all[names(sel_b)[sel_b]])))
       fairy_run_begin("Calculating the volumes", isolate(run_cols()))
       parsim_state$exact <- NULL; parsim_state$exact_done <- FALSE
