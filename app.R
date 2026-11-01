@@ -371,6 +371,8 @@ ui <- shinyUI(fluidPage(
       body.fairy-no-tips #dm-toggle::after { display: none; }
       /* the info symbols (shinyBS / Bootstrap) build their bubbles in the body */
       body.fairy-no-tips .tooltip, body.fairy-no-tips .popover { display: none !important; }
+      /* the small info symbols next to headings exist only for their tooltip */
+      body.fairy-no-tips .fairy-info-icon, body.fairy-no-tips .fairy-tooltip:has(> .fa-circle-info, > svg[class*=circle-info]) { display: none !important; }
       body.fairy-no-tips .fairy-tooltip::after, body.fairy-no-tips [class*=fairy-tooltip]::after { display: none !important; }
 
       .fairy-compact-toggle-btn:hover { background: var(--ct-default) !important; }
@@ -6586,7 +6588,7 @@ ui <- shinyUI(fluidPage(
                       inputId = "add_for_all_models",
                       label = tagList(
                         tags$span("Shared Model Specification",
-                          tags$span(class = "fairy-tooltip", `data-tooltip` = "Constraints typed here hold for every model below, e.g. p1 < .5; p2 < .5 is added to each of them. Use it for what all your models have in common.",
+                          tags$span(class = "fairy-info-icon fairy-tooltip", `data-tooltip` = "Constraints typed here hold for every model below, e.g. p1 < .5; p2 < .5 is added to each of them. Use it for what all your models have in common.",
                             style = "margin-left:6px; cursor:help; color:var(--fairy-text-muted, #667085);", icon("circle-info"))),
                         tags$small(style = "display:block; font-weight:400; color:var(--fairy-text-muted, #667085); margin:1px 0 3px;", "Added to every model below.")),
                       value = "",
@@ -11685,7 +11687,7 @@ server <- shinyServer(function(input, output, session) {
   spec_label_info <- function(title, tip, sub) {
     tagList(
       tags$span(title,
-        tags$span(class = "fairy-tooltip fairy-tooltip-down", `data-tooltip` = tip,
+        tags$span(class = "fairy-info-icon fairy-tooltip fairy-tooltip-down", `data-tooltip` = tip,
           style = "margin-left:6px; cursor:help; color:var(--fairy-text-muted, #667085);", icon("circle-info"))),
       if (!is.null(sub)) tags$small(style = "display:block; font-weight:400; color:var(--fairy-text-muted, #667085); margin:1px 0 3px;", sub))
   }
