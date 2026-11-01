@@ -17322,7 +17322,7 @@ server <- shinyServer(function(input, output, session) {
       return()
     }
     mn_proc$p <- p; mn_proc$dir <- d; mn_proc$start <- Sys.time(); mn_proc$status <- "starting ..."
-    mn_proc$elapsed <- 0; mn_proc$limit <- 900
+    mn_proc$elapsed <- 0; mn_proc$limit <- 10   # TEST: back to 900
     showModal(modalDialog(
       title = "The analysis is running", easyClose = FALSE,
       uiOutput("mn_progress"),
