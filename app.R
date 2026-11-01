@@ -17083,6 +17083,15 @@ server <- shinyServer(function(input, output, session) {
     mn_share(sh)
     TRUE
   }
+  # a label like p_{1}^{(2)} with a real subscript and superscript (stacked), instead of the raw code
+  mn_lab_html <- function(x) {
+    x <- htmltools::htmlEscape(x)
+    st <- "display:block; font-size:.7em; line-height:1.15;"
+    x <- gsub("_[{]([^}]*)[}][\\^][{]([^}]*)[}]",
+              paste0("<span style='display:inline-block; vertical-align:middle; line-height:1;'><sup style='", st, "'>\\2</sup><sub style='", st, "'>\\1</sub></span>"), x)
+    x <- gsub("_[{]([^}]*)[}]", "<sub>\\1</sub>", x)
+    gsub("[\\^][{]([^}]*)[}]", "<sup>\\1</sup>", x)
+  }
   show_mn_data <- function() {
     groups <- mn_np_labels()
     if (length(groups) == 0) {
@@ -17096,12 +17105,11 @@ server <- shinyServer(function(input, output, session) {
       # an unpacked model can use the numbers of the models with the same number of probabilities instead of its own
       can_share <- startsWith(g$key, "m:") && any(vapply(groups, function(x) identical(x$key, paste0("k:", g$k)), logical(1)))
       tbl <- tags$table(class = "table table-condensed", style = "width:auto;",
-          tags$thead(tags$tr(tags$th("probability"), if (!is.null(g$desc)) tags$th("stands for"), tags$th("n"), tags$th("frequency"))),
+          tags$thead(tags$tr(tags$th("probability"), tags$th("n"), tags$th("frequency"))),
           tags$tbody(lapply(seq_len(g$k), function(i) {
             v <- u[[g$labels[i]]]
             tags$tr(
-              tags$td(style = "vertical-align:middle;", tags$code(g$labels[i])),
-              if (!is.null(g$desc)) tags$td(style = "vertical-align:middle; font-size:12.5px;", HTML(g$desc[i])),
+              tags$td(style = "vertical-align:middle; font-size:15px;", HTML(mn_lab_html(g$labels[i]))),
               tags$td(numericInput(paste0("mn_n_", gi, "_", i), NULL, value = if (!is.null(v)) v$n else 25, min = 1, step = 1, width = "90px")),
               tags$td(numericInput(paste0("mn_f_", gi, "_", i), NULL, value = if (!is.null(v)) v$f else ex[i], min = 0, step = 1, width = "90px")))
           })))
