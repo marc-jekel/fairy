@@ -356,6 +356,14 @@ ui <- shinyUI(fluidPage(
         padding: 0;
       }
       #dm-toggle:hover { background: rgba(255,255,255,0.22); }
+      /* Tooltip switch next to the dark mode button: off hides the bubbles (.fairy-tooltip) and the browser title tips */
+      #tips-toggle {
+        position: fixed; top: 13px; right: 98px; z-index: 1035; background: rgba(255,255,255,0.10); border: none; border-radius: 999px;
+        width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;
+        cursor: pointer; transition: background 0.2s; color: #d0d4e0; line-height: 1; padding: 0; }
+      #tips-toggle:hover { background: rgba(255,255,255,0.22); }
+      body.fairy-no-tips #tips-toggle { text-decoration: line-through; opacity: .6; }
+      body.fairy-no-tips .fairy-tooltip::after, body.fairy-no-tips [class*=fairy-tooltip]::after { display: none !important; }
 
       .fairy-compact-toggle-btn:hover { background: var(--ct-default) !important; }
       .fairy-compact-toggle-btn.active { background: var(--fairy-primary-contrast-bg) !important; color: #fff !important; border-color: var(--fairy-primary-contrast-bg) !important; }
@@ -6184,6 +6192,39 @@ ui <- shinyUI(fluidPage(
              applyPlotlyTheme(isDark);
            });
          });
+         // Tooltips off: the bubbles are hidden by CSS; the title attributes are parked in data-fairy-title and put back when switched on
+         $(document).ready(function() {
+           var tb = document.getElementById('tips-toggle');
+           if (!tb) return;
+           var obs = null;
+           function park(root) {
+             var list = root.querySelectorAll ? root.querySelectorAll('[title]') : [];
+             list.forEach(function(el) { if (el.id === 'tips-toggle') return; el.setAttribute('data-fairy-title', el.getAttribute('title')); el.removeAttribute('title'); });
+             if (root.getAttribute && root.hasAttribute('title') && root.id !== 'tips-toggle') { root.setAttribute('data-fairy-title', root.getAttribute('title')); root.removeAttribute('title'); }
+           }
+           function apply(off) {
+             document.body.classList.toggle('fairy-no-tips', off);
+             tb.title = off ? 'Tooltips are off (click to show them)' : 'Tooltips are on (click to hide them)';
+             if (off) {
+               park(document.body);
+               if (!obs) {
+                 obs = new MutationObserver(function(ms) { ms.forEach(function(m) { m.addedNodes.forEach(function(n) { if (n.nodeType === 1) park(n); }); }); });
+                 obs.observe(document.body, { childList: true, subtree: true });
+               }
+             } else {
+               if (obs) { obs.disconnect(); obs = null; }
+               document.querySelectorAll('[data-fairy-title]').forEach(function(el) { el.setAttribute('title', el.getAttribute('data-fairy-title')); el.removeAttribute('data-fairy-title'); });
+             }
+           }
+           var off = false;
+           try { off = localStorage.getItem('fairy-no-tips') === '1'; } catch (e) {}
+           apply(off);
+           tb.addEventListener('click', function() {
+             off = !off;
+             try { localStorage.setItem('fairy-no-tips', off ? '1' : '0'); } catch (e) {}
+             apply(off);
+           });
+         });
        })();
        // Grey out incompatible choices in the intersection/mixture
        // checkboxGroupButtons pickers, driven by a server-side custom
@@ -6227,6 +6268,7 @@ ui <- shinyUI(fluidPage(
     ))
   ),
   tags$button(id = "dm-toggle", title = "Toggle dark mode", "\U0001F319"),
+  tags$button(id = "tips-toggle", title = "Tooltips are on (click to hide them)", "?"),
   # Quiet loading screen: the page shell arrives long before the server has
   # rendered the model rows (cold start, or a busy R process), which left a
   # half-empty Input tab. Shown from the first paint, removed on the first
