@@ -2602,6 +2602,12 @@ ui <- shinyUI(fluidPage(
         background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_v_multinomineq::after, #d_latex::after, #d_v_latex::after {
         font-size: 12px !important; font-weight: 600 !important; border-radius: 7px; }
+      /* the export buttons: one size, icon in a fixed column, equal spacing, same corner radius as the upper buttons */
+      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex, #mn_data_open, #mn_data_open_v, #mn_run_open, #mn_run_open_v, #mn_results_open, #mn_results_open_v, #qtest_order_open, #qtest_order_open_v {
+        box-sizing: border-box !important; width: 152px !important; min-width: 0 !important; height: 32px !important; margin: 0 !important;
+        padding: 0 12px !important; gap: 10px !important; justify-content: flex-start !important; border-radius: 10px !important; }
+      #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_v_multinomineq::after, #d_latex::after, #d_v_latex::after, #mn_data_open::after, #mn_data_open_v::after, #mn_run_open::after, #mn_run_open_v::after, #mn_results_open::after, #mn_results_open_v::after, #qtest_order_open::after, #qtest_order_open_v::after { font-size: 13px !important; margin: 0 !important; padding: 0 !important; }
+      #d_h svg, #d_h .fa, #d_v svg, #d_v .fa, #d_h_multinomineq svg, #d_h_multinomineq .fa, #d_v_multinomineq svg, #d_v_multinomineq .fa, #d_latex svg, #d_latex .fa, #d_v_latex svg, #d_v_latex .fa, #mn_data_open svg, #mn_data_open .fa, #mn_data_open_v svg, #mn_data_open_v .fa, #mn_run_open svg, #mn_run_open .fa, #mn_run_open_v svg, #mn_run_open_v .fa, #mn_results_open svg, #mn_results_open .fa, #mn_results_open_v svg, #mn_results_open_v .fa, #qtest_order_open svg, #qtest_order_open .fa, #qtest_order_open_v svg, #qtest_order_open_v .fa { width: 14px; font-size: 14px; text-align: center; }
       /* Stale results: Go/Compute itself blinks instead of a separate
          badge next to it — see the observers toggling this class + the
          button's own data-tooltip together, so hovering the SAME
