@@ -17228,6 +17228,7 @@ server <- shinyServer(function(input, output, session) {
       '# Advanced: the prior. Beta(1, 1) = uniform on every probability',
       '# (default of multinomineq); the Bayes factors depend on it.',
       'prior <- c(1, 1)',
+      '# (for even more samples set M_post and M_bf to larger numbers)',
       'M_post <- if (final) 20000 else 5000     # posterior samples',
       'M_bf <- if (final) 100000 else 10000     # Bayes factor samples',
       '',
@@ -17340,7 +17341,7 @@ server <- shinyServer(function(input, output, session) {
       '  }, error = function(e) NULL)',
       '  unlink(f)',
       '  list(model = model, rep = rep, labels = labels, ess = ess,',
-      '       geweke = gz, svg = svg_txt)',
+      '       n_draws = nrow(m), geweke = gz, svg = svg_txt)',
       '}',
       '# posterior of every probability: mean, SD, 95% interval',
       'post_rows <- function(model, rep, post, labels) {',
@@ -17601,7 +17602,8 @@ server <- shinyServer(function(input, output, session) {
       '  tab <- data.frame(',
       '    Probability = lab_html(d$labels),',
       '    "Effective sample size" =',
-      '      ifelse(is.finite(d$ess), as.character(round(d$ess)), "-"),',
+      '      ifelse(is.finite(d$ess), paste0(round(d$ess), " of ",',
+      '             format(d$n_draws, big.mark = ",")), "-"),',
       '    "Geweke z" = num(d$geweke, 2), check.names = FALSE)',
       '  cls <- data.frame("", e_cl, g_cl)',
       '  n_bad <- sum(c(e_cl, g_cl) == "bad")',
@@ -17651,7 +17653,7 @@ server <- shinyServer(function(input, output, session) {
       '      "long flat stretches or jumps.</p>",',
       '      "<p class=small><b>Effective sample size</b> (ESS): the draws",',
       '      "depend on each other; the ESS says how many independent draws",',
-      '      "they are worth. Rule of thumb: 1000 or more is good, 400",',
+      '      "they are worth (of all draws of the chain, shown behind it). Rule of thumb: 1000 or more is good, 400",',
       '      "to 1000 is borderline, below 400 means that means and",',
       '      "intervals are imprecise.</p>",',
       '      "<p class=small><b>Geweke z</b>: compares the mean of the",',
@@ -18036,7 +18038,10 @@ server <- shinyServer(function(input, output, session) {
       if (length(mn_model_choices()) > 1)
         checkboxGroupInput("mn_models", "Models to analyse (the downloads always contain all of them)",
                            choices = mn_model_choices(), selected = unname(mn_model_choices()), inline = TRUE, width = "100%"),
-      checkboxInput("mn_final", "More samples: 100,000 instead of 10,000 samples for the Bayes factors and 20,000 instead of 5,000 for the posterior (smaller Monte-Carlo error, but slower and uses more of the shared server)", value = FALSE, width = "100%"),
+      selectInput("mn_samples", "Number of samples", width = "100%", selected = "std", choices = c(
+        "Standard: 10,000 samples for the Bayes factors, 5,000 for the posterior" = "std",
+        "More: 100,000 and 20,000 (smaller Monte-Carlo error, slower)" = "more",
+        "Even more: 1,000,000 and 100,000 (can take a long time and uses a lot of the shared server)" = "max")),
       if (identical(isolate(mn_source()), "V"))
         tags$div(style = "background:rgba(58,109,240,.10); border-left:4px solid #3a6df0; border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
           tags$b("Tip:"), " the analysis from the vertices (V) is much slower than from the inequalities (H) and gives the same result: a few seconds against a fraction of a second for small models, minutes for larger ones. For larger models open this window from the H-representation tab."),
@@ -18081,7 +18086,8 @@ server <- shinyServer(function(input, output, session) {
     if (!mn_collect(groups, strict = TRUE)) {
       showNotification("n and frequency must be whole numbers, n at least 1, and frequency between 0 and n.", type = "error"); return()
     }
-    final <- isTRUE(input$mn_final)
+    samples_mn <- if (is.null(input$mn_samples)) "std" else input$mn_samples
+    final <- samples_mn %in% c("more", "max")
     choices_mn <- mn_model_choices()
     sel <- if (length(choices_mn) > 1) input$mn_models else unname(choices_mn)
     if (length(sel) == 0) { showNotification("Choose at least one model to analyse.", type = "warning"); return() }
@@ -18100,6 +18106,10 @@ server <- shinyServer(function(input, output, session) {
       scr <- file.path(d, "analysis_multinomineq.R")
       txt <- readLines(scr, warn = FALSE)
       if (final) txt <- sub("^final <- FALSE.*", "final <- TRUE", txt)
+      if (identical(samples_mn, "max")) {
+        txt <- sub("^M_post <- .*", "M_post <- 100000", txt)
+        txt <- sub("^M_bf <- .*", "M_bf <- 1000000", txt)
+      }
       writeLines(txt, scr)
       TRUE
     }, error = function(e) FALSE)
