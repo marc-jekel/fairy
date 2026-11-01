@@ -17915,6 +17915,41 @@ server <- shinyServer(function(input, output, session) {
   # Data for the multinomineq script: typed in the app, written into data_choices*.csv of the download.
   # Stored per probability (by its name), so the numbers stay with the probability when the order is changed.
   mn_user_data <- reactiveVal(list())
+  # settings of the analysis chosen in the data window (number of samples, burn-in, prior, seed): they are written into the
+  # script of every download and used when the analysis runs here, so a downloaded script replicates the app
+  mn_settings <- reactiveVal(list())
+  mn_settings_collect <- function() {
+    num <- function(x, d) if (is.null(x) || length(x) != 1 || is.na(x)) d else as.numeric(x)
+    st <- list(samples = if (is.null(input$mn_samples)) "std" else input$mn_samples,
+               bp = num(input$mn_burnin_post, 10), bb = num(input$mn_burnin_bf, 5),
+               pa = num(input$mn_prior_a, 1), pb = num(input$mn_prior_b, 1), seed = num(input$mn_seed, 1234))
+    if (st$bp < 0 || st$bb < 0 || st$bp != round(st$bp) || st$bb != round(st$bb)) {
+      showNotification("Burn-in must be a whole number, 0 or more.", type = "error"); return(FALSE)
+    }
+    if (st$pa <= 0 || st$pb <= 0) {
+      showNotification("The prior numbers a and b must be positive.", type = "error"); return(FALSE)
+    }
+    mn_settings(st)
+    TRUE
+  }
+  # the settings in the lines of the script (the lines of the default script are replaced)
+  mn_apply_settings <- function(txt) {
+    st <- isolate(mn_settings())
+    g <- function(nm, d) if (is.null(st[[nm]])) d else st[[nm]]
+    fmt <- function(x) format(x, scientific = FALSE, trim = TRUE)
+    samples <- g("samples", "std")
+    ln <- strsplit(txt, "\n", fixed = TRUE)[[1]]
+    if (samples %in% c("more", "max")) ln <- sub("^final <- FALSE.*", "final <- TRUE", ln)
+    if (identical(samples, "max")) {
+      ln <- sub("^M_post <- .*", "M_post <- 100000", ln)
+      ln <- sub("^M_bf <- .*", "M_bf <- 1000000", ln)
+    }
+    ln <- sub("^burnin_post <- [0-9.]+", paste0("burnin_post <- ", fmt(g("bp", 10))), ln)
+    ln <- sub("^burnin_bf <- [0-9.]+", paste0("burnin_bf <- ", fmt(g("bb", 5))), ln)
+    ln <- sub("^prior <- c\\(1, 1\\)", paste0("prior <- c(", fmt(g("pa", 1)), ", ", fmt(g("pb", 1)), ")"), ln)
+    ln <- sub("^set.seed\\(1234\\)", paste0("set.seed(", fmt(round(g("seed", 1234))), ")"), ln)
+    paste(ln, collapse = "\n")
+  }
   mn_share <- reactiveVal(list())   # unpacked model (key m:<name>) -> TRUE: uses the numbers of the models with the same number of probabilities
   # one group per set of probabilities that mean the same thing: the base models (and intersections, mixtures) with the same number
   # of probabilities share one; every unpacked items model has its own, because its probabilities mean something of their own
@@ -18045,18 +18080,18 @@ server <- shinyServer(function(input, output, session) {
       if (length(mn_model_choices()) > 1)
         checkboxGroupInput("mn_models", "Models to analyse (the downloads always contain all of them)",
                            choices = mn_model_choices(), selected = unname(mn_model_choices()), inline = TRUE, width = "100%"),
-      selectInput("mn_samples", "Number of samples", width = "100%", selected = "std", choices = c(
+      selectInput("mn_samples", "Number of samples", width = "100%", selected = (function(x) if (is.null(x)) "std" else x)(isolate(mn_settings())$samples), choices = c(
         "Standard: 10,000 samples for the Bayes factors, 5,000 for the posterior" = "std",
         "More: 100,000 and 20,000 (smaller Monte-Carlo error, slower)" = "more",
         "Even more: 1,000,000 and 100,000 (can take a long time and uses a lot of the shared server)" = "max")),
       tags$details(style = "margin:4px 0 8px 0;",
         tags$summary(style = "cursor:pointer; color:#3a6df0; font-size:13px;", "Advanced"),
         tags$div(style = "display:flex; flex-wrap:wrap; gap:12px; margin-top:6px;",
-          numericInput("mn_burnin_post", "Burn-in, posterior", value = 10, min = 0, step = 10, width = "150px"),
-          numericInput("mn_burnin_bf", "Burn-in, Bayes factors", value = 5, min = 0, step = 5, width = "170px"),
-          numericInput("mn_prior_a", "Prior, a (Beta)", value = 1, min = 0.001, step = 0.5, width = "130px"),
-          numericInput("mn_prior_b", "Prior, b (Beta)", value = 1, min = 0.001, step = 0.5, width = "130px"),
-          numericInput("mn_seed", "Random seed", value = 1234, step = 1, width = "130px")),
+          numericInput("mn_burnin_post", "Burn-in, posterior", value = (function(x) if (is.null(x)) 10 else x)(isolate(mn_settings())$bp), min = 0, step = 10, width = "150px"),
+          numericInput("mn_burnin_bf", "Burn-in, Bayes factors", value = (function(x) if (is.null(x)) 5 else x)(isolate(mn_settings())$bb), min = 0, step = 5, width = "170px"),
+          numericInput("mn_prior_a", "Prior, a (Beta)", value = (function(x) if (is.null(x)) 1 else x)(isolate(mn_settings())$pa), min = 0.001, step = 0.5, width = "130px"),
+          numericInput("mn_prior_b", "Prior, b (Beta)", value = (function(x) if (is.null(x)) 1 else x)(isolate(mn_settings())$pb), min = 0.001, step = 0.5, width = "130px"),
+          numericInput("mn_seed", "Random seed", value = (function(x) if (is.null(x)) 1234 else x)(isolate(mn_settings())$seed), step = 1, width = "130px")),
         tags$p(style = "font-size:12px; color:#667085; margin:4px 0 0 0;",
           "Burn-in: draws discarded at the start of each run (the package default is 10 for the posterior and 5 per step for the Bayes factors). ",
           "Prior: Beta(a, b) on every probability; Beta(1, 1) is uniform and the Bayes factors depend on it. ",
@@ -18087,8 +18122,9 @@ server <- shinyServer(function(input, output, session) {
     if (!mn_collect(mn_np_labels(), strict = TRUE)) {
       showNotification("n and frequency must be whole numbers, n at least 1, and frequency between 0 and n.", type = "error"); return()
     }
+    if (!mn_settings_collect()) return()
     removeModal()
-    showNotification("Saved. Your numbers are in the data file of the next multinomineq download.", type = "message", duration = 6)
+    showNotification("Saved. Your numbers are in the data file and your settings in the script of the next multinomineq download.", type = "message", duration = 6)
   })
   # data and order belong together for unpacked models: switch between the two windows without losing what was typed
   observeEvent(input$mn_data_to_order, {
@@ -18105,17 +18141,7 @@ server <- shinyServer(function(input, output, session) {
     if (!mn_collect(groups, strict = TRUE)) {
       showNotification("n and frequency must be whole numbers, n at least 1, and frequency between 0 and n.", type = "error"); return()
     }
-    adv_num <- function(x, default) if (is.null(x) || length(x) != 1 || is.na(x)) default else as.numeric(x)
-    adv <- list(bp = adv_num(input$mn_burnin_post, 10), bb = adv_num(input$mn_burnin_bf, 5),
-                pa = adv_num(input$mn_prior_a, 1), pb = adv_num(input$mn_prior_b, 1), seed = adv_num(input$mn_seed, 1234))
-    if (adv$bp < 0 || adv$bb < 0 || adv$bp != round(adv$bp) || adv$bb != round(adv$bb)) {
-      showNotification("Burn-in must be a whole number, 0 or more.", type = "error"); return()
-    }
-    if (adv$pa <= 0 || adv$pb <= 0) {
-      showNotification("The prior numbers a and b must be positive.", type = "error"); return()
-    }
-    samples_mn <- if (is.null(input$mn_samples)) "std" else input$mn_samples
-    final <- samples_mn %in% c("more", "max")
+    if (!mn_settings_collect()) return()
     choices_mn <- mn_model_choices()
     sel <- if (length(choices_mn) > 1) input$mn_models else unname(choices_mn)
     if (length(sel) == 0) { showNotification("Choose at least one model to analyse.", type = "warning"); return() }
@@ -18131,18 +18157,6 @@ server <- shinyServer(function(input, output, session) {
       # only the chosen models: the script analyses every model it finds in the folder
       for (st in setdiff(unname(choices_mn), sel))
         unlink(file.path(d, paste0(c("A_", "b_", "V_", "map_"), st, ".csv")))
-      scr <- file.path(d, "analysis_multinomineq.R")
-      txt <- readLines(scr, warn = FALSE)
-      if (final) txt <- sub("^final <- FALSE.*", "final <- TRUE", txt)
-      txt <- sub("^burnin_post <- [0-9.]+", paste0("burnin_post <- ", format(adv$bp, scientific = FALSE)), txt)
-      txt <- sub("^burnin_bf <- [0-9.]+", paste0("burnin_bf <- ", format(adv$bb, scientific = FALSE)), txt)
-      txt <- sub("^prior <- c\\(1, 1\\)", paste0("prior <- c(", format(adv$pa, scientific = FALSE), ", ", format(adv$pb, scientific = FALSE), ")"), txt)
-      txt <- sub("^set.seed\\(1234\\)", paste0("set.seed(", format(round(adv$seed), scientific = FALSE), ")"), txt)
-      if (identical(samples_mn, "max")) {
-        txt <- sub("^M_post <- .*", "M_post <- 100000", txt)
-        txt <- sub("^M_bf <- .*", "M_bf <- 1000000", txt)
-      }
-      writeLines(txt, scr)
       TRUE
     }, error = function(e) FALSE)
     p <- if (isTRUE(prep)) tryCatch(
@@ -18613,7 +18627,7 @@ server <- shinyServer(function(input, output, session) {
       # the matching R script for multinomineq (reads the files next to it)
       first_ix <- which(!vapply(export_names, function(nm) is.null(isolate(h_reactive[[nm]])), logical(1)))[1]
       if (!is.na(first_ix)) {
-        writeLines(multinomineq_script(export_files[first_ix], ncol(isolate(h_reactive[[export_names[first_ix]]])) - 2L), "analysis_multinomineq.R")
+        writeLines(mn_apply_settings(multinomineq_script(export_files[first_ix], ncol(isolate(h_reactive[[export_names[first_ix]]])) - 2L)), "analysis_multinomineq.R")
         files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_groups, isolate(mn_user_data()), isolate(mn_share())))
       }
 
@@ -18798,7 +18812,7 @@ server <- shinyServer(function(input, output, session) {
       if (length(download_v_names) > 0) {
         ve1 <- v_reactive[[download_v_names[1]]]
         vm1 <- if (is.list(ve1) && !is.null(ve1$output)) ve1$output else ve1
-        writeLines(multinomineq_script(safe_file_name(download_v_names[1]), ncol(vm1) - 2L), "analysis_multinomineq.R")
+        writeLines(mn_apply_settings(multinomineq_script(safe_file_name(download_v_names[1]), ncol(vm1) - 2L)), "analysis_multinomineq.R")
         files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_groups, isolate(mn_user_data()), isolate(mn_share())))
       }
 
