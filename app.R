@@ -392,6 +392,7 @@ ui <- shinyUI(fluidPage(
       .fairy-derived-note { position: absolute; right: 12px; bottom: 8px; max-width: 90%; font-size: 11px; line-height: 1.3; color: var(--fairy-text-muted, #667085); font-style: italic; pointer-events: none; z-index: 3; text-align: right; }
       .fairy-dl-group { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 8px 14px 12px; border: 1.5px solid var(--fairy-border); border-radius: 14px; }
       .fairy-dl-group > .shiny-html-output { display: block; }
+      .fairy-dl-group[data-cap][data-sub]::before { content: attr(data-cap) '\\A' attr(data-sub); white-space: pre; text-align: center; line-height: 1.25; }
       .fairy-dl-group[data-cap]::before { content: attr(data-cap); font-size: 12px; font-weight: 700; letter-spacing: .02em; color: var(--fairy-text-muted, #667085); margin-bottom: -2px; }
       #qtest_order_open, #qtest_order_open_v { position: relative !important; margin-bottom: 14px !important; }
       #qtest_order_open::after, #qtest_order_open_v::after { content: 'Order'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
@@ -6606,7 +6607,7 @@ ui <- shinyUI(fluidPage(
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the H-representation for QTEST",
               downloadButton("d_h", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
             ),
-            tags$div(class = "fairy-dl-group", `data-cap` = "multinomineq",
+            tags$div(class = "fairy-dl-group", `data-cap` = "multinomineq", `data-sub` = "R package", title = "multinomineq is an R package by Heck and Davis-Stober (2019), not part of this app. The app prepares its files and can run it here.",
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data and settings for multinomineq: n and frequencies, number of samples, prior. They go into the files and the script of the multinomineq download and are used by Run.",
               actionButton("mn_data_open", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the H-representation for multinomineq (R package): files, analysis script and data file",
@@ -6745,7 +6746,7 @@ ui <- shinyUI(fluidPage(
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the V-representation for QTEST",
               downloadButton("d_v", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
             ),
-            tags$div(class = "fairy-dl-group", `data-cap` = "multinomineq",
+            tags$div(class = "fairy-dl-group", `data-cap` = "multinomineq", `data-sub` = "R package", title = "multinomineq is an R package by Heck and Davis-Stober (2019), not part of this app. The app prepares its files and can run it here.",
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data and settings for multinomineq: n and frequencies, number of samples, prior. They go into the files and the script of the multinomineq download and are used by Run.",
               actionButton("mn_data_open_v", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the V-representation for multinomineq (R package): files, analysis script and data file",
@@ -17990,7 +17991,9 @@ server <- shinyServer(function(input, output, session) {
       '  paste0("<p>multinomineq analysis, ",',
       '         format(Sys.time(), "%Y-%m-%d %H:%M %Z"), " | prior Beta(",',
       '         prior[1], ", ", prior[2], ") | ", M_bf,',
-      '         " samples for the Bayes factors</p></header><main>"),',
+      '         " samples for the Bayes factors | R package multinomineq ",',
+      '         as.character(utils::packageVersion("multinomineq")),',
+      '         " (Heck &amp; Davis-Stober, 2019)</p></header><main>"),',
       '  paste0("<input type=radio name=tab id=tab", tabs,',
       '         c(" checked", rep("", n_tab - 1)), ">"),',
       '  "<nav><label for=tab1>Overview</label>",',
@@ -18370,7 +18373,7 @@ server <- shinyServer(function(input, output, session) {
       title = "Run the multinomineq analysis here", size = "m", easyClose = TRUE,
       tags$style(HTML(".mn-foot .btn { margin: 0 !important; }")),
       tags$p(class = "fairy-eq-tol-help",
-        HTML(paste0("The analysis uses the numbers and settings saved under <b>Data</b>: ",
+        HTML(paste0("The analysis is done by the R package <a href='https://www.dwheck.de/software/multinomineq/' target='_blank' rel='noopener'>multinomineq</a> (Heck &amp; Davis-Stober, 2019), not by this app. It uses the numbers and settings saved under <b>Data</b>: ",
           if (own) "your own numbers" else "the example numbers (you have not saved your own yet)",
           "; ", format(mb, big.mark = ","), " samples for the Bayes factors and ", format(mp, big.mark = ","), " for the posterior. ")),
         actionLink("mn_run_to_data", "Change the data or settings")),
@@ -18545,7 +18548,8 @@ server <- shinyServer(function(input, output, session) {
     page <- paste(readLines(file.path(d, "results.html"), warn = FALSE, encoding = "UTF-8"), collapse = "\n")
     showModal(modalDialog(
       title = "Results of the multinomineq analysis", size = "l", easyClose = TRUE,
-      tags$p(class = "fairy-eq-tol-help", "This ran on our shared server. For larger or repeated analyses, download the results below: the download contains the files and ", tags$code("analysis_multinomineq.R"), ", which you can run on your own computer."),
+      tags$p(class = "fairy-eq-tol-help", HTML("The Bayes factors and the posterior were computed by the R package <a href='https://www.dwheck.de/software/multinomineq/' target='_blank' rel='noopener'>multinomineq</a> (Heck &amp; Davis-Stober, 2019; please cite it, in R: <code>citation(\"multinomineq\")</code>). "),
+        "This ran on our shared server. For larger or repeated analyses, download the results below: the download contains the files and ", tags$code("analysis_multinomineq.R"), ", which you can run on your own computer."),
       # the page is put into the window itself (in a shadow root, so its styles stay apart from the app's): no frame to scroll in
       tags$textarea(id = "mn_results_src", style = "display:none;", page),
       tags$div(id = "mn_results_host"),
