@@ -4955,22 +4955,38 @@ ui <- shinyUI(fluidPage(
       // ---- Model rows: the three boxes of a row have the same height; a row with many icon buttons (unpacked items) is taller ----
       (function() {
         var timer = null;
+        function setH(el, h) { if (el) el.style.setProperty('height', h + 'px', 'important'); }
         function sync() {
+          var compact = document.body.classList.contains('fairy-compact-models');
+          var base = compact ? 60 : 80;
           var names = document.querySelectorAll('#textbox_ui_name_rel textarea');
           var uniq = [].filter.call(document.querySelectorAll('#textbox_ui_rel textarea'), function(t) { return /^textin_relations_[0-9]+$/.test(t.id); });
           var specs = document.querySelectorAll('#textbox_ui_rel_complete .fairy-model-spec-outer');
           var icons = document.querySelectorAll('#textbox_ui_name_rel .fairy-model-icon-col');
           for (var i = 0; i < names.length; i++) {
-            var need = icons[i] ? icons[i].scrollHeight - (i === 0 ? 20 : 0) : 0;
-            var h = Math.max(80, need);
-            names[i].style.height = h + 'px';
-            if (uniq[i]) uniq[i].style.height = h + 'px';
-            if (specs[i]) specs[i].style.height = h + 'px';
+            // the height the buttons really need: from the top of the first to the bottom of the last one (the column itself
+            // may be stretched to the row, so its own height says nothing)
+            var need = 0;
+            if (icons[i]) {
+              var top = Infinity, bottom = -Infinity;
+              [].forEach.call(icons[i].children, function(k) {
+                if (getComputedStyle(k).position === 'absolute') return;
+                var r = k.getBoundingClientRect();
+                if (r.height === 0) return;
+                top = Math.min(top, r.top); bottom = Math.max(bottom, r.bottom);
+              });
+              if (bottom > top) need = bottom - top + 8;
+            }
+            var h = Math.max(base, need);
+            setH(names[i], h);
+            setH(uniq[i], h);
+            if (specs[i]) { setH(specs[i], h); setH(specs[i].querySelector('pre'), h); }
           }
         }
         function later() { clearTimeout(timer); timer = setTimeout(sync, 120); }
         if (window.jQuery) jQuery(document).on('shiny:connected shiny:value shiny:idle', later);
         window.addEventListener('resize', later);
+        document.addEventListener('click', function(e) { if (e.target.closest && e.target.closest('#compact-toggle')) setTimeout(sync, 250); });
       })();
 
       // ---- Shared model specification: folded behind a link until it is needed ----
@@ -6457,6 +6473,7 @@ ui <- shinyUI(fluidPage(
           # as visually running together into one undifferentiated
           # button stack.
           tags$hr(class = "fairy-toolbar-divider"),
+          tags$div(class = "fairy-rail-cap", "Export"),
           # QTEST and multinomineq share the order of the probabilities: one group with its button on top
           tags$div(class = "fairy-dl-group",
             uiOutput("qtest_order_btn_ui", inline = TRUE),
@@ -6589,6 +6606,7 @@ ui <- shinyUI(fluidPage(
           tags$span(id = "v_unique_wrap", class = "fairy-tooltip", `data-tooltip` = "Show only the vertices that no other model has",
             tags$button(id = "v_unique_btn", type = "button", class = "fairy-toolbar-iconbtn", `aria-pressed` = "false", `aria-label` = "Show only unique vertices", icon("filter"))),
           tags$hr(class = "fairy-toolbar-divider"),
+          tags$div(class = "fairy-rail-cap", "Export"),
           tags$div(class = "fairy-dl-group",
             uiOutput("qtest_order_btn_ui_v", inline = TRUE),
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the V-representation for QTEST",
