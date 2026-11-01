@@ -7241,10 +7241,6 @@ ui <- shinyUI(fluidPage(
             `data-tooltip` = "General-purpose, recommended",
             materialSwitch("CB", "Cooling Bodies", value = TRUE, status = "primary", right = TRUE)
           ),
-          tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
-            `data-tooltip` = paste0("Calculates the volume from the corner points of the model (up to ", EXACT_VOLUME_LIMIT, " s in total); if it works, no algorithm runs for that model"),
-            materialSwitch("EX", "Exact volume", value = TRUE, status = "primary", right = TRUE)
-          ),
           # the two other algorithms are rarely needed: folded behind a link (still reachable, and both switched off by default)
           tags$a(id = "fairy_more_algos_toggle", href = "#", style = "display:block; font-size:11.5px; margin:2px 0 4px 4px;", "more algorithms \u25be"),
           tags$div(id = "fairy_more_algos_wrap", style = "display:none;",
@@ -10416,7 +10412,7 @@ server <- shinyServer(function(input, output, session) {
     # data-tooltip (disabled-state message vs. the normal Compute
     # message) — this branch only fires while it's enabled, so the two
     # never fight over the same attribute at the same time.
-    if (!(input$CB == 0 & input$SoB == 0 & input$CG == 0 & !isTRUE(input$EX))) {
+    {
       tooltip_txt <- if (is_stale) {
         "Models changed since parsimony was last computed — click to update (⌘/Ctrl+Enter)"
       } else {
@@ -11131,15 +11127,6 @@ server <- shinyServer(function(input, output, session) {
 
   ###
 
-  observeEvent(list(input$CB, input$SoB, input$CG, input$EX), {
-    if (input$CB == 0 & input$SoB == 0 & input$CG == 0 & !isTRUE(input$EX)) {
-      disable("go")
-      runjs("document.getElementById('go').setAttribute('data-tooltip', 'Choose at least one algorithm or the exact volume to enable this option.');")
-    } else {
-      enable("go")
-      runjs("document.getElementById('go').setAttribute('data-tooltip', 'Compute parsimony (⌘/Ctrl+Enter)');")
-    }
-  })
 
 
 
@@ -16092,10 +16079,9 @@ server <- shinyServer(function(input, output, session) {
       names_h_rep <- names_h_rep[!is.na(names_h_rep) & nchar(names_h_rep) > 0]
 
       # the exact volume first: a model that has one needs no estimate (the algorithms only run for the others)
-      exact_on <- !identical(isolate(input$EX), FALSE)
-      if (plan_mode) parsim_state$exact <- if (exact_on) exact_volumes(as.character(names_h_rep)) else NULL
+      if (plan_mode) parsim_state$exact <- exact_volumes(as.character(names_h_rep))
       ex_pre <- isolate(parsim_state$exact)
-      has_exact <- function(nm) exact_on && !is.null(ex_pre) && isTRUE(is.finite(unname(ex_pre[nm])))
+      has_exact <- function(nm) !is.null(ex_pre) && isTRUE(is.finite(unname(ex_pre[nm])))
 
       n_rep <- 1
       parsim_rep <- numeric()
@@ -16408,7 +16394,7 @@ server <- shinyServer(function(input, output, session) {
 
       # Build display table: one row per model × algorithm
       parsim_display <- as.data.frame(parsim[order(parsim$Model, parsim$Algorithm), ])
-      exact_vol <- if (exact_on && !is.null(ex_pre)) unname(ex_pre[as.character(parsim_display$Model)]) else rep(NA_real_, nrow(parsim_display))
+      exact_vol <- if (!is.null(ex_pre)) unname(ex_pre[as.character(parsim_display$Model)]) else rep(NA_real_, nrow(parsim_display))
       # Max BF = 1 / volume: taken from the exact volume where there is one, else from the estimate of the algorithm
       maxbf_use <- ifelse(is.finite(exact_vol) & exact_vol > 0, 1 / exact_vol, parsim_display$Max_BF)
       # Plain decimal rounds tiny volumes to "0.0000", and as.character()'s
@@ -16470,7 +16456,6 @@ server <- shinyServer(function(input, output, session) {
         }, character(1)),
         check.names    = FALSE
       )
-      if (!exact_on) simple_tbl[["Exact volume"]] <- NULL
       # Sort: base models first, intersections (containing ∩) below
       is_intersection <- grepl("∩", simple_tbl$Model)
       simple_tbl <- rbind(simple_tbl[!is_intersection, ], simple_tbl[is_intersection, ])
@@ -16627,7 +16612,6 @@ server <- shinyServer(function(input, output, session) {
         Exact_volume   = ifelse(is.nan(exact_vol), NA_real_, exact_vol),
         stringsAsFactors = FALSE
       )
-      if (!exact_on) csv_tbl$Exact_volume <- NULL
       parsim_csv_data(csv_tbl[order(grepl("∩", csv_tbl$Model)), , drop = FALSE])
 
       parsim_has_results(TRUE)
@@ -16641,7 +16625,7 @@ server <- shinyServer(function(input, output, session) {
         h5("Parsimony results", style = "margin:0 0 6px 0;"),
         HTML(paste0("<div style='font-size:13px; color:#555; line-height:1.55;'>
           <div><b>Exact volume</b> &ndash; the share of the parameter space (all combinations of the probabilities between 0 and 1) that fits the model. It is calculated, not sampled: first the corner points of the model's region are determined, then the volume of the shape they span. The result does not change between runs (apart from rounding), so it needs no estimate: <b>when an exact volume can be calculated, no algorithm is run for that model.</b></div>
-          <div><b>Volume</b> &ndash; the same share, estimated by random sampling with the selected algorithm(s). It only appears for models without an exact volume (n/a when the calculation took longer than the time limit of ", EXACT_VOLUME_LIMIT, " seconds). It differs from run to run, and how much depends on the model (typically more with many dimensions or thin shapes). If you need more precise values, lower the error in the algorithm settings (slower). To run the algorithms for all models anyway, switch Exact volume off.</div>
+          <div><b>Volume</b> &ndash; the same share, estimated by random sampling with the selected algorithm(s). It only appears for models without an exact volume (n/a when the calculation took longer than the time limit of ", EXACT_VOLUME_LIMIT, " seconds). It differs from run to run, and how much depends on the model (typically more with many dimensions or thin shapes). If you need more precise values, lower the error in the algorithm settings (slower).</div>
           <div><b>Max BF</b> &ndash; the largest Bayes factor the model can reach against the unconstrained model (1 / volume; taken from the exact volume where there is one). Smaller volume = more restrictive model = larger Max BF.</div>
         </div>"))
       )
