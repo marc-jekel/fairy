@@ -2631,6 +2631,18 @@ ui <- shinyUI(fluidPage(
         box-sizing: border-box !important; width: 152px !important; min-width: 152px !important; height: 32px !important; margin: 0 !important;
         padding: 0 6px !important; gap: 8px !important; flex-direction: row !important; justify-content: center !important; border-radius: 10px !important; }
       #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_v_multinomineq::after, #d_latex::after, #d_v_latex::after, #mn_data_open::after, #mn_data_open_v::after, #mn_run_open::after, #mn_run_open_v::after, #mn_results_open::after, #mn_results_open_v::after, #qtest_order_open::after, #qtest_order_open_v::after { font-size: 13px !important; }
+      /* Export: no frame around a group, only a small caption; plain buttons, the run button is the one filled action */
+      .fairy-dl-group { border: none !important; padding: 0 !important; gap: 6px !important; border-radius: 0 !important; }
+      .fairy-dl-group + .fairy-dl-group { margin-top: 12px; }
+      .fairy-dl-group[data-cap]::before, .fairy-dl-group[data-cap][data-sub]::before { font-size: 9.5px !important; font-weight: 600 !important; letter-spacing: .05em !important;
+        text-transform: uppercase; margin: 0 0 2px !important; color: var(--fairy-text-muted, #667085) !important; }
+      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex, #mn_data_open, #mn_data_open_v, #mn_run_open, #mn_run_open_v, #mn_results_open, #mn_results_open_v, #qtest_order_open, #qtest_order_open_v, #mn_data_open.fairy-order-btn, #mn_data_open_v.fairy-order-btn, #mn_run_open.fairy-order-btn, #mn_run_open_v.fairy-order-btn, #mn_results_open.fairy-order-btn, #mn_results_open_v.fairy-order-btn, #qtest_order_open.fairy-order-btn, #qtest_order_open_v.fairy-order-btn { justify-content: flex-start !important; padding: 0 12px !important; gap: 10px !important; }
+      #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_v_multinomineq::after, #d_latex::after, #d_v_latex::after, #mn_data_open::after, #mn_data_open_v::after, #mn_run_open::after, #mn_run_open_v::after, #mn_results_open::after, #mn_results_open_v::after, #qtest_order_open::after, #qtest_order_open_v::after { font-weight: 500 !important; font-size: 13px !important; color: var(--fairy-text, #1d2433) !important; }
+      #d_h svg, #d_v svg, #d_h_multinomineq svg, #d_v_multinomineq svg, #d_latex svg, #d_v_latex svg, #mn_data_open svg, #mn_data_open_v svg, #mn_run_open svg, #mn_run_open_v svg, #mn_results_open svg, #mn_results_open_v svg, #qtest_order_open svg, #qtest_order_open_v svg, #mn_data_open.fairy-order-btn svg, #mn_data_open_v.fairy-order-btn svg, #mn_run_open.fairy-order-btn svg, #mn_run_open_v.fairy-order-btn svg, #mn_results_open.fairy-order-btn svg, #mn_results_open_v.fairy-order-btn svg, #qtest_order_open.fairy-order-btn svg, #qtest_order_open_v.fairy-order-btn svg { width: 16px; text-align: center; }
+      #mn_run_open, #mn_run_open_v, #mn_run_open.fairy-order-btn, #mn_run_open_v.fairy-order-btn { background: var(--fairy-primary, #3a6df0) !important; border-color: var(--fairy-primary, #3a6df0) !important; }
+      #mn_run_open::after, #mn_run_open_v::after { color: #fff !important; font-weight: 600 !important; }
+      #mn_run_open svg, #mn_run_open_v svg, #mn_run_open .fa, #mn_run_open_v .fa { color: #fff !important; fill: #fff !important; }
+      #mn_run_open:hover, #mn_run_open_v:hover { filter: brightness(1.08); }
       /* Stale results: Go/Compute itself blinks instead of a separate
          badge next to it — see the observers toggling this class + the
          button's own data-tooltip together, so hovering the SAME
