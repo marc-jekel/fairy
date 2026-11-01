@@ -141,8 +141,8 @@ ui <- shinyUI(fluidPage(
            satisfy white-on-it would have broken that (confirmed
            directly: a candidate dark enough for white text dropped its
            own text-on-background contrast under AA). */
-        --fairy-primary-contrast-bg: #4c6dc6;
-        --fairy-primary-contrast-bg-hover: #405ca8;
+        --fairy-primary-contrast-bg: #2a5bd7;
+        --fairy-primary-contrast-bg-hover: #2350bd;
         --fairy-accent: #1fcc9a;
         --fairy-text: #dde1ea;
         --fairy-text-muted: #8892aa;
