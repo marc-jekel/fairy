@@ -16665,8 +16665,6 @@ server <- shinyServer(function(input, output, session) {
       # Build display table: one row per model × algorithm
       parsim_display <- as.data.frame(parsim[order(parsim$Model, parsim$Algorithm), ])
       exact_vol <- if (exact_on && !is.null(ex_pre)) unname(ex_pre[as.character(parsim_display$Model)]) else rep(NA_real_, nrow(parsim_display))
-      # Max BF = 1 / volume: taken from the exact volume where there is one, else from the estimate of the algorithm
-      maxbf_use <- ifelse(is.finite(exact_vol) & exact_vol > 0, 1 / exact_vol, parsim_display$Max_BF)
       # Plain decimal rounds tiny volumes to "0.0000", and as.character()'s
       # default scientific notation ("5e-04") is inconsistent with the rest
       # of the app's number formatting — show a fixed "< m.mm x 10^-n" form
@@ -16710,26 +16708,38 @@ server <- shinyServer(function(input, output, session) {
         mant <- x / 10^exp
         sprintf("%.2f &times; 10<sup>%d</sup>", mant, exp)
       }
-      nfd_row <- startsWith(parsim_display$Dimensionality, "Not full-dimensional")
+      # One row per model and method: "Exact" (calculated) and the algorithms (estimated), one Volume column for all
+      mdl_all <- gsub("^\\[(.*)\\]$", "\\1", as.character(parsim_display$Model))
+      first_of_model <- !duplicated(as.character(parsim_display$Model))
+      is_exact_row <- as.character(parsim_display$Algorithm) == "Exact"
+      long_df <- rbind(
+        if (exact_on) data.frame(Model = mdl_all[first_of_model], Algorithm = "Exact",
+                                 Dimensionality = as.character(parsim_display$Dimensionality)[first_of_model],
+                                 Volume = exact_vol[first_of_model], stringsAsFactors = FALSE),
+        data.frame(Model = mdl_all[!is_exact_row], Algorithm = as.character(parsim_display$Algorithm)[!is_exact_row],
+                   Dimensionality = as.character(parsim_display$Dimensionality)[!is_exact_row],
+                   Volume = as.numeric(parsim_display$Volume)[!is_exact_row], stringsAsFactors = FALSE))
+      long_df <- long_df[order(match(long_df$Model, unique(mdl_all)), long_df$Algorithm != "Exact"), , drop = FALSE]
+      long_nfd <- startsWith(long_df$Dimensionality, "Not full-dimensional")
+      # a model that is not full-dimensional has volume 0 whatever the method says
+      long_df$Volume[long_nfd] <- 0
       simple_tbl <- data.frame(
-        Model          = gsub("^\\[(.*)\\]$", "\\1", as.character(parsim_display$Model)),
-        Algorithm      = as.character(parsim_display$Algorithm),
-        Dimensionality = parsim_display$Dimensionality,
-        `Exact volume` = ifelse(nfd_row, "0", vapply(seq_along(exact_vol), function(i) {
-          v <- exact_vol[i]
+        Model          = long_df$Model,
+        Algorithm      = long_df$Algorithm,
+        Dimensionality = long_df$Dimensionality,
+        Volume         = vapply(long_df$Volume, function(v) {
           if (is.nan(v)) return(paste0("n/a (stopped after ", EXACT_VOLUME_LIMIT_TXT, " or skipped)"))
-          if (!is.na(v)) return(vol_str(v))
-          "\u2014"
-        }, character(1))),
-        `Algorithm volume` = ifelse(nfd_row, "\u2014",
-                          ifelse(is.na(parsim_display$Volume), "\u2014", vapply(parsim_display$Volume, function(v) if (is.na(v)) "\u2014" else vol_str(v), character(1)))),
-        `Max BF`       = ifelse(nfd_row, "\u221e",
-                          ifelse(is.na(maxbf_use), "\u2014", vapply(maxbf_use, bf_str, character(1)))),
+          if (is.na(v)) return("\u2014")
+          if (v == 0) return("0")
+          vol_str(v)
+        }, character(1)),
+        `Max BF`       = vapply(long_df$Volume, function(v) {
+          if (is.na(v)) return("\u2014")
+          if (v == 0) return("\u221e")
+          bf_str(1 / v)
+        }, character(1)),
         check.names    = FALSE
       )
-      # a column only appears where it has something to show
-      if (!exact_on) simple_tbl[["Exact volume"]] <- NULL
-      if (all(as.character(parsim_display$Algorithm) == "Exact")) simple_tbl[["Algorithm volume"]] <- NULL
       # Sort: base models first, intersections (containing ∩) below
       is_intersection <- grepl("∩", simple_tbl$Model)
       simple_tbl <- rbind(simple_tbl[!is_intersection, ], simple_tbl[is_intersection, ])
@@ -16776,7 +16786,7 @@ server <- shinyServer(function(input, output, session) {
             lengthMenu = c(6, 12, 18, 24, 48, 96),
             dom = "ltp",
             # a short explanation when the mouse is over a column header
-            headerCallback = DT::JS(paste0("function(thead) { var t = { 'Algorithm volume': 'The same share, estimated by random sampling: it changes from run to run, by an amount that depends on the model. By default only shown for models without an exact volume.', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume (from the exact volume when there is one).', 'Exact volume': 'Calculated from the corner points of the model, not sampled; it does not change between runs. n/a means the calculation was stopped (time limit of ", EXACT_VOLUME_LIMIT_TXT, " or skipped): then the algorithm estimates the volume.' }; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }")),
+            headerCallback = DT::JS(paste0("function(thead) { var t = { 'Algorithm': 'Exact: calculated from the corner points of the model, not sampled, does not change between runs. The other rows: estimated by random sampling with that algorithm; they change from run to run, by an amount that depends on the model. By default only shown for models without an exact volume.', 'Volume': 'The share of the parameter space that fits the model. n/a: the exact calculation was stopped (time limit of ", EXACT_VOLUME_LIMIT_TXT, " or skipped); then the algorithm estimates the volume.', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume of that row.'}; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }")),
             columnDefs = list(
               list(className = "dt-left", targets = 0),
               list(visible = FALSE, targets = ncol(simple_tbl) - 1)
@@ -16883,17 +16893,14 @@ server <- shinyServer(function(input, output, session) {
       outputOptions(output, "parsimony_bar_plot_large", suspendWhenHidden = FALSE)
 
       # numeric version of the table for the CSV download (volume and Max BF unformatted, 0 / Inf for models that are not full-dimensional)
-      nfd <- startsWith(as.character(parsim_display$Dimensionality), "Not full-dimensional")
       csv_tbl <- data.frame(
-        Model          = gsub("^\\[(.*)\\]$", "\\1", as.character(parsim_display$Model)),
-        Algorithm      = as.character(parsim_display$Algorithm),
-        Dimensionality = as.character(parsim_display$Dimensionality),
-        Algorithm_volume = ifelse(nfd, 0, as.numeric(parsim_display$Volume)),
-        Max_BF         = ifelse(nfd, Inf, as.numeric(maxbf_use)),
-        Exact_volume   = ifelse(is.nan(exact_vol), NA_real_, exact_vol),
+        Model          = long_df$Model,
+        Algorithm      = long_df$Algorithm,
+        Dimensionality = long_df$Dimensionality,
+        Volume         = ifelse(is.nan(long_df$Volume), NA_real_, long_df$Volume),
+        Max_BF         = ifelse(is.finite(long_df$Volume) & long_df$Volume > 0, 1 / long_df$Volume, ifelse(!is.na(long_df$Volume) & long_df$Volume == 0, Inf, NA_real_)),
         stringsAsFactors = FALSE
       )
-      if (!exact_on) csv_tbl$Exact_volume <- NULL
       parsim_csv_data(csv_tbl[order(grepl("∩", csv_tbl$Model)), , drop = FALSE])
 
       parsim_has_results(TRUE)
@@ -16907,9 +16914,10 @@ server <- shinyServer(function(input, output, session) {
       div(style = "margin-bottom:10px;",
         h5("Parsimony results", style = "margin:0 0 6px 0;"),
         HTML(paste0("<details style='font-size:13px; color:#555; line-height:1.55;'><summary style='cursor:pointer; color:#3a6df0;'>What do the columns mean?</summary>
-          <div><b>Exact volume</b> &ndash; the share of the parameter space that fits the model, calculated (not sampled) from the corner points of the model's region. The result does not change between runs; numerical rounding only affects digits far beyond those shown. <b>By default, no algorithm is run for a model when an exact volume can be calculated</b> (switch Algorithms on to run them anyway). n/a: the calculation was stopped (time limit of ", EXACT_VOLUME_LIMIT_TXT, " or skipped).</div>
-          <div><b>Algorithm volume</b> &ndash; the same share, estimated by random sampling. By default it only appears for models without an exact volume. It differs from run to run, and how much depends on the model (typically more with many dimensions or thin shapes). For more precise values lower the error in the algorithm settings (slower).</div>
-          <div><b>Max BF</b> &ndash; the largest Bayes factor the model can reach against the unconstrained model (1 / volume; taken from the exact volume where there is one). Smaller volume = more restrictive model = larger Max BF.</div>
+          <div><b>Volume</b> &ndash; the share of the parameter space that fits the model. Each model has one row per method (column Algorithm).</div>
+          <div><b>Exact</b> &ndash; calculated, not sampled, from the corner points of the model's region. The result does not change between runs; numerical rounding only affects digits far beyond those shown (e.g. the 10th significant digit, even for extremely small volumes). <b>By default, no algorithm is run for a model when an exact volume can be calculated</b> (switch Algorithms on to run them anyway). n/a: the calculation was stopped (time limit of ", EXACT_VOLUME_LIMIT_TXT, " or skipped); then the algorithm estimates the volume.</div>
+          <div><b>Cooling Bodies, Cooling Gaussian, Sequence of Balls</b> &ndash; the same share, estimated by random sampling. It differs from run to run, and how much depends on the model (typically more with many dimensions or thin shapes). For more precise values lower the error in the algorithm settings (slower).</div>
+          <div><b>Max BF</b> &ndash; the largest Bayes factor the model can reach against the unconstrained model: 1 / the volume of that row. Smaller volume = more restrictive model = larger Max BF.</div>
         </details>"))
       )
     })
@@ -16971,7 +16979,7 @@ server <- shinyServer(function(input, output, session) {
       # is always shown directly — no collapsed <details> to click through.
       div(style = "width:100%;",
         div(style = "display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;",
-          h5("Detailed per-algorithm results", style = "margin:0;"),
+          h5("Detailed results per model and method", style = "margin:0;"),
           downloadButton("download_parsimony_csv", "CSV", class = "btn-sm")),
         DT::dataTableOutput("parsim_table", width = "100%")
       )
