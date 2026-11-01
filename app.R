@@ -17038,6 +17038,8 @@ server <- shinyServer(function(input, output, session) {
             xaxis = list(
               title = list(text = if (use_log) "Volume (log scale)" else "Volume", standoff = if (large) 14 else 8),
               type = if (use_log) "log" else "linear",
+              # on a log axis only the powers of ten get a mark and a label (otherwise the large view adds 2 and 5 between them)
+              dtick = if (use_log) 1 else NULL,
               exponentformat = "power", showexponent = "all",
               range = if (use_log) c(log10(min(pos_vol) / 3), 0.05) else c(0, 1),
               gridcolor = "rgba(120,120,120,0.15)", zeroline = FALSE,
