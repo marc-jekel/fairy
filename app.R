@@ -16494,7 +16494,7 @@ server <- shinyServer(function(input, output, session) {
             lengthMenu = c(6, 12, 18, 24, 48, 96),
             dom = "ltp",
             # a short explanation when the mouse is over a column header
-            headerCallback = DT::JS("function(thead) { var t = { 'Volume': 'Share of the parameter space that fits the model (an estimate; smaller = more restrictive).', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume (from the exact volume when there is one).', 'Exact volume': 'Calculated exactly from the vertices (not an estimate); skipped when it takes longer than 10 seconds.' }; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }"),
+            headerCallback = DT::JS("function(thead) { var t = { 'Volume': 'The same share, estimated by random sampling: it changes a little with every run. Use the exact volume where it is shown.', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume (from the exact volume when there is one).', 'Exact volume': 'The precise value, calculated from the vertices; it does not change between runs. n/a means it took longer than 10 seconds: then only the estimate is available.' }; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }"),
             columnDefs = list(
               list(className = "dt-left", targets = 0),
               list(visible = FALSE, targets = ncol(simple_tbl) - 1)
@@ -16616,9 +16616,9 @@ server <- shinyServer(function(input, output, session) {
       div(style = "margin-bottom:10px;",
         h5("Parsimony results", style = "margin:0 0 6px 0;"),
         HTML("<div style='font-size:13px; color:#555; line-height:1.55;'>
-          <div><b>Volume</b> &ndash; share of the parameter space that fits the model (estimated). Smaller = more restrictive, more precise.</div>
-          <div><b>Max BF</b> &ndash; the largest Bayes factor the model can reach against the unconstrained model: 1 / volume, from the exact volume when there is one.</div>
-          <div><b>Exact volume</b> &ndash; calculated exactly from the vertices (skipped if it takes longer than 10 s). The estimates are noisy for thin shapes.</div>
+          <div><b>Exact volume</b> &ndash; the precise share of the parameter space that fits the model. <b>If a number is shown here, use it</b>: it does not change between runs.</div>
+          <div><b>Volume</b> &ndash; the same share, but estimated by random sampling, so it differs a little every time you compute. It is the only number for models whose exact volume says n/a (too slow to calculate): then read it as approximate, and run it again if the digits matter.</div>
+          <div><b>Max BF</b> &ndash; the largest Bayes factor the model can reach against the unconstrained model (1 / volume; taken from the exact volume where there is one). Smaller volume = more restrictive model = larger Max BF.</div>
         </div>")
       )
     })
