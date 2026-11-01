@@ -12534,7 +12534,7 @@ server <- shinyServer(function(input, output, session) {
   }
   # the "Volume by model" chart as a PDF (vector graphic), drawn with base graphics: same bars, colours and axis as on the screen
   parsimony_pdf <- function(df, file) {
-    algo_colors <- c("Cooling Bodies" = "#3a6df0", "Cooling Gaussian" = "#f0ad4e", "Sequence of Balls" = "#5cb85c", "Exact" = "#2b2f3a")
+    algo_colors <- c("Cooling Bodies" = "#3a6df0", "Cooling Gaussian" = "#f0ad4e", "Sequence of Balls" = "#5cb85c", "Exact" = "#9b7fe0")
     models <- unique(df$Model); algos <- unique(df$Algorithm)
     pos <- df$Volume[is.finite(df$Volume) & df$Volume > 0]
     use_log <- length(pos) > 0 && min(pos) < 0.01
@@ -17159,7 +17159,7 @@ server <- shinyServer(function(input, output, session) {
         # long model names are wrapped, otherwise they squeeze the plot into a narrow strip
         wrap_lab <- function(x) vapply(x, function(z) paste(strwrap(z, 26), collapse = "<br>"), character(1), USE.NAMES = FALSE)
         bar_df$Model <- factor(wrap_lab(bar_df$Model), levels = rev(unique(wrap_lab(bar_df$Model))))
-        algo_colors <- c("Cooling Bodies" = "#3a6df0", "Cooling Gaussian" = "#f0ad4e", "Sequence of Balls" = "#5cb85c", "Exact" = "#2b2f3a")
+        algo_colors <- c("Cooling Bodies" = "#3a6df0", "Cooling Gaussian" = "#f0ad4e", "Sequence of Balls" = "#5cb85c", "Exact" = "#9b7fe0")
         fsize <- if (large) 15 else 11
         # very small volumes are invisible on a 0-1 axis: then the axis is logarithmic (models with volume 0 have no bar)
         pos_vol <- bar_df$Volume[is.finite(bar_df$Volume) & bar_df$Volume > 0]
