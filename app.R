@@ -369,6 +369,8 @@ ui <- shinyUI(fluidPage(
         box-shadow: 0 4px 14px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .12s ease; }
       #dm-toggle:hover::after, #tips-toggle:hover::after, #dm-toggle:focus-visible::after, #tips-toggle:focus-visible::after { opacity: 1; }
       body.fairy-no-tips #dm-toggle::after { display: none; }
+      /* the info symbols (shinyBS / Bootstrap) build their bubbles in the body */
+      body.fairy-no-tips .tooltip, body.fairy-no-tips .popover { display: none !important; }
       body.fairy-no-tips .fairy-tooltip::after, body.fairy-no-tips [class*=fairy-tooltip]::after { display: none !important; }
 
       .fairy-compact-toggle-btn:hover { background: var(--ct-default) !important; }
