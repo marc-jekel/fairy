@@ -1650,6 +1650,10 @@ ui <- shinyUI(fluidPage(
       /* while Cancel is shown it is the only button and sits in the middle; Close takes its place afterwards */
       #fairy-run-actions:has(#fairy-run-cancel.visible) #fairy-run-close { display: none; }
       #fairy-run-cancel:disabled { opacity: .6; cursor: default; }
+      /* after three minutes of the exact calculation the Skip button glows: skipping is possible */
+      @keyframes fairy-run-nudge { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--fairy-primary, #3a6df0) 55%, transparent); } 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--fairy-primary, #3a6df0) 0%, transparent); } }
+      #fairy-run-cancel.fairy-run-nudge { border-color: var(--fairy-primary, #3a6df0); color: var(--fairy-primary, #3a6df0); animation: fairy-run-nudge 1.6s ease-in-out infinite; }
+      @media (prefers-reduced-motion: reduce) { #fairy-run-cancel.fairy-run-nudge { animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--fairy-primary, #3a6df0) 35%, transparent); } }
       .fairy-run-cell.st-cancel { color: #b05000; }
       .fairy-run-cell.st-na { color: var(--fairy-text-muted, #667085); }
       .fairy-run-cell.st-stop { color: #b05000; }
@@ -4312,6 +4316,8 @@ ui <- shinyUI(fluidPage(
           var elTxt = running ? ' \\u00b7 ' + mmss(el) + ' elapsed' + (noLimit ? ' (no time limit \\u2728)' : (limitSec > 0 ? ' (exact volume: at most ' + mmss(limitSec) + ')' : '')) : '';
           $id('fairy-run-sub').textContent = total ? (done + ' of ' + total + ' steps done' + elTxt) : '';
           $id('fairy-run-bar-fill').style.width = (total ? Math.round(100 * done / total) : 0) + '%';
+          // after three minutes of the exact calculation the Skip button glows
+          $id('fairy-run-cancel').classList.toggle('fairy-run-nudge', running && cancelable && cancelInput === 'ex_skip' && el >= 180);
           return { total: total, done: done, bad: bad };
         }
         function show() { if (dismissed) return; shown = true; $id('fairy-run-overlay').classList.add('active'); }
