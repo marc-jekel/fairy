@@ -16676,7 +16676,10 @@ server <- shinyServer(function(input, output, session) {
             margin = if (large) list(l = 10, r = 30, t = if (n_algos_used > 1) 50 else 20, b = 50, pad = 6)
                      else list(l = 10, r = 20, t = if (n_algos_used > 1) 34 else 10, b = 34, pad = 4)
           ) %>%
-          config(displayModeBar = large)
+          # the only button is the download, as a vector graphic (SVG)
+          config(displayModeBar = if (large) TRUE else "hover", displaylogo = FALSE,
+                 modeBarButtons = list(list("toImage")),
+                 toImageButtonOptions = list(format = "svg", filename = "volume_by_model"))
         if (n_algos_used <= 1) p <- p %>% layout(showlegend = FALSE)
         p
       }
