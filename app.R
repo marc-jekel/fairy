@@ -398,7 +398,7 @@ ui <- shinyUI(fluidPage(
       #qtest_order_open::after, #qtest_order_open_v::after { content: 'Order'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
         border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 12px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
       /* Order is a setting for the two downloads below it, not a third program: plain grey, a thin row, a divider under it */
-      #qtest_order_open.fairy-order-btn, #qtest_order_open_v.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
+      #qtest_order_open.fairy-order-btn, #qtest_order_open_v.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: var(--ct-default) !important; border-color: var(--fairy-border) !important; box-shadow: none !important; }
       #qtest_order_open .fa, #qtest_order_open_v .fa, #qtest_order_open svg, #qtest_order_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
       #qtest_order_open:hover, #qtest_order_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       /* Data: same small grey row as Order, for the multinomineq data file */
@@ -406,7 +406,7 @@ ui <- shinyUI(fluidPage(
       #mn_data_open::after, #mn_data_open_v::after, #mn_run_open::after, #mn_run_open_v::after { content: 'Data & settings'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
         border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 12px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
       /* Order is a setting for the two downloads below it, not a third program: plain grey, a thin row, a divider under it */
-      #mn_data_open.fairy-order-btn, #mn_data_open_v.fairy-order-btn, #mn_run_open.fairy-order-btn, #mn_run_open_v.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
+      #mn_data_open.fairy-order-btn, #mn_data_open_v.fairy-order-btn, #mn_run_open.fairy-order-btn, #mn_run_open_v.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: var(--ct-default) !important; border-color: var(--fairy-border) !important; box-shadow: none !important; }
       #mn_data_open .fa, #mn_data_open_v .fa, #mn_data_open svg, #mn_data_open_v svg, #mn_run_open .fa, #mn_run_open_v .fa, #mn_run_open svg, #mn_run_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
       #mn_data_open:hover, #mn_data_open_v:hover, #mn_run_open:hover, #mn_run_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       #mn_run_open::after, #mn_run_open_v::after { content: 'Run'; }
@@ -415,7 +415,7 @@ ui <- shinyUI(fluidPage(
       #mn_results_open::after, #mn_results_open_v::after { content: 'Results'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
         border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 12px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
       /* Order is a setting for the two downloads below it, not a third program: plain grey, a thin row, a divider under it */
-      #mn_results_open.fairy-order-btn, #mn_results_open_v.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
+      #mn_results_open.fairy-order-btn, #mn_results_open_v.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: var(--ct-default) !important; border-color: var(--fairy-border) !important; box-shadow: none !important; }
       #mn_results_open .fa, #mn_results_open_v .fa, #mn_results_open svg, #mn_results_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
       #mn_results_open:hover, #mn_results_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       .fairy-order-btn.fairy-order-new::before { content: ''; position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: #e5484d; border: 1.5px solid var(--fairy-panel, #fff); z-index: 2; }
@@ -2597,7 +2597,7 @@ ui <- shinyUI(fluidPage(
       /* the Download buttons look like the other actions of the frames (Data, Run, Results): icon and label in one plain row */
       #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex {
         flex-direction: row !important; min-width: 66px !important; width: auto !important; height: 24px !important; padding: 3px 4px !important;
-        margin: 0 0 2px !important; gap: 4px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
+        margin: 0 0 2px !important; gap: 4px !important; background: var(--ct-default) !important; border-color: var(--fairy-border) !important; box-shadow: none !important; }
       #d_h:hover, #d_v:hover, #d_h_multinomineq:hover, #d_v_multinomineq:hover, #d_latex:hover, #d_v_latex:hover {
         background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_v_multinomineq::after, #d_latex::after, #d_v_latex::after {
