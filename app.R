@@ -7242,7 +7242,7 @@ ui <- shinyUI(fluidPage(
             materialSwitch("CB", "Cooling Bodies", value = TRUE, status = "primary", right = TRUE)
           ),
           tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
-            `data-tooltip` = paste0("Exact volume from the vertices (up to ", EXACT_VOLUME_LIMIT, " s in total); does not change between runs"),
+            `data-tooltip` = paste0("Calculates the volume from the corner points of the model (up to ", EXACT_VOLUME_LIMIT, " s in total); if it works, no algorithm runs for that model"),
             materialSwitch("EX", "Exact volume", value = TRUE, status = "primary", right = TRUE)
           ),
           # the two other algorithms are rarely needed: folded behind a link (still reachable, and both switched off by default)
@@ -15917,7 +15917,7 @@ server <- shinyServer(function(input, output, session) {
   # The volumes are estimated in separate R processes (volesti), so the window stays alive: it shows what is being computed
   # and can be cancelled. The Go handler below runs twice with the same code: first it only collects the jobs and starts them
   # (plan mode), when all are done it runs again and takes the volumes from parsim_state$results.
-  parsim_state <- reactiveValues(go_seen = 0, results = NULL, resume = 0)
+  parsim_state <- reactiveValues(go_seen = 0, results = NULL, resume = 0, exact = NULL)
   pv <- reactiveValues(active = FALSE, dir = NULL, keys = character(0), queue = character(0), procs = list(),
                        parallel = FALSE, start = NULL, status = "", elapsed = 0, prev_snap = NULL, total = 0)
   pv_kill_all <- function() {
@@ -15999,6 +15999,48 @@ server <- shinyServer(function(input, output, session) {
   })
   session$onSessionEnded(function() { for (p in isolate(pv$procs)) try(p$kill_tree(), silent = TRUE) })
 
+  # Exact volume from the vertices (convex hull): the estimates of the algorithms are noisy for thin shapes, this one is not.
+  # Every model is computed in its own R process and everything has EXACT_VOLUME_LIMIT seconds in total: a model with very many vertices
+  # can take very long, then the cell says so (NaN) instead of blocking the app. NA = no exact volume exists / can be computed.
+  exact_volumes <- function(nms, limit = EXACT_VOLUME_LIMIT) {
+    u <- unique(nms)
+    out <- stats::setNames(rep(NA_real_, length(u)), u)
+    if (length(u) == 0 || !requireNamespace("geometry", quietly = TRUE)) return(out[nms])
+    d <- tempfile("exact_"); dir.create(d)
+    writeLines(c("suppressMessages(library(rcdd))", "a <- commandArgs(TRUE)", "h <- readRDS(a[1])",
+      "res <- tryCatch({",
+      "  if (any(q2d(h)[, 1] > 0)) 0 else {",
+      "    hh <- matrix(as.character(h), ncol = ncol(h)); attr(hh, \"representation\") <- \"H\"",
+      "    vn <- q2d(scdd(hh)$output)",
+      "    if (any(vn[, 2] == 0)) NA_real_ else {",
+      "      pts <- vn[vn[, 2] == 1, -(1:2), drop = FALSE]",
+      "      if (nrow(pts) <= ncol(pts)) 0 else if (qr(sweep(pts, 2, pts[1, ]), tol = 1e-9)$rank < ncol(pts)) 0 else if (ncol(pts) == 1) diff(range(pts)) else as.numeric(geometry::convhulln(pts, options = \"FA\")$vol)",
+      "    }",
+      "  }",
+      "}, error = function(e) NA_real_)",
+      "saveRDS(res, a[2])"), file.path(d, "job.R"))
+    procs <- list()
+    for (i in seq_along(u)) {
+      h <- isolate(h_reactive[[u[i]]])
+      if (is.null(h)) next
+      saveRDS(h, file.path(d, paste0("h", i, ".rds")))
+      procs[[as.character(i)]] <- tryCatch(processx::process$new(file.path(R.home("bin"), "Rscript"),
+        c(file.path(d, "job.R"), file.path(d, paste0("h", i, ".rds")), file.path(d, paste0("v", i, ".rds"))), cleanup_tree = TRUE),
+        error = function(e) NULL)
+    }
+    deadline <- Sys.time() + limit
+    while (Sys.time() < deadline && any(vapply(procs, function(p) !is.null(p) && p$is_alive(), logical(1)))) Sys.sleep(0.1)
+    for (k in names(procs)) {
+      p <- procs[[k]]
+      if (is.null(p)) next
+      if (p$is_alive()) { try(p$kill_tree(), silent = TRUE); out[as.integer(k)] <- NaN; next }
+      v <- tryCatch(readRDS(file.path(d, paste0("v", k, ".rds"))), error = function(e) NA_real_)
+      out[as.integer(k)] <- if (is.numeric(v) && length(v) == 1) v else NA_real_
+    }
+    unlink(d, recursive = TRUE)
+    out[nms]
+  }
+
   observe_guarded(list(input$go, parsim_state$resume), {
     # without a press of Go there is nothing to compute (the event also fires once when the page is loaded)
     if (is.null(isolate(input$go)) || isolate(input$go) == 0) return(invisible())
@@ -16013,6 +16055,7 @@ server <- shinyServer(function(input, output, session) {
     vol_jobs <- list()
     vol_results <- isolate(parsim_state$results)
     vol_call <- function(key, model_s4, settings) {
+      if (has_exact(sub("\\|[^|]*$", "", key))) return(NA_real_)
       if (plan_mode) {
         vol_jobs[[key]] <<- list(A = model_s4@A, b = model_s4@b, settings = settings)
         return(NA_real_)
@@ -16047,6 +16090,12 @@ server <- shinyServer(function(input, output, session) {
         isolate(items_reactive$names)
       )
       names_h_rep <- names_h_rep[!is.na(names_h_rep) & nchar(names_h_rep) > 0]
+
+      # the exact volume first: a model that has one needs no estimate (the algorithms only run for the others)
+      exact_on <- !identical(isolate(input$EX), FALSE)
+      if (plan_mode) parsim_state$exact <- if (exact_on) exact_volumes(as.character(names_h_rep)) else NULL
+      ex_pre <- isolate(parsim_state$exact)
+      has_exact <- function(nm) exact_on && !is.null(ex_pre) && isTRUE(is.finite(unname(ex_pre[nm])))
 
       n_rep <- 1
       parsim_rep <- numeric()
@@ -16313,14 +16362,14 @@ server <- shinyServer(function(input, output, session) {
           if (isolate(input$SoB)) "Sequence of Balls",
           if (isolate(input$CG)) "Cooling Gaussian"
         )
-        if (length(selected_algos) == 0) {
-          # only the exact volume is switched on: one row per model, without an estimate
-          parsim <- parsim[parsim$Algorithm == "Cooling Bodies", ]
-          parsim$Algorithm <- factor("Exact only")
-          parsim$Volume <- NA_real_
-        } else {
-          parsim <- parsim[parsim$Algorithm %in% selected_algos, ]
-        }
+        parsim <- parsim[parsim$Algorithm %in% selected_algos | length(selected_algos) == 0, ]
+        # a model with an exact volume gets one row without an estimate (no algorithm was run for it); with only the
+        # exact volume switched on, this holds for every model
+        ex_row <- vapply(as.character(parsim$Model), has_exact, logical(1)) | length(selected_algos) == 0
+        algo_chr <- as.character(parsim$Algorithm); algo_chr[ex_row] <- "Exact"
+        parsim$Volume[ex_row] <- NA_real_
+        parsim$Algorithm <- factor(algo_chr, levels = c(levels(parsim$Algorithm), "Exact"))
+        parsim <- parsim[!duplicated(paste(parsim$Model, parsim$Algorithm)), ]
 
         parsim_rep <- rbind(parsim_rep, parsim)
       }
@@ -16359,49 +16408,7 @@ server <- shinyServer(function(input, output, session) {
 
       # Build display table: one row per model × algorithm
       parsim_display <- as.data.frame(parsim[order(parsim$Model, parsim$Algorithm), ])
-      # Exact volume from the vertices (convex hull): the estimates of the algorithms are noisy for thin shapes, this one is not.
-      # Every model is computed in its own R process and everything has EXACT_VOLUME_LIMIT seconds in total: a model with very many vertices
-      # can take very long, then the cell says so (NaN) instead of blocking the app. NA = no exact volume exists / can be computed.
-      exact_volumes <- function(nms, limit = EXACT_VOLUME_LIMIT) {
-        u <- unique(nms)
-        out <- stats::setNames(rep(NA_real_, length(u)), u)
-        if (length(u) == 0 || !requireNamespace("geometry", quietly = TRUE)) return(out[nms])
-        d <- tempfile("exact_"); dir.create(d)
-        writeLines(c("suppressMessages(library(rcdd))", "a <- commandArgs(TRUE)", "h <- readRDS(a[1])",
-          "res <- tryCatch({",
-          "  if (any(q2d(h)[, 1] > 0)) 0 else {",
-          "    hh <- matrix(as.character(h), ncol = ncol(h)); attr(hh, \"representation\") <- \"H\"",
-          "    vn <- q2d(scdd(hh)$output)",
-          "    if (any(vn[, 2] == 0)) NA_real_ else {",
-          "      pts <- vn[vn[, 2] == 1, -(1:2), drop = FALSE]",
-          "      if (nrow(pts) <= ncol(pts)) 0 else if (qr(sweep(pts, 2, pts[1, ]), tol = 1e-9)$rank < ncol(pts)) 0 else if (ncol(pts) == 1) diff(range(pts)) else as.numeric(geometry::convhulln(pts, options = \"FA\")$vol)",
-          "    }",
-          "  }",
-          "}, error = function(e) NA_real_)",
-          "saveRDS(res, a[2])"), file.path(d, "job.R"))
-        procs <- list()
-        for (i in seq_along(u)) {
-          h <- isolate(h_reactive[[u[i]]])
-          if (is.null(h)) next
-          saveRDS(h, file.path(d, paste0("h", i, ".rds")))
-          procs[[as.character(i)]] <- tryCatch(processx::process$new(file.path(R.home("bin"), "Rscript"),
-            c(file.path(d, "job.R"), file.path(d, paste0("h", i, ".rds")), file.path(d, paste0("v", i, ".rds"))), cleanup_tree = TRUE),
-            error = function(e) NULL)
-        }
-        deadline <- Sys.time() + limit
-        while (Sys.time() < deadline && any(vapply(procs, function(p) !is.null(p) && p$is_alive(), logical(1)))) Sys.sleep(0.1)
-        for (k in names(procs)) {
-          p <- procs[[k]]
-          if (is.null(p)) next
-          if (p$is_alive()) { try(p$kill_tree(), silent = TRUE); out[as.integer(k)] <- NaN; next }
-          v <- tryCatch(readRDS(file.path(d, paste0("v", k, ".rds"))), error = function(e) NA_real_)
-          out[as.integer(k)] <- if (is.numeric(v) && length(v) == 1) v else NA_real_
-        }
-        unlink(d, recursive = TRUE)
-        out[nms]
-      }
-      exact_on <- !identical(isolate(input$EX), FALSE)
-      exact_vol <- if (exact_on) unname(exact_volumes(as.character(parsim_display$Model))) else rep(NA_real_, nrow(parsim_display))
+      exact_vol <- if (exact_on && !is.null(ex_pre)) unname(ex_pre[as.character(parsim_display$Model)]) else rep(NA_real_, nrow(parsim_display))
       # Max BF = 1 / volume: taken from the exact volume where there is one, else from the estimate of the algorithm
       maxbf_use <- ifelse(is.finite(exact_vol) & exact_vol > 0, 1 / exact_vol, parsim_display$Max_BF)
       # Plain decimal rounds tiny volumes to "0.0000", and as.character()'s
@@ -16510,7 +16517,7 @@ server <- shinyServer(function(input, output, session) {
             lengthMenu = c(6, 12, 18, 24, 48, 96),
             dom = "ltp",
             # a short explanation when the mouse is over a column header
-            headerCallback = DT::JS(paste0("function(thead) { var t = { 'Volume': 'The same share, estimated by random sampling: it changes from run to run, by an amount that depends on the model. Use the exact volume where it is shown.', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume (from the exact volume when there is one).', 'Exact volume': 'The precise value, calculated from the vertices; it does not change between runs. n/a means it took longer than ", EXACT_VOLUME_LIMIT, " seconds: then only the estimate is available.' }; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }")),
+            headerCallback = DT::JS(paste0("function(thead) { var t = { 'Volume': 'The same share, estimated by random sampling: it changes from run to run, by an amount that depends on the model. Only shown for models without an exact volume.', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume (from the exact volume when there is one).', 'Exact volume': 'Calculated from the corner points of the model, not sampled; it does not change between runs. n/a means it took longer than ", EXACT_VOLUME_LIMIT, " seconds: then the algorithms estimate the volume.' }; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }")),
             columnDefs = list(
               list(className = "dt-left", targets = 0),
               list(visible = FALSE, targets = ncol(simple_tbl) - 1)
@@ -16633,8 +16640,8 @@ server <- shinyServer(function(input, output, session) {
       div(style = "margin-bottom:10px;",
         h5("Parsimony results", style = "margin:0 0 6px 0;"),
         HTML(paste0("<div style='font-size:13px; color:#555; line-height:1.55;'>
-          <div><b>Exact volume</b> &ndash; the precise share of the parameter space that fits the model. <b>If a number is shown here, use it</b>: it does not change between runs.</div>
-          <div><b>Volume</b> &ndash; the same share, but estimated by random sampling, so it differs from run to run, and how much depends on the model (typically more with many dimensions or thin shapes). The exact volume has no such problem; it is only missing (n/a) when it could not be calculated within the time limit of ", EXACT_VOLUME_LIMIT, " seconds. Where both are shown, use the exact one. If only the estimate exists and you need more precise values, lower the error in the algorithm settings (slower).</div>
+          <div><b>Exact volume</b> &ndash; the share of the parameter space (all combinations of the probabilities between 0 and 1) that fits the model. It is calculated, not sampled: first the corner points of the model's region are determined, then the volume of the shape they span. The result does not change between runs (apart from rounding), so it needs no estimate: <b>when an exact volume can be calculated, no algorithm is run for that model.</b></div>
+          <div><b>Volume</b> &ndash; the same share, estimated by random sampling with the selected algorithm(s). It only appears for models without an exact volume (n/a when the calculation took longer than the time limit of ", EXACT_VOLUME_LIMIT, " seconds). It differs from run to run, and how much depends on the model (typically more with many dimensions or thin shapes). If you need more precise values, lower the error in the algorithm settings (slower). To run the algorithms for all models anyway, switch Exact volume off.</div>
           <div><b>Max BF</b> &ndash; the largest Bayes factor the model can reach against the unconstrained model (1 / volume; taken from the exact volume where there is one). Smaller volume = more restrictive model = larger Max BF.</div>
         </div>"))
       )
