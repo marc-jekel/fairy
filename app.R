@@ -1658,8 +1658,8 @@ ui <- shinyUI(fluidPage(
       .fairy-run-cell.st-cancel { color: #b05000; }
       .fairy-run-cell.st-na, .fairy-run-cell.st-skip { color: var(--fairy-text-muted, #667085); }
       .fairy-run-act { width: 1%; white-space: nowrap; text-align: right; }
-      .fairy-run-skip { padding: 2px 6px; min-height: 24px; font-size: 13px; font-weight: 500; border: 0; background: transparent; color: var(--fairy-text-muted, #667085); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-      .fairy-run-skip:hover, .fairy-run-skip:focus-visible { color: var(--fairy-primary, #3a6df0); }
+      .fairy-run-skip { width: 28px; height: 28px; padding: 0; line-height: 1; font-size: 13px; border: 0; border-radius: 50%; background: transparent; color: var(--fairy-text-muted, #667085); cursor: pointer; }
+      .fairy-run-skip:hover, .fairy-run-skip:focus-visible { color: #c62828; background: color-mix(in srgb, #c62828 10%, transparent); }
       .fairy-run-cell.st-stop { color: #b05000; }
       #fairy-run-close:focus-visible { outline: 3px solid var(--fairy-primary, #3a6df0); outline-offset: 2px; }
       @media (prefers-reduced-motion: reduce) {
@@ -4296,8 +4296,8 @@ ui <- shinyUI(fluidPage(
             for (var ci = 0; ci < ncols; ci++) { var tc = document.createElement('td'); noneCell(tc); tr.appendChild(tc); cells.push(tc); }
             if (skippable) {
               var ta = document.createElement('td'); ta.className = 'fairy-run-act';
-              var sb = document.createElement('button'); sb.type = 'button'; sb.className = 'fairy-run-skip'; sb.textContent = 'Skip';
-              sb.title = 'Skip this model: it is not calculated, the others go on';
+              var sb = document.createElement('button'); sb.type = 'button'; sb.className = 'fairy-run-skip'; sb.textContent = '\\u2715';
+              sb.title = 'Cancel this model; the others go on'; sb.setAttribute('aria-label', 'Cancel this model');
               sb.addEventListener('click', function() { if (window.Shiny) Shiny.setInputValue(cancelInput === 'mn_cancel' ? 'mn_skip_model' : 'v_skip_model', name, { priority: 'event' }); });
               ta.appendChild(sb); tr.appendChild(ta);
             }
@@ -7742,7 +7742,7 @@ server <- shinyServer(function(input, output, session) {
     if (!is.null(procs[[m]])) { try(procs[[m]]$kill_tree(), silent = TRUE); procs[[m]] <- NULL; v_state$procs <- procs }
     v_state$queue <- setdiff(isolate(v_state$queue), m)
     v_state$skipped <- unique(c(isolate(v_state$skipped), m))
-    fairy_run_row(m, v = "skip")
+    fairy_run_row(m, v = "cancel")
   })
   observeEvent(input$v_cancel, {
     if (!isTRUE(isolate(v_state$active))) return()
@@ -16351,8 +16351,8 @@ server <- shinyServer(function(input, output, session) {
       if (isTRUE(v_async)) {
         v_state$after <- function(cancelled = character(0), skipped = character(0)) {
           note <- v_pending_note
+          cancelled <- unique(c(cancelled, skipped))
           if (length(cancelled) > 0) note <- paste0("<b>Cancelled:</b> the V-representation of ", paste(htmltools::htmlEscape(cancelled), collapse = ", "), " was not computed.<br>", note)
-          if (length(skipped) > 0) note <- paste0("<b>Skipped by you:</b> the V-representation of ", paste(htmltools::htmlEscape(skipped), collapse = ", "), " was not computed.<br>", note)
           fairy_run_end(note)
           tryCatch(render_v_tail(), error = function(e) fairy_report_error(e, "go"))
         }
@@ -16442,7 +16442,7 @@ server <- shinyServer(function(input, output, session) {
 
   # Exact volume from the vertices (convex hull), in separate R processes like the estimates: the window shows what is being
   # computed, "skip" stops it and the algorithm takes over, and EXACT_VOLUME_LIMIT is the longest it may take in total.
-  # Result per model: a number, NaN = stopped (time limit or skipped), NA = no exact volume exists / can be computed.
+  # Result per model: a number, NaN = stopped (time limit or cancelled), NA = no exact volume exists / can be computed.
   ex <- reactiveValues(active = FALSE, dir = NULL, names = character(0), procs = list(), res = NULL, start = NULL,
                        elapsed = 0, skip = FALSE, prev_snap = NULL, hkeys = NULL)
   exact_kill_all <- function() {
@@ -16492,7 +16492,7 @@ server <- shinyServer(function(input, output, session) {
     ex$active <- TRUE
     for (i in seq_along(u)) fairy_run_cell(u[i], "Exact volume", if (as.character(i) %in% names(procs)) "run" else
       switch(if (is.na(cached_state[[u[i]]])) "none" else cached_state[[u[i]]], ok = "cached", timeout = "stop", "na"))
-    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "ex_skip", label = "Skip, use the algorithm"))
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "ex_skip", label = "Cancel exact, use the algorithm"))
     session$sendCustomMessage("fairy_run_limit", list(seconds = if (isTRUE(isolate(ex_nolimit()))) 0 else EXACT_VOLUME_LIMIT, nolimit = isTRUE(isolate(ex_nolimit()))))
   }
   observe({
@@ -17015,7 +17015,7 @@ server <- shinyServer(function(input, output, session) {
         Dimensionality = dim_short(long_df$Dimensionality),
         Volume         = vapply(seq_len(nrow(long_df)), function(i) {
           v <- long_df$Volume[i]
-          if (is.nan(v)) return(paste0("n/a (stopped after ", EXACT_VOLUME_LIMIT_TXT, " or skipped)"))
+          if (is.nan(v)) return(paste0("n/a (cancelled, or stopped after ", EXACT_VOLUME_LIMIT_TXT, ")"))
           if (is.na(v)) return("\u2014")
           if (v == 0) return("0")
           with_frac(vol_str(v), v, is_ex_long[i])
@@ -17074,7 +17074,7 @@ server <- shinyServer(function(input, output, session) {
             lengthMenu = c(6, 12, 18, 24, 48, 96),
             dom = if (nrow(simple_tbl) > 6) "ltp" else "t",
             # a short explanation when the mouse is over a column header
-            headerCallback = DT::JS(paste0("function(thead) { var t = { 'Dimensionality': 'Number of dimensions of the model (3D: three free probabilities). Not full-dim.: the model is flat in some direction because of an equality, so its volume is 0.', 'Algorithm': 'Exact: calculated from the corner points of the model, not sampled, does not change between runs. The other rows: estimated by random sampling with that algorithm; they change from run to run, by an amount that depends on the model. By default only shown for models without an exact volume.', 'Volume': 'The share of the parameter space that fits the model. n/a: the exact calculation was stopped (time limit of ", EXACT_VOLUME_LIMIT_TXT, " or skipped); then the algorithm estimates the volume.', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume of that row.'}; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }")),
+            headerCallback = DT::JS(paste0("function(thead) { var t = { 'Dimensionality': 'Number of dimensions of the model (3D: three free probabilities). Not full-dim.: the model is flat in some direction because of an equality, so its volume is 0.', 'Algorithm': 'Exact: calculated from the corner points of the model, not sampled, does not change between runs. The other rows: estimated by random sampling with that algorithm; they change from run to run, by an amount that depends on the model. By default only shown for models without an exact volume.', 'Volume': 'The share of the parameter space that fits the model. n/a: the exact calculation was stopped (time limit of ", EXACT_VOLUME_LIMIT_TXT, " or cancelled); then the algorithm estimates the volume.', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume of that row.'}; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }")),
             columnDefs = list(
               list(className = "dt-left", targets = 0),
               list(visible = FALSE, targets = ncol(simple_tbl) - 1)
@@ -17205,7 +17205,7 @@ server <- shinyServer(function(input, output, session) {
         h5("Parsimony results", style = "margin:0 0 6px 0;"),
         HTML(paste0("<details style='font-size:13px; color:#555; line-height:1.55;'><summary style='cursor:pointer; color:#3a6df0;'>What do the columns mean?</summary>
           <div><b>Volume</b> &ndash; the share of the parameter space that fits the model. Each model has one row per method (column Algorithm).</div>
-          <div><b>Exact</b> &ndash; calculated, not sampled, from the corner points of the model's region. The result does not change between runs; numerical rounding only affects digits far beyond those shown (e.g. the 10th significant digit, even for extremely small volumes). <b>By default, no algorithm is run for a model when an exact volume can be calculated</b> (switch Algorithms on to run them anyway). n/a: the calculation was stopped (time limit of ", EXACT_VOLUME_LIMIT_TXT, " or skipped); then the algorithm estimates the volume.</div>
+          <div><b>Exact</b> &ndash; calculated, not sampled, from the corner points of the model's region. The result does not change between runs; numerical rounding only affects digits far beyond those shown (e.g. the 10th significant digit, even for extremely small volumes). <b>By default, no algorithm is run for a model when an exact volume can be calculated</b> (switch Algorithms on to run them anyway). n/a: the calculation was stopped (time limit of ", EXACT_VOLUME_LIMIT_TXT, " or cancelled); then the algorithm estimates the volume.</div>
           <div><b>Cooling Bodies, Cooling Gaussian, Sequence of Balls</b> &ndash; the same share, estimated by random sampling. It differs from run to run, and how much depends on the model (typically more with many dimensions or thin shapes). For more precise values lower the error in the algorithm settings (slower).</div>
           <div><b>Max BF</b> &ndash; the largest Bayes factor the model can reach against the unconstrained model: 1 / the volume of that row. Smaller volume = more restrictive model = larger Max BF.</div>
           <div><b>Software</b> &ndash; these volumes are not calculated by this app itself but by R packages. <i>Exact</i>: <a href='https://cran.r-project.org/package=rcdd' target='_blank' rel='noopener'>rcdd</a> finds the corner points (it uses the library cddlib), <a href='https://cran.r-project.org/package=geometry' target='_blank' rel='noopener'>geometry</a> (Qhull) calculates the volume of the shape they span. <i>Algorithms</i>: <a href='https://cran.r-project.org/package=volesti' target='_blank' rel='noopener'>volesti</a>. How to cite them: in R, <code>citation(\"rcdd\")</code>, <code>citation(\"geometry\")</code>, <code>citation(\"volesti\")</code>.</div>
@@ -18116,7 +18116,7 @@ server <- shinyServer(function(input, output, session) {
       '         esc(short_name(mods)), "</label>"),',
       '  "</nav>",',
       '  if (length(skipped) > 0) paste0("<p class=problem><b>Not analysed",',
-      '    " (skipped or stopped):</b> ", esc(paste(skipped, collapse = ", ")),',
+      '    " (cancelled or stopped):</b> ", esc(paste(skipped, collapse = ", ")),',
       '    "</p>"),',
       '  "<section class=p1><h2>Bayes factors of all models</h2>",',
       '  "<p class=small>A value above 1 favours the model. se =",',
@@ -18705,7 +18705,7 @@ server <- shinyServer(function(input, output, session) {
     if (!is.null(procs[[m]])) { try(procs[[m]]$kill_tree(), silent = TRUE); procs[[m]] <- NULL; mn_proc$procs <- procs }
     mn_proc$queue <- setdiff(isolate(mn_proc$queue), m)
     mn_proc$skipped <- unique(c(isolate(mn_proc$skipped), m))
-    fairy_run_cell(row_of[[m]], "Posterior", "skip"); fairy_run_cell(row_of[[m]], "Bayes factors", "skip")
+    fairy_run_cell(row_of[[m]], "Posterior", "cancel"); fairy_run_cell(row_of[[m]], "Bayes factors", "cancel")
   })
   # fairy dust (five quick clicks on the window title, see the script above): no time limit for the analysis here
   mn_nolimit <- reactiveVal(FALSE)
