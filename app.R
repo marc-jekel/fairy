@@ -395,6 +395,14 @@ ui <- shinyUI(fluidPage(
       #qtest_order_open.fairy-order-btn, #qtest_order_open_v.fairy-order-btn { flex-direction: row !important; width: 66px !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
       #qtest_order_open .fa, #qtest_order_open_v .fa, #qtest_order_open svg, #qtest_order_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
       #qtest_order_open:hover, #qtest_order_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
+      /* Data: same small grey row as Order, for the multinomineq data file */
+      #mn_data_open, #mn_data_open_v { position: relative !important; margin-bottom: 14px !important; }
+      #mn_data_open::after, #mn_data_open_v::after { content: 'Data'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
+        border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 10.5px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
+      /* Order is a setting for the two downloads below it, not a third program: plain grey, a thin row, a divider under it */
+      #mn_data_open.fairy-order-btn, #mn_data_open_v.fairy-order-btn { flex-direction: row !important; width: 66px !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
+      #mn_data_open .fa, #mn_data_open_v .fa, #mn_data_open svg, #mn_data_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
+      #mn_data_open:hover, #mn_data_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       .fairy-order-btn.fairy-order-new::before { content: ''; position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: #e5484d; border: 1.5px solid var(--fairy-panel, #fff); z-index: 2; }
       #fairy-running-note { position: fixed; right: 22px; bottom: 92px; z-index: 100000; display: flex; align-items: center; gap: 9px;
         padding: 9px 16px; border-radius: 999px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1d2433); font-size: 13.5px; font-weight: 600;
@@ -2468,11 +2476,11 @@ ui <- shinyUI(fluidPage(
         box-shadow: 0 0 0 2px var(--fairy-panel, #fff);
       }
       /* icon above, label below, both centred inside one equally wide button */
-      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex, #qtest_order_open, #qtest_order_open_v {
+      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex, #qtest_order_open, #qtest_order_open_v, #mn_data_open, #mn_data_open_v {
         margin-bottom: 0 !important; width: 66px !important; height: auto !important; padding: 7px 4px 6px !important;
         display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
       #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_v_multinomineq::after, #d_latex::after, #d_v_latex::after,
-      #qtest_order_open::after, #qtest_order_open_v::after { position: static !important; transform: none !important; box-shadow: none !important; margin: 0 auto; }
+      #qtest_order_open::after, #qtest_order_open_v::after, #mn_data_open::after, #mn_data_open_v::after { position: static !important; transform: none !important; box-shadow: none !important; margin: 0 auto; }
       #d_h_multinomineq::after, #d_v_multinomineq::after {
         content: 'multinom';
         background: #8a5cf6;
@@ -6173,7 +6181,9 @@ ui <- shinyUI(fluidPage(
             tags$span(class = "fairy-tooltip", `data-tooltip` = "H-representation for QTEST",
               downloadButton("d_h", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
             tags$span(class = "fairy-tooltip", `data-tooltip` = "H-representation for multinomineq",
-              downloadButton("d_h_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))),
+              downloadButton("d_h_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data for the multinomineq script (goes into the data file of the download)",
+              actionButton("mn_data_open", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn"))),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "LaTeX file of H-representation",
             downloadButton("d_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
         ),
@@ -6296,7 +6306,9 @@ ui <- shinyUI(fluidPage(
             tags$span(class = "fairy-tooltip", `data-tooltip` = "V-representation for QTEST",
               downloadButton("d_v", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
             tags$span(class = "fairy-tooltip", `data-tooltip` = "V-representation for multinomineq",
-              downloadButton("d_v_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))),
+              downloadButton("d_v_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data for the multinomineq script (goes into the data file of the download)",
+              actionButton("mn_data_open_v", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn"))),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "LaTeX table (words: all/none/fractions)",
             downloadButton("d_v_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
         ),
@@ -16265,13 +16277,17 @@ server <- shinyServer(function(input, output, session) {
   # probabilities: data_choices.csv if all models have the same number, data_choices_<k>_probabilities.csv otherwise.
   # np_labels: list named by the number of probabilities, holding the column names. Returns the file names.
   # (decreasing example frequencies: equal ones can stop the sampler)
-  write_multinomineq_data <- function(np_labels) {
+  write_multinomineq_data <- function(np_labels, user = list()) {
     ks <- sort(as.integer(names(np_labels)))
     out <- character(0)
     for (k in ks) {
       f <- if (length(ks) == 1) "data_choices.csv" else paste0("data_choices_", k, "_probabilities.csv")
-      utils::write.csv(data.frame(probability = np_labels[[as.character(k)]], n = 25L,
-                                  frequency = round(25 * seq(0.8, 0.2, length.out = k))), f, row.names = FALSE, quote = FALSE)
+      lb <- np_labels[[as.character(k)]]
+      ex <- round(25 * seq(0.8, 0.2, length.out = k))
+      # the numbers belong to the probability (its name), so they stay with it when the order is changed
+      nn <- vapply(seq_len(k), function(i) { u <- user[[lb[i]]]; if (is.null(u)) 25L else as.integer(u$n) }, integer(1))
+      ff <- vapply(seq_len(k), function(i) { u <- user[[lb[i]]]; if (is.null(u)) as.integer(ex[i]) else as.integer(u$f) }, integer(1))
+      utils::write.csv(data.frame(probability = lb, n = nn, frequency = ff), f, row.names = FALSE, quote = FALSE)
       out <- c(out, f)
     }
     out
@@ -16282,57 +16298,54 @@ server <- shinyServer(function(input, output, session) {
       '# Put this script in one folder with the files of this download:',
       '#   A_<model>.csv, b_<model>.csv   H-representation',
       '#   V_<model>.csv                  V-representation (optional)',
-      '#   data_choices.csv               your data (see below)',
+      '#   data_choices*.csv              your data (see below)',
+      '# Then run the whole script. It analyses EVERY model in the',
+      '# folder and writes the results to results.csv.',
       '# Package: https://www.dwheck.de/software/multinomineq/',
       '#',
-      '# multinomineq samples inside the model, so the model needs a',
-      '# positive volume. A model with exact equalities (p1 = p2) has',
-      '# volume zero and sampling stops with an error: switch the',
-      '# equalities to "Approximate" in the app before you download.',
-      '',
-      '#### Packages ####',
-      '# install.packages(c("multinomineq", "rcdd", "readr", "coda"))',
-      'library("rcdd")',
-      'library("readr")',
-      'library("multinomineq")',
-      'library("coda")',
-      'set.seed(1234)',
-      '',
-      '#### Your input ####',
-      '# models next to this script',
-      'models <- unique(sub("^[AbV]_(.*)\\\\.csv$", "\\\\1",',
-      '                     list.files(pattern = "^[AbV]_.*\\\\.csv$")))',
-      'print(models)',
-      paste0('model_name <- "', first_model, '"   # choose the model'),
-      '',
-      '# Your data: open the data file next to this script and replace',
-      '# the example numbers by your own.',
+      '# Your data: open the data file(s) next to this script and',
+      '# replace the example numbers by your own (or enter them in the',
+      '# app first: Data button next to the download).',
       '#   data_choices.csv or, if the models have different numbers of',
       '#   probabilities (e.g. unpacked items models),',
       '#   data_choices_<k>_probabilities.csv for models with k',
       '#   probabilities (the script takes the matching file).',
       '#   One row per probability, in the order of the columns of A / V.',
-      '#   (If you changed the order in the app, the files use it.)',
       '#   n          number of observations for this probability',
       '#   frequency  how often the outcome the probability stands for',
       '#              was observed, out of n (e.g. how often the option',
       '#              with choice probability p1 was chosen)',
       '',
       '#### Settings ####',
-      '# These are the defaults of the multinomineq package.',
-      '# You can leave them as they are.',
-      '# prior: Beta(1, 1) = uniform prior on every probability;',
-      '#        the Bayes factors depend on it',
+      'final <- FALSE   # TRUE: more samples for the final numbers',
+      '                 # (takes longer, smaller standard error)',
+      'plots <- FALSE   # TRUE: one plot of the posterior per model',
+      '# Advanced: the prior. Beta(1, 1) = uniform on every probability',
+      '# (default of multinomineq); the Bayes factors depend on it.',
       'prior <- c(1, 1)',
-      '# M_post: posterior samples (for the plot).',
-      '#         For a final analysis raise it, e.g. to 20000.',
-      'M_post <- 5000',
-      '# M_bf: samples for the Bayes factors. For a final analysis',
-      '#       RAISE it, e.g. to 100000 (the run then takes longer).',
-      '#       The standard error (column se) of the output shrinks.',
-      'M_bf <- 10000',
+      'M_post <- if (final) 20000 else 5000     # posterior samples',
+      'M_bf <- if (final) 100000 else 10000     # Bayes factor samples',
       '',
-      '#### Read the files ####',
+      '#### Packages (installed if missing) ####',
+      'for (p in c("multinomineq", "rcdd", "readr", "coda")) {',
+      '  if (!requireNamespace(p, quietly = TRUE)) install.packages(p)',
+      '}',
+      'library("rcdd")',
+      'library("readr")',
+      'library("multinomineq")',
+      'library("coda")',
+      'set.seed(1234)',
+      '',
+      '# In RStudio: work in the folder of this script',
+      'try({',
+      '  if (requireNamespace("rstudioapi", quietly = TRUE) &&',
+      '      rstudioapi::isAvailable()) {',
+      '    here <- dirname(rstudioapi::getSourceEditorContext()$path)',
+      '    if (nzchar(here) && here != ".") setwd(here)',
+      '  }',
+      '}, silent = TRUE)',
+      '',
+      '#### Helper functions ####',
       '# numbers or fractions such as 1/2',
       'read_q <- function(x) {',
       '  if (is.numeric(unlist(x))) {',
@@ -16341,64 +16354,88 @@ server <- shinyServer(function(input, output, session) {
       '    matrix(q2d(unlist(x)), ncol = ncol(x))',
       '  }',
       '}',
-      'file_A <- paste0("A_", model_name, ".csv")',
-      'file_V <- paste0("V_", model_name, ".csv")',
-      'A <- b <- V <- NULL',
-      'if (file.exists(file_A)) {',
-      '  A_raw <- read_csv(file_A, show_col_types = FALSE)',
-      '  A <- read_q(A_raw); colnames(A) <- colnames(A_raw)',
-      '  b <- unlist(read_csv(paste0("b_", model_name, ".csv"),',
-      '                       col_names = FALSE, show_col_types = FALSE))',
-      '  if (!is.numeric(b)) b <- q2d(b)',
+      'bf_row <- function(model, rep, bf) {',
+      '  data.frame(model = model, representation = rep,',
+      '             bf_0u = bf["bf_0u", "bf"], se_0u = bf["bf_0u", "se"],',
+      '             bf_00 = bf["bf_00\'", "bf"], se_00 = bf["bf_00\'", "se"],',
+      '             note = if (is.finite(bf["bf_0u", "bf"])) "" else',
+      '               "no estimate: volume zero? (exact equalities)")',
       '}',
-      'if (file.exists(file_V)) {',
-      '  V_raw <- read_csv(file_V, show_col_types = FALSE)',
-      '  V <- read_q(V_raw); colnames(V) <- colnames(V_raw)',
-      '}',
-      'n_p <- if (!is.null(A)) ncol(A) else ncol(V)',
       '',
-      '#### Read your data ####',
-      'data_file <- paste0("data_choices_", n_p, "_probabilities.csv")',
-      'if (!file.exists(data_file)) data_file <- "data_choices.csv"',
-      'dat <- read_csv(data_file, show_col_types = FALSE)',
-      'n <- dat$n',
-      'choices <- dat$frequency',
-      'if (length(choices) != n_p)',
-      '  stop(data_file, " needs one row for each of the ", n_p,',
-      '       " probabilities of this model.")',
-      'if (any(choices > n))',
-      '  stop("In ", data_file, ": frequency cannot be larger than n.")',
+      '#### Analysis of one model ####',
+      'analyse <- function(model_name) {',
+      '  file_A <- paste0("A_", model_name, ".csv")',
+      '  file_V <- paste0("V_", model_name, ".csv")',
+      '  A <- b <- V <- NULL',
+      '  if (file.exists(file_A)) {',
+      '    A_raw <- read_csv(file_A, show_col_types = FALSE)',
+      '    A <- read_q(A_raw); colnames(A) <- colnames(A_raw)',
+      '    b <- unlist(read_csv(paste0("b_", model_name, ".csv"),',
+      '                  col_names = FALSE, show_col_types = FALSE))',
+      '    if (!is.numeric(b)) b <- q2d(b)',
+      '  }',
+      '  if (file.exists(file_V)) {',
+      '    V_raw <- read_csv(file_V, show_col_types = FALSE)',
+      '    V <- read_q(V_raw); colnames(V) <- colnames(V_raw)',
+      '  }',
+      '  n_p <- if (!is.null(A)) ncol(A) else ncol(V)',
       '',
-      '#### Posterior and Bayes factors ####',
-      'if (!is.null(V)) {',
-      '  posterior_V <- sampling_binom(k = choices, n = n, V = V,',
-      '                                prior = prior, M = M_post,',
-      '                                progress = FALSE)',
-      '  plot(posterior_V)',
-      '  bf_V <- bf_binom(k = choices, n = n, V = V, prior = prior,',
+      '  # your data for this number of probabilities',
+      '  data_file <- paste0("data_choices_", n_p, "_probabilities.csv")',
+      '  if (!file.exists(data_file)) data_file <- "data_choices.csv"',
+      '  dat <- read_csv(data_file, show_col_types = FALSE)',
+      '  n <- dat$n',
+      '  choices <- dat$frequency',
+      '  if (length(choices) != n_p)',
+      '    stop(data_file, " needs one row for each of the ", n_p,',
+      '         " probabilities of this model.")',
+      '  if (any(choices > n))',
+      '    stop("In ", data_file, ": frequency cannot be larger than n.")',
+      '',
+      '  rows <- list()',
+      '  if (!is.null(V)) {',
+      '    if (plots) plot(sampling_binom(k = choices, n = n, V = V,',
+      '      prior = prior, M = M_post, progress = FALSE))',
+      '    bf <- bf_binom(k = choices, n = n, V = V, prior = prior,',
       '                   M = M_bf, progress = FALSE)',
-      '  print(bf_V)',
-      '}',
-      'if (!is.null(A)) {',
-      '  posterior_H <- sampling_binom(k = choices, n = n, A = A, b = b,',
-      '                                prior = prior, M = M_post,',
-      '                                progress = FALSE)',
-      '  plot(posterior_H)',
-      '  bf_H <- bf_binom(k = choices, n = n, A = A, b = b,',
+      '    rows$V <- bf_row(model_name, "V", bf)',
+      '  }',
+      '  if (!is.null(A)) {',
+      '    if (plots) plot(sampling_binom(k = choices, n = n, A = A,',
+      '      b = b, prior = prior, M = M_post, progress = FALSE))',
+      '    bf <- bf_binom(k = choices, n = n, A = A, b = b,',
       '                   prior = prior, M = M_bf, progress = FALSE)',
-      '  print(bf_H)',
+      '    rows$H <- bf_row(model_name, "H", bf)',
+      '  }',
+      '  do.call(rbind, rows)',
       '}',
       '',
-      '# Reading the output:',
+      '#### Run all models ####',
+      'models <- unique(sub("^[AbV]_(.*)\\\\.csv$", "\\\\1",',
+      '                     list.files(pattern = "^[AbV]_.*\\\\.csv$")))',
+      'print(models)',
+      'results <- do.call(rbind, lapply(models, function(m) {',
+      '  tryCatch(analyse(m), error = function(e) {',
+      '    message("Model ", m, ": ", conditionMessage(e))',
+      '    data.frame(model = m, representation = NA, bf_0u = NA,',
+      '               se_0u = NA, bf_00 = NA, se_00 = NA,',
+      '               note = conditionMessage(e))',
+      '  })',
+      '}))',
+      'print(results, row.names = FALSE)',
+      'write.csv(results, "results.csv", row.names = FALSE)',
+      '',
+      '# Reading the results:',
       '#   bf_0u   model against the unconstrained model',
       '#           (above 1 favours the model)',
-      '#   bf_u0   the same the other way round (1 / bf_0u)',
-      '#   bf_00\'  model against its complement',
+      '#   bf_00   model against its complement',
       '#           (everything the model forbids)',
-      '#   se, ci  Monte-Carlo error of the estimate; if it is large,',
-      '#           raise M_bf. V and H should agree up to this error.',
-      '# For very thin models (narrow approximate equalities) use a',
-      '# larger M_bf.',
+      '#   se_*    Monte-Carlo error of the Bayes factor; if it is large,',
+      '#           set final <- TRUE. V and H agree up to this error.',
+      '#   note    why a model could not be analysed (e.g. exact',
+      '#           equalities: volume zero, use "Approximate" in the app)',
+      '# For very thin models (narrow approximate equalities) the',
+      '# estimates are less precise.',
       '# More commands: https://www.dwheck.de/vignettes/multinomineq_intro.html'
     ), collapse = "\n")
   }
@@ -16489,6 +16526,102 @@ server <- shinyServer(function(input, output, session) {
     paste(lines, collapse = "\n")
   }
 
+  # Data for the multinomineq script: typed in the app, written into data_choices*.csv of the download.
+  # Stored per probability (by its name), so the numbers stay with the probability when the order is changed.
+  mn_user_data <- reactiveVal(list())
+  mn_np_labels <- function() {
+    nms <- c(isolate(names_models_reactive$value), isolate(intersections_reactive$names),
+             isolate(mixtures_reactive$names), isolate(items_reactive$names))
+    out <- list()
+    for (nm in nms) {
+      h <- isolate(h_reactive[[nm]])
+      if (is.null(h)) next
+      cols <- colnames(h)[-(1:2)]
+      pm <- isolate(qtest_perm$map[[nm]])
+      ok <- !is.null(pm) && length(pm) == length(cols) && setequal(pm, seq_along(cols))
+      if (ok) cols <- cols[pm]
+      desc <- NULL
+      if (nm %in% isolate(items_reactive$names)) {
+        lg <- items_model_legend(nm)
+        if (!is.null(lg) && length(lg) == length(cols)) desc <- if (ok) lg[pm] else lg
+      }
+      k <- as.character(length(cols))
+      if (is.null(out[[k]])) out[[k]] <- list(labels = cols, desc = desc)
+    }
+    out
+  }
+  # numbers typed in the window -> stored per probability; returns FALSE if something is not valid
+  mn_collect <- function(labs, strict = TRUE) {
+    cur <- isolate(mn_user_data())
+    for (k in names(labs)) {
+      kk <- as.integer(k)
+      nn <- vapply(seq_len(kk), function(i) as.numeric(input[[paste0("mn_n_", k, "_", i)]] %||% NA), numeric(1))
+      ff <- vapply(seq_len(kk), function(i) as.numeric(input[[paste0("mn_f_", k, "_", i)]] %||% NA), numeric(1))
+      bad <- anyNA(nn) || anyNA(ff) || any(nn < 1) || any(ff < 0) || any(ff > nn) || any(nn != round(nn)) || any(ff != round(ff))
+      if (bad) {
+        if (strict) return(FALSE)
+        next
+      }
+      for (i in seq_len(kk)) cur[[labs[[k]]$labels[i]]] <- list(n = as.integer(nn[i]), f = as.integer(ff[i]))
+    }
+    mn_user_data(cur)
+    TRUE
+  }
+  show_mn_data <- function() {
+    labs <- mn_np_labels()
+    if (length(labs) == 0) {
+      showNotification("No H-representation yet: click Go first.", type = "warning"); return()
+    }
+    cur <- isolate(mn_user_data())
+    ks <- sort(as.integer(names(labs)))
+    blocks <- lapply(ks, function(k) {
+      lb <- labs[[as.character(k)]]$labels
+      dsc <- labs[[as.character(k)]]$desc
+      ex <- round(25 * seq(0.8, 0.2, length.out = k))
+      tags$div(
+        if (length(ks) > 1) tags$h5(paste0("Models with ", k, " probabilities")),
+        tags$table(class = "table table-condensed", style = "width:auto;",
+          tags$thead(tags$tr(tags$th("probability"), if (!is.null(dsc)) tags$th("stands for"), tags$th("n"), tags$th("frequency"))),
+          tags$tbody(lapply(seq_len(k), function(i) {
+            u <- cur[[lb[i]]]
+            tags$tr(
+              tags$td(style = "vertical-align:middle;", tags$code(lb[i])),
+              if (!is.null(dsc)) tags$td(style = "vertical-align:middle; font-size:12.5px;", HTML(dsc[i])),
+              tags$td(numericInput(paste0("mn_n_", k, "_", i), NULL, value = if (!is.null(u)) u$n else 25, min = 1, step = 1, width = "90px")),
+              tags$td(numericInput(paste0("mn_f_", k, "_", i), NULL, value = if (!is.null(u)) u$f else ex[i], min = 0, step = 1, width = "90px")))
+          }))))
+    })
+    has_unpacked <- length(isolate(items_reactive$names)) > 0
+    showModal(modalDialog(
+      title = "Your data for the multinomineq script",
+      tags$p(class = "fairy-eq-tol-help", tags$b("n"), ": number of observations for this probability. ", tags$b("frequency"),
+        ": how often the outcome the probability stands for was observed, out of n. The numbers go into the data file of the next multinomineq download (H and V); the script then runs without any editing. Until you save your own, the files contain example numbers."),
+      if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "The rows are in the order of the downloaded files. The numbers belong to the probability, so they move with it when you change the order."),
+      tags$div(style = "max-height:50vh; overflow-y:auto;", blocks),
+      footer = tagList(
+        if (has_unpacked) actionButton("mn_data_to_order", "Change order of the probabilities"),
+        actionButton("mn_data_reset", "Reset to example"), modalButton("Cancel"),
+        actionButton("mn_data_save", "Save", class = "btn-primary")),
+      easyClose = TRUE))
+  }
+  for (btn_id in c("mn_data_open", "mn_data_open_v")) local({
+    id <- btn_id
+    observeEvent(input[[id]], { if (isTRUE(input[[id]] > 0)) show_mn_data() }, ignoreInit = TRUE)
+  })
+  observeEvent(input$mn_data_reset, { mn_user_data(list()); removeModal() })
+  observeEvent(input$mn_data_save, {
+    if (!mn_collect(mn_np_labels(), strict = TRUE)) {
+      showNotification("n and frequency must be whole numbers, n at least 1, and frequency between 0 and n.", type = "error"); return()
+    }
+    removeModal()
+    showNotification("Saved. Your numbers are in the data file of the next multinomineq download.", type = "message", duration = 6)
+  })
+  # data and order belong together for unpacked models: switch between the two windows without losing what was typed
+  observeEvent(input$mn_data_to_order, {
+    mn_collect(mn_np_labels(), strict = FALSE)
+    show_qtest_order(back = TRUE)
+  })
+  observeEvent(input$qtest_order_back_data, { show_mn_data() })
   output$qtest_order_btn_ui <- renderUI({
     if (length(items_reactive$names) == 0) return(NULL)
     tags$span(class = "fairy-tooltip", `data-tooltip` = "Order of the probabilities (p1, p2, ...) for unpacked models: used by the QTEST and multinomineq downloads, H and V, and by the R script",
@@ -16499,7 +16632,7 @@ server <- shinyServer(function(input, output, session) {
     tags$span(class = "fairy-tooltip", `data-tooltip` = "Order of the probabilities (p1, p2, ...) for unpacked models: used by the QTEST and multinomineq downloads, H and V, and by the R script",
       actionButton("qtest_order_open_v", NULL, icon = icon("sort"), class = "fairy-toolbar-iconbtn fairy-order-btn fairy-order-new"))
   })
-  show_qtest_order <- function(pending = NULL) {
+  show_qtest_order <- function(pending = NULL, back = FALSE) {
     all_nms <- isolate(items_reactive$names)
     blocks <- lapply(all_nms, function(nm) {
       lg <- items_model_legend(nm); if (is.null(lg)) return(NULL)
@@ -16611,6 +16744,7 @@ server <- shinyServer(function(input, output, session) {
         })();
       ")),
       footer = tagList(actionButton("qtest_order_reset", "Reset order"),
+        if (isTRUE(back)) actionButton("qtest_order_back_data", "Back to data", class = "btn-primary"),
         if (!is.null(pending)) tags$button(type = "button", id = "qtest_order_dl_go", class = "btn btn-primary", `data-dl` = pending, "Download"),
         modalButton(if (is.null(pending)) "Done" else "Cancel")),
       easyClose = TRUE))
@@ -16792,7 +16926,7 @@ server <- shinyServer(function(input, output, session) {
       first_ix <- which(!vapply(export_names, function(nm) is.null(isolate(h_reactive[[nm]])), logical(1)))[1]
       if (!is.na(first_ix)) {
         writeLines(multinomineq_script(export_files[first_ix], ncol(isolate(h_reactive[[export_names[first_ix]]])) - 2L), "analysis_multinomineq.R")
-        files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_labels))
+        files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_labels, isolate(mn_user_data())))
       }
 
       # zip::zip(file, files)
@@ -16946,7 +17080,7 @@ server <- shinyServer(function(input, output, session) {
         ve1 <- v_reactive[[download_v_names[1]]]
         vm1 <- if (is.list(ve1) && !is.null(ve1$output)) ve1$output else ve1
         writeLines(multinomineq_script(safe_file_name(download_v_names[1]), ncol(vm1) - 2L), "analysis_multinomineq.R")
-        files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_labels))
+        files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_labels, isolate(mn_user_data())))
       }
 
       tar(file, files)
