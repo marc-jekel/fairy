@@ -16275,19 +16275,22 @@ server <- shinyServer(function(input, output, session) {
   # example data files next to the script: one row per probability, to be overwritten with the own frequencies. Models with a
   # different number of probabilities (e.g. unpacked items models) need their own file, so there is one file per number of
   # probabilities: data_choices.csv if all models have the same number, data_choices_<k>_probabilities.csv otherwise.
-  # np_labels: list named by the number of probabilities, holding the column names. Returns the file names.
+  # groups: list named by group ("k:<number>" for models that share their probabilities, "m:<model>" for an unpacked model of its
+  # own), each with k, labels (column names), stem (file name part). Returns the file names.
   # (decreasing example frequencies: equal ones can stop the sampler)
-  write_multinomineq_data <- function(np_labels, user = list()) {
-    ks <- sort(as.integer(names(np_labels)))
+  write_multinomineq_data <- function(groups, user = list()) {
+    base_ks <- unique(vapply(groups[grepl("^k:", names(groups))], function(g) as.integer(g$k), integer(1)))
     out <- character(0)
-    for (k in ks) {
-      f <- if (length(ks) == 1) "data_choices.csv" else paste0("data_choices_", k, "_probabilities.csv")
-      lb <- np_labels[[as.character(k)]]
-      ex <- round(25 * seq(0.8, 0.2, length.out = k))
+    for (key in names(groups)) {
+      g <- groups[[key]]
+      f <- if (startsWith(key, "m:")) paste0("data_model_", g$stem, ".csv")
+           else if (length(base_ks) == 1) "data_choices.csv" else paste0("data_choices_", g$k, "_probabilities.csv")
+      ex <- round(25 * seq(0.8, 0.2, length.out = g$k))
       # the numbers belong to the probability (its name), so they stay with it when the order is changed
-      nn <- vapply(seq_len(k), function(i) { u <- user[[lb[i]]]; if (is.null(u)) 25L else as.integer(u$n) }, integer(1))
-      ff <- vapply(seq_len(k), function(i) { u <- user[[lb[i]]]; if (is.null(u)) as.integer(ex[i]) else as.integer(u$f) }, integer(1))
-      utils::write.csv(data.frame(probability = lb, n = nn, frequency = ff), f, row.names = FALSE, quote = FALSE)
+      u <- user[[key]]
+      nn <- vapply(seq_len(g$k), function(i) { v <- u[[g$labels[i]]]; if (is.null(v)) 25L else as.integer(v$n) }, integer(1))
+      ff <- vapply(seq_len(g$k), function(i) { v <- u[[g$labels[i]]]; if (is.null(v)) as.integer(ex[i]) else as.integer(v$f) }, integer(1))
+      utils::write.csv(data.frame(probability = g$labels, n = nn, frequency = ff), f, row.names = FALSE, quote = FALSE)
       out <- c(out, f)
     }
     out
@@ -16306,10 +16309,11 @@ server <- shinyServer(function(input, output, session) {
       '# Your data: open the data file(s) next to this script and',
       '# replace the example numbers by your own (or enter them in the',
       '# app first: Data button next to the download).',
-      '#   data_choices.csv or, if the models have different numbers of',
-      '#   probabilities (e.g. unpacked items models),',
-      '#   data_choices_<k>_probabilities.csv for models with k',
-      '#   probabilities (the script takes the matching file).',
+      '#   data_choices.csv: for the models with the same probabilities',
+      '#   (if they differ in number: data_choices_<k>_probabilities.csv)',
+      '#   data_model_<name>.csv: only for that model (unpacked items',
+      '#   models: their probabilities mean something of their own)',
+      '#   The script takes, for each model, the first file that exists.',
       '#   One row per probability, in the order of the columns of A / V.',
       '#   n          number of observations for this probability',
       '#   frequency  how often the outcome the probability stands for',
@@ -16354,13 +16358,23 @@ server <- shinyServer(function(input, output, session) {
       '    matrix(q2d(unlist(x)), ncol = ncol(x))',
       '  }',
       '}',
-      'bf_row <- function(model, rep, bf) {',
-      '  data.frame(model = model, representation = rep,',
-      '             bf_0u = bf["bf_0u", "bf"], se_0u = bf["bf_0u", "se"],',
-      '             bf_00 = bf["bf_00\'", "bf"], se_00 = bf["bf_00\'", "se"],',
-      '             note = if (is.finite(bf["bf_0u", "bf"])) "" else',
-      '               "no estimate: volume zero? (exact equalities)")',
+      '# one row: all Bayes factors of bf_binom with error and interval',
+      'bf_row <- function(model, rep, bf, note = "") {',
+      '  out <- data.frame(model = model, representation = rep)',
+      '  for (r in c("bf_0u", "bf_u0", "bf_00\'")) {',
+      '    nm <- sub("\'", "", r)',
+      '    out[[nm]] <- bf[r, "bf"]',
+      '    out[[paste0(nm, "_se")]] <- bf[r, "se"]',
+      '    out[[paste0(nm, "_ci5")]] <- bf[r, "ci.5%"]',
+      '    out[[paste0(nm, "_ci95")]] <- bf[r, "ci.95%"]',
+      '  }',
+      '  out$note <- note',
+      '  out',
       '}',
+      'empty_bf <- matrix(NA_real_, 3, 4, dimnames = list(',
+      '  c("bf_0u", "bf_u0", "bf_00\'"), c("bf", "se", "ci.5%", "ci.95%")))',
+      '',
+      'no_result <- "no estimate: volume zero? (exact equalities)"',
       '',
       '#### Analysis of one model ####',
       'analyse <- function(model_name) {',
@@ -16381,8 +16395,11 @@ server <- shinyServer(function(input, output, session) {
       '  n_p <- if (!is.null(A)) ncol(A) else ncol(V)',
       '',
       '  # your data for this number of probabilities',
-      '  data_file <- paste0("data_choices_", n_p, "_probabilities.csv")',
-      '  if (!file.exists(data_file)) data_file <- "data_choices.csv"',
+      '  data_file <- c(paste0("data_model_", model_name, ".csv"),',
+      '                 paste0("data_choices_", n_p, "_probabilities.csv"),',
+      '                 "data_choices.csv")',
+      '  data_file <- data_file[file.exists(data_file)][1]',
+      '  if (is.na(data_file)) stop("no data file found")',
       '  dat <- read_csv(data_file, show_col_types = FALSE)',
       '  n <- dat$n',
       '  choices <- dat$frequency',
@@ -16398,14 +16415,16 @@ server <- shinyServer(function(input, output, session) {
       '      prior = prior, M = M_post, progress = FALSE))',
       '    bf <- bf_binom(k = choices, n = n, V = V, prior = prior,',
       '                   M = M_bf, progress = FALSE)',
-      '    rows$V <- bf_row(model_name, "V", bf)',
+      '    rows$V <- bf_row(model_name, "V", bf,',
+      '      if (is.finite(bf["bf_0u", "bf"])) "" else no_result)',
       '  }',
       '  if (!is.null(A)) {',
       '    if (plots) plot(sampling_binom(k = choices, n = n, A = A,',
       '      b = b, prior = prior, M = M_post, progress = FALSE))',
       '    bf <- bf_binom(k = choices, n = n, A = A, b = b,',
       '                   prior = prior, M = M_bf, progress = FALSE)',
-      '    rows$H <- bf_row(model_name, "H", bf)',
+      '    rows$H <- bf_row(model_name, "H", bf,',
+      '      if (is.finite(bf["bf_0u", "bf"])) "" else no_result)',
       '  }',
       '  do.call(rbind, rows)',
       '}',
@@ -16413,27 +16432,36 @@ server <- shinyServer(function(input, output, session) {
       '#### Run all models ####',
       'models <- unique(sub("^[AbV]_(.*)\\\\.csv$", "\\\\1",',
       '                     list.files(pattern = "^[AbV]_.*\\\\.csv$")))',
-      'print(models)',
+      'cat("Working directory:", getwd(), "\\n")',
+      'if (length(models) == 0)',
+      '  stop("No A_*.csv or V_*.csv files found in ", getwd(), ". Put this",',
+      '       " script in the folder with the downloaded files (RStudio:",',
+      '       " Session > Set Working Directory > To Source File Location).")',
+      'cat("Models found:", paste(models, collapse = ", "), "\\n")',
       'results <- do.call(rbind, lapply(models, function(m) {',
       '  tryCatch(analyse(m), error = function(e) {',
       '    message("Model ", m, ": ", conditionMessage(e))',
-      '    data.frame(model = m, representation = NA, bf_0u = NA,',
-      '               se_0u = NA, bf_00 = NA, se_00 = NA,',
-      '               note = conditionMessage(e))',
+      '    bf_row(m, NA, empty_bf, conditionMessage(e))',
       '  })',
       '}))',
       'print(results, row.names = FALSE)',
       'write.csv(results, "results.csv", row.names = FALSE)',
+      'cat("\\nDone:", sum(is.finite(results$bf_0u)), "of", nrow(results),',
+      '    "analyses gave a result; table saved in",',
+      '    file.path(getwd(), "results.csv"), "\\n")',
       '',
-      '# Reading the results:',
+      '# Reading results.csv (one row per model and representation):',
       '#   bf_0u   model against the unconstrained model',
       '#           (above 1 favours the model)',
+      '#   bf_u0   the same the other way round (1 / bf_0u)',
       '#   bf_00   model against its complement',
       '#           (everything the model forbids)',
-      '#   se_*    Monte-Carlo error of the Bayes factor; if it is large,',
+      '#   *_se    Monte-Carlo error of the Bayes factor; if it is large,',
       '#           set final <- TRUE. V and H agree up to this error.',
-      '#   note    why a model could not be analysed (e.g. exact',
-      '#           equalities: volume zero, use "Approximate" in the app)',
+      '#   *_ci5, *_ci95   90% interval of the estimate',
+      '#   note    empty if all went well; otherwise why the model could',
+      '#           not be analysed (e.g. exact equalities: volume zero,',
+      '#           use "Approximate" in the app)',
       '# For very thin models (narrow approximate equalities) the',
       '# estimates are less precise.',
       '# More commands: https://www.dwheck.de/vignettes/multinomineq_intro.html'
@@ -16529,9 +16557,12 @@ server <- shinyServer(function(input, output, session) {
   # Data for the multinomineq script: typed in the app, written into data_choices*.csv of the download.
   # Stored per probability (by its name), so the numbers stay with the probability when the order is changed.
   mn_user_data <- reactiveVal(list())
+  # one group per set of probabilities that mean the same thing: the base models (and intersections, mixtures) with the same number
+  # of probabilities share one; every unpacked items model has its own, because its probabilities mean something of their own
   mn_np_labels <- function() {
+    items_nms <- isolate(items_reactive$names)
     nms <- c(isolate(names_models_reactive$value), isolate(intersections_reactive$names),
-             isolate(mixtures_reactive$names), isolate(items_reactive$names))
+             isolate(mixtures_reactive$names), items_nms)
     out <- list()
     for (nm in nms) {
       h <- isolate(h_reactive[[nm]])
@@ -16540,64 +16571,75 @@ server <- shinyServer(function(input, output, session) {
       pm <- isolate(qtest_perm$map[[nm]])
       ok <- !is.null(pm) && length(pm) == length(cols) && setequal(pm, seq_along(cols))
       if (ok) cols <- cols[pm]
-      desc <- NULL
-      if (nm %in% isolate(items_reactive$names)) {
-        lg <- items_model_legend(nm)
-        if (!is.null(lg) && length(lg) == length(cols)) desc <- if (ok) lg[pm] else lg
+      unpacked <- nm %in% items_nms
+      key <- if (unpacked) paste0("m:", nm) else paste0("k:", length(cols))
+      if (is.null(out[[key]])) {
+        desc <- NULL
+        if (unpacked) {
+          lg <- items_model_legend(nm)
+          if (!is.null(lg) && length(lg) == length(cols)) desc <- if (ok) lg[pm] else lg
+        }
+        out[[key]] <- list(key = key, k = length(cols), labels = cols, desc = desc,
+                           title = if (unpacked) nm else paste0(length(cols), " probabilities"), models = character(0))
       }
-      k <- as.character(length(cols))
-      if (is.null(out[[k]])) out[[k]] <- list(labels = cols, desc = desc)
+      if (!unpacked) out[[key]]$models <- c(out[[key]]$models, nm)
     }
-    out
+    # base groups first (by size), then the unpacked models
+    ord <- order(!startsWith(names(out), "k:"), vapply(out, function(g) g$k, numeric(1)))
+    unname(out[ord])
   }
   # numbers typed in the window -> stored per probability; returns FALSE if something is not valid
-  mn_collect <- function(labs, strict = TRUE) {
+  mn_collect <- function(groups, strict = TRUE) {
     cur <- isolate(mn_user_data())
-    for (k in names(labs)) {
-      kk <- as.integer(k)
-      nn <- vapply(seq_len(kk), function(i) as.numeric(input[[paste0("mn_n_", k, "_", i)]] %||% NA), numeric(1))
-      ff <- vapply(seq_len(kk), function(i) as.numeric(input[[paste0("mn_f_", k, "_", i)]] %||% NA), numeric(1))
+    for (gi in seq_along(groups)) {
+      g <- groups[[gi]]
+      nn <- vapply(seq_len(g$k), function(i) as.numeric(input[[paste0("mn_n_", gi, "_", i)]] %||% NA), numeric(1))
+      ff <- vapply(seq_len(g$k), function(i) as.numeric(input[[paste0("mn_f_", gi, "_", i)]] %||% NA), numeric(1))
       bad <- anyNA(nn) || anyNA(ff) || any(nn < 1) || any(ff < 0) || any(ff > nn) || any(nn != round(nn)) || any(ff != round(ff))
       if (bad) {
         if (strict) return(FALSE)
         next
       }
-      for (i in seq_len(kk)) cur[[labs[[k]]$labels[i]]] <- list(n = as.integer(nn[i]), f = as.integer(ff[i]))
+      u <- cur[[g$key]]; if (is.null(u)) u <- list()
+      for (i in seq_len(g$k)) u[[g$labels[i]]] <- list(n = as.integer(nn[i]), f = as.integer(ff[i]))
+      cur[[g$key]] <- u
     }
     mn_user_data(cur)
     TRUE
   }
   show_mn_data <- function() {
-    labs <- mn_np_labels()
-    if (length(labs) == 0) {
+    groups <- mn_np_labels()
+    if (length(groups) == 0) {
       showNotification("No H-representation yet: click Go first.", type = "warning"); return()
     }
     cur <- isolate(mn_user_data())
-    ks <- sort(as.integer(names(labs)))
-    blocks <- lapply(ks, function(k) {
-      lb <- labs[[as.character(k)]]$labels
-      dsc <- labs[[as.character(k)]]$desc
-      ex <- round(25 * seq(0.8, 0.2, length.out = k))
+    one_group <- function(gi) {
+      g <- groups[[gi]]
+      ex <- round(25 * seq(0.8, 0.2, length.out = g$k))
+      u <- cur[[g$key]]
       tags$div(
-        if (length(ks) > 1) tags$h5(paste0("Models with ", k, " probabilities")),
+        if (length(g$models)) tags$p(class = "fairy-eq-tol-help", paste0("For: ", paste(g$models, collapse = ", "))),
         tags$table(class = "table table-condensed", style = "width:auto;",
-          tags$thead(tags$tr(tags$th("probability"), if (!is.null(dsc)) tags$th("stands for"), tags$th("n"), tags$th("frequency"))),
-          tags$tbody(lapply(seq_len(k), function(i) {
-            u <- cur[[lb[i]]]
+          tags$thead(tags$tr(tags$th("probability"), if (!is.null(g$desc)) tags$th("stands for"), tags$th("n"), tags$th("frequency"))),
+          tags$tbody(lapply(seq_len(g$k), function(i) {
+            v <- u[[g$labels[i]]]
             tags$tr(
-              tags$td(style = "vertical-align:middle;", tags$code(lb[i])),
-              if (!is.null(dsc)) tags$td(style = "vertical-align:middle; font-size:12.5px;", HTML(dsc[i])),
-              tags$td(numericInput(paste0("mn_n_", k, "_", i), NULL, value = if (!is.null(u)) u$n else 25, min = 1, step = 1, width = "90px")),
-              tags$td(numericInput(paste0("mn_f_", k, "_", i), NULL, value = if (!is.null(u)) u$f else ex[i], min = 0, step = 1, width = "90px")))
+              tags$td(style = "vertical-align:middle;", tags$code(g$labels[i])),
+              if (!is.null(g$desc)) tags$td(style = "vertical-align:middle; font-size:12.5px;", HTML(g$desc[i])),
+              tags$td(numericInput(paste0("mn_n_", gi, "_", i), NULL, value = if (!is.null(v)) v$n else 25, min = 1, step = 1, width = "90px")),
+              tags$td(numericInput(paste0("mn_f_", gi, "_", i), NULL, value = if (!is.null(v)) v$f else ex[i], min = 0, step = 1, width = "90px")))
           }))))
-    })
+    }
+    body <- if (length(groups) == 1) one_group(1) else
+      do.call(tabsetPanel, c(list(id = "mn_data_tabs", type = "tabs"),
+        lapply(seq_along(groups), function(gi) tabPanel(groups[[gi]]$title, one_group(gi)))))
     has_unpacked <- length(isolate(items_reactive$names)) > 0
     showModal(modalDialog(
       title = "Your data for the multinomineq script",
       tags$p(class = "fairy-eq-tol-help", tags$b("n"), ": number of observations for this probability. ", tags$b("frequency"),
-        ": how often the outcome the probability stands for was observed, out of n. The numbers go into the data file of the next multinomineq download (H and V); the script then runs without any editing. Until you save your own, the files contain example numbers."),
-      if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "The rows are in the order of the downloaded files. The numbers belong to the probability, so they move with it when you change the order."),
-      tags$div(style = "max-height:50vh; overflow-y:auto;", blocks),
+        ": how often the outcome the probability stands for was observed, out of n. The numbers go into the data files of the next multinomineq download (H and V); the script then runs without any editing. Until you save your own, the files contain example numbers."),
+      if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Every unpacked model has its own tab, because its probabilities mean something of their own; the models with the same probabilities share one. The rows are in the order of the downloaded files, and the numbers move with their probability when you change the order."),
+      tags$div(style = "max-height:50vh; overflow-y:auto;", body),
       footer = tagList(
         if (has_unpacked) actionButton("mn_data_to_order", "Change order of the probabilities"),
         actionButton("mn_data_reset", "Reset to example"), modalButton("Cancel"),
@@ -16857,7 +16899,7 @@ server <- shinyServer(function(input, output, session) {
       export_files <- str_replace_all(export_names, fixed(" AND "), "_AND_")
       export_files <- safe_file_name(export_files)
       numb_models <- length(export_names)
-      np_labels <- list()
+      np_groups <- list()
 
       for (loop_qtest_h in seq_len(numb_models)) {
         A <- isolate(h_reactive[[export_names[loop_qtest_h]]])
@@ -16890,7 +16932,8 @@ server <- shinyServer(function(input, output, session) {
         A <- d2q(-1 * q2d(A))
         names_A <- colnames(A)
         colnames(A) <- names_A
-        np_labels[[as.character(ncol(A))]] <- names_A
+        gkey <- if (export_names[loop_qtest_h] %in% isolate(items_reactive$names)) paste0("m:", export_names[loop_qtest_h]) else paste0("k:", ncol(A))
+        if (is.null(np_groups[[gkey]])) np_groups[[gkey]] <- list(k = ncol(A), labels = names_A, stem = export_files[loop_qtest_h])
 
         fileName <-
           paste("A_", export_files[loop_qtest_h], ".csv", sep = "")
@@ -16926,7 +16969,7 @@ server <- shinyServer(function(input, output, session) {
       first_ix <- which(!vapply(export_names, function(nm) is.null(isolate(h_reactive[[nm]])), logical(1)))[1]
       if (!is.na(first_ix)) {
         writeLines(multinomineq_script(export_files[first_ix], ncol(isolate(h_reactive[[export_names[first_ix]]])) - 2L), "analysis_multinomineq.R")
-        files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_labels, isolate(mn_user_data())))
+        files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_groups, isolate(mn_user_data())))
       }
 
       # zip::zip(file, files)
@@ -17037,7 +17080,7 @@ server <- shinyServer(function(input, output, session) {
 
       download_v_names <- download_v_names[download_v_names %in% names_models_reactive$value]
       download_v_names <- names_models_reactive$value[names_models_reactive$value %in% download_v_names]
-      np_labels <- list()
+      np_groups <- list()
 
       for (loop_v_qtest in seq_len(length(download_v_names))) {
         vrep_entry    <- v_reactive[[download_v_names[loop_v_qtest]]]
@@ -17058,7 +17101,8 @@ server <- shinyServer(function(input, output, session) {
         colnames(current_model) <- if (!is.null(h_this) && ncol(h_this) - 2L == ncol(current_model))
           colnames(h_this)[-(1:2)][pm_vm] else paste0("V", seq_len(ncol(current_model)))
 
-        np_labels[[as.character(ncol(current_model))]] <- colnames(current_model)
+        gkey <- paste0("k:", ncol(current_model))
+        if (is.null(np_groups[[gkey]])) np_groups[[gkey]] <- list(k = ncol(current_model), labels = colnames(current_model), stem = NULL)
 
         fileName <-
           paste0("V_", safe_file_name(download_v_names[loop_v_qtest]), ".csv")
@@ -17080,7 +17124,7 @@ server <- shinyServer(function(input, output, session) {
         ve1 <- v_reactive[[download_v_names[1]]]
         vm1 <- if (is.list(ve1) && !is.null(ve1$output)) ve1$output else ve1
         writeLines(multinomineq_script(safe_file_name(download_v_names[1]), ncol(vm1) - 2L), "analysis_multinomineq.R")
-        files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_labels, isolate(mn_user_data())))
+        files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_groups, isolate(mn_user_data())))
       }
 
       tar(file, files)
