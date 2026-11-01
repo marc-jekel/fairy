@@ -338,9 +338,11 @@ extract_info <- function(constraints, n_p, approx_tol = 0) {
   for (loop_rel in seq_along(all_extracted)) {
     ar <- data.frame(all_extracted[[loop_rel]])
 
-    extract_factors <- numeric(ncol(ar))
+    # every factor as an exact fraction (text that is not a plain number, e.g. a non-linear expression, goes through a double)
+    extract_factors <- character(ncol(ar))
     for (k in seq_len(ncol(ar))) {
-      extract_factors[k] <- eval(parse(text = ar[3, k]))
+      q <- q_from_text(ar[3, k])
+      extract_factors[k] <- if (is.na(q)) d2q(as.numeric(eval(parse(text = ar[3, k])))) else q
     }
     ar[3, ] <- extract_factors
 
@@ -353,21 +355,19 @@ extract_info <- function(constraints, n_p, approx_tol = 0) {
     non_numb_left  <- which(ar_left[1, ]  != "numb")
     non_numb_right <- which(ar_right[1, ] != "numb")
 
+    flip <- function(x) as.character(qneg(as.character(x)))
     if (op == "equal" && length(non_numb_right) > 0 && length(non_numb_left) > 0) {
-      ar_right[3, non_numb_right] <- -1 * as.numeric(ar_right[3, non_numb_right])
+      ar_right[3, non_numb_right] <- flip(ar_right[3, non_numb_right])
     }
     if (op == "below" && length(non_numb_right) > 0) {
-      ar_right[3, non_numb_right] <- -1 * as.numeric(ar_right[3, non_numb_right])
-      ar_left[3, numb_left]       <- -1 * as.numeric(ar_left[3, numb_left])
+      ar_right[3, non_numb_right] <- flip(ar_right[3, non_numb_right])
+      ar_left[3, numb_left]       <- flip(ar_left[3, numb_left])
     }
     if (op == "above" && length(non_numb_left) > 0) {
-      ar_left[3, non_numb_left]   <- -1 * as.numeric(ar_left[3, non_numb_left])
-      ar_right[3, numb_right]     <- -1 * as.numeric(ar_right[3, numb_right])
+      ar_left[3, non_numb_left]   <- flip(ar_left[3, non_numb_left])
+      ar_right[3, numb_right]     <- flip(ar_right[3, numb_right])
       op <- "below"
     }
-
-    ar_left[3, ]  <- d2q(as.numeric(ar_left[3, ]))
-    ar_right[3, ] <- d2q(as.numeric(ar_right[3, ]))
 
     total        <- data.frame(ar_left, ar_right)
     total_left   <- data.frame(total[, total[1, ] != "numb"])
@@ -405,11 +405,11 @@ extract_info <- function(constraints, n_p, approx_tol = 0) {
       relaxed[i] <- TRUE
       add_left  <- rbind(add_left,
         ineq_eq_left[i, ],
-        d2q(-1 * q2d(ineq_eq_left[i, ]))
+        qneg(ineq_eq_left[i, ])
       )
       add_right <- c(add_right,
-        d2q(q2d(ineq_eq_right[i])  + tol_each[m]),
-        d2q(-q2d(ineq_eq_right[i]) + tol_each[m])
+        qpq(ineq_eq_right[i], q_from_number(tol_each[m])),
+        qpq(qneg(ineq_eq_right[i]), q_from_number(tol_each[m]))
       )
       add_ops <- c(add_ops, "below", "below")
     }

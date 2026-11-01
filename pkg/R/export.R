@@ -297,10 +297,10 @@ fairy_write_multinomineq <- function(models, n_p = NULL, file = NULL, approx_tol
     red <- reduce_equal_probs(q2d(h))
     if (!is.null(red)) {
       lab_full <- colnames(h)[-(1:2)]
-      coefs <- q2d(h)[red$keep, -(1:2), drop = FALSE]
-      newc <- matrix(unlist(lapply(seq_along(red$groups), function(g) rowSums(coefs[, red$map == g, drop = FALSE]))), nrow = nrow(coefs))
+      coefs <- h[red$keep, -(1:2), drop = FALSE]
+      newc <- do.call(cbind, lapply(seq_along(red$groups), function(g) Reduce(qpq, lapply(which(red$map == g), function(j) coefs[, j]))))
       grp_lab <- vapply(seq_along(red$groups), function(g) paste(lab_full[red$map == g], collapse = " = "), character(1))
-      h2 <- cbind(h[red$keep, 1:2, drop = FALSE], d2q(newc))
+      h2 <- cbind(h[red$keep, 1:2, drop = FALSE], newc)
       colnames(h2) <- c(colnames(h)[1:2], grp_lab)
       h <- h2
       file_map <- paste0("map_", safe_nm, ".csv")
@@ -312,13 +312,13 @@ fairy_write_multinomineq <- function(models, n_p = NULL, file = NULL, approx_tol
     is_eq <- q2d(h)[, 1] == 1
     if (any(is_eq)) {
       flipped <- h[is_eq, , drop = FALSE]
-      flipped[, 2:ncol(flipped)] <- d2q(-1 * q2d(h[is_eq, 2:ncol(h), drop = FALSE]))
+      flipped[, 2:ncol(flipped)] <- qneg_m(h[is_eq, 2:ncol(h), drop = FALSE])
       h <- rbind(h, flipped)
     }
 
     # b is column 2; A is -(columns 3+), giving A %*% p <= b
     b   <- h[, 2]
-    A   <- d2q(-1 * q2d(h[, 3:ncol(h), drop = FALSE]))
+    A   <- qneg_m(h[, 3:ncol(h), drop = FALSE])
     colnames(A) <- colnames(h)[3:ncol(h)]
 
     file_A <- paste0("A_", safe_nm, ".csv")

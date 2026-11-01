@@ -13327,6 +13327,125 @@ server <- shinyServer(function(input, output, session) {
   # Anything that cannot be evaluated is returned untouched, so unusual
   # input still falls through to the original parser.
 
+  # ---- exact fractions (same code as the package, pkg/R/exact.R) ----
+  # A typed number such as 1/3 or 0.0001 stays an exact fraction up to rcdd; going through a floating-point number would round it.
+  # one decimal number or a fraction of two ("0.25", ".5", "12", "3/8", "0.1/0.3", optionally with a sign) as an exact rational
+  # string; NA when the text is anything else
+  q_from_text <- function(s) {
+    num <- "[0-9]+\\.?[0-9]*|\\.[0-9]+"
+    m <- regmatches(s, regexec(paste0("^([+-]?)(", num, ")(/(", num, "))?$"), s))[[1]]
+    if (length(m) == 0) return(NA_character_)
+    dec <- function(x) {
+      parts <- strsplit(x, ".", fixed = TRUE)[[1]]
+      int <- if (length(parts) >= 1 && nzchar(parts[1])) parts[1] else "0"
+      frac <- if (length(parts) >= 2) parts[2] else ""
+      # "x." gives one part only; "x.y" gives two
+      if (!nzchar(frac)) return(sub("^0+(?=[0-9])", "", int, perl = TRUE))
+      n <- sub("^0+(?=[0-9])", "", paste0(int, frac), perl = TRUE)
+      paste0(n, "/1", strrep("0", nchar(frac)))
+    }
+    v <- dec(m[3])
+    if (nzchar(m[5])) {
+      d <- dec(m[5])
+      if (qsign(q2q(d)) == 0) return(NA_character_)
+      v <- qdq(q2q(v), q2q(d))
+    } else {
+      v <- q2q(v)
+    }
+    if (identical(m[2], "-")) v <- qneg(v)
+    v
+  }
+
+  # exact negation of a matrix/vector of rational strings, keeping its shape
+  qneg_m <- function(x) {
+    y <- qneg(as.character(x))
+    dim(y) <- dim(x); dimnames(y) <- dimnames(x)
+    y
+  }
+
+  # a double (e.g. a tolerance typed as number) as the exact rational of its shortest decimal text, 0.05 -> 1/20
+  q_from_number <- function(x) {
+    r <- q_from_text(format(x, scientific = FALSE, digits = 15, trim = TRUE))
+    if (is.na(r)) d2q(x) else r
+  }
+
+  # Linear form of an expression with exact coefficients: list(a = rational per probability, c = rational constant).
+  # NULL when the expression is not linear (or not understood); then the caller keeps the text as it is.
+  linear_form <- function(s, n_p) {
+    s <- gsub("[[:space:]]", "", s)
+    chars <- strsplit(s, "")[[1]]
+    pos <- 1L
+    nch <- length(chars)
+    peek <- function() if (pos <= nch) chars[pos] else ""
+    zero <- function() list(a = rep("0", n_p), c = "0")
+    is_const <- function(f) all(f$a == "0")
+    add <- function(f, g, sign = 1) {
+      op <- if (sign > 0) qpq else qmq
+      list(a = op(f$a, g$a), c = op(f$c, g$c))
+    }
+    scale <- function(f, k) list(a = qxq(f$a, rep(k, n_p)), c = qxq(f$c, k))
+    fail <- function() stop("not linear", call. = FALSE)
+
+    expr <- function() {
+      f <- term()
+      while (peek() %in% c("+", "-")) {
+        op <- peek(); pos <<- pos + 1L
+        g <- term()
+        f <- add(f, g, if (op == "+") 1 else -1)
+      }
+      f
+    }
+    term <- function() {
+      f <- factor_()
+      while (peek() %in% c("*", "/")) {
+        op <- peek(); pos <<- pos + 1L
+        g <- factor_()
+        if (op == "*") {
+          if (is_const(g)) f <- scale(f, g$c)
+          else if (is_const(f)) f <- scale(g, f$c)
+          else fail()
+        } else {
+          if (!is_const(g) || qsign(g$c) == 0) fail()
+          f <- scale(f, qinv(g$c))
+        }
+      }
+      f
+    }
+    factor_ <- function() {
+      ch <- peek()
+      if (ch == "+") { pos <<- pos + 1L; return(factor_()) }
+      if (ch == "-") { pos <<- pos + 1L; return(scale(factor_(), "-1")) }
+      if (ch == "(") {
+        pos <<- pos + 1L
+        f <- expr()
+        if (peek() != ")") fail()
+        pos <<- pos + 1L
+        return(f)
+      }
+      if (ch == "p") {
+        pos <<- pos + 1L
+        st <- pos
+        while (grepl("^[0-9]$", peek())) pos <<- pos + 1L
+        if (pos == st) fail()
+        i <- as.integer(paste(chars[st:(pos - 1L)], collapse = ""))
+        if (i < 1L || i > n_p) fail()
+        f <- zero(); f$a[i] <- "1"
+        return(f)
+      }
+      st <- pos
+      while (grepl("^[0-9.]$", peek())) pos <<- pos + 1L
+      if (pos == st) fail()
+      v <- q_from_text(paste(chars[st:(pos - 1L)], collapse = ""))
+      if (is.na(v)) fail()
+      f <- zero(); f$c <- v
+      f
+    }
+    tryCatch({
+      f <- expr()
+      if (pos <= nch) NULL else f
+    }, error = function(e) NULL)
+  }
+
   num2str_lin <- function(x) {
     if (!is.finite(x)) return(format(x, scientific = FALSE, trim = TRUE))
     if (x == round(x)) return(format(x, scientific = FALSE, trim = TRUE))
@@ -13371,68 +13490,18 @@ server <- shinyServer(function(input, output, session) {
     rhs <- sides[2]
     if (lhs == "" || rhs == "") return(cstr)
 
-    ev <- function(s, vals) {
-      env <- as.list(vals)
-      names(env) <- paste0("p", seq_along(vals))
-      tryCatch(as.numeric(eval(parse(text = s), envir = env)),
-        error = function(e) NA_real_, warning = function(w) NA_real_
-      )
-    }
+    # exact linear forms of both sides; anything that is not linear (or not understood) is returned untouched,
+    # so unusual input still falls through to the original parser
+    l <- linear_form(lhs, n_p)
+    r <- linear_form(rhs, n_p)
+    if (is.null(l) || is.null(r)) return(cstr)
 
-    # a value is usable only if it is a single finite number; 1/(p1+p2) at
-    # p = 0 yields Inf, which must NOT be treated as a valid evaluation
-    ok_num <- function(x) length(x) == 1 && !is.na(x) && is.finite(x)
+    coef <- qmq(l$a, r$a)
+    const <- qmq(r$c, l$c)
+    if (all(coef == "0")) return(cstr)
 
-    # probe points: 0 and two generic interior points. Using non-zero probes
-    # keeps expressions such as 1/(p1+p2) from being evaluated only at a pole.
-    zero <- rep(0, n_p)
-    base <- rep(0.25, n_p)
-
-    c_l <- ev(lhs, zero)
-    c_r <- ev(rhs, zero)
-    if (!ok_num(c_l) || !ok_num(c_r)) return(cstr)
-
-    coef <- numeric(n_p)
-    for (i in seq_len(n_p)) {
-      e_i <- zero
-      e_i[i] <- 1
-      a <- ev(lhs, e_i)
-      b <- ev(rhs, e_i)
-      if (!ok_num(a) || !ok_num(b)) return(cstr)
-      coef[i] <- (a - c_l) - (b - c_r)
-    }
-
-    # verify linearity: the difference must scale exactly with the step size,
-    # both at a doubled step and around a shifted base point
-    for (i in seq_len(n_p)) {
-      e_i <- zero
-      e_i[i] <- 2
-      a <- ev(lhs, e_i)
-      b <- ev(rhs, e_i)
-      if (!ok_num(a) || !ok_num(b)) return(cstr)
-      d2 <- ((a - c_l) - (b - c_r)) - 2 * coef[i]
-      if (!ok_num(d2) || abs(d2) > 1e-9) return(cstr)
-
-      f_l <- ev(lhs, base)
-      f_r <- ev(rhs, base)
-      s_i <- base
-      s_i[i] <- s_i[i] + 1
-      g_l <- ev(lhs, s_i)
-      g_r <- ev(rhs, s_i)
-      if (!ok_num(f_l) || !ok_num(f_r) || !ok_num(g_l) || !ok_num(g_r)) return(cstr)
-      d3 <- ((g_l - f_l) - (g_r - f_r)) - coef[i]
-      if (!ok_num(d3) || abs(d3) > 1e-9) return(cstr)
-    }
-
-    if (all(coef == 0)) return(cstr)
-
-    terms <- paste0(
-      ifelse(coef >= 0, "+", "-"),
-      vapply(abs(coef), num2str_lin, character(1)),
-      "*p", seq_len(n_p)
-    )
-
-    paste0(paste(terms, collapse = ""), op, num2str_lin(c_r - c_l))
+    terms <- paste0(ifelse(qsign(coef) >= 0, "+", "-"), qabs(coef), "*p", seq_len(n_p))
+    paste0(paste(terms, collapse = ""), op, const)
   }
 
   # TRUE when a single constraint contains a probability but is NOT linear in
@@ -14208,10 +14277,12 @@ server <- shinyServer(function(input, output, session) {
     for (loop_relations in 1:length(all_extracted)) {
       actual_relations <- data.frame(all_extracted[loop_relations])
 
-      extract_factors <- numeric()
+      # every factor as an exact fraction (text that is not a plain number, e.g. a non-linear expression, goes through a double)
+      extract_factors <- character()
 
       for (loop_factors in 1:ncol(actual_relations)) {
-        extract_factors <- c(extract_factors, eval(parse(text = actual_relations[3, loop_factors])))
+        q_fac <- q_from_text(actual_relations[3, loop_factors])
+        extract_factors <- c(extract_factors, if (is.na(q_fac)) d2q(as.numeric(eval(parse(text = actual_relations[3, loop_factors])))) else q_fac)
       }
 
       actual_relations[3, ] <- (extract_factors)
@@ -14233,19 +14304,19 @@ server <- shinyServer(function(input, output, session) {
 
       if (actual_relations_operator == "equal" &
         length(non_numb_right) > 0 & length(non_numb_left) > 0) {
-        actual_relations_right[3, non_numb_right] <- -1 * as.numeric(actual_relations_right[3, non_numb_right])
+        actual_relations_right[3, non_numb_right] <- qneg(as.character(unlist(actual_relations_right[3, non_numb_right])))
       }
 
       if (actual_relations_operator == "below" &
         length(non_numb_right) > 0) {
-        actual_relations_right[3, non_numb_right] <- -1 * as.numeric(actual_relations_right[3, non_numb_right])
-        actual_relations_left[3, numb_left] <- -1 * as.numeric(actual_relations_left[3, numb_left])
+        actual_relations_right[3, non_numb_right] <- qneg(as.character(unlist(actual_relations_right[3, non_numb_right])))
+        actual_relations_left[3, numb_left] <- qneg(as.character(unlist(actual_relations_left[3, numb_left])))
       }
 
       if (actual_relations_operator == "above" &
         length(non_numb_left) > 0) {
-        actual_relations_left[3, non_numb_left] <- -1 * as.numeric(actual_relations_left[3, non_numb_left])
-        actual_relations_right[3, numb_right] <- -1 * as.numeric(actual_relations_right[3, numb_right])
+        actual_relations_left[3, non_numb_left] <- qneg(as.character(unlist(actual_relations_left[3, non_numb_left])))
+        actual_relations_right[3, numb_right] <- qneg(as.character(unlist(actual_relations_right[3, numb_right])))
         actual_relations_operator <- "below"
         actual_relations_left[4, ] <- "below"
         actual_relations_right[4, ] <- "below"
@@ -14256,8 +14327,6 @@ server <- shinyServer(function(input, output, session) {
       actual_relations_left <- data.frame(actual_relations_left)
       actual_relations_right <- data.frame(actual_relations_right)
 
-      actual_relations_left[3, ] <- (d2q(as.numeric(actual_relations_left[3, ])))
-      actual_relations_right[3, ] <- (d2q(as.numeric(actual_relations_right[3, ])))
 
 
       ## translate into RCDD input
@@ -14283,7 +14352,7 @@ server <- shinyServer(function(input, output, session) {
 
 
     add_ineq_eq_left <- numeric()
-    add_ineq_eq_right <- numeric()
+    add_ineq_eq_right <- character()
     add_all_operators <- numeric()
 
     ####*** add approx equalities when selected ####
@@ -14311,12 +14380,12 @@ server <- shinyServer(function(input, output, session) {
           keep_as_equal[loop_tune] <- FALSE
 
           add_ineq_eq_left <- rbind(add_ineq_eq_left, (ineq_eq_left[loop_tune, ]))
-          add_ineq_eq_left <- rbind(add_ineq_eq_left, d2q(-1 * q2d(ineq_eq_left[loop_tune, ])))
+          add_ineq_eq_left <- rbind(add_ineq_eq_left, qneg(ineq_eq_left[loop_tune, ]))
 
           add_ineq_eq_right <- c(
             add_ineq_eq_right,
-            q2d(ineq_eq_right[loop_tune]) + this_tol,
-            -(q2d(ineq_eq_right[loop_tune])) + this_tol
+            qpq(ineq_eq_right[loop_tune], q_from_number(this_tol)),
+            qpq(qneg(ineq_eq_right[loop_tune]), q_from_number(this_tol))
           )
 
           add_all_operators <- c(add_all_operators, rep("below", 2))
@@ -14325,8 +14394,6 @@ server <- shinyServer(function(input, output, session) {
     }
 
     if (length(add_all_operators) > 0) {
-      add_ineq_eq_right <- d2q(add_ineq_eq_right)
-
       ineq_eq_left <- ineq_eq_left[keep_as_equal, ]
       ineq_eq_right <- ineq_eq_right[keep_as_equal]
       all_operators <- all_operators[keep_as_equal]
@@ -18291,10 +18358,10 @@ server <- shinyServer(function(input, output, session) {
         red <- mn_reduce_equalities(q2d(A))
         map_mn <- NULL
         if (!is.null(red)) {
-          coefs <- q2d(A)[red$keep, -(1:2), drop = FALSE]
-          newc <- matrix(unlist(lapply(seq_along(red$groups), function(g) rowSums(coefs[, red$map == g, drop = FALSE]))), nrow = nrow(coefs))
+          coefs <- A[red$keep, -(1:2), drop = FALSE]
+          newc <- do.call(cbind, lapply(seq_along(red$groups), function(g) Reduce(qpq, lapply(which(red$map == g), function(j) coefs[, j]))))
           grp_lab <- vapply(seq_along(red$groups), function(g) paste(lab_full[red$map == g], collapse = " = "), character(1))
-          A2 <- cbind(A[red$keep, 1:2, drop = FALSE], d2q(newc))
+          A2 <- cbind(A[red$keep, 1:2, drop = FALSE], newc)
           colnames(A2) <- c(colnames(A)[1:2], grp_lab)
           A <- A2
           map_mn <- red$map
@@ -18307,12 +18374,12 @@ server <- shinyServer(function(input, output, session) {
           eq_rows_mn <- A[is_eq_mn, , drop = FALSE]
           flipped_mn <- eq_rows_mn
           flipped_mn[, 2:ncol(flipped_mn)] <-
-            d2q(-1 * q2d(eq_rows_mn[, 2:ncol(eq_rows_mn), drop = FALSE]))
+            qneg_m(eq_rows_mn[, 2:ncol(eq_rows_mn), drop = FALSE])
           A <- rbind(A, flipped_mn)
         }
         b <- A[, 2]
         A <- A[, 3:ncol(A), drop = FALSE]
-        A <- d2q(-1 * q2d(A))
+        A <- qneg_m(A)
         names_A <- colnames(A)
         colnames(A) <- names_A
         gkey <- if (export_names[loop_qtest_h] %in% isolate(items_reactive$names)) paste0("m:", export_names[loop_qtest_h]) else paste0("k:", k_full)
