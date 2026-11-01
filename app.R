@@ -15894,6 +15894,22 @@ server <- shinyServer(function(input, output, session) {
 
       # Build display table: one row per model × algorithm
       parsim_display <- as.data.frame(parsim[order(parsim$Model, parsim$Algorithm), ])
+      # Exact volume from the vertices (convex hull), only for few parameters: the estimates of the algorithms are noisy for thin
+      # shapes, this one is not. NA if it cannot be computed (many parameters, unbounded, degenerate, geometry missing).
+      exact_volume_h <- function(nm) {
+        h <- isolate(h_reactive[[nm]])
+        if (is.null(h) || ncol(h) - 2L > 7L || !requireNamespace("geometry", quietly = TRUE)) return(NA_real_)
+        tryCatch({
+          if (any(q2d(h)[, 1] > 0)) return(0)
+          hh <- matrix(as.character(h), ncol = ncol(h)); attr(hh, "representation") <- "H"
+          vn <- q2d(scdd(hh)$output)
+          if (any(vn[, 2] == 0)) return(NA_real_)
+          pts <- vn[vn[, 2] == 1, -(1:2), drop = FALSE]
+          if (nrow(pts) <= ncol(pts)) return(0)
+          as.numeric(geometry::convhulln(pts, options = "FA")$vol)
+        }, error = function(e) NA_real_)
+      }
+      exact_vol <- vapply(as.character(parsim_display$Model), exact_volume_h, numeric(1))
       # Plain decimal rounds tiny volumes to "0.0000", and as.character()'s
       # default scientific notation ("5e-04") is inconsistent with the rest
       # of the app's number formatting — show a fixed "< m.mm x 10^-n" form
@@ -15945,6 +15961,7 @@ server <- shinyServer(function(input, output, session) {
                           ifelse(is.na(parsim_display$Volume), "—", vapply(parsim_display$Volume, function(v) if (is.na(v)) "—" else vol_str(v), character(1)))),
         `Max BF`       = ifelse(startsWith(parsim_display$Dimensionality, "Not full-dimensional"), "∞",
                           vapply(parsim_display$Max_BF, bf_str, character(1))),
+        `Exact volume` = vapply(exact_vol, function(v) if (is.na(v)) "—" else vol_str(v), character(1)),
         check.names    = FALSE
       )
       # Sort: base models first, intersections (containing ∩) below
@@ -16084,6 +16101,7 @@ server <- shinyServer(function(input, output, session) {
         Dimensionality = as.character(parsim_display$Dimensionality),
         Volume         = ifelse(nfd, 0, as.numeric(parsim_display$Volume)),
         Max_BF         = ifelse(nfd, Inf, as.numeric(parsim_display$Max_BF)),
+        Exact_volume   = exact_vol,
         stringsAsFactors = FALSE
       )
       parsim_csv_data(csv_tbl[order(grepl("∩", csv_tbl$Model)), , drop = FALSE])
@@ -16100,6 +16118,7 @@ server <- shinyServer(function(input, output, session) {
         HTML("<p style='font-size:13px; color:#555; margin:0;'>
           <b>Volume</b> — proportion of the parameter space consistent with the model; smaller = more restrictive and more precise.
           <b>Max BF</b> — the largest Bayes factor this model could achieve relative to the unconstrained model.
+          <b>Exact volume</b> — computed exactly from the vertices (up to 7 probabilities); the algorithm columns are estimates, which are noisy for thin shapes.
         </p>")
       )
     })
