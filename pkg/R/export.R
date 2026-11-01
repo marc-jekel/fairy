@@ -132,23 +132,32 @@ format_qtest_substitution_note <- function(elim, orig_names) {
   paste(lines, collapse = "\n")
 }
 
+# file name from a model name: every run of odd characters becomes one underscore
+safe_file_name <- function(x) {
+  x <- gsub("[^A-Za-z0-9_.-]+", "_", x)
+  x <- gsub("_{2,}", "_", x)
+  x <- gsub("^_+|_+$", "", x)
+  ifelse(nzchar(x), x, "model")
+}
+
 #' Write QTEST input files for one or more models
 #'
 #' Generates the plain-text input files expected by QTEST (Regenwetter &
 #' Davis-Stober, 2012), H-representation. Each model produces one `.txt` file
 #' with the integer-scaled A matrix and b vector. QTEST cannot express
-#' equalities, so for a model with equalities one probability is eliminated per
-#' independent equality (solved for and substituted out) and a second file
-#' `<name>_substitutions.txt` lists the kept probabilities and how the
-#' eliminated ones are recovered. A model whose equalities contradict each other
-#' gets a notice file instead. All files are bundled in a single `.tar` archive.
+#' equalities: for a model with equalities the file lists the inequalities
+#' first and then the equalities in an extra block ("Equalities"), followed by
+#' a note that the file has to be edited for QTEST (or that the V-representation
+#' can be used instead), and its name ends with `_needs_editing_for_qtest`.
+#' Nothing is substituted or eliminated. All files are bundled in a single `.tar`
+#' archive.
 #'
 #' @param models A (named) character vector or list. Each element is a model
 #'   string, as accepted by [fairy()], or an H-representation (for example from
 #'   [fairy_intersect()], [fairy_mixture()] or [fairy_unpack()]).
 #' @param n_p Integer. Number of probabilities; only needed for model strings.
 #' @param file Path for the output `.tar` file. Defaults to
-#'   `"qtest_YYYY-MM-DD.tar"` in the current directory.
+#'   `"QTEST_H-representation_YYYY-MM-DD.tar"` in the current directory.
 #' @param approx_tol Numeric. Tolerance for approximate equalities (model strings only): one number for all, or one per equality. Default `0`.
 #' @param reduce Logical. Remove redundant H-rep rows (model strings only). Default `TRUE`.
 #' @param order Optional named list: for a model (by name) the order of its probabilities in the
@@ -174,7 +183,7 @@ format_qtest_substitution_note <- function(elim, orig_names) {
 #' @importFrom utils tar write.table
 #' @export
 fairy_write_qtest <- function(models, n_p = NULL, file = NULL, approx_tol = 0, reduce = TRUE, order = NULL) {
-  if (is.null(file)) file <- paste0("qtest_", Sys.Date(), ".tar")
+  if (is.null(file)) file <- paste0("QTEST_H-representation_", Sys.Date(), ".tar")
   if (!grepl("^/|^~", file)) file <- file.path(getwd(), file)
   file <- path.expand(file)
   if (is.null(names(models))) names(models) <- paste0("M", seq_along(models))
@@ -188,23 +197,22 @@ fairy_write_qtest <- function(models, n_p = NULL, file = NULL, approx_tol = 0, r
     h <- export_h_of(models[[nm]], n_p, approx_tol, reduce)
     h <- reorder_h_columns(h, order[[nm]])
     h_num <- q2d(h)
-    safe_nm <- gsub("[^A-Za-z0-9_.-]", "_", nm)
+    safe_nm <- safe_file_name(nm)
     orig_names <- colnames(h)[3:ncol(h)]
-    if (any(h_num[, 1] == 1)) {
-      elim <- eliminate_h_equalities(h)
-      if (elim$infeasible) {
-        put("This model's equalities are contradictory (no assignment of probabilities satisfies all of them) -- no QTEST file is possible.",
-            paste0(safe_nm, "_no_QTEST_file_available.txt"))
-      } else if (nrow(elim$ineq) == 0) {
-        next
-      } else {
-        put(format_qtest_ineq_file(elim$ineq, length(elim$remaining_idx)), paste0(safe_nm, ".txt"))
-        put(format_qtest_substitution_note(elim, orig_names), paste0(safe_nm, "_substitutions.txt"))
-      }
+    n_h <- ncol(h) - 2L
+    ineq <- h_num[h_num[, 1] == 0, , drop = FALSE]
+    eq   <- h_num[h_num[, 1] == 1, , drop = FALSE]
+    if (nrow(eq) > 0) {
+      # QTEST has no way to write an equality: the file keeps the inequalities, lists the equalities in their own block
+      # and says that it has to be edited
+      txt <- paste0(
+        if (nrow(ineq) > 0) format_qtest_ineq_file(ineq, n_h) else paste0("0 ", n_h, "\n\n"),
+        "\n\nEqualities\n\n", format_qtest_ineq_file(eq, n_h),
+        "\n\nNeeds to be edited here; if you do not know how to edit the file, download the V-representation of the model and let QTEST create the H-representation")
+      put(txt, paste0(safe_nm, "_needs_editing_for_qtest.txt"))
     } else {
-      ineq <- h_num[h_num[, 1] == 0, , drop = FALSE]
       if (nrow(ineq) == 0) next
-      put(format_qtest_ineq_file(ineq, ncol(h) - 2L), paste0(safe_nm, ".txt"))
+      put(format_qtest_ineq_file(ineq, n_h), paste0(safe_nm, ".txt"))
     }
   }
 
@@ -226,7 +234,7 @@ fairy_write_qtest <- function(models, n_p = NULL, file = NULL, approx_tol = 0, r
 #'
 #' @inheritParams fairy_write_qtest
 #' @param file Path for the output `.tar` file. Defaults to
-#'   `"multinomineq_YYYY-MM-DD.tar"` in the current directory.
+#'   `"multinomineq_H-representation_YYYY-MM-DD.tar"` in the current directory.
 #'
 #' @return Invisibly returns the path to the `.tar` file.
 #'
@@ -243,7 +251,7 @@ fairy_write_qtest <- function(models, n_p = NULL, file = NULL, approx_tol = 0, r
 #' @importFrom utils tar write.table
 #' @export
 fairy_write_multinomineq <- function(models, n_p = NULL, file = NULL, approx_tol = 0, reduce = TRUE, order = NULL) {
-  if (is.null(file)) file <- paste0("multinomineq_", Sys.Date(), ".tar")
+  if (is.null(file)) file <- paste0("multinomineq_H-representation_", Sys.Date(), ".tar")
   if (!grepl("^/|^~", file)) file <- file.path(getwd(), file)
   file <- path.expand(file)
   if (is.null(names(models))) names(models) <- paste0("M", seq_along(models))
@@ -255,7 +263,7 @@ fairy_write_multinomineq <- function(models, n_p = NULL, file = NULL, approx_tol
   for (nm in names(models)) {
     h <- export_h_of(models[[nm]], n_p, approx_tol, reduce)
     h <- reorder_h_columns(h, order[[nm]])
-    safe_nm <- gsub("[^A-Za-z0-9_.-]", "_", nm)
+    safe_nm <- safe_file_name(nm)
 
     # an equality row means a.p = -b: add the sign-flipped copy so that both directions are inequalities
     is_eq <- q2d(h)[, 1] == 1

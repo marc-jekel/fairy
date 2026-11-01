@@ -11775,7 +11775,7 @@ server <- shinyServer(function(input, output, session) {
       cm("fairy_h_table(h, style = \"paper\") writes the form of the paper (- p1 + p2 <= 0), style = \"matrix\" the coefficients."),
       cm("fairy_table_write(table, file = \"table.md\") writes any table as Markdown (or format = \"latex\" / \"csv\")."), "",
       cm("The H-description of every model as LaTeX: a .tex file that compiles as it is (one align* block per model). trivial = \"hide\" leaves out the trivial bounds 0 <= p <= 1, \"gray\" grays them out."),
-      "fairy_write_latex(models, file = \"h_representation.tex\", trivial = \"show\")", "",
+      "fairy_write_latex(models, file = \"H-representation.tex\", trivial = \"show\")", "",
       if (length(vnames) > 0) c(
         cm("V-description (extreme cases) of the models for which it was switched on in the app. How to read it: each row is a vertex, a combination of values of the probabilities that the model allows and that cannot be written as a mixture of two other allowed combinations. Every allowed combination is a weighted mixture of the rows. (words = TRUE writes 'none' and 'all' for 0 and 1.)"),
         paste0("v_models <- c(", paste(q(vnames), collapse = ", "), ")"),
@@ -11785,15 +11785,15 @@ server <- shinyServer(function(input, output, session) {
         "  print(v_tables[[nm]])",
         "}", ""),
       cm("Input files for other software, written to the working directory (one .tar archive each)."),
-      cm("QTEST: one .txt file per model with the H-representation (A and b, integer-scaled). QTEST cannot express equalities, so one probability is eliminated per equality; a *_substitutions.txt file says how to recover it."),
+      cm("QTEST: one .txt file per model with the H-representation (A and b, integer-scaled). QTEST cannot express equalities: for a model with equalities the file lists them in an extra block and its name ends with _needs_editing_for_qtest (nothing is substituted)."),
       qo_lines,
-      paste0("fairy_write_qtest(models, file = \"h_representation_qtest.tar\"", if (length(qo)) ", order = qtest_order" else "", ")"),
+      paste0("fairy_write_qtest(models, file = \"QTEST_H-representation.tar\"", if (length(qo)) ", order = qtest_order" else "", ")"),
       cm("multinomineq: A_<model>.csv and b_<model>.csv with A %*% p <= b (an equality is written in both directions)."),
-      paste0("fairy_write_multinomineq(models, file = \"h_representation_multinomineq.tar\"", if (length(qo)) ", order = qtest_order" else "", ")"))
+      paste0("fairy_write_multinomineq(models, file = \"multinomineq_H-representation.tar\"", if (length(qo)) ", order = qtest_order" else "", ")"))
     out
   }
   output$download_rscript <- downloadHandler(
-    filename = function() paste0("fairy_session_", Sys.Date(), ".R"),
+    filename = function() paste0("Fairy_R-script_", Sys.Date(), ".R"),
     content = function(file) writeLines(build_r_script(), file, useBytes = TRUE)
   )
   outputOptions(output, "download_rscript", suspendWhenHidden = FALSE)
@@ -11801,7 +11801,7 @@ server <- shinyServer(function(input, output, session) {
   write_user_input <- function(file) write_xlsx(build_user_input(), file)
   output$download <- downloadHandler(
     filename = function() {
-      paste0("user_input_", Sys.Date(), ".xlsx", sep = "")
+      paste0("Fairy_input_", Sys.Date(), ".xlsx")
     },
     content = function(file) write_user_input(file)
   )
@@ -16206,6 +16206,13 @@ server <- shinyServer(function(input, output, session) {
   # way, just fed a different (already numeric, already reduced-to-the-
   # right-columns) inequality matrix, so there's exactly one place that
   # knows the actual QTEST text layout.
+  # file name from a model name: every run of odd characters becomes one underscore ("m1 [2 items · joint]" -> "m1_2_items_joint")
+  safe_file_name <- function(x) {
+    x <- gsub("[^A-Za-z0-9_.-]+", "_", x)
+    x <- gsub("_{2,}", "_", x)
+    x <- gsub("^_+|_+$", "", x)
+    ifelse(nzchar(x), x, "model")
+  }
   format_qtest_ineq_file <- function(ineq_mat, n_p) {
     act_v_left  <- -ineq_mat[, 3L:(2L + n_p), drop = FALSE]
     act_v_right <- ineq_mat[, 2]
@@ -16429,8 +16436,8 @@ server <- shinyServer(function(input, output, session) {
 
   output$d_h <- downloadHandler(
     filename = function() {
-      paste("h_representation_qtest_",
-        str_replace_all(Sys.Date(), "-", "_"),
+      paste("QTEST_H-representation_",
+        Sys.Date(),
         ".tar",
         sep = ""
       )
@@ -16460,37 +16467,29 @@ server <- shinyServer(function(input, output, session) {
         act_v_eq   <- h_mat[h_num[, 1] == 1, , drop = FALSE]
         orig_names <- colnames(h_mat)[3:ncol(h_mat)]
 
-        safe_name          <- str_replace_all(loop_v, "[^A-Za-z0-9_.-]", "_")
+        safe_name          <- safe_file_name(loop_v)
         file_name_addendum <- ""
         note_file          <- NULL
 
+        n_p_h <- ncol(h_mat) - 2L
         if (nrow(act_v_eq) > 0) {
-          elim <- eliminate_h_equalities(h_mat)
-          if (elim$infeasible) {
-            total_file         <- "This model's equalities are contradictory (no assignment of probabilities satisfies all of them) -- no QTEST file is possible."
-            file_name_addendum <- "_no_QTEST_file_available"
-          } else if (nrow(elim$ineq) == 0) {
-            next
-          } else {
-            total_file <- format_qtest_ineq_file(elim$ineq, length(elim$remaining_idx))
-            note_file  <- format_qtest_substitution_note(elim, orig_names)
-          }
+          # QTEST has no way to write an equality: the file keeps the inequalities, lists the equalities in their own block
+          # and says that it has to be edited (nothing is substituted)
+          total_file <- paste0(
+            if (nrow(act_v_ineq) > 0) format_qtest_ineq_file(q2d(act_v_ineq), n_p_h) else paste0("0 ", n_p_h, "\n\n"),
+            "\n\nEqualities\n\n", format_qtest_ineq_file(q2d(act_v_eq), n_p_h),
+            "\n\nNeeds to be edited here; if you do not know how to edit the file, download the V-representation of the model and let QTEST create the H-representation")
+          file_name_addendum <- "_needs_editing_for_qtest"
         } else if (nrow(act_v_ineq) == 0) {
           next
         } else {
-          n_p        <- ncol(h_mat) - 2L
-          total_file <- format_qtest_ineq_file(q2d(act_v_ineq), n_p)
+          total_file <- format_qtest_ineq_file(q2d(act_v_ineq), n_p_h)
         }
 
         fileName <- paste0(safe_name, file_name_addendum, ".txt")
         write.table(total_file, fileName, quote = FALSE, col.names = FALSE, row.names = FALSE)
         files <- c(fileName, files)
 
-        if (!is.null(note_file)) {
-          noteFileName <- paste0(safe_name, "_substitutions.txt")
-          write.table(note_file, noteFileName, quote = FALSE, col.names = FALSE, row.names = FALSE)
-          files <- c(noteFileName, files)
-        }
       }
 
       tar(file, files)
@@ -16502,8 +16501,8 @@ server <- shinyServer(function(input, output, session) {
 
   output$d_h_multinomineq <- downloadHandler(
     filename = function() {
-      paste("h_representation_multinomineq_",
-        str_replace_all(Sys.Date(), "-", "_"),
+      paste("multinomineq_H-representation_",
+        Sys.Date(),
         ".tar",
         sep = ""
       )
@@ -16525,7 +16524,7 @@ server <- shinyServer(function(input, output, session) {
       )
       # "m1 AND m2" is not filename-safe -> "m1_AND_m2"
       export_files <- str_replace_all(export_names, fixed(" AND "), "_AND_")
-      export_files <- str_replace_all(export_files, "[^A-Za-z0-9_.-]", "_")
+      export_files <- safe_file_name(export_files)
       numb_models <- length(export_names)
 
       for (loop_qtest_h in seq_len(numb_models)) {
@@ -16599,8 +16598,8 @@ server <- shinyServer(function(input, output, session) {
 
   output$d_v <- downloadHandler(
     filename = function() {
-      paste("v_representation_qtest_",
-        str_replace_all(Sys.Date(), "-", "_"),
+      paste("QTEST_V-representation_",
+        Sys.Date(),
         ".tar",
         sep = ""
       )
@@ -16657,7 +16656,7 @@ server <- shinyServer(function(input, output, session) {
           )
 
           fileName <-
-            paste0(str_replace_all(download_v_names[loop_v_qtest], "[^A-Za-z0-9_.-]", "_"), ".csv")
+            paste0(safe_file_name(download_v_names[loop_v_qtest]), ".csv")
 
           write.table(
             total_file,
@@ -16680,8 +16679,8 @@ server <- shinyServer(function(input, output, session) {
 
   output$d_v_multinomineq <- downloadHandler(
     filename = function() {
-      paste("v_representation_multinomineq_",
-        str_replace_all(Sys.Date(), "-", "_"),
+      paste("multinomineq_V-representation_",
+        Sys.Date(),
         ".tar",
         sep = ""
       )
@@ -16719,7 +16718,7 @@ server <- shinyServer(function(input, output, session) {
           colnames(h_this)[-(1:2)][pm_vm] else paste0("V", seq_len(ncol(current_model)))
 
         fileName <-
-          paste0("V_", str_replace_all(download_v_names[loop_v_qtest], "[^A-Za-z0-9_.-]", "_"), ".csv")
+          paste0("V_", safe_file_name(download_v_names[loop_v_qtest]), ".csv")
 
         write.table(
           current_model,
@@ -16752,8 +16751,7 @@ server <- shinyServer(function(input, output, session) {
   output$d_v_latex <- downloadHandler(
     filename = function() {
       words_on <- isTRUE(isolate(input$v_rep_words))
-      paste0("v_representation_", if (words_on) "words_" else "numbers_",
-        str_replace_all(Sys.Date(), "-", "_"), ".tex")
+      paste0("V-representation_", if (words_on) "vertices-in-words_" else "vertices-as-numbers_", Sys.Date(), ".tex")
     },
     content = function(file) {
       words_on <- isTRUE(isolate(input$v_rep_words))
@@ -16841,8 +16839,8 @@ server <- shinyServer(function(input, output, session) {
 
   output$d_latex <- downloadHandler(
     filename = function() {
-      paste("models_",
-        str_replace_all(Sys.Date(), "-", "_"),
+      paste("H-representation_",
+        Sys.Date(),
         ".tex",
         sep = ""
       )
