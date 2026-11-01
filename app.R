@@ -13200,9 +13200,11 @@ server <- shinyServer(function(input, output, session) {
   extract_info <- function(test, loop_numb_models, func_mytable_input) {
     check_input <- paste(func_mytable_input[, 2], collapse = ";")
 
-    max_p <- max(as.numeric(unlist(str_extract_all(check_input, "(?<=p)[0-9]*"))))
+    # only real numbers after a p count; an empty match (p_{1}, a lone p) used to turn this into NA and broke the whole session
+    p_nums <- suppressWarnings(as.numeric(unlist(str_extract_all(check_input, "(?<=p)[0-9]+"))))
+    max_p <- if (any(!is.na(p_nums))) max(p_nums, na.rm = TRUE) else NA_real_
 
-    counter$n <- ifelse(counter$n < max_p, max_p, counter$n)
+    if (!is.na(max_p) && isTRUE(counter$n < max_p)) counter$n <- max_p
 
     probs <- data.frame()
 
