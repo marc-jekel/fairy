@@ -17927,7 +17927,7 @@ server <- shinyServer(function(input, output, session) {
       '  "<title>multinomineq results</title><style>", css,',
       '  "</style></head><body><header><h1>Results</h1>",',
       '  paste0("<p>multinomineq analysis, ",',
-      '         format(Sys.time(), "%Y-%m-%d %H:%M"), " | prior Beta(",',
+      '         format(Sys.time(), "%Y-%m-%d %H:%M %Z"), " | prior Beta(",',
       '         prior[1], ", ", prior[2], ") | ", M_bf,',
       '         " samples for the Bayes factors</p></header><main>"),',
       '  paste0("<input type=radio name=tab id=tab", tabs,',
@@ -18466,7 +18466,7 @@ server <- shinyServer(function(input, output, session) {
     }
     page <- paste(readLines(file.path(d, "results.html"), warn = FALSE, encoding = "UTF-8"), collapse = "\n")
     showModal(modalDialog(
-      title = paste0("Results of the multinomineq analysis (", format(isolate(mn_result$time), "%H:%M"), ")"), size = "l", easyClose = TRUE,
+      title = "Results of the multinomineq analysis", size = "l", easyClose = TRUE,
       tags$p(class = "fairy-eq-tol-help", "This ran on our shared server. For larger or repeated analyses, download the results below: the download contains the files and ", tags$code("analysis_multinomineq.R"), ", which you can run on your own computer."),
       # the page is put into the window itself (in a shadow root, so its styles stay apart from the app's): no frame to scroll in
       tags$textarea(id = "mn_results_src", style = "display:none;", page),
