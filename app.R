@@ -6858,6 +6858,7 @@ ui <- shinyUI(fluidPage(
       ),
       mainPanel(fluidRow(
         column(12, uiOutput("h_stale_note_edge")),
+        column(12, uiOutput("edge_extra_ui")),
         column(
           id = "example_out",
           12, div(plotlyOutput("plot_example", width = "100%", height = "80vh"), align = "center")
@@ -20133,7 +20134,8 @@ server <- shinyServer(function(input, output, session) {
   #### Plot examples ####
 
   observeEvent(input$go_example, {
-    output$plot_example <- renderPlotly({
+    # the vertices of the chosen model (rows: vertices, columns: probabilities) and the axis labels
+    edge_data <- reactive({
       select_v <- input$go_example
 
       # input$go_example can be NULL, character(0), or (before the
@@ -20159,36 +20161,73 @@ server <- shinyServer(function(input, output, session) {
       # matrix below throws a confusing "differing number of rows" error
       # instead of just showing nothing until a valid model is selected.
       req(v_reactive[[select_v]]$output, cancelOutput = TRUE)
-
       v_pl <- q2d(v_reactive[[select_v]]$output)
-
-      # plain_axis_name, not the raw column name: plotly's axis/tick text
-      # is plain text with no MathJax pass, so the LaTeX source these
-      # columns carry (see tex_name/cn_factors) shows up completely
-      # unrendered — literal "p_{1}^{(\text{p_{1}},1)}" instead of a
-      # readable label (confirmed directly from a screenshot of this
-      # exact axis).
-      parameter_names <- plain_axis_name(colnames(v_pl)[3:ncol(v_pl)])
+      # plain_axis_name, not the raw column name: plotly's axis/tick text is plain text with no MathJax pass
+      list(model = select_v, v = v_pl[, 3:ncol(v_pl), drop = FALSE], names = plain_axis_name(colnames(v_pl)[3:ncol(v_pl)]))
+    })
+    # a plot with many vertices is not animated (one frame per vertex gets far too big): from this number on one vertex at a time
+    EDGE_MAX_FRAMES <- 100
+    edge_axes <- function(p, parameter_names, bottom) {
+      # every parameter gets its own tick, tilted and smaller when there are many, so none is skipped
+      n_par <- length(parameter_names)
+      p %>% layout(
+        margin = list(b = bottom),
+        xaxis = list(
+          title = "Parameters", type = "category",
+          categoryorder = "array", categoryarray = parameter_names,
+          tickmode = "array", tickvals = parameter_names, ticktext = parameter_names,
+          tickangle = if (n_par > 6) -60 else 0,
+          tickfont = list(size = if (n_par > 12) 9 else 12)
+        ),
+        # Keep the 0-1 tick labels but pad the range slightly so markers sitting exactly at 0 or 1 aren't clipped at the axis edge.
+        yaxis = list(title = "Parameter values", range = c(-0.05, 1.05), tick0 = 0, dtick = 0.1)
+      )
+    }
+    # many vertices: an overview of all of them (as far as they fit) and a slider for one vertex at a time
+    output$edge_extra_ui <- renderUI({
+      ed <- edge_data(); n <- nrow(ed$v)
+      if (n <= EDGE_MAX_FRAMES) return(NULL)
+      tagList(
+        tags$p(class = "fairy-eq-tol-help", sprintf("This model has %s vertices. The overview shows %s of them, evenly spread (one row each, the colour is the value of the probability); the slider below goes through the vertices one at a time.",
+                                                    format(n, big.mark = ","), format(min(n, 500), big.mark = ","))),
+        plotlyOutput("plot_edge_heat", height = "300px"),
+        sliderInput("edge_vertex", "Vertex", min = 1, max = n, value = 1, step = 1, width = "100%",
+                    animate = animationOptions(interval = 700, loop = TRUE)))
+    })
+    output$plot_edge_heat <- renderPlotly({
+      ed <- edge_data(); n <- nrow(ed$v)
+      req(n > EDGE_MAX_FRAMES)
+      idx <- unique(round(seq(1, n, length.out = min(n, 500))))
+      plot_ly(z = ed$v[idx, , drop = FALSE], x = ed$names, y = idx, type = "heatmap", zmin = 0, zmax = 1,
+              colorscale = list(c(0, "#f4f6fa"), c(1, "#3a6df0")),
+              hovertemplate = "Vertex %{y}<br>%{x}: %{z:.3g}<extra></extra>") %>%
+        layout(xaxis = list(title = "", type = "category", tickangle = if (length(ed$names) > 6) -60 else 0,
+                            tickfont = list(size = if (length(ed$names) > 12) 9 else 12)),
+               yaxis = list(title = "Vertex", autorange = "reversed"),
+               margin = list(b = 90))
+    })
+    output$plot_example <- renderPlotly({
+      ed <- edge_data()
+      parameter_names <- ed$names
+      n_vert <- nrow(ed$v)
+      if (n_vert > EDGE_MAX_FRAMES) {
+        k <- input$edge_vertex
+        k <- if (is.null(k) || is.na(k)) 1L else max(1L, min(n_vert, as.integer(k)))
+        d1 <- data.frame(parameter_names = parameter_names, parameters = as.numeric(ed$v[k, ]))
+        return(plot_ly(d1, x = ~parameter_names, y = ~parameters, type = "scatter", mode = "markers", marker = list(size = 10)) %>%
+          edge_axes(parameter_names, 90) %>%
+          layout(title = list(text = paste0("Vertex ", k, " of ", format(n_vert, big.mark = ",")), font = list(size = 14))))
+      }
 
       v_pl <- data.frame(
-        rep(parameter_names, nrow(v_pl)),
-        as.numeric(t(v_pl[, 3:ncol(v_pl)])),
-        rep(1:nrow(v_pl),
-          each =
-            length(parameter_names)
-        )
+        rep(parameter_names, n_vert),
+        as.numeric(t(ed$v)),
+        rep(1:n_vert, each = length(parameter_names))
       )
-
       colnames(v_pl) <- c("parameter_names", "parameters", "vert_no")
 
-      # Build the animated scatter with plot_ly directly. The previous
-      # ggplotly() approach broke on current ggplot2/plotly versions: the
-      # `frame` aesthetic is silently dropped ("Ignoring unknown aesthetics:
-      # frame"), so no animation frames are created and animation_opts() then
-      # fails with "subscript out of bounds". A single vertex also cannot be
-      # animated, so guard on the number of vertices.
-      n_vert <- length(unique(v_pl$vert_no))
-
+      # Build the animated scatter with plot_ly directly. The previous ggplotly() approach broke on current ggplot2/plotly versions
+      # (the frame aesthetic was dropped). A single vertex cannot be animated, so guard on the number of vertices.
       if (n_vert > 1) {
         p <- plot_ly(v_pl,
           x = ~parameter_names, y = ~parameters, frame = ~vert_no,
@@ -20205,27 +20244,8 @@ server <- shinyServer(function(input, output, session) {
           type = "scatter", mode = "markers", marker = list(size = 10)
         )
       }
-
-      # every parameter gets its own tick, tilted and smaller when there are many, so none is skipped
-      n_par <- length(parameter_names)
-      p %>% layout(
-        margin = list(b = if (n_vert > 1) 150 else 90),
-        xaxis = list(
-          title = "Parameters", type = "category",
-          categoryorder = "array", categoryarray = parameter_names,
-          tickmode = "array", tickvals = parameter_names, ticktext = parameter_names,
-          tickangle = if (n_par > 6) -60 else 0,
-          tickfont = list(size = if (n_par > 12) 9 else 12)
-        ),
-        # Keep the 0-1 tick labels but pad the range slightly so markers
-        # sitting exactly at 0 or 1 aren't clipped at the axis edge.
-        yaxis = list(
-          title = "Parameter values",
-          range = c(-0.05, 1.05), tick0 = 0, dtick = 0.1
-        )
-      )
+      p %>% edge_axes(parameter_names, if (n_vert > 1) 150 else 90)
     })
-
   })
 })
 
