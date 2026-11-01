@@ -51,3 +51,12 @@ test_that("fairy_write_multinomineq(order = ) reorders the columns of A", {
   expect_equal(unname(as.matrix(Ab)), unname(as.matrix(Aa)[, c(3, 1, 2)]))
   expect_equal(names(Ab), names(Aa)[c(3, 1, 2)])
 })
+
+test_that("small and unusual constants are read correctly (not rounded to 0)", {
+  vol <- function(s) fairy_volume(fairy_h(s, n_p = 1), method = "exact")$volume
+  expect_equal(vol("p1 < 0.0001"), 1e-4)
+  expect_equal(vol("p1 < 0.00099"), 0.00099)      # 99/1e+05 used to be read as 99
+  expect_equal(vol("p1 < 0.000001"), 1e-6)
+  expect_equal(vol("p1 < 1/3"), 1/3)
+  expect_equal(vol("p1 > 0.9999999"), 1e-7)
+})

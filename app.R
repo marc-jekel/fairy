@@ -13334,7 +13334,12 @@ server <- shinyServer(function(input, output, session) {
       rel_ok <- if (!is.na(fr_val)) {
         if (x == 0) fr_val == 0 else abs(fr_val - x) / abs(x) < 1e-8
       } else FALSE
-      if (rel_ok) return(as.character(fr))
+      if (rel_ok) {
+        # as.character() writes large denominators as 1e+05, which the parser does not read: write them out in full
+        fr_txt <- as.character(fr)
+        if (grepl("e", fr_txt, fixed = TRUE)) fr_txt <- paste(format(as.numeric(strsplit(fr_txt, "/", fixed = TRUE)[[1]]), scientific = FALSE, trim = TRUE), collapse = "/")
+        return(fr_txt)
+      }
     }
     format(x, scientific = FALSE, trim = TRUE, digits = 15)
   }

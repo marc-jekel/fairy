@@ -7,7 +7,18 @@ num2str_lin <- function(x) {
   if (!is.finite(x)) return(format(x, scientific = FALSE, trim = TRUE))
   if (x == round(x)) return(format(x, scientific = FALSE, trim = TRUE))
   fr <- attr(fractions(x), "fracs")
-  if (!is.null(fr) && length(fr) == 1 && !is.na(fr)) return(as.character(fr))
+  # fractions() only searches small denominators and silently rounds what it cannot represent
+  # (0.0001 -> "0"): use the fraction only if it gives x back, checked relative to the size of x
+  if (!is.null(fr) && length(fr) == 1 && !is.na(fr)) {
+    fr_val <- tryCatch(eval(parse(text = as.character(fr))), error = function(e) NA_real_)
+    rel_ok <- if (!is.na(fr_val)) abs(fr_val - x) / abs(x) < 1e-8 else FALSE
+    if (rel_ok) {
+      # as.character() writes large denominators as 1e+05, which the parser does not read: write them out in full
+      fr_txt <- as.character(fr)
+      if (grepl("e", fr_txt, fixed = TRUE)) fr_txt <- paste(format(as.numeric(strsplit(fr_txt, "/", fixed = TRUE)[[1]]), scientific = FALSE, trim = TRUE), collapse = "/")
+      return(fr_txt)
+    }
+  }
   format(x, scientific = FALSE, trim = TRUE, digits = 15)
 }
 
