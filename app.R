@@ -16854,21 +16854,46 @@ server <- shinyServer(function(input, output, session) {
       long_nfd <- startsWith(long_df$Dimensionality, "Not full-dimensional")
       # a model that is not full-dimensional has volume 0 whatever the method says
       long_df$Volume[long_nfd] <- 0
+      # a fraction for an exact value (1/6 instead of 0.1667) when it reproduces the number to 12 digits and its denominator is small;
+      # only for the Exact rows (a sampled estimate would pretend to be more precise than it is)
+      rat_approx <- function(x, maxden = 10000, tol = 1e-12) {
+        if (!is.finite(x) || x <= 0 || x >= 1e6) return(NA_character_)
+        y <- x; h0 <- 0; h1 <- 1; k0 <- 1; k1 <- 0
+        for (it in 1:40) {
+          a <- floor(y); h <- a * h1 + h0; k <- a * k1 + k0
+          if (k > maxden) break
+          h0 <- h1; h1 <- h; k0 <- k1; k1 <- k
+          if (abs(x - h1 / k1) <= tol * x) {
+            if (k1 == 1) return(NA_character_)
+            return(paste0(format(h1, scientific = FALSE, trim = TRUE), "/", format(k1, scientific = FALSE, trim = TRUE)))
+          }
+          if (y - a < 1e-15) break
+          y <- 1 / (y - a)
+        }
+        NA_character_
+      }
+      with_frac <- function(txt, v, is_exact) {
+        fr <- if (is_exact) rat_approx(v) else NA_character_
+        if (is.na(fr)) txt else paste0(fr, " (", txt, ")")
+      }
+      is_ex_long <- long_df$Algorithm == "Exact"
       dim_short <- function(x) sub("^Not full-dimensional \\(in (\\d+)D space\\)$", "Not full-dim. (in \\1D)", sub("^Full-dimensional \\((\\d+D)\\)$", "\\1", x))
       simple_tbl <- data.frame(
         Model          = long_df$Model,
         Algorithm      = long_df$Algorithm,
         Dimensionality = dim_short(long_df$Dimensionality),
-        Volume         = vapply(long_df$Volume, function(v) {
+        Volume         = vapply(seq_len(nrow(long_df)), function(i) {
+          v <- long_df$Volume[i]
           if (is.nan(v)) return(paste0("n/a (stopped after ", EXACT_VOLUME_LIMIT_TXT, " or skipped)"))
           if (is.na(v)) return("\u2014")
           if (v == 0) return("0")
-          vol_str(v)
+          with_frac(vol_str(v), v, is_ex_long[i])
         }, character(1)),
-        `Max BF`       = vapply(long_df$Volume, function(v) {
+        `Max BF`       = vapply(seq_len(nrow(long_df)), function(i) {
+          v <- long_df$Volume[i]
           if (is.na(v)) return("\u2014")
           if (v == 0) return("\u221e")
-          bf_str(1 / v)
+          with_frac(bf_str(1 / v), 1 / v, is_ex_long[i])
         }, character(1)),
         check.names    = FALSE
       )
