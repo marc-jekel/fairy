@@ -76,7 +76,7 @@ dim_picker_row <- function(id, selected) {
   fluidRow(column(
     12,
     offset = 0,
-    pickerInput(paste0("dim_", id), "p #",
+    pickerInput(paste0("dim_", id), paste0(c("x", "y", "z")[as.integer(id)], " axis: probability"),
       list(1, 2, 3),
       selected = selected
     )
@@ -829,6 +829,12 @@ ui <- shinyUI(fluidPage(
         background: var(--ct-default);
         /* overflow stays visible so the per-button tooltips are not clipped;
            the outer buttons round their own outer corners instead */
+      }
+      /* a small caption above a group of icon buttons says what the group does (the icons alone are hard to read) */
+      .fairy-segmented[data-cap] { position: relative; margin-top: 13px; }
+      .fairy-segmented[data-cap]::before {
+        content: attr(data-cap); position: absolute; top: -13px; left: -4px; right: -4px; text-align: center; pointer-events: none;
+        font-size: 9.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--fairy-text-muted, #667085);
       }
       .fairy-segmented button:first-child { border-radius: 9px 0 0 9px; }
       .fairy-segmented button:last-child { border-radius: 0 9px 9px 0; }
@@ -1866,6 +1872,18 @@ ui <- shinyUI(fluidPage(
          that variable's own comment for why dark mode specifically
          needs a separate, darker shade to keep that text at WCAG AA
          contrast. */
+      /* One look for the main action in every dialog: the app blue, sentence case, same radius (the Add buttons of the dialogs
+         were upper-case in a lighter blue, the Run and Save buttons Bootstrap blue). Secondary buttons keep the plain style. */
+      .btn-primary, .btn-primary:focus, .btn-primary:active {
+        background-color: var(--fairy-primary, #3a6df0); border-color: var(--fairy-primary, #3a6df0); color: #fff;
+      }
+      .btn-primary:hover { background-color: var(--fairy-primary, #3a6df0); border-color: var(--fairy-primary, #3a6df0); filter: brightness(0.92); }
+      .bttn-material-flat.bttn-primary, .bttn-material-flat.bttn-primary:focus {
+        background: var(--fairy-primary, #3a6df0) !important; color: #fff !important;
+        text-transform: none !important; letter-spacing: 0 !important; font-weight: 600; font-size: 14px; border-radius: 6px;
+      }
+      .bttn-material-flat.bttn-primary:hover { filter: brightness(0.92); }
+      .modal-footer .btn, .modal-footer .bttn { border-radius: 6px; }
       .bttn-primary.bttn-jelly, .bttn-primary.bttn-unite {
         background: var(--fairy-primary-contrast-bg) !important;
       }
@@ -3121,7 +3139,7 @@ ui <- shinyUI(fluidPage(
       .fairy-model-spec-outer {
         display: block;
         width: 100%;
-        height: 130px;
+        height: 80px;
         box-sizing: border-box;
         overflow: hidden;
         border-radius: 4px;
@@ -4919,6 +4937,40 @@ ui <- shinyUI(fluidPage(
         }, true);
       })();
 
+      // ---- Parsimony panel: the two rarely used algorithms behind a link ----
+      document.addEventListener('click', function(e) {
+        var a = e.target.closest ? e.target.closest('#fairy_more_algos_toggle') : null;
+        if (!a) return;
+        e.preventDefault();
+        var w = document.getElementById('fairy_more_algos_wrap');
+        if (!w) return;
+        var open = w.style.display === 'none';
+        w.style.display = open ? 'block' : 'none';
+        a.textContent = open ? 'fewer algorithms \\u25b4' : 'more algorithms \\u25be';
+      });
+
+      // ---- Shared model specification: folded behind a link until it is needed ----
+      (function() {
+        function sync() {
+          var w = document.getElementById('fairy_shared_wrap'), t = document.getElementById('add_for_all_models'), a = document.getElementById('fairy_shared_toggle');
+          if (!w) return;
+          if (!t) return;
+          if (!a) return;
+          if (t.value.trim().length > 0) w.style.display = '';
+          a.style.display = (w.style.display === 'none') ? 'inline-block' : 'none';
+        }
+        document.addEventListener('click', function(e) {
+          var a = e.target.closest ? e.target.closest('#fairy_shared_toggle') : null;
+          if (!a) return;
+          e.preventDefault();
+          var w = document.getElementById('fairy_shared_wrap'), t = document.getElementById('add_for_all_models');
+          if (w) w.style.display = '';
+          sync();
+          if (t) t.focus();
+        });
+        if (window.jQuery) jQuery(document).on('shiny:connected shiny:idle shiny:value', function() { setTimeout(sync, 60); });
+      })();
+
       // ---- Cards of the H and V tabs: arrange them again once the tab is shown or the cards are drawn ----
       // (the arranging script otherwise measures the cards in an in-between state and makes them too narrow)
       (function() {
@@ -6253,8 +6305,12 @@ ui <- shinyUI(fluidPage(
                 tags$td(style = "vertical-align:top; padding:0 6px;"),
                 tags$td(
                   style = "vertical-align:top; padding:0 6px;",
+                  # rarely needed: folded behind a link, open as soon as the box has text (e.g. after loading an input)
+                  tags$a(id = "fairy_shared_toggle", href = "#", style = "font-size:12.5px; display:inline-block; margin:4px 0;",
+                         "+ Add a constraint that holds for all models"),
                   tags$div(
-                    style = "position: relative;",
+                    id = "fairy_shared_wrap",
+                    style = "position: relative; display:none;",
                     tags$button(
                       class = "fairy-expand-btn", type = "button",
                       title = "Expand",
@@ -6314,7 +6370,7 @@ ui <- shinyUI(fluidPage(
           # every state one click away — same underlying #outP class
           # (trivial-gray/trivial-hide) as before, just set directly by
           # each button instead of advanced by one shared cycling button.
-          tags$div(class = "fairy-segmented", id = "trivial_ineq_toggle_group",
+          tags$div(class = "fairy-segmented", id = "trivial_ineq_toggle_group", `data-cap` = "Bounds",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Show trivial bounds", `data-state` = "shown", icon("eye")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Gray out trivial bounds", `data-state` = "gray", icon("circle-half-stroke")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Hide trivial bounds", `data-state` = "hide", icon("eye-slash"))
@@ -6334,7 +6390,7 @@ ui <- shinyUI(fluidPage(
           # same "single button silently cycling through 3 states"
           # reason a single Aligned/Compact/Compact+color button used to
           # have.
-          tags$div(class = "fairy-segmented", id = "h_layout_toggle_group",
+          tags$div(class = "fairy-segmented", id = "h_layout_toggle_group", `data-cap` = "Layout",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Aligned layout: one column per parameter", `data-state` = "aligned", icon("table-cells")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Compact layout: terms packed per row", `data-state` = "compact", icon("bars"))
           ),
@@ -6348,11 +6404,11 @@ ui <- shinyUI(fluidPage(
           # though there are only two states — a single button flipping
           # a hidden boolean on click still doesn't SHOW which state is
           # active without reading its own color/tooltip.
-          tags$div(class = "fairy-segmented", id = "h_color_toggle_group",
+          tags$div(class = "fairy-segmented", id = "h_color_toggle_group", `data-cap` = "Colour",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "No color", `data-state` = "off", icon("droplet-slash")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Color terms by parameter", `data-state` = "on", icon("droplet"))
           ),
-          tags$div(class = "fairy-segmented fairy-card-layout-group",
+          tags$div(class = "fairy-segmented fairy-card-layout-group", `data-cap` = "Cards",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", icon("table-cells-large")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Free layout: drag the cards anywhere", `data-state` = "free", icon("up-down-left-right")),
             tags$button(type = "button", class = "fairy-tooltip fairy-card-reset", `data-tooltip` = "Reset order, positions and sizes", `data-state` = "reset", icon("rotate-left"))
@@ -6366,14 +6422,14 @@ ui <- shinyUI(fluidPage(
           # QTEST and multinomineq share the order of the probabilities: one group with its button on top
           tags$div(class = "fairy-dl-group",
             uiOutput("qtest_order_btn_ui", inline = TRUE),
-            tags$span(class = "fairy-tooltip", `data-tooltip` = "H-representation for QTEST",
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the H-representation for QTEST",
               downloadButton("d_h", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
-            tags$span(class = "fairy-tooltip", `data-tooltip` = "H-representation for multinomineq (R package): files plus an analysis script and data file",
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the H-representation for multinomineq (R package): files, analysis script and data file",
               downloadButton("d_h_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data for multinomineq: enter n and frequencies (they go into the data file of the multinom download). You can also run the analysis here (small analyses), or run the script from the download on your own computer",
               actionButton("mn_data_open", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
             uiOutput("mn_results_btn_ui", inline = TRUE)),
-          tags$span(class = "fairy-tooltip", `data-tooltip` = "LaTeX file of H-representation",
+          tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the H-representation as a LaTeX file",
             downloadButton("d_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
         ),
         div(style = "flex: 1 1 auto; min-width: 0;",
@@ -6480,7 +6536,7 @@ ui <- shinyUI(fluidPage(
         div(
           class = "fairy-input-toolbar",
           style = "display:flex; flex-direction:column; align-items:center; gap:6px; padding:4px; flex:0 0 auto;",
-          tags$div(class = "fairy-segmented fairy-card-layout-group",
+          tags$div(class = "fairy-segmented fairy-card-layout-group", `data-cap` = "Cards",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", icon("table-cells-large")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Free layout: drag the cards anywhere", `data-state` = "free", icon("up-down-left-right")),
             tags$button(type = "button", class = "fairy-tooltip fairy-card-reset", `data-tooltip` = "Reset order, positions and sizes", `data-state` = "reset", icon("rotate-left"))
@@ -6492,14 +6548,14 @@ ui <- shinyUI(fluidPage(
           tags$hr(class = "fairy-toolbar-divider"),
           tags$div(class = "fairy-dl-group",
             uiOutput("qtest_order_btn_ui_v", inline = TRUE),
-            tags$span(class = "fairy-tooltip", `data-tooltip` = "V-representation for QTEST",
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the V-representation for QTEST",
               downloadButton("d_v", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
-            tags$span(class = "fairy-tooltip", `data-tooltip` = "V-representation for multinomineq (R package): files plus an analysis script and data file",
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the V-representation for multinomineq (R package): files, analysis script and data file",
               downloadButton("d_v_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data for multinomineq: enter n and frequencies (they go into the data file of the multinom download). You can also run the analysis here (small analyses), or run the script from the download on your own computer",
               actionButton("mn_data_open_v", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
             uiOutput("mn_results_btn_ui_v", inline = TRUE)),
-          tags$span(class = "fairy-tooltip", `data-tooltip` = "LaTeX table (words: all/none/fractions)",
+          tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the V-representation as a LaTeX table (words: all/none/fractions)",
             downloadButton("d_v_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
         ),
         div(style = "flex: 1 1 auto; min-width: 0;",
@@ -6571,6 +6627,9 @@ ui <- shinyUI(fluidPage(
             offset = 0,
             pickerInput("go_example", "", choices = NA)
           ),
+          column(12, offset = 0,
+            tags$p(style = "font-size:12px; color:#667085; margin-top:6px;",
+              "Each frame shows one vertex (corner) of the model: the value of every probability at that vertex. Use the slider or Play to step through the vertices."))
         ),
       ),
       mainPanel(fluidRow(
@@ -7115,13 +7174,17 @@ ui <- shinyUI(fluidPage(
             `data-tooltip` = "General-purpose, recommended",
             materialSwitch("CB", "Cooling Bodies", value = TRUE, status = "primary", right = TRUE)
           ),
-          tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
-            `data-tooltip` = "Gaussian annealing",
-            materialSwitch("CG", "Cooling Gaussian", value = FALSE, status = "primary", right = TRUE)
-          ),
-          tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
-            `data-tooltip` = "Ball-based annealing",
-            materialSwitch("SoB", "Sequ. of Balls", value = FALSE, status = "primary", right = TRUE)
+          # the two other algorithms are rarely needed: folded behind a link (still reachable, and both switched off by default)
+          tags$a(id = "fairy_more_algos_toggle", href = "#", style = "display:block; font-size:11.5px; margin:2px 0 4px 4px;", "more algorithms \u25be"),
+          tags$div(id = "fairy_more_algos_wrap", style = "display:none;",
+            tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
+              `data-tooltip` = "Gaussian annealing",
+              materialSwitch("CG", "Cooling Gaussian", value = FALSE, status = "primary", right = TRUE)
+            ),
+            tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
+              `data-tooltip` = "Ball-based annealing",
+              materialSwitch("SoB", "Sequ. of Balls", value = FALSE, status = "primary", right = TRUE)
+            )
           ),
           div(class = "fairy-fab-action-row",
             tags$span(class = "fairy-tooltip fairy-tooltip-left", `data-tooltip` = "Algorithm settings",
@@ -7320,6 +7383,13 @@ server <- shinyServer(function(input, output, session) {
     )
   }
   fairy_run_hide <- function() session$sendCustomMessage("fairy_run_hide", list())
+  # one way to tell the user something that needs attention: a toast that stays until it is closed (errors, warnings) or
+  # goes away by itself (info). Replaces the pop-up windows (shinyalert), which blocked the page.
+  fairy_notify <- function(title, text = "", type = "warning", html = FALSE) {
+    body <- if (nzchar(text)) paste0("<br>", if (html) text else gsub("\n", "<br>", htmltools::htmlEscape(text))) else ""
+    showNotification(HTML(paste0("<b>", htmltools::htmlEscape(title), "</b>", body)),
+                     type = if (type == "info") "message" else type, duration = if (type == "info") 8 else NULL)
+  }
 
   # V-representations (vertex enumeration with scdd) run in separate R processes, so the window stays alive: it shows what is
   # computed and can be cancelled. State of the running job; `after` is what the Go run does when all vertices are there.
@@ -8135,8 +8205,7 @@ server <- shinyServer(function(input, output, session) {
   open_items_modal <- function(prefill_base = NULL, prefill_rows = NULL) {
     model_choices <- get_name_models_reactive()
     if (length(model_choices) == 0) {
-      shinyalert("No models", "Define at least one model first.",
-        type = "info", closeOnClickOutside = TRUE)
+      fairy_notify("No models", "Define at least one model first.", type = "info")
       return()
     }
     n_p_all <- isolate(counter$n)
@@ -10319,7 +10388,7 @@ server <- shinyServer(function(input, output, session) {
   output$h_stale_note_poly <- renderUI(render_stale_note())
 
   output$parsimony_stale_note <- renderUI({
-    if (!isTRUE(parsimony_results_stale())) return(NULL)
+    if (!isTRUE(parsimony_results_stale()) || !isTRUE(parsim_has_results())) return(NULL)
     div(
       style = paste0(
         "margin: 0 0 10px; padding: 5px 10px; font-size: 12px;",
@@ -11302,7 +11371,7 @@ server <- shinyServer(function(input, output, session) {
                 label = if (i == 1) spec_label_info("Unique Model Specification", "Constraints for this model only, e.g. p1 > p2 > p3. Together with the Shared Model Specification they make up the complete model.", NULL) else tags$span(class = "sr-only", paste0("Unique Model Specification (row ", i, ")")),
                 value = "",
                 width = "100%",
-                height = "130px",
+                height = "80px",
                 placeholder = mix_label,
                 resize = "none"
               )
@@ -11318,7 +11387,7 @@ server <- shinyServer(function(input, output, session) {
                 label = if (i == 1) spec_label_info("Unique Model Specification", "Constraints for this model only, e.g. p1 > p2 > p3. Together with the Shared Model Specification they make up the complete model.", NULL) else tags$span(class = "sr-only", paste0("Unique Model Specification (row ", i, ")")),
                 value = if (!is.null(restored)) restored else AllInputs()[[paste0("textin_relations_", i)]],
                 width = "100%",
-                height = "130px",
+                height = "80px",
                 resize = "none"
               )
             )
@@ -11331,7 +11400,7 @@ server <- shinyServer(function(input, output, session) {
               label = if (i == 1) spec_label_info("Unique Model Specification", "Constraints for this model only, e.g. p1 > p2 > p3. Together with the Shared Model Specification they make up the complete model.", NULL) else tags$span(class = "sr-only", paste0("Unique Model Specification (row ", i, ")")),
               value = if (!is.null(restored)) restored else AllInputs()[[paste0("textin_relations_", i)]],
               width = "100%",
-              height = "130px",
+              height = "80px",
               placeholder = "p1 > p2; ...",
               resize = "none"
             )
@@ -11759,7 +11828,7 @@ server <- shinyServer(function(input, output, session) {
                   AllInputs()[[paste0("textin_relations_name", i)]]
                 ),
                 width = "100%",
-                height = "130px",
+                height = "80px",
                 resize = "none"
               )
             )
@@ -14242,9 +14311,7 @@ server <- shinyServer(function(input, output, session) {
         type = "warning", duration = 15)
     }
     if (length(precheck_msgs) > 0) {
-      shinyalert("Please check your input", html = TRUE,
-        text = paste0(paste(precheck_msgs, collapse = "<br><br>")),
-        type = "error", closeOnClickOutside = TRUE)
+      fairy_notify("Please check your input", paste(precheck_msgs, collapse = "<br><br>"), type = "error", html = TRUE)
       return()
     }
 
@@ -14426,11 +14493,7 @@ server <- shinyServer(function(input, output, session) {
 
           run_row_here(name_m, h = "fail")
           fairy_run_hide()
-          shinyalert(
-            title = paste0("Could not read the specification of model ", name_m, "."),
-            text = msg,
-            html = TRUE, type = "error", closeOnClickOutside = TRUE
-          )
+          fairy_notify(paste0("Could not read the specification of model ", name_m, "."), msg, type = "error", html = TRUE)
           return(NULL)
         }
 
@@ -14686,12 +14749,9 @@ server <- shinyServer(function(input, output, session) {
           }
         }
         if (length(incompatible_ints) > 0) {
-          shinyalert(
-            title = "Incompatible parameter spaces",
-            text  = paste0("The following intersections were skipped because the selected models have different numbers of parameters:\n",
-              paste(incompatible_ints, collapse = "\n")),
-            type = "warning", closeOnClickOutside = TRUE
-          )
+          fairy_notify("Incompatible parameter spaces",
+            paste0("The following intersections were skipped because the selected models have different numbers of parameters:\n",
+              paste(incompatible_ints, collapse = "\n")), type = "warning")
         }
       }
 
@@ -14837,15 +14897,12 @@ server <- shinyServer(function(input, output, session) {
             ref_ncols <- mix_ncols[1]
             bad_models <- selected_mix[!is.na(mix_ncols) & mix_ncols != ref_ncols]
             fairy_run_row(mix_name, h = "fail", v = "fail")
-            shinyalert(
-              title = "Incompatible parameter spaces",
-              text  = paste0(
+            fairy_notify("Incompatible parameter spaces",
+              paste0(
                 "Mixture '", mix_name, "' was skipped because the following models have a different number of parameters than the others: ",
                 paste(bad_models, collapse = ", "),
                 ". Models can only be mixed if they share the same parameter space."
-              ),
-              type = "warning", closeOnClickOutside = TRUE
-            )
+              ), type = "warning")
             next
           }
           mix_result <- tryCatch({
@@ -14967,9 +15024,7 @@ server <- shinyServer(function(input, output, session) {
                 fairy_run_row(items_name, h = "done")
               } else {
                 fairy_run_row(items_name, h = "fail")
-                shinyalert(title = paste0("Failed: ", items_name),
-                  text = "Check the R console for details.",
-                  type = "error", closeOnClickOutside = TRUE)
+                fairy_notify(paste0("Failed: ", items_name), "Check the R console for details.", type = "error")
               }
             }
           }
@@ -15781,9 +15836,7 @@ server <- shinyServer(function(input, output, session) {
         render_v_tail()
       }
     } else {
-      shinyalert("Error", "Please type in all model specifications.",
-        type = "error", closeOnClickOutside = T
-      )
+      fairy_notify("Please type in all model specifications", type = "error")
     }
   }, "go_v_h")
 
@@ -16280,7 +16333,7 @@ server <- shinyServer(function(input, output, session) {
         if (x <= 0) return("0")
         exp  <- floor(log10(x))
         mant <- x / 10^exp
-        sprintf("%.2f x 10^%d", mant, exp)
+        sprintf("%.2f &times; 10<sup>%d</sup>", mant, exp)
       }
       # Same idea as vol_str above, mirrored for Max BF (= 1/volume, so a
       # tiny volume means a huge BF here) — a plain round() left values
@@ -16308,7 +16361,7 @@ server <- shinyServer(function(input, output, session) {
         if (abs(x) < 1000) return(as.character(round(x, 2)))
         exp  <- floor(log10(abs(x)))
         mant <- x / 10^exp
-        sprintf("%.2f x 10^%d", mant, exp)
+        sprintf("%.2f &times; 10<sup>%d</sup>", mant, exp)
       }
       simple_tbl <- data.frame(
         Model          = gsub("^\\[(.*)\\]$", "\\1", as.character(parsim_display$Model)),
@@ -16354,6 +16407,7 @@ server <- shinyServer(function(input, output, session) {
       output$parsim_table <- DT::renderDataTable({
         DT::datatable(simple_tbl,
           rownames = FALSE,
+          escape = c(1, 2, 3, 7),   # the number columns carry a real superscript (10<sup>-8</sup>)
           options = list(
             scrollX   = FALSE,
             # autoWidth measures the table's CONTAINER at the exact
@@ -16370,6 +16424,8 @@ server <- shinyServer(function(input, output, session) {
             pageLength = 12,
             lengthMenu = c(6, 12, 18, 24, 48, 96),
             dom = "ltp",
+            # a short explanation when the mouse is over a column header
+            headerCallback = DT::JS("function(thead) { var t = { 'Volume': 'Share of the parameter space that fits the model (an estimate; smaller = more restrictive).', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / Volume.', 'Exact volume': 'Calculated exactly from the vertices (not an estimate); skipped when it takes longer than 10 seconds.' }; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }"),
             columnDefs = list(
               list(className = "dt-left", targets = 0),
               list(visible = FALSE, targets = ncol(simple_tbl) - 1)
@@ -16409,12 +16465,15 @@ server <- shinyServer(function(input, output, session) {
         bar_df$Model <- factor(bar_df$Model, levels = rev(unique(bar_df$Model)))
         algo_colors <- c("#3a6df0", "#f0ad4e", "#5cb85c")[seq_len(n_algos_used)]
         fsize <- if (large) 15 else 11
+        # very small volumes are invisible on a 0-1 axis: then the axis is logarithmic (models with volume 0 have no bar)
+        pos_vol <- bar_df$Volume[is.finite(bar_df$Volume) & bar_df$Volume > 0]
+        use_log <- length(pos_vol) > 0 && min(pos_vol) < 0.01
         p <- plot_ly(
           bar_df,
           x = ~Volume, y = ~Model, color = ~Algorithm, type = "bar", orientation = "h",
           colors = algo_colors,
           marker = list(line = list(width = 0)),
-          hovertemplate = "%{fullData.name}: %{x:.4f}<extra></extra>"
+          hovertemplate = "%{fullData.name}: %{x:.3g}<extra></extra>"
         ) %>%
           layout(
             barmode = "group",
@@ -16426,7 +16485,10 @@ server <- shinyServer(function(input, output, session) {
             font = list(size = fsize, color = "#555"),
             paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)",
             xaxis = list(
-              title = list(text = "Volume", standoff = if (large) 14 else 8), range = c(0, 1),
+              title = list(text = if (use_log) "Volume (log scale)" else "Volume", standoff = if (large) 14 else 8),
+              type = if (use_log) "log" else "linear",
+              exponentformat = "power", showexponent = "all",
+              range = if (use_log) c(log10(min(pos_vol) / 3), 0.05) else c(0, 1),
               gridcolor = "rgba(120,120,120,0.15)", zeroline = FALSE,
               showline = TRUE, linecolor = "rgba(120,120,120,0.35)"
             ),
@@ -16477,11 +16539,11 @@ server <- shinyServer(function(input, output, session) {
     output$parsimony_results_header_ui <- renderUI({
       div(style = "margin-bottom:10px;",
         h5("Parsimony results", style = "margin:0 0 6px 0;"),
-        HTML("<p style='font-size:13px; color:#555; margin:0;'>
-          <b>Volume</b> — proportion of the parameter space consistent with the model; smaller = more restrictive and more precise.
-          <b>Max BF</b> — the largest Bayes factor this model could achieve relative to the unconstrained model.
-          <b>Exact volume</b> — computed exactly from the vertices (it is skipped when it takes longer than 10 seconds); the algorithm columns are estimates, which are noisy for thin shapes.
-        </p>")
+        HTML("<div style='font-size:13px; color:#555; line-height:1.55;'>
+          <div><b>Volume</b> &ndash; share of the parameter space that fits the model (estimated). Smaller = more restrictive, more precise.</div>
+          <div><b>Max BF</b> &ndash; the largest Bayes factor the model can reach against the unconstrained model (1 / Volume).</div>
+          <div><b>Exact volume</b> &ndash; calculated exactly from the vertices (skipped if it takes longer than 10 s). The estimates are noisy for thin shapes.</div>
+        </div>")
       )
     })
 
@@ -17769,6 +17831,12 @@ server <- shinyServer(function(input, output, session) {
           css = css.replace(/html,body\\{/g, '.page{').replace(/(^|[}\\s])body\\{/g, '$1.page{').replace(/:root/g, ':host');
           var root = host.shadowRoot || host.attachShadow({ mode: 'open' });
           root.innerHTML = '<style>:host{display:block;} ' + css + '</style><div class=\"page\">' + doc.body.innerHTML + '</div>';
+          // the colours follow the mode of the app (light or dark), not the setting of the operating system
+          var dark = document.body.classList.contains('dark-mode');
+          var ds = document.createElement('style');
+          ds.textContent = dark ? ':host{--bg:#14171f;--fg:#e6e9f0;--mut:#9aa3b5;--line:#2a3040;--head:#1c2130}'
+                                : ':host{--bg:#fff;--fg:#1d2433;--mut:#667085;--line:#e4e7ec;--head:#f4f6fb}';
+          root.appendChild(ds);
           var nt = document.getElementById('mn_results_newtab');
           if (nt) nt.addEventListener('click', function() {
             var b = new Blob([src.value], { type: 'text/html' });
