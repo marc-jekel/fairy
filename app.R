@@ -4260,7 +4260,7 @@ ui <- shinyUI(fluidPage(
         var LABEL = { wait: 'waiting', run: 'computing', done: 'done', cached: 'unchanged', warn: 'empty set', fail: 'failed', cancel: 'cancelled', na: 'not available', stop: 'stopped' };
         var ICON  = { wait: '\\u25CB', run: '\\u25D0', done: '\\u2713', cached: '\\u2713', warn: '\\u26A0', fail: '\\u2715', cancel: '\\u2715', na: '\\u2013', stop: '\\u25A0' };
         var rows = {}, showTimer = null, idleTimer = null, shown = false, dismissed = false, everRan = false, running = false;
-        var cancelable = false, t0 = 0, tick = null, cancelInput = 'v_cancel', ncols = 2, limitSec = 0, noLimit = false, dustClicks = [];
+        var cancelable = false, t0 = 0, tick = null, cancelInput = 'v_cancel', ncols = 2, limitSec = 0, noLimit = false, limitLabel = 'exact volume', dustClicks = [];
         // Safety net: if the run dies without a final message (an R error in
         // the middle of a Go), offer the Close button after 45 s of silence.
         function armIdle() {
@@ -4313,7 +4313,7 @@ ui <- shinyUI(fluidPage(
           });
           var el = running ? Math.round((Date.now() - t0) / 1000) : 0;
           var mmss = function(x) { return Math.floor(x / 60) + ':' + ('0' + (x % 60)).slice(-2); };
-          var elTxt = running ? ' \\u00b7 ' + mmss(el) + ' elapsed' + (noLimit ? ' (no time limit \\u2728)' : (limitSec > 0 ? ' (exact volume: at most ' + mmss(limitSec) + ')' : '')) : '';
+          var elTxt = running ? ' \\u00b7 ' + mmss(el) + ' elapsed' + (noLimit ? ' (no time limit \\u2728)' : (limitSec > 0 ? ' (' + limitLabel + ': at most ' + mmss(limitSec) + ')' : '')) : '';
           $id('fairy-run-sub').textContent = total ? (done + ' of ' + total + ' steps done' + elTxt) : '';
           $id('fairy-run-bar-fill').style.width = (total ? Math.round(100 * done / total) : 0) + '%';
           // after three minutes of the exact calculation the Skip button glows
@@ -4332,7 +4332,7 @@ ui <- shinyUI(fluidPage(
           var htr = document.querySelector('.fairy-run-table thead tr');
           htr.innerHTML = '';
           ['Model'].concat(cols).forEach(function(t) { var th = document.createElement('th'); th.textContent = t; htr.appendChild(th); });
-          cancelInput = 'v_cancel'; $id('fairy-run-cancel').textContent = 'Cancel';
+          cancelInput = 'v_cancel'; limitLabel = 'exact volume'; $id('fairy-run-cancel').textContent = 'Cancel';
           $id('fairy-run-title').textContent = (msg && msg.title) ? msg.title : 'Calculating';
           $id('fairy-run-note').innerHTML = '';
           $id('fairy-run-close').classList.remove('visible');
@@ -4347,7 +4347,7 @@ ui <- shinyUI(fluidPage(
         });
         // a column that is only needed once it is used (e.g. the backup algorithm when an exact volume could not be calculated)
         // longest time of the phase that is running now (0: none); shown next to the elapsed time
-        Shiny.addCustomMessageHandler('fairy_run_limit', function(msg) { limitSec = msg.seconds || 0; noLimit = !!msg.nolimit; refresh(); });
+        Shiny.addCustomMessageHandler('fairy_run_limit', function(msg) { limitSec = msg.seconds || 0; noLimit = !!msg.nolimit; limitLabel = msg.label || 'exact volume'; refresh(); });
         Shiny.addCustomMessageHandler('fairy_run_addcol', function(msg) {
           var htr = document.querySelector('.fairy-run-table thead tr');
           var th = document.createElement('th'); th.textContent = msg.name; htr.appendChild(th);
@@ -4413,7 +4413,7 @@ ui <- shinyUI(fluidPage(
             dustClicks = [];
             var r = t.getBoundingClientRect();
             if (window.fairyBurst) window.fairyBurst(r.left + r.width / 2, r.top + r.height / 2);
-            if (window.Shiny) Shiny.setInputValue('ex_unlock', Date.now(), { priority: 'event' });
+            if (window.Shiny) Shiny.setInputValue(cancelInput === 'mn_cancel' ? 'mn_unlock' : 'ex_unlock', Date.now(), { priority: 'event' });
           }
         });
         document.addEventListener('DOMContentLoaded', function() {
@@ -17914,7 +17914,8 @@ server <- shinyServer(function(input, output, session) {
       '  "h3{margin:1.6em 0 .2em;font-size:1.05em}",',
       '  "h4{margin:1.2em 0 .2em;font-size:.95em;color:var(--mut)}",',
       '  ".small{color:var(--mut);font-size:.9em;margin:.2em 0}",',
-      '  "table{border-collapse:collapse;width:100%;margin:.7em 0;",',
+      '  "table{border-collapse:collapse;width:auto;max-width:100%;",',
+      '  "margin:.7em 0;",',
       '  "border:1px solid var(--line)}",',
       '  ".tw{overflow-x:auto;max-width:100%}",',
       '  "th{overflow-wrap:normal;word-break:normal;hyphens:none}",',
@@ -17925,7 +17926,8 @@ server <- shinyServer(function(input, output, session) {
       '  "font-size:.85em;color:var(--mut)}",',
       '  "th,td{padding:4px 10px;border-bottom:1px solid var(--line)}",',
       '  "td{font-size:.94em}",',
-      '  "th:nth-child(n+3),td:nth-child(n+3){text-align:center}",',
+      '  "th:nth-child(n+3),td:nth-child(n+3){text-align:center;",',
+      '  "min-width:8em}",',
       '  "tr:last-child td{border-bottom:0}",',
       '  ".b10{--c:#16794a}.b9{--c:#1f9d62}.b8{--c:#4cb883}",',
       '  ".b7{--c:#8fd0b0}.b6{--c:#b9e0cb}",',
@@ -18447,30 +18449,17 @@ server <- shinyServer(function(input, output, session) {
     }
     mn_proc$p <- p; mn_proc$dir <- d; mn_proc$start <- Sys.time(); mn_proc$status <- "starting ..."
     mn_proc$elapsed <- 0; mn_proc$limit <- if (isTRUE(mn_nolimit())) Inf else 900
-    showModal(modalDialog(
-      title = "The analysis is running", easyClose = FALSE,
-      uiOutput("mn_progress"),
-      footer = actionButton("mn_cancel", "Cancel")))
+    # the same run window as everywhere else: one row per model, a column for each step
+    mn_rows <- vapply(sel, function(x) if (nchar(x) > 40) paste0(substr(x, 1, 37), "...") else x, character(1), USE.NAMES = FALSE)
+    mn_proc$rows <- unique(mn_rows)
+    run_cols(c("Posterior", "Bayes factors"))
+    fairy_run_begin("Running the analysis", c("Posterior", "Bayes factors"))
+    for (m in mn_proc$rows) { fairy_run_cell(m, "Posterior", "wait"); fairy_run_cell(m, "Bayes factors", "wait") }
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "mn_cancel", label = "Cancel"))
+    session$sendCustomMessage("fairy_run_limit", list(seconds = if (is.finite(mn_proc$limit)) mn_proc$limit else 0, nolimit = !is.finite(mn_proc$limit), label = "analysis"))
   })
   # the analysis runs in its own process, so the window stays alive: it shows what is being computed and can be cancelled
-  mn_proc <- reactiveValues(p = NULL, dir = NULL, start = NULL, status = "", elapsed = 0, limit = 900)
-  output$mn_progress <- renderUI({
-    st <- sub("^\\[([0-9]+)/([0-9]+)\\] ([^:]*): (.*)$", "Model \\1 of \\2: \\3 \u2013 \\4", mn_proc$status)
-    el <- mn_proc$elapsed
-    tagList(
-      tags$p(style = "font-size:15px; margin-bottom:6px; overflow-wrap:anywhere;", st),
-      tags$div(style = "height:6px; background:var(--fairy-border, #e4e7ec); border-radius:3px; margin:6px 0 4px 0; overflow:hidden;",
-        if (is.finite(mn_proc$limit))
-          tags$div(style = paste0("height:6px; border-radius:3px; background:var(--fairy-primary, #3a6df0); width:", round(100 * min(1, el / mn_proc$limit)), "%;"))
-        else
-          tags$div(style = "height:6px; border-radius:3px; width:100%; background:linear-gradient(90deg,#3a6df0,#b58bff,#3a6df0); background-size:200% 100%; animation: mn-shimmer 1.4s linear infinite;")),
-      tags$p(class = "fairy-eq-tol-help",
-             if (is.finite(mn_proc$limit))
-               sprintf("%d:%02d elapsed, stops automatically after %d:%02d. ", as.integer(el %/% 60), as.integer(round(el) %% 60), as.integer(mn_proc$limit %/% 60), as.integer(mn_proc$limit %% 60))
-             else
-               sprintf("%d:%02d elapsed, no time limit (fairy dust). ", as.integer(el %/% 60), as.integer(round(el) %% 60)),
-             "This runs on our shared server, so please keep it small. You can cancel at any time; the files from the downloads can also be run on your own computer."))
-  })
+  mn_proc <- reactiveValues(p = NULL, dir = NULL, start = NULL, status = "", elapsed = 0, limit = 900, rows = character(0), seen = character(0))
   observe({
     p <- mn_proc$p
     if (is.null(p)) return()
@@ -18481,28 +18470,54 @@ server <- shinyServer(function(input, output, session) {
     st <- grep("^\\[[0-9]+/[0-9]+\\] ", out, value = TRUE)
     if (length(st) > 0) mn_proc$status <- tail(st, 1)
     mn_proc$elapsed <- el
+    # states of the run window from the progress lines "[i/n] model: step": the model of the last line is the one that runs now,
+    # the models before it are done
+    parsed <- regmatches(st, regexec("^\\[([0-9]+)/([0-9]+)\\] (.*): (.*)$", st))
+    if (length(parsed) > 0) {
+      last <- parsed[[length(parsed)]]
+      cur_model <- last[4]; step <- last[5]
+      seen <- unique(vapply(parsed, function(x) x[4], character(1)))
+      for (m in setdiff(seen, cur_model)) if (!(m %in% isolate(mn_proc$seen))) {
+        fairy_run_cell(m, "Posterior", "done"); fairy_run_cell(m, "Bayes factors", "done")
+      }
+      mn_proc$seen <- setdiff(seen, cur_model)
+      if (grepl("posterior", step, ignore.case = TRUE)) {
+        fairy_run_cell(cur_model, "Posterior", "run")
+      } else {
+        fairy_run_cell(cur_model, "Posterior", "done"); fairy_run_cell(cur_model, "Bayes factors", "run")
+      }
+    }
+    mn_end <- function() {
+      session$sendCustomMessage("fairy_run_cancelable", list(on = FALSE))
+      session$sendCustomMessage("fairy_run_limit", list(seconds = 0))
+    }
     if (!p$is_alive()) {
       mn_proc$p <- NULL
-      removeModal()
+      mn_end()
       if (file.exists(file.path(d, "results.html"))) {
         mn_result$dir <- d
         mn_result$time <- Sys.time()
+        fairy_run_hide()
         show_mn_results()
       } else {
-        showNotification(paste("The analysis did not finish:", paste(tail(out, 3), collapse = " ")), type = "error", duration = NULL)
+        fairy_run_end(paste0("<b>The analysis did not finish:</b> ", htmltools::htmlEscape(paste(tail(out, 3), collapse = " "))))
       }
     } else if (el > isolate(mn_proc$limit)) {
       try(p$kill_tree(), silent = TRUE)
       mn_proc$p <- NULL
-      removeModal()
-      showNotification("The analysis took too long and was stopped. Try fewer models, or download the files and run the script on your own computer.", type = "error", duration = NULL)
+      mn_end()
+      for (m in isolate(mn_proc$rows)) { fairy_run_cell(m, "Posterior", "stop"); fairy_run_cell(m, "Bayes factors", "stop") }
+      fairy_run_end("<b>Stopped:</b> the analysis took too long. Try fewer models, or download the files and run the script on your own computer.")
     }
   })
   # fairy dust (five quick clicks on the window title, see the script above): no time limit for the analysis here
   mn_nolimit <- reactiveVal(FALSE)
   observeEvent(input$mn_unlock, {
     mn_nolimit(!isTRUE(mn_nolimit()))
-    if (!is.null(isolate(mn_proc$p))) mn_proc$limit <- if (mn_nolimit()) Inf else 900
+    if (!is.null(isolate(mn_proc$p))) {
+      mn_proc$limit <- if (mn_nolimit()) Inf else 900
+      session$sendCustomMessage("fairy_run_limit", list(seconds = if (mn_nolimit()) 0 else 900, nolimit = mn_nolimit(), label = "analysis"))
+    }
     showNotification(if (mn_nolimit()) "\u2728 Fairy dust: no time limit for the analysis (five quick clicks on the title switch it off again)." else "The time limit is back (15 minutes).",
                      type = "message", duration = 6)
   })
@@ -18510,7 +18525,9 @@ server <- shinyServer(function(input, output, session) {
     p <- isolate(mn_proc$p)
     if (!is.null(p)) try(p$kill_tree(), silent = TRUE)
     mn_proc$p <- NULL
-    removeModal()
+    session$sendCustomMessage("fairy_run_cancelable", list(on = FALSE))
+    session$sendCustomMessage("fairy_run_limit", list(seconds = 0))
+    fairy_run_hide()
     showNotification("The analysis was cancelled.", type = "message", duration = 5)
   })
   session$onSessionEnded(function() {
