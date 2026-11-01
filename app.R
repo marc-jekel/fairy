@@ -16271,7 +16271,7 @@ server <- shinyServer(function(input, output, session) {
     for (k in ks) {
       f <- if (length(ks) == 1) "data_choices.csv" else paste0("data_choices_", k, "_probabilities.csv")
       utils::write.csv(data.frame(probability = np_labels[[as.character(k)]], n = 25L,
-                                  left = round(25 * seq(0.8, 0.2, length.out = k))), f, row.names = FALSE, quote = FALSE)
+                                  frequency = round(25 * seq(0.8, 0.2, length.out = k))), f, row.names = FALSE, quote = FALSE)
       out <- c(out, f)
     }
     out
@@ -16307,8 +16307,9 @@ server <- shinyServer(function(input, output, session) {
       '#   data_choices_<k>_probabilities.csv for the models with k probabilities (the script takes the matching one)',
       '#   one row per probability, in the order of the columns of A / V; if you changed the order',
       '#   of the probabilities in the app (Order window), the files already use that order',
-      '#   n     number of decisions for this probability',
-      '#   left  how often the left option was chosen',
+      '#   n          number of observations (trials) for this probability',
+      '#   frequency  how often the outcome that the probability stands for was observed, out of n',
+      '#              (e.g. how often the option whose choice probability is p1 was chosen)',
       '',
       '#### Settings ####',
       '# These are the defaults of the multinomineq package. You can leave them as they are.',
@@ -16339,9 +16340,9 @@ server <- shinyServer(function(input, output, session) {
       'if (!file.exists(data_file)) data_file <- "data_choices.csv"',
       'dat <- read_csv(data_file, show_col_types = FALSE)',
       'n <- dat$n',
-      'choices <- dat$left',
+      'choices <- dat$frequency',
       'if (length(choices) != n_p) stop(data_file, " needs one row for each of the ", n_p, " probabilities of this model.")',
-      'if (any(choices > n)) stop("In ", data_file, ": left cannot be larger than n.")',
+      'if (any(choices > n)) stop("In ", data_file, ": frequency cannot be larger than n.")',
       '',
       '#### Posterior and Bayes factors ####',
       'if (!is.null(V)) {',
