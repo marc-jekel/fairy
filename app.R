@@ -4952,6 +4952,27 @@ ui <- shinyUI(fluidPage(
         a.textContent = open ? 'fewer algorithms \\u25b4' : 'more algorithms \\u25be';
       });
 
+      // ---- Model rows: the three boxes of a row have the same height; a row with many icon buttons (unpacked items) is taller ----
+      (function() {
+        var timer = null;
+        function sync() {
+          var names = document.querySelectorAll('#textbox_ui_name_rel textarea');
+          var uniq = [].filter.call(document.querySelectorAll('#textbox_ui_rel textarea'), function(t) { return /^textin_relations_[0-9]+$/.test(t.id); });
+          var specs = document.querySelectorAll('#textbox_ui_rel_complete .fairy-model-spec-outer');
+          var icons = document.querySelectorAll('#textbox_ui_name_rel .fairy-model-icon-col');
+          for (var i = 0; i < names.length; i++) {
+            var need = icons[i] ? icons[i].scrollHeight - (i === 0 ? 20 : 0) : 0;
+            var h = Math.max(80, need);
+            names[i].style.height = h + 'px';
+            if (uniq[i]) uniq[i].style.height = h + 'px';
+            if (specs[i]) specs[i].style.height = h + 'px';
+          }
+        }
+        function later() { clearTimeout(timer); timer = setTimeout(sync, 120); }
+        if (window.jQuery) jQuery(document).on('shiny:connected shiny:value shiny:idle', later);
+        window.addEventListener('resize', later);
+      })();
+
       // ---- Shared model specification: folded behind a link until it is needed ----
       (function() {
         function sync() {
@@ -4961,8 +4982,19 @@ ui <- shinyUI(fluidPage(
           if (!a) return;
           if (t.value.trim().length > 0) w.style.display = '';
           a.style.display = (w.style.display === 'none') ? 'inline-block' : 'none';
+          var h = document.getElementById('fairy_shared_hide');
+          if (h) h.style.display = (t.value.trim().length === 0) ? 'inline-block' : 'none';
         }
+        document.addEventListener('input', function(e) { if (e.target && e.target.id === 'add_for_all_models') sync(); });
         document.addEventListener('click', function(e) {
+          var hd = e.target.closest ? e.target.closest('#fairy_shared_hide') : null;
+          if (hd) {
+            e.preventDefault();
+            var w0 = document.getElementById('fairy_shared_wrap');
+            if (w0) w0.style.display = 'none';
+            sync();
+            return;
+          }
           var a = e.target.closest ? e.target.closest('#fairy_shared_toggle') : null;
           if (!a) return;
           e.preventDefault();
@@ -6315,6 +6347,8 @@ ui <- shinyUI(fluidPage(
                   tags$div(
                     id = "fairy_shared_wrap",
                     style = "position: relative; display:none;",
+                    tags$a(id = "fairy_shared_hide", href = "#", title = "Fold this box away again (possible while it is empty)",
+                           style = "position:absolute; top:1px; right:34px; z-index:5; font-size:12px;", "\u2212 hide"),
                     tags$button(
                       class = "fairy-expand-btn", type = "button",
                       title = "Expand",
@@ -16330,6 +16364,8 @@ server <- shinyServer(function(input, output, session) {
         out[nms]
       }
       exact_vol <- unname(exact_volumes(as.character(parsim_display$Model)))
+      # Max BF = 1 / volume: taken from the exact volume where there is one, else from the estimate of the algorithm
+      maxbf_use <- ifelse(is.finite(exact_vol) & exact_vol > 0, 1 / exact_vol, parsim_display$Max_BF)
       # Plain decimal rounds tiny volumes to "0.0000", and as.character()'s
       # default scientific notation ("5e-04") is inconsistent with the rest
       # of the app's number formatting — show a fixed "< m.mm x 10^-n" form
@@ -16380,7 +16416,7 @@ server <- shinyServer(function(input, output, session) {
         Volume         = ifelse(startsWith(parsim_display$Dimensionality, "Not full-dimensional"), "0",
                           ifelse(is.na(parsim_display$Volume), "—", vapply(parsim_display$Volume, function(v) if (is.na(v)) "—" else vol_str(v), character(1)))),
         `Max BF`       = ifelse(startsWith(parsim_display$Dimensionality, "Not full-dimensional"), "∞",
-                          vapply(parsim_display$Max_BF, bf_str, character(1))),
+                          vapply(maxbf_use, bf_str, character(1))),
         `Exact volume` = vapply(seq_along(exact_vol), function(i) {
           v <- exact_vol[i]
           if (is.nan(v)) return("n/a (took longer than 10 s)")
@@ -16435,7 +16471,7 @@ server <- shinyServer(function(input, output, session) {
             lengthMenu = c(6, 12, 18, 24, 48, 96),
             dom = "ltp",
             # a short explanation when the mouse is over a column header
-            headerCallback = DT::JS("function(thead) { var t = { 'Volume': 'Share of the parameter space that fits the model (an estimate; smaller = more restrictive).', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / Volume.', 'Exact volume': 'Calculated exactly from the vertices (not an estimate); skipped when it takes longer than 10 seconds.' }; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }"),
+            headerCallback = DT::JS("function(thead) { var t = { 'Volume': 'Share of the parameter space that fits the model (an estimate; smaller = more restrictive).', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume (from the exact volume when there is one).', 'Exact volume': 'Calculated exactly from the vertices (not an estimate); skipped when it takes longer than 10 seconds.' }; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }"),
             columnDefs = list(
               list(className = "dt-left", targets = 0),
               list(visible = FALSE, targets = ncol(simple_tbl) - 1)
@@ -16462,6 +16498,13 @@ server <- shinyServer(function(input, output, session) {
         Volume    = ifelse(startsWith(parsim_display$Dimensionality, "Not full-dimensional"), 0, parsim_display$Volume)
       )
       bar_df <- bar_df[!is.na(bar_df$Volume), ]
+      # the exact volume as one more bar per model (where there is one), next to the estimates of the algorithms
+      ex_all <- data.frame(Model = gsub("^\\[(.*)\\]$", "\\1", as.character(parsim_display$Model)), Volume = exact_vol)
+      ex_all <- ex_all[is.finite(ex_all$Volume) & !duplicated(ex_all$Model), , drop = FALSE]
+      if (nrow(ex_all) > 0) {
+        ex_df <- data.frame(Model = ex_all$Model, Algorithm = "Exact", Volume = ex_all$Volume)
+        bar_df <- rbind(bar_df, ex_df)
+      }
       n_algos_used <- length(unique(bar_df$Algorithm))
 
       # Shared between the compact overview chart and its "expand" modal
@@ -16473,7 +16516,7 @@ server <- shinyServer(function(input, output, session) {
         # Keep models in the same top-to-bottom order as the table above
         # rather than plotly's default (alphabetical/appearance) order.
         bar_df$Model <- factor(bar_df$Model, levels = rev(unique(bar_df$Model)))
-        algo_colors <- c("#3a6df0", "#f0ad4e", "#5cb85c")[seq_len(n_algos_used)]
+        algo_colors <- c("Cooling Bodies" = "#3a6df0", "Cooling Gaussian" = "#f0ad4e", "Sequence of Balls" = "#5cb85c", "Exact" = "#2b2f3a")
         fsize <- if (large) 15 else 11
         # very small volumes are invisible on a 0-1 axis: then the axis is logarithmic (models with volume 0 have no bar)
         pos_vol <- bar_df$Volume[is.finite(bar_df$Volume) & bar_df$Volume > 0]
@@ -16534,7 +16577,7 @@ server <- shinyServer(function(input, output, session) {
         Algorithm      = as.character(parsim_display$Algorithm),
         Dimensionality = as.character(parsim_display$Dimensionality),
         Volume         = ifelse(nfd, 0, as.numeric(parsim_display$Volume)),
-        Max_BF         = ifelse(nfd, Inf, as.numeric(parsim_display$Max_BF)),
+        Max_BF         = ifelse(nfd, Inf, as.numeric(maxbf_use)),
         Exact_volume   = ifelse(is.nan(exact_vol), NA_real_, exact_vol),
         stringsAsFactors = FALSE
       )
@@ -16551,7 +16594,7 @@ server <- shinyServer(function(input, output, session) {
         h5("Parsimony results", style = "margin:0 0 6px 0;"),
         HTML("<div style='font-size:13px; color:#555; line-height:1.55;'>
           <div><b>Volume</b> &ndash; share of the parameter space that fits the model (estimated). Smaller = more restrictive, more precise.</div>
-          <div><b>Max BF</b> &ndash; the largest Bayes factor the model can reach against the unconstrained model (1 / Volume).</div>
+          <div><b>Max BF</b> &ndash; the largest Bayes factor the model can reach against the unconstrained model: 1 / volume, from the exact volume when there is one.</div>
           <div><b>Exact volume</b> &ndash; calculated exactly from the vertices (skipped if it takes longer than 10 s). The estimates are noisy for thin shapes.</div>
         </div>")
       )
