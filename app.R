@@ -15993,6 +15993,8 @@ server <- shinyServer(function(input, output, session) {
   session$onSessionEnded(function() { for (p in isolate(pv$procs)) try(p$kill_tree(), silent = TRUE) })
 
   observe_guarded(list(input$go, parsim_state$resume), {
+    # without a press of Go there is nothing to compute (the event also fires once when the page is loaded)
+    if (is.null(isolate(input$go)) || isolate(input$go) == 0) return(invisible())
     # a new press of Go starts from scratch (plan mode); the second run (resume) takes the finished volumes
     go_now <- isolate(input$go)
     if (!identical(go_now, isolate(parsim_state$go_seen))) {
