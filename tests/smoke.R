@@ -99,6 +99,16 @@ test_that("the analysis runs inside the app and shows the results", {
   expect_true(jsv("document.querySelector('iframe[srcdoc]').getAttribute('srcdoc').indexOf('Bayes factors') > 0"))
   js("[].forEach.call(document.querySelectorAll('.modal [data-dismiss=modal]'), function(b) { b.click(); });")
   Sys.sleep(2)
+  # the results can be opened again after closing the window
+  expect_true(jsv("!!document.getElementById('mn_results_open')"))
+  js("document.getElementById('mn_results_open').click();")
+  Sys.sleep(3)
+  expect_true(jsv("!!document.querySelector('iframe[srcdoc]')"))
+  # and the download of the results works
+  f <- app$get_download("mn_results_dl")
+  expect_true("results.html" %in% utils::untar(f, list = TRUE))
+  js("[].forEach.call(document.querySelectorAll('.modal [data-dismiss=modal]'), function(b) { b.click(); });")
+  Sys.sleep(2)
 })
 
 test_that("deleting a model leaves one", {

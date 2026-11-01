@@ -403,6 +403,14 @@ ui <- shinyUI(fluidPage(
       #mn_data_open.fairy-order-btn, #mn_data_open_v.fairy-order-btn { flex-direction: row !important; width: 66px !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
       #mn_data_open .fa, #mn_data_open_v .fa, #mn_data_open svg, #mn_data_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
       #mn_data_open:hover, #mn_data_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
+      /* Results: same small grey row, reopens the last analysis */
+      #mn_results_open, #mn_results_open_v { position: relative !important; margin-bottom: 14px !important; }
+      #mn_results_open::after, #mn_results_open_v::after { content: 'Results'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
+        border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 10.5px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
+      /* Order is a setting for the two downloads below it, not a third program: plain grey, a thin row, a divider under it */
+      #mn_results_open.fairy-order-btn, #mn_results_open_v.fairy-order-btn { flex-direction: row !important; width: 66px !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
+      #mn_results_open .fa, #mn_results_open_v .fa, #mn_results_open svg, #mn_results_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
+      #mn_results_open:hover, #mn_results_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       .fairy-order-btn.fairy-order-new::before { content: ''; position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: #e5484d; border: 1.5px solid var(--fairy-panel, #fff); z-index: 2; }
       #fairy-running-note { position: fixed; right: 22px; bottom: 92px; z-index: 100000; display: flex; align-items: center; gap: 9px;
         padding: 9px 16px; border-radius: 999px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1d2433); font-size: 13.5px; font-weight: 600;
@@ -2476,11 +2484,11 @@ ui <- shinyUI(fluidPage(
         box-shadow: 0 0 0 2px var(--fairy-panel, #fff);
       }
       /* icon above, label below, both centred inside one equally wide button */
-      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex, #qtest_order_open, #qtest_order_open_v, #mn_data_open, #mn_data_open_v {
+      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex, #qtest_order_open, #qtest_order_open_v, #mn_data_open, #mn_data_open_v, #mn_results_open, #mn_results_open_v {
         margin-bottom: 0 !important; width: 66px !important; height: auto !important; padding: 7px 4px 6px !important;
         display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
       #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_v_multinomineq::after, #d_latex::after, #d_v_latex::after,
-      #qtest_order_open::after, #qtest_order_open_v::after, #mn_data_open::after, #mn_data_open_v::after { position: static !important; transform: none !important; box-shadow: none !important; margin: 0 auto; }
+      #qtest_order_open::after, #qtest_order_open_v::after, #mn_data_open::after, #mn_data_open_v::after, #mn_results_open::after, #mn_results_open_v::after { position: static !important; transform: none !important; box-shadow: none !important; margin: 0 auto; }
       #d_h_multinomineq::after, #d_v_multinomineq::after {
         content: 'multinom';
         background: #8a5cf6;
@@ -6252,7 +6260,8 @@ ui <- shinyUI(fluidPage(
             tags$span(class = "fairy-tooltip", `data-tooltip` = "H-representation for multinomineq",
               downloadButton("d_h_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data for the multinomineq script (goes into the data file of the download)",
-              actionButton("mn_data_open", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn"))),
+              actionButton("mn_data_open", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
+            uiOutput("mn_results_btn_ui", inline = TRUE)),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "LaTeX file of H-representation",
             downloadButton("d_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
         ),
@@ -6377,7 +6386,8 @@ ui <- shinyUI(fluidPage(
             tags$span(class = "fairy-tooltip", `data-tooltip` = "V-representation for multinomineq",
               downloadButton("d_v_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data for the multinomineq script (goes into the data file of the download)",
-              actionButton("mn_data_open_v", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn"))),
+              actionButton("mn_data_open_v", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
+            uiOutput("mn_results_btn_ui_v", inline = TRUE)),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "LaTeX table (words: all/none/fractions)",
             downloadButton("d_v_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
         ),
@@ -16516,10 +16526,10 @@ server <- shinyServer(function(input, output, session) {
       '  c("bf_0u", "bf_u0", "bf_00\'"), c("bf", "se", "ci.5%", "ci.95%")))',
       '',
       '# plain explanations for models that cannot be computed',
-      'no_result <- paste("No result: the model most likely has volume",',
-      '  "zero (exact equalities such as p1 = 0.3), so there is nothing",',
-      '  "to sample from. In the app set such equalities to",',
-      '  "Approximate and download the files again.")',
+      'no_result <- paste("No result: not even the stepwise method found",',
+      '  "a point inside the model. It most likely has volume zero",',
+      '  "(exact equalities such as p1 = 0.3). In the app set such",',
+      '  "equalities to Approximate and download the files again.")',
       'friendly <- function(msg) {',
       '  if (grepl("Truncation|min<max|boundar", msg))',
       '    return(paste("The sampler could not start. The model probably",',
@@ -16651,6 +16661,18 @@ server <- shinyServer(function(input, output, session) {
       '    # unconstrained model has all probabilities free',
       '    bf <- bf_binom(k = choices, n = n, ..., map = map,',
       '                   prior = prior, M = M_bf, progress = FALSE)',
+      '    # very small models: no sample falls inside. Then use the',
+      '    # stepwise method of the package (one constraint at a time)',
+      '    if (!is.finite(bf["bf_0u", "bf"]) || bf["bf_0u", "bf"] == 0) {',
+      '      bf2 <- tryCatch(bf_binom(k = choices, n = n, ..., map = map,',
+      '        prior = prior, M = M_bf, cmin = 100, progress = FALSE),',
+      '        error = function(e) NULL)',
+      '      if (!is.null(bf2) && is.finite(bf2["bf_0u", "bf"])) {',
+      '        bf <- bf2',
+      '        note <<- paste("Very small model: computed stepwise",',
+      '                       "(less precise, see se).")',
+      '      }',
+      '    }',
       '    rows[[rep]] <<- bf_row(model_name, rep, bf,',
       '      if (is.finite(bf["bf_0u", "bf"])) note else no_result)',
       '  }',
@@ -16746,7 +16768,8 @@ server <- shinyServer(function(input, output, session) {
       '    with_se(results$bf_0u, results$bf_0u_se),',
       '  "Bayes factor, model vs. complement" =',
       '    with_se(results$bf_00, results$bf_00_se),',
-      '  Note = results$note, check.names = FALSE)',
+      '  Note = ifelse(nzchar(results$note), "see below", ""),',
+      '  check.names = FALSE)',
       'key_cls <- data.frame(',
       '  "", "", bf_class(results$bf_0u), bf_class(results$bf_00),',
       '  ifelse(nzchar(results$note), "warn", ""))',
@@ -16790,8 +16813,8 @@ server <- shinyServer(function(input, output, session) {
       '           "<h3>Bayes factors</h3>",',
       '           "<p class=small>Note: empty when all went well, otherwise",',
       '           "the reason why a value is missing or unreliable.</p>",',
-      '           html_table(key[r, -1, drop = FALSE],',
-      '                      key_cls[r, -1, drop = FALSE]))',
+      '           html_table(key[r, -c(1, 5), drop = FALSE],',
+      '                      key_cls[r, -c(1, 5), drop = FALSE]))',
       '  ps <- if (is.null(posterior)) logical(0) else posterior$model == m',
       '  if (any(ps)) {',
       '    out <- c(out, "<h3>Probabilities (posterior)</h3>",',
@@ -16840,6 +16863,8 @@ server <- shinyServer(function(input, output, session) {
       '  ".b2{background:rgba(229,72,77,.24)}",',
       '  ".b1{background:#d6383d;color:#fff}",',
       '  ".warn{background:rgba(245,158,11,.28)}",',
+      '  "details{margin:.4em 0}summary{cursor:pointer;color:var(--mut);",',
+      '  "font-size:.9em}",',
       '  ".problem{background:rgba(245,158,11,.18);padding:8px 12px;",',
       '  "border-left:4px solid #f59e0b;border-radius:4px;margin:.8em 0}",',
       '  "input[name=tab]{display:none}",',
@@ -16868,11 +16893,11 @@ server <- shinyServer(function(input, output, session) {
       '  ".plots{background:#fff;border-radius:8px;padding:6px;",',
       '  "max-width:50em}.plots svg{width:100%;height:auto}")',
       'legend <- paste0("<p class=legend>",',
-      '  "<span class=b5>above 10: strong for the model</span>",',
-      '  "<span class=b4>3 to 10: for the model</span>",',
-      '  "<span class=b3>1/3 to 3: inconclusive</span>",',
-      '  "<span class=b2>1/10 to 1/3: against the model</span>",',
-      '  "<span class=b1>below 1/10: strongly against</span></p>")',
+      '  "<span class=b5>&gt; 10 strong for</span>",',
+      '  "<span class=b4>3 - 10 for</span>",',
+      '  "<span class=b3>1/3 - 3 open</span>",',
+      '  "<span class=b2>1/10 - 1/3 against</span>",',
+      '  "<span class=b1>&lt; 1/10 strong against</span></p>")',
       'page <- c(',
       '  "<!DOCTYPE html><html><head><meta charset=utf-8>",',
       '  "<title>multinomineq results</title><style>", css,',
@@ -16888,18 +16913,16 @@ server <- shinyServer(function(input, output, session) {
       '  "</nav>",',
       '  "<section class=p1><h2>Bayes factors of all models</h2>",',
       '  "<p class=small>A value above 1 favours the model. se =",',
-      '  "Monte-Carlo error of the estimate; < x means that no sample fell",',
-      '  "inside the model, so the value is below about x. <b>Complement</b>",',
-      '  "= everything the model forbids, i.e. all other values of the",',
-      '  "probabilities (for p1 > p2 > p3: every other ordering). The factor",',
-      '  "says how much better the data fit the model than that. It is not",',
-      '  "defined for models with equalities. <b>Unconstrained</b> =",',
-      '  "all probabilities free; an equality such as p1 = p2 counts as",',
-      '  "part of the model and is tested too.</p>",',
-      '  "<p class=small><b>Note</b> stays empty when all went well.",',
-      '  "Otherwise it says why a value is missing or unreliable, e.g.",',
-      '  "exact equalities (the model has volume zero, use Approximate in",',
-      '  "the app) or no sample inside the model (use more samples).</p>",',
+      '  "Monte-Carlo error; &lt; x: no sample fell inside the model,",',
+      '  "so the value is below about x.</p>",',
+      '  "<details><summary>What do the columns mean?</summary>",',
+      '  "<p class=small><b>Unconstrained</b>: all probabilities free",',
+      '  "(an equality such as p1 = p2 belongs to the model and is",',
+      '  "tested too). <b>Complement</b>: everything the model forbids",',
+      '  "(for p1 &gt; p2 &gt; p3: every other ordering); not defined",',
+      '  "with equalities. <b>Note</b>: empty if all went well,",',
+      '  "otherwise why a value is missing or unreliable.</p>",',
+      '  "</details>",',
       '  legend, html_table(key, key_cls),',
       '  if (any(nzchar(results$note))) c("<h3>Models with a note</h3>",',
       '    paste0("<p class=problem><b>",',
@@ -17124,22 +17147,27 @@ server <- shinyServer(function(input, output, session) {
         lapply(seq_along(groups), function(gi) tabPanel(groups[[gi]]$title, one_group(gi)))))
     has_unpacked <- length(isolate(items_reactive$names)) > 0
     showModal(modalDialog(
-      title = "Your data for the multinomineq script",
-      tags$p(class = "fairy-eq-tol-help", tags$b("n"), ": number of observations for this probability. ", tags$b("frequency"),
-        ": how often the outcome the probability stands for was observed, out of n. The numbers go into the data files of the next multinomineq download (H and V); the script then runs without any editing. Until you save your own, the files contain example numbers."),
-      if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Every unpacked model has its own tab, because its probabilities can mean something of their own; the models with the same probabilities share one. If the probabilities of an unpacked model mean the same as those of the other models, tick the box in its tab to use their numbers instead. The rows are in the order of the downloaded files, and the numbers move with their probability when you change the order."),
-      tags$div(style = "max-height:50vh; overflow-y:auto;", body),
-      checkboxInput("mn_final", "More samples for the final numbers (slower, smaller error)", value = FALSE),
-      footer = tagList(
-        if (has_unpacked) actionButton("mn_data_to_order", "Change order of the probabilities"),
-        actionButton("mn_data_reset", "Reset to example"), modalButton("Cancel"),
-        actionButton("mn_data_save", "Save"),
-        actionButton("mn_run", "Run the analysis here", class = "btn-primary")),
-      easyClose = TRUE))
+      title = "Your data for the multinomineq analysis", size = "l", easyClose = TRUE,
+      tags$style(HTML(".mn-foot .btn { margin: 0 !important; }")),
+      tags$p(class = "fairy-eq-tol-help", tags$b("n"), ": number of observations. ", tags$b("frequency"),
+        ": how often the outcome happened, out of n. Your numbers go into the data files of the next multinomineq download and into the analysis you can run here."),
+      if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Every unpacked model has its own tab, because its probabilities can mean something of their own. Tick the box in its tab to use the numbers of the other models instead. The numbers move with their probability when you change the order."),
+      tags$div(style = "max-height:46vh; overflow-y:auto;", body),
+      checkboxInput("mn_final", "More samples (slower, smaller error)", value = FALSE),
+      footer = tags$div(class = "mn-foot", style = "display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; align-items:center; width:100%;",
+        tags$div(style = "display:flex; gap:8px;",
+          if (has_unpacked) actionButton("mn_data_to_order", "Change order"),
+          actionButton("mn_data_reset", "Reset")),
+        tags$div(style = "display:flex; gap:8px;",
+          modalButton("Cancel"), actionButton("mn_data_save", "Save"),
+          actionButton("mn_run", "Run analysis", class = "btn-primary")))))
   }
+  mn_source <- reactiveVal("H")   # the analysis uses the representation of the tab the window was opened from
   for (btn_id in c("mn_data_open", "mn_data_open_v")) local({
     id <- btn_id
-    observeEvent(input[[id]], { if (isTRUE(input[[id]] > 0)) show_mn_data() }, ignoreInit = TRUE)
+    observeEvent(input[[id]], {
+      if (isTRUE(input[[id]] > 0)) { mn_source(if (identical(id, "mn_data_open_v")) "V" else "H"); show_mn_data() }
+    }, ignoreInit = TRUE)
   })
   observeEvent(input$mn_data_reset, { mn_user_data(list()); removeModal() })
   observeEvent(input$mn_data_save, {
@@ -17157,7 +17185,7 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$qtest_order_back_data, { show_mn_data() })
 
   # Run the analysis in the app: the same files and the same script as in the download, run in a separate R process
-  mn_result <- reactiveValues(dir = NULL)
+  mn_result <- reactiveValues(dir = NULL, time = NULL)
   observeEvent(input$mn_run, {
     groups <- mn_np_labels()
     if (length(groups) == 0) { showNotification("No H-representation yet: click Go first.", type = "warning"); return() }
@@ -17168,7 +17196,8 @@ server <- shinyServer(function(input, output, session) {
     removeModal()
     d <- tempfile("mn_run_"); dir.create(d)
     ok <- tryCatch(withProgress(message = "Running the analysis ...", detail = "up to 2 minutes", value = 0.2, {
-      mn_h_content(file.path(d, "in.tar"), quiet = TRUE)
+      if (identical(isolate(mn_source()), "V")) mn_v_content(file.path(d, "in.tar"), quiet = TRUE)
+      else mn_h_content(file.path(d, "in.tar"), quiet = TRUE)
       utils::untar(file.path(d, "in.tar"), exdir = d)
       scr <- file.path(d, "analysis_multinomineq.R")
       txt <- readLines(scr, warn = FALSE)
@@ -17185,11 +17214,32 @@ server <- shinyServer(function(input, output, session) {
       return()
     }
     mn_result$dir <- d
+    mn_result$time <- Sys.time()
+    show_mn_results()
+  })
+  # the last results stay available: a "Results" button next to "Data" opens them again
+  show_mn_results <- function() {
+    d <- isolate(mn_result$dir)
+    if (is.null(d) || !file.exists(file.path(d, "results.html"))) {
+      showNotification("No results yet: run the analysis first.", type = "warning"); return()
+    }
     page <- paste(readLines(file.path(d, "results.html"), warn = FALSE, encoding = "UTF-8"), collapse = "\n")
     showModal(modalDialog(
-      title = "Results of the multinomineq analysis", size = "l", easyClose = TRUE,
+      title = paste0("Results of the multinomineq analysis (", format(isolate(mn_result$time), "%H:%M"), ")"), size = "l", easyClose = TRUE,
       tags$iframe(srcdoc = page, style = "width:100%; height:70vh; border:1px solid var(--fairy-border, #d5d9e4); border-radius:8px;"),
       footer = tagList(downloadButton("mn_results_dl", "Download results (tar)"), modalButton("Close"))))
+  }
+  for (btn_id in c("mn_results_open", "mn_results_open_v")) local({
+    id <- btn_id
+    observeEvent(input[[id]], { if (isTRUE(input[[id]] > 0)) show_mn_results() }, ignoreInit = TRUE)
+  })
+  for (suffix in c("", "_v")) local({
+    sf <- suffix
+    output[[paste0("mn_results_btn_ui", sf)]] <- renderUI({
+      if (is.null(mn_result$dir)) return(NULL)
+      tags$span(class = "fairy-tooltip", `data-tooltip` = "Open the results of the last multinomineq analysis again",
+        actionButton(paste0("mn_results_open", sf), NULL, icon = icon("chart-column"), class = "fairy-toolbar-iconbtn fairy-order-btn"))
+    })
   })
   output$mn_results_dl <- downloadHandler(
     filename = function() paste0("multinomineq_results_", Sys.Date(), ".tar"),
@@ -17618,17 +17668,9 @@ server <- shinyServer(function(input, output, session) {
 
   ####* V-representation multinomineq
 
-  output$d_v_multinomineq <- downloadHandler(
-    filename = function() {
-      paste("multinomineq_V-representation_",
-        Sys.Date(),
-        ".tar",
-        sep = ""
-      )
-    },
-    content = function(file) {
+  mn_v_content <- function(file, quiet = FALSE) {
       
-      showNotification(HTML("Your download has started. It contains <b>analysis_multinomineq.R</b>, an R script for the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package, and a <b>data_choices</b> csv file with example data: replace the numbers by your own and run the script."), type = "message", duration = 9)
+      if (!quiet) showNotification(HTML("Your download has started. It contains <b>analysis_multinomineq.R</b>, an R script for the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package, and a <b>data_choices</b> csv file with example data: replace the numbers by your own and run the script."), type = "message", duration = 9)
   
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
@@ -17702,7 +17744,16 @@ server <- shinyServer(function(input, output, session) {
       }
 
       tar(file, files)
-    }
+  }
+  output$d_v_multinomineq <- downloadHandler(
+    filename = function() {
+      paste("multinomineq_V-representation_",
+        Sys.Date(),
+        ".tar",
+        sep = ""
+      )
+    },
+    content = function(file) mn_v_content(file)
   )
 
   ####* LaTeX-file of V-representation (words or fractions, matching the
