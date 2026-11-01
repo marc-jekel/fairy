@@ -20183,56 +20183,35 @@ server <- shinyServer(function(input, output, session) {
         yaxis = list(title = "Parameter values", range = c(-0.05, 1.05), tick0 = 0, dtick = 0.1)
       )
     }
-    # many vertices: an overview of all of them (as far as they fit) and a slider for one vertex at a time
+    # many vertices: only an evenly spread selection is animated; a sentence says so
     output$edge_extra_ui <- renderUI({
       ed <- edge_data(); n <- nrow(ed$v)
       if (n <= EDGE_MAX_FRAMES) return(NULL)
-      tagList(
-        tags$p(class = "fairy-eq-tol-help", sprintf("This model has %s vertices. The table shows for every probability its smallest and largest value and at how many vertices it is 0, 1 or in between; the slider below goes through the vertices one at a time.",
-                                                    format(n, big.mark = ","))),
-        uiOutput("edge_summary_ui"),
-        sliderInput("edge_vertex", "Vertex", min = 1, max = n, value = 1, step = 1, width = "100%",
-                    animate = animationOptions(interval = 700, loop = TRUE)))
-    })
-    output$edge_summary_ui <- renderUI({
-      ed <- edge_data(); n <- nrow(ed$v)
-      req(n > EDGE_MAX_FRAMES)
-      fr <- function(x) as.character(fractions(x))
-      rows <- lapply(seq_along(ed$names), function(j) {
-        x <- ed$v[, j]
-        at0 <- sum(abs(x) < 1e-9); at1 <- sum(abs(x - 1) < 1e-9)
-        tags$tr(tags$td(HTML(ed$names[j])), tags$td(fr(min(x))), tags$td(fr(max(x))),
-                tags$td(format(at0, big.mark = ",")), tags$td(format(at1, big.mark = ",")), tags$td(format(n - at0 - at1, big.mark = ",")))
-      })
-      tags$div(style = "overflow-x:auto; margin-bottom:10px;",
-        tags$table(class = "table table-condensed", style = "width:auto; text-align:center;",
-          tags$thead(tags$tr(tags$th("Probability"), tags$th("Smallest value"), tags$th("Largest value"),
-                             tags$th("Vertices with 0"), tags$th("Vertices with 1"), tags$th("Vertices in between"))),
-          tags$tbody(rows)))
+      tags$p(class = "fairy-eq-tol-help", sprintf("This model has %s vertices. The plot shows %d of them, evenly spread over the list of all vertices.",
+                                                  format(n, big.mark = ","), EDGE_MAX_FRAMES))
     })
     output$plot_example <- renderPlotly({
       ed <- edge_data()
       parameter_names <- ed$names
       n_vert <- nrow(ed$v)
+      vert_ids <- seq_len(n_vert)
       if (n_vert > EDGE_MAX_FRAMES) {
-        k <- input$edge_vertex
-        k <- if (is.null(k) || is.na(k)) 1L else max(1L, min(n_vert, as.integer(k)))
-        d1 <- data.frame(parameter_names = parameter_names, parameters = as.numeric(ed$v[k, ]))
-        return(plot_ly(d1, x = ~parameter_names, y = ~parameters, type = "scatter", mode = "markers", marker = list(size = 10)) %>%
-          edge_axes(parameter_names, 90) %>%
-          layout(title = list(text = paste0("Vertex ", k, " of ", format(n_vert, big.mark = ",")), font = list(size = 14))))
+        # one animation frame per vertex gets far too big: an evenly spread selection is shown
+        vert_ids <- unique(round(seq(1, n_vert, length.out = EDGE_MAX_FRAMES)))
+        ed$v <- ed$v[vert_ids, , drop = FALSE]
       }
+      n_frames <- length(vert_ids)
 
       v_pl <- data.frame(
-        rep(parameter_names, n_vert),
+        rep(parameter_names, n_frames),
         as.numeric(t(ed$v)),
-        rep(1:n_vert, each = length(parameter_names))
+        rep(vert_ids, each = length(parameter_names))
       )
       colnames(v_pl) <- c("parameter_names", "parameters", "vert_no")
 
       # Build the animated scatter with plot_ly directly. The previous ggplotly() approach broke on current ggplot2/plotly versions
       # (the frame aesthetic was dropped). A single vertex cannot be animated, so guard on the number of vertices.
-      if (n_vert > 1) {
+      if (n_frames > 1) {
         p <- plot_ly(v_pl,
           x = ~parameter_names, y = ~parameters, frame = ~vert_no,
           type = "scatter", mode = "markers", marker = list(size = 10)
@@ -20240,15 +20219,15 @@ server <- shinyServer(function(input, output, session) {
           animation_opts(transition = 0) %>%
           animation_slider(currentvalue = list(prefix = "Vertex "),
             # with many vertices the step labels (1, 2, 3, ...) run into each other and into the axis title
-            font = list(color = if (n_vert > 12) "rgba(0,0,0,0)" else "#444444"),
-            ticklen = if (n_vert > 12) 0 else 7)
+            font = list(color = if (n_frames > 12) "rgba(0,0,0,0)" else "#444444"),
+            ticklen = if (n_frames > 12) 0 else 7)
       } else {
         p <- plot_ly(v_pl,
           x = ~parameter_names, y = ~parameters,
           type = "scatter", mode = "markers", marker = list(size = 10)
         )
       }
-      p %>% edge_axes(parameter_names, if (n_vert > 1) 150 else 90)
+      p %>% edge_axes(parameter_names, if (n_frames > 1) 150 else 90)
     })
   })
 })
