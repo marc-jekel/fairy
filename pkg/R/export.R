@@ -221,16 +221,44 @@ fairy_write_qtest <- function(models, n_p = NULL, file = NULL, approx_tol = 0, r
 }
 
 
+# Equalities p_i = p_j between two probabilities: returns which probabilities
+# are merged (`map`, one entry per probability: the number of its free
+# parameter), the rows to keep (all but those equalities) and the groups; NULL
+# when there is nothing to merge or nothing else would be left.
+reduce_equal_probs <- function(h_num) {
+  n_p <- ncol(h_num) - 2L
+  parent <- seq_len(n_p)
+  find <- function(i) { while (parent[i] != i) i <- parent[i]; i }
+  simple <- rep(FALSE, nrow(h_num))
+  for (r in which(h_num[, 1] == 1)) {
+    cf <- h_num[r, -(1:2)]
+    nz <- which(abs(cf) > 1e-12)
+    if (length(nz) == 2 && abs(h_num[r, 2]) < 1e-12 && abs(cf[nz[1]] + cf[nz[2]]) < 1e-12) {
+      simple[r] <- TRUE
+      a <- find(nz[1]); b <- find(nz[2])
+      if (a != b) parent[max(a, b)] <- min(a, b)
+    }
+  }
+  if (!any(simple) || all(simple)) return(NULL)
+  root <- vapply(seq_len(n_p), find, integer(1))
+  groups <- sort(unique(root))
+  list(map = match(root, groups), groups = groups, keep = !simple)
+}
+
 #' Write multinomineq input files for one or more models
 #'
 #' Generates the A matrix and b vector CSV files expected by the
 #' `multinomineq` R package (Heck & Davis-Stober, 2019). Each model
-#' produces two files: `A_<name>.csv` and `b_<name>.csv`. All files
+#' produces two files: `A_<name>.csv` and `b_<name>.csv` (plus `map_<name>.csv`
+#' when it contains equal probabilities). All files
 #' are bundled in a single `.tar` archive.
 #'
 #' The A matrix satisfies `A %*% p <= b` and is derived directly from
-#' the H-representation. An equality is written as two inequalities (both
-#' directions), so the polytope is exactly the model.
+#' the H-representation. An equality between two probabilities (`p1 = p2`)
+#' merges them into one column; an extra file `map_<name>.csv` says which
+#' probabilities are equal (the `map` argument of the multinomineq functions),
+#' exactly as the app does it. Any other equality is written as two
+#' inequalities (both directions); such a model has volume zero.
 #'
 #' @inheritParams fairy_write_qtest
 #' @param file Path for the output `.tar` file. Defaults to
@@ -264,6 +292,21 @@ fairy_write_multinomineq <- function(models, n_p = NULL, file = NULL, approx_tol
     h <- export_h_of(models[[nm]], n_p, approx_tol, reduce)
     h <- reorder_h_columns(h, order[[nm]])
     safe_nm <- safe_file_name(nm)
+
+    # equalities p_i = p_j: one free parameter for the equal probabilities (map file), as in the app
+    red <- reduce_equal_probs(q2d(h))
+    if (!is.null(red)) {
+      lab_full <- colnames(h)[-(1:2)]
+      coefs <- q2d(h)[red$keep, -(1:2), drop = FALSE]
+      newc <- matrix(unlist(lapply(seq_along(red$groups), function(g) rowSums(coefs[, red$map == g, drop = FALSE]))), nrow = nrow(coefs))
+      grp_lab <- vapply(seq_along(red$groups), function(g) paste(lab_full[red$map == g], collapse = " = "), character(1))
+      h2 <- cbind(h[red$keep, 1:2, drop = FALSE], d2q(newc))
+      colnames(h2) <- c(colnames(h)[1:2], grp_lab)
+      h <- h2
+      file_map <- paste0("map_", safe_nm, ".csv")
+      write.table(red$map, file_map, quote = FALSE, col.names = FALSE, row.names = FALSE, sep = ",")
+      files <- c(files, file_map)
+    }
 
     # an equality row means a.p = -b: add the sign-flipped copy so that both directions are inequalities
     is_eq <- q2d(h)[, 1] == 1

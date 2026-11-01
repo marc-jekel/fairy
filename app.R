@@ -10416,7 +10416,7 @@ server <- shinyServer(function(input, output, session) {
     # data-tooltip (disabled-state message vs. the normal Compute
     # message) — this branch only fires while it's enabled, so the two
     # never fight over the same attribute at the same time.
-    if (!(input$CB == 0 & input$SoB == 0 & input$CG == 0)) {
+    if (!(input$CB == 0 & input$SoB == 0 & input$CG == 0 & !isTRUE(input$EX))) {
       tooltip_txt <- if (is_stale) {
         "Models changed since parsimony was last computed — click to update (⌘/Ctrl+Enter)"
       } else {
@@ -11131,10 +11131,10 @@ server <- shinyServer(function(input, output, session) {
 
   ###
 
-  observeEvent(input$CB | input$SoB | input$CG, {
-    if (input$CB == 0 & input$SoB == 0 & input$CG == 0) {
+  observeEvent(list(input$CB, input$SoB, input$CG, input$EX), {
+    if (input$CB == 0 & input$SoB == 0 & input$CG == 0 & !isTRUE(input$EX)) {
       disable("go")
-      runjs("document.getElementById('go').setAttribute('data-tooltip', 'Choose at least one algorithm to enable this option.');")
+      runjs("document.getElementById('go').setAttribute('data-tooltip', 'Choose at least one algorithm or the exact volume to enable this option.');")
     } else {
       enable("go")
       runjs("document.getElementById('go').setAttribute('data-tooltip', 'Compute parsimony (⌘/Ctrl+Enter)');")
@@ -16313,7 +16313,14 @@ server <- shinyServer(function(input, output, session) {
           if (isolate(input$SoB)) "Sequence of Balls",
           if (isolate(input$CG)) "Cooling Gaussian"
         )
-        parsim <- parsim[parsim$Algorithm %in% selected_algos, ]
+        if (length(selected_algos) == 0) {
+          # only the exact volume is switched on: one row per model, without an estimate
+          parsim <- parsim[parsim$Algorithm == "Cooling Bodies", ]
+          parsim$Algorithm <- factor("Exact only")
+          parsim$Volume <- NA_real_
+        } else {
+          parsim <- parsim[parsim$Algorithm %in% selected_algos, ]
+        }
 
         parsim_rep <- rbind(parsim_rep, parsim)
       }
@@ -16447,7 +16454,7 @@ server <- shinyServer(function(input, output, session) {
         Volume         = ifelse(startsWith(parsim_display$Dimensionality, "Not full-dimensional"), "0",
                           ifelse(is.na(parsim_display$Volume), "—", vapply(parsim_display$Volume, function(v) if (is.na(v)) "—" else vol_str(v), character(1)))),
         `Max BF`       = ifelse(startsWith(parsim_display$Dimensionality, "Not full-dimensional"), "∞",
-                          vapply(maxbf_use, bf_str, character(1))),
+                          ifelse(is.na(maxbf_use), "\u2014", vapply(maxbf_use, bf_str, character(1)))),
         `Exact volume` = vapply(seq_along(exact_vol), function(i) {
           v <- exact_vol[i]
           if (is.nan(v)) return(paste0("n/a (took longer than ", EXACT_VOLUME_LIMIT, " s)"))

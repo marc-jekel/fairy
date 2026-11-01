@@ -38,13 +38,17 @@ Invisibly returns the path to the \code{.tar} file.
 \description{
 Generates the A matrix and b vector CSV files expected by the
 \code{multinomineq} R package (Heck & Davis-Stober, 2019). Each model
-produces two files: \verb{A_<name>.csv} and \verb{b_<name>.csv}. All files
+produces two files: \verb{A_<name>.csv} and \verb{b_<name>.csv} (plus \verb{map_<name>.csv}
+when it contains equal probabilities). All files
 are bundled in a single \code{.tar} archive.
 }
 \details{
 The A matrix satisfies \code{A \%*\% p <= b} and is derived directly from
-the H-representation. An equality is written as two inequalities (both
-directions), so the polytope is exactly the model.
+the H-representation. An equality between two probabilities (\code{p1 = p2})
+merges them into one column; an extra file \verb{map_<name>.csv} says which
+probabilities are equal (the \code{map} argument of the multinomineq functions),
+exactly as the app does it. Any other equality is written as two
+inequalities (both directions); such a model has volume zero.
 }
 \examples{
 \dontrun{

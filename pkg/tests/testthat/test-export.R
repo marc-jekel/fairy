@@ -14,8 +14,16 @@ test_that("QTEST and multinomineq writers accept strings and H-representations",
   expect_equal(strsplit(m2[1], " ")[[1]][2], "3")
   expect_true("Equalities" %in% m2)
   expect_true(any(grepl("Needs to be edited", m2)))
-  # multinomineq: an equality is written in both directions (3 inequalities + 2 for p2 = p3)
-  expect_equal(length(readLines(file.path(d, "m", "b_m2.csv"))), 5)
+  # multinomineq: p2 = p3 is merged into one column and listed in map_m2.csv (3 inequalities remain)
+  expect_equal(length(readLines(file.path(d, "m", "b_m2.csv"))), 3)
+  expect_equal(as.integer(readLines(file.path(d, "m", "map_m2.csv"))), c(1L, 2L, 2L))
+  expect_true("map_m2.csv" %in% mf)
+  expect_false("map_m1.csv" %in% mf)
+  # an equality that is not p = p stays in both directions (and the model has volume zero)
+  e <- fairy_write_multinomineq(c(x = "p1 = 0.3; p2 > p3"), n_p = 3, file = file.path(d, "e.tar"))
+  utils::untar(e, exdir = file.path(d, "e"))
+  expect_false(file.exists(file.path(d, "e", "map_x.csv")))
+  expect_equal(length(readLines(file.path(d, "e", "b_x.csv"))), 5)   # p2 > p3, p2 >= 0, p3 <= 0 bound, and p1 = 0.3 twice
 })
 
 test_that("fairy_write_qtest(order = ) puts the probabilities of a model in the chosen order", {
