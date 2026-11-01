@@ -4896,6 +4896,42 @@ ui <- shinyUI(fluidPage(
         }, true);
       })();
 
+      // ---- Fairy dust: five quick clicks on the title of the analysis window switch its time limit off (and on again) ----
+      (function() {
+        var st = document.createElement('style');
+        st.textContent = '@keyframes mn-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } } ' +
+          '@keyframes mn-spark { from { opacity: 1; transform: translate(0, 0) scale(1); } to { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.4) rotate(120deg); } }';
+        document.head.appendChild(st);
+        var clicks = [];
+        function burst(x, y) {
+          var glyphs = ['\\u2728', '\\u2b50', '\\u2726', '\\u22c6'];
+          for (var i = 0; i < 16; i++) {
+            var sp = document.createElement('span');
+            var ang = (Math.PI * 2 * i) / 16, dist = 50 + Math.random() * 70;
+            sp.textContent = glyphs[i % glyphs.length];
+            sp.style.cssText = 'position:fixed; z-index:200000; pointer-events:none; font-size:' + (14 + Math.random() * 10) + 'px; left:' + x + 'px; top:' + y + 'px; ' +
+              '--dx:' + Math.round(Math.cos(ang) * dist) + 'px; --dy:' + Math.round(Math.sin(ang) * dist - 20) + 'px; animation: mn-spark 900ms ease-out forwards;';
+            document.body.appendChild(sp);
+            setTimeout(function(el) { return function() { el.remove(); }; }(sp), 1000);
+          }
+        }
+        document.addEventListener('click', function(e) {
+          var t = e.target.closest ? e.target.closest('.modal-title') : null;
+          if (!t) return;
+          var m = t.closest('.modal');
+          if (!m || !(m.querySelector('#mn_run') || m.querySelector('#mn_cancel'))) return;
+          var now = Date.now();
+          clicks = clicks.filter(function(c) { return now - c < 1500; });
+          clicks.push(now);
+          if (clicks.length >= 5) {
+            clicks = [];
+            var r = t.getBoundingClientRect();
+            burst(r.left + r.width / 2, r.top + r.height / 2);
+            if (window.Shiny) Shiny.setInputValue('mn_unlock', Date.now(), { priority: 'event' });
+          }
+        });
+      })();
+
       // ---- Hints while typing a specification: say what is wrong instead of failing silently ----
       (function() {
         var st = document.createElement('style');
@@ -17405,7 +17441,7 @@ server <- shinyServer(function(input, output, session) {
       return()
     }
     mn_proc$p <- p; mn_proc$dir <- d; mn_proc$start <- Sys.time(); mn_proc$status <- "starting ..."
-    mn_proc$elapsed <- 0; mn_proc$limit <- 900
+    mn_proc$elapsed <- 0; mn_proc$limit <- if (isTRUE(mn_nolimit())) Inf else 900
     showModal(modalDialog(
       title = "The analysis is running", easyClose = FALSE,
       uiOutput("mn_progress"),
@@ -17418,10 +17454,16 @@ server <- shinyServer(function(input, output, session) {
     el <- mn_proc$elapsed
     tagList(
       tags$p(style = "font-size:15px; margin-bottom:6px; overflow-wrap:anywhere;", st),
-      tags$div(style = "height:6px; background:var(--fairy-border, #e4e7ec); border-radius:3px; margin:6px 0 4px 0;",
-        tags$div(style = paste0("height:6px; border-radius:3px; background:var(--fairy-primary, #3a6df0); width:", round(100 * min(1, el / mn_proc$limit)), "%;"))),
-      tags$p(class = "fairy-eq-tol-help", sprintf("%d:%02d elapsed, stops automatically after %d:%02d. ",
-               as.integer(el %/% 60), as.integer(round(el) %% 60), as.integer(mn_proc$limit %/% 60), as.integer(mn_proc$limit %% 60)),
+      tags$div(style = "height:6px; background:var(--fairy-border, #e4e7ec); border-radius:3px; margin:6px 0 4px 0; overflow:hidden;",
+        if (is.finite(mn_proc$limit))
+          tags$div(style = paste0("height:6px; border-radius:3px; background:var(--fairy-primary, #3a6df0); width:", round(100 * min(1, el / mn_proc$limit)), "%;"))
+        else
+          tags$div(style = "height:6px; border-radius:3px; width:100%; background:linear-gradient(90deg,#3a6df0,#b58bff,#3a6df0); background-size:200% 100%; animation: mn-shimmer 1.4s linear infinite;")),
+      tags$p(class = "fairy-eq-tol-help",
+             if (is.finite(mn_proc$limit))
+               sprintf("%d:%02d elapsed, stops automatically after %d:%02d. ", as.integer(el %/% 60), as.integer(round(el) %% 60), as.integer(mn_proc$limit %/% 60), as.integer(mn_proc$limit %% 60))
+             else
+               sprintf("%d:%02d elapsed, no time limit (fairy dust). ", as.integer(el %/% 60), as.integer(round(el) %% 60)),
              "This runs on our shared server, so please keep it small. You can cancel at any time; the files from the downloads can also be run on your own computer."))
   })
   observe({
@@ -17450,6 +17492,14 @@ server <- shinyServer(function(input, output, session) {
       removeModal()
       showNotification("The analysis took too long and was stopped. Try fewer models, or download the files and run the script on your own computer.", type = "error", duration = NULL)
     }
+  })
+  # fairy dust (five quick clicks on the window title, see the script above): no time limit for the analysis here
+  mn_nolimit <- reactiveVal(FALSE)
+  observeEvent(input$mn_unlock, {
+    mn_nolimit(!isTRUE(mn_nolimit()))
+    if (!is.null(isolate(mn_proc$p))) mn_proc$limit <- if (mn_nolimit()) Inf else 900
+    showNotification(if (mn_nolimit()) "\u2728 Fairy dust: no time limit for the analysis (five quick clicks on the title switch it off again)." else "The time limit is back (15 minutes).",
+                     type = "message", duration = 6)
   })
   observeEvent(input$mn_cancel, {
     p <- isolate(mn_proc$p)
