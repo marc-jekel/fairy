@@ -16898,6 +16898,7 @@ server <- shinyServer(function(input, output, session) {
     items_nms <- isolate(items_reactive$names)
     nms <- c(isolate(names_models_reactive$value), isolate(intersections_reactive$names),
              isolate(mixtures_reactive$names), items_nms)
+    nms <- nms[!is.na(nms) & nzchar(nms)]
     out <- list()
     for (nm in nms) {
       h <- isolate(h_reactive[[nm]])
@@ -17278,6 +17279,7 @@ server <- shinyServer(function(input, output, session) {
         isolate(items_reactive$names)
       )
       # "m1 AND m2" is not filename-safe -> "m1_AND_m2"
+      export_names <- export_names[!is.na(export_names) & nzchar(export_names)]
       export_files <- str_replace_all(export_names, fixed(" AND "), "_AND_")
       export_files <- safe_file_name(export_files)
       numb_models <- length(export_names)
