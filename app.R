@@ -397,10 +397,10 @@ ui <- shinyUI(fluidPage(
       #qtest_order_open:hover, #qtest_order_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       /* Data: same small grey row as Order, for the multinomineq data file */
       #mn_data_open, #mn_data_open_v { position: relative !important; margin-bottom: 14px !important; }
-      #mn_data_open::after, #mn_data_open_v::after { content: 'Analysis'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
+      #mn_data_open::after, #mn_data_open_v::after { content: 'Data & run'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
         border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 10.5px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
       /* Order is a setting for the two downloads below it, not a third program: plain grey, a thin row, a divider under it */
-      #mn_data_open.fairy-order-btn, #mn_data_open_v.fairy-order-btn { flex-direction: row !important; width: 66px !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
+      #mn_data_open.fairy-order-btn, #mn_data_open_v.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
       #mn_data_open .fa, #mn_data_open_v .fa, #mn_data_open svg, #mn_data_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
       #mn_data_open:hover, #mn_data_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       /* Results: same small grey row, reopens the last analysis */
@@ -6259,8 +6259,8 @@ ui <- shinyUI(fluidPage(
               downloadButton("d_h", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
             tags$span(class = "fairy-tooltip", `data-tooltip` = "H-representation for multinomineq (R package): files plus an analysis script and data file",
               downloadButton("d_h_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
-            tags$span(class = "fairy-tooltip", `data-tooltip` = "Analyse your data with multinomineq: enter n and frequencies, then run the Bayesian analysis here (small analyses) or use the multinom download and run the R script on your own computer",
-              actionButton("mn_data_open", NULL, icon = icon("calculator"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data for multinomineq: enter n and frequencies (they go into the data file of the multinom download). You can also run the analysis here (small analyses), or run the script from the download on your own computer",
+              actionButton("mn_data_open", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
             uiOutput("mn_results_btn_ui", inline = TRUE)),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "LaTeX file of H-representation",
             downloadButton("d_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
@@ -6385,8 +6385,8 @@ ui <- shinyUI(fluidPage(
               downloadButton("d_v", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
             tags$span(class = "fairy-tooltip", `data-tooltip` = "V-representation for multinomineq (R package): files plus an analysis script and data file",
               downloadButton("d_v_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
-            tags$span(class = "fairy-tooltip", `data-tooltip` = "Analyse your data with multinomineq: enter n and frequencies, then run the Bayesian analysis here (small analyses) or use the multinom download and run the R script on your own computer",
-              actionButton("mn_data_open_v", NULL, icon = icon("calculator"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data for multinomineq: enter n and frequencies (they go into the data file of the multinom download). You can also run the analysis here (small analyses), or run the script from the download on your own computer",
+              actionButton("mn_data_open_v", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
             uiOutput("mn_results_btn_ui_v", inline = TRUE)),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "LaTeX table (words: all/none/fractions)",
             downloadButton("d_v_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
