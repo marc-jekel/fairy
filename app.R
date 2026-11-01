@@ -16613,6 +16613,13 @@ server <- shinyServer(function(input, output, session) {
       '    ci97.5 = apply(m, 2, quantile, 0.975), row.names = NULL)',
       '}',
       '',
+      '# progress messages (the app shows them while the analysis runs)',
+      'cur <- new.env()',
+      'status <- function(txt) {',
+      '  cat(sprintf("[%d/%d] %s: %s\\n", cur$i, cur$n, cur$model, txt))',
+      '  flush.console()',
+      '}',
+      '',
       '#### Analysis of one model ####',
       'analyse <- function(model_name) {',
       '  file_A <- paste0("A_", model_name, ".csv")',
@@ -16677,6 +16684,7 @@ server <- shinyServer(function(input, output, session) {
       '  n_use <- as.vector(tapply(n, map, sum))',
       '  rows <- list(); post <- list(); dg <- list(); note <- ""',
       '  one <- function(rep, ...) {',
+      '    status(paste0("drawing the posterior (", rep, ")"))',
       '    p <- tryCatch(sampling_binom(k = k_use, n = n_use, ...,',
       '      prior = prior, M = M_post, progress = FALSE),',
       '      error = function(e) NULL)',
@@ -16690,6 +16698,7 @@ server <- shinyServer(function(input, output, session) {
       '      dg[[rep]] <<- diag_rows(model_name, rep, p, labs)',
       '      if (plots) plot(p)',
       '    }',
+      '    status(paste0("estimating the Bayes factors (", rep, ")"))',
       '    # with map the equalities belong to the model; the',
       '    # unconstrained model has all probabilities free',
       '    bf <- bf_binom(k = choices, n = n, ..., map = map,',
@@ -16700,6 +16709,7 @@ server <- shinyServer(function(input, output, session) {
       '    # (only for a very thin model; with data far from the model the',
       '    # stepwise method can run for a very long time)',
       '    if (!is.finite(first)) {',
+      '      status("very small model: stepwise estimate")',
       '      bf2 <- tryCatch(bf_binom(k = choices, n = n, ..., map = map,',
       '        prior = prior, M = M_bf, cmin = 100, progress = FALSE),',
       '        error = function(e) NULL)',
@@ -16728,7 +16738,10 @@ server <- shinyServer(function(input, output, session) {
       '       " Session > Set Working Directory > To Source File Location).")',
       'cat("Models found:", paste(models, collapse = ", "), "\\n")',
       '# every model is shown as soon as it is done',
-      'runs <- lapply(models, function(m) {',
+      'runs <- lapply(seq_along(models), function(i) {',
+      '  m <- models[i]',
+      '  cur$i <- i; cur$n <- length(models); cur$model <- m',
+      '  status("starting")',
       '  res <- tryCatch(analyse(m), error = function(e) {',
       '    list(bf = bf_row(m, NA, empty_bf, friendly(conditionMessage(e))),',
       '         posterior = NULL, diag = NULL)',
@@ -17275,7 +17288,7 @@ server <- shinyServer(function(input, output, session) {
     }
     removeModal()
     d <- tempfile("mn_run_"); dir.create(d)
-    ok <- tryCatch(withProgress(message = "Running the analysis ...", detail = "up to 2 minutes", value = 0.2, {
+    prep <- tryCatch({
       if (identical(isolate(mn_source()), "V")) mn_v_content(file.path(d, "in.tar"), quiet = TRUE)
       else mn_h_content(file.path(d, "in.tar"), quiet = TRUE)
       utils::untar(file.path(d, "in.tar"), exdir = d)
@@ -17286,19 +17299,70 @@ server <- shinyServer(function(input, output, session) {
       txt <- readLines(scr, warn = FALSE)
       if (final) txt <- sub("^final <- FALSE.*", "final <- TRUE", txt)
       writeLines(txt, scr)
-      setProgress(0.4)
-      old <- setwd(d); on.exit(setwd(old), add = TRUE)
-      out <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), "analysis_multinomineq.R",
-                                      stdout = TRUE, stderr = TRUE, timeout = if (final) 400 else 150))
-      file.exists(file.path(d, "results.html"))
-    }), error = function(e) FALSE)
-    if (!isTRUE(ok)) {
-      showNotification("The analysis did not finish (too slow or an error). Try fewer models, or download the files and run the script in R.", type = "error", duration = NULL)
+      TRUE
+    }, error = function(e) FALSE)
+    p <- if (isTRUE(prep)) tryCatch(
+      processx::process$new(file.path(R.home("bin"), "Rscript"), "analysis_multinomineq.R", wd = d,
+                            stdout = file.path(d, "out.txt"), stderr = "2>&1", cleanup_tree = TRUE),
+      error = function(e) NULL) else NULL
+    if (is.null(p)) {
+      showNotification("The analysis could not be started. Download the files and run the script in R.", type = "error", duration = NULL)
       return()
     }
-    mn_result$dir <- d
-    mn_result$time <- Sys.time()
-    show_mn_results()
+    mn_proc$p <- p; mn_proc$dir <- d; mn_proc$start <- Sys.time(); mn_proc$status <- "starting ..."
+    mn_proc$elapsed <- 0; mn_proc$limit <- if (final) 1800 else 900
+    showModal(modalDialog(
+      title = "The analysis is running", easyClose = FALSE,
+      uiOutput("mn_progress"),
+      footer = actionButton("mn_cancel", "Cancel")))
+  })
+  # the analysis runs in its own process, so the window stays alive: it shows what is being computed and can be cancelled
+  mn_proc <- reactiveValues(p = NULL, dir = NULL, start = NULL, status = "", elapsed = 0, limit = 900)
+  output$mn_progress <- renderUI({
+    st <- sub("^\\[([0-9]+)/([0-9]+)\\] ([^:]*): (.*)$", "Model \\1 of \\2: \\3 \u2013 \\4", mn_proc$status)
+    el <- mn_proc$elapsed
+    tagList(
+      tags$p(style = "font-size:15px; margin-bottom:6px;", st),
+      tags$p(class = "fairy-eq-tol-help", sprintf("%d:%02d elapsed. ", as.integer(el %/% 60), as.integer(round(el) %% 60)),
+             "This runs on our shared server, so please keep it small. You can cancel at any time; the files from the downloads can also be run on your own computer."))
+  })
+  observe({
+    p <- mn_proc$p
+    if (is.null(p)) return()
+    invalidateLater(1000)
+    el <- as.numeric(difftime(Sys.time(), isolate(mn_proc$start), units = "secs"))
+    d <- isolate(mn_proc$dir)
+    out <- tryCatch(readLines(file.path(d, "out.txt"), warn = FALSE), error = function(e) character(0))
+    st <- grep("^\\[[0-9]+/[0-9]+\\] ", out, value = TRUE)
+    if (length(st) > 0) mn_proc$status <- tail(st, 1)
+    mn_proc$elapsed <- el
+    if (!p$is_alive()) {
+      mn_proc$p <- NULL
+      removeModal()
+      if (file.exists(file.path(d, "results.html"))) {
+        mn_result$dir <- d
+        mn_result$time <- Sys.time()
+        show_mn_results()
+      } else {
+        showNotification(paste("The analysis did not finish:", paste(tail(out, 3), collapse = " ")), type = "error", duration = NULL)
+      }
+    } else if (el > isolate(mn_proc$limit)) {
+      try(p$kill_tree(), silent = TRUE)
+      mn_proc$p <- NULL
+      removeModal()
+      showNotification("The analysis took too long and was stopped. Try fewer models, or download the files and run the script on your own computer.", type = "error", duration = NULL)
+    }
+  })
+  observeEvent(input$mn_cancel, {
+    p <- isolate(mn_proc$p)
+    if (!is.null(p)) try(p$kill_tree(), silent = TRUE)
+    mn_proc$p <- NULL
+    removeModal()
+    showNotification("The analysis was cancelled.", type = "message", duration = 5)
+  })
+  session$onSessionEnded(function() {
+    p <- isolate(mn_proc$p)
+    if (!is.null(p)) try(p$kill_tree(), silent = TRUE)
   })
   # the last results stay available: a "Results" button next to "Data" opens them again
   show_mn_results <- function() {
