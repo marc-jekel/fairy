@@ -20333,7 +20333,7 @@ server <- shinyServer(function(input, output, session) {
       if (n_frames > 1) {
         p <- plot_ly(v_pl,
           x = ~parameter_names, y = ~parameters, frame = ~vert_no,
-          type = "scatter", mode = "markers", marker = list(size = 10)
+          type = "scatter", mode = "markers", marker = list(size = 10, color = "#7a4fc4")
         ) %>%
           animation_opts(transition = 0) %>%
           animation_slider(currentvalue = list(prefix = "Vertex "),
@@ -20343,7 +20343,7 @@ server <- shinyServer(function(input, output, session) {
       } else {
         p <- plot_ly(v_pl,
           x = ~parameter_names, y = ~parameters,
-          type = "scatter", mode = "markers", marker = list(size = 10)
+          type = "scatter", mode = "markers", marker = list(size = 10, color = "#7a4fc4")
         )
       }
       p <- p %>% edge_axes(parameter_names, if (n_frames > 1) 150 else 90)
