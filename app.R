@@ -8277,7 +8277,9 @@ server <- shinyServer(function(input, output, session) {
               opt("identical", "identical", "all items of a probability are equal", "e.g. p1 is the same number for every item"),
               opt("average", "average", "only the average over the items has to satisfy it", "e.g. average of p1 > average of p2"),
               tags$div(id = "fairy_items_perlist_wrap", style = "display:none;",
-                opt("perlist", "differently for each list", "choose joint, substitutable, identical or average for every list")),
+                opt("perlist", "differently for each list", "choose joint, substitutable, identical or average for every list"),
+                # the choice per list sits right here under the option (not up in the box of the lists)
+                tags$div(id = "fairy_items_perlist_rows", style = "margin:2px 0 8px 40px; font-size:12.5px;")),
               tags$div(id = "fairy_items_stmts", style = "font-size:12px;"),
               tags$div(id = "fairy_items_caption", style = "font-size:12px; margin-top:6px;")
             ),
@@ -8536,6 +8538,8 @@ server <- shinyServer(function(input, output, session) {
             var ch = document.getElementById('fairy_items_chips'), sl = document.getElementById('fairy_items_sets');
             if (!ch || !sl) return;
             ch.textContent = ''; sl.textContent = '';
+            var prows = document.getElementById('fairy_items_perlist_rows');
+            if (prows) prows.textContent = '';
             chipState.asg.forEach(function(s, i) {
               var b = document.createElement('button');
               b.type = 'button'; b.className = 'fairy-chip'; b.setAttribute('data-p', i);
@@ -8563,7 +8567,16 @@ server <- shinyServer(function(input, output, session) {
                 var ov = document.createElement('select'); ov.className = 'form-control fairy-set-over'; ov.style.cssText = 'width:auto; height:28px; padding:2px 6px; font-size:12px;'; ov.setAttribute('data-set', k);
                 ov.setAttribute('aria-label', 'How the model is applied to list ' + chipLetter(k));
                 CHIP_TYPES.forEach(function(t) { var o = document.createElement('option'); o.value = t[0]; o.textContent = t[1]; if (t[0] === (st.over || 'joint')) o.selected = true; ov.appendChild(o); });
-                parts.push(ov);
+                if (prows) {
+                  var pl = document.createElement('div'); pl.style.cssText = 'display:flex; align-items:center; gap:8px; margin:5px 0; flex-wrap:wrap;';
+                  var pdot = dot.cloneNode(true);
+                  var pnm = document.createElement('span'); pnm.style.fontWeight = '600'; pnm.textContent = listNames[k] || ('list ' + chipLetter(k));
+                  var pmem = mem.cloneNode(true);
+                  pl.appendChild(pdot); pl.appendChild(pnm); pl.appendChild(pmem); pl.appendChild(ov);
+                  prows.appendChild(pl);
+                } else {
+                  parts.push(ov);
+                }
               }
               parts.forEach(function(e) { row.appendChild(e); });
               sl.appendChild(row);
