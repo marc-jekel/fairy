@@ -392,6 +392,7 @@ ui <- shinyUI(fluidPage(
       .fairy-derived-note { position: absolute; right: 12px; bottom: 8px; max-width: 90%; font-size: 11px; line-height: 1.3; color: var(--fairy-text-muted, #667085); font-style: italic; pointer-events: none; z-index: 3; text-align: right; }
       .fairy-dl-group { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 8px 14px 12px; border: 1.5px solid var(--fairy-border); border-radius: 14px; }
       .fairy-dl-group > .shiny-html-output { display: block; }
+      .fairy-dl-group[data-cap]::before { content: attr(data-cap); font-size: 12px; font-weight: 700; letter-spacing: .02em; color: var(--fairy-text-muted, #667085); margin-bottom: -2px; }
       #qtest_order_open, #qtest_order_open_v { position: relative !important; margin-bottom: 14px !important; }
       #qtest_order_open::after, #qtest_order_open_v::after { content: 'Order'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
         border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 12px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
@@ -6590,17 +6591,20 @@ ui <- shinyUI(fluidPage(
           tags$hr(class = "fairy-toolbar-divider"),
           tags$div(class = "fairy-rail-cap", "Export"),
           # QTEST and multinomineq share the order of the probabilities: one group with its button on top
-          tags$div(class = "fairy-dl-group",
             uiOutput("qtest_order_btn_ui", inline = TRUE),
+            tags$div(class = "fairy-dl-group", `data-cap` = "QTEST",
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the H-representation for QTEST",
-              downloadButton("d_h", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
-            tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the H-representation for multinomineq (R package): files, analysis script and data file",
-              downloadButton("d_h_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
+              downloadButton("d_h", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
+            ),
+            tags$div(class = "fairy-dl-group", `data-cap` = "multinomineq",
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data and settings for multinomineq: n and frequencies, number of samples, prior. They go into the files and the script of the multinomineq download and are used by Run.",
               actionButton("mn_data_open", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the H-representation for multinomineq (R package): files, analysis script and data file",
+              downloadButton("d_h_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Run the multinomineq analysis here (small analyses). It uses the numbers and settings saved under Data.",
               actionButton("mn_run_open", NULL, icon = icon("play"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
-            uiOutput("mn_results_btn_ui", inline = TRUE)),
+            uiOutput("mn_results_btn_ui", inline = TRUE)
+            ),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the H-representation as a LaTeX file",
             downloadButton("d_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
         ),
@@ -6724,17 +6728,20 @@ ui <- shinyUI(fluidPage(
             tags$button(id = "v_unique_btn", type = "button", class = "fairy-toolbar-iconbtn", `aria-pressed` = "false", `aria-label` = "Show only unique vertices", icon("filter"))),
           tags$hr(class = "fairy-toolbar-divider"),
           tags$div(class = "fairy-rail-cap", "Export"),
-          tags$div(class = "fairy-dl-group",
             uiOutput("qtest_order_btn_ui_v", inline = TRUE),
+            tags$div(class = "fairy-dl-group", `data-cap` = "QTEST",
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the V-representation for QTEST",
-              downloadButton("d_v", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
-            tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the V-representation for multinomineq (R package): files, analysis script and data file",
-              downloadButton("d_v_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
+              downloadButton("d_v", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
+            ),
+            tags$div(class = "fairy-dl-group", `data-cap` = "multinomineq",
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data and settings for multinomineq: n and frequencies, number of samples, prior. They go into the files and the script of the multinomineq download and are used by Run.",
               actionButton("mn_data_open_v", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the V-representation for multinomineq (R package): files, analysis script and data file",
+              downloadButton("d_v_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Run the multinomineq analysis here (small analyses). It uses the numbers and settings saved under Data.",
               actionButton("mn_run_open_v", NULL, icon = icon("play"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
-            uiOutput("mn_results_btn_ui_v", inline = TRUE)),
+            uiOutput("mn_results_btn_ui_v", inline = TRUE)
+            ),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the V-representation as a LaTeX table (words: all/none/fractions)",
             downloadButton("d_v_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
         ),
@@ -18231,6 +18238,10 @@ server <- shinyServer(function(input, output, session) {
         ": how often the outcome happened, out of n. Save keeps your numbers and settings: they go into the files and the script of the multinomineq download (the download buttons next to Data) and are used when you press Run."),
       if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Every unpacked model has its own tab, because its probabilities can mean something of their own. Tick the box in its tab to use the numbers of the other models instead. The numbers move with their probability when you change the order."),
       tags$div(style = "max-height:46vh; overflow-y:auto;", body),
+      tags$hr(style = "margin:14px 0 10px 0;"),
+      tags$h5("Analysis settings", style = "margin:0 0 2px 0; font-size:15px; font-weight:650;"),
+      tags$p(class = "fairy-eq-tol-help", style = "margin-bottom:8px;",
+        "How the analysis is run, not part of your data. These settings are written into the script of the multinomineq download and used when you press Run."),
       selectInput("mn_samples", "Number of samples", width = "100%", selected = (function(x) if (is.null(x)) "std" else x)(isolate(mn_settings())$samples), choices = c(
         "Standard: 10,000 samples for the Bayes factors, 5,000 for the posterior" = "std",
         "More: 100,000 and 20,000 (smaller Monte-Carlo error, slower)" = "more",
