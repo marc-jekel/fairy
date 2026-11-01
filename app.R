@@ -20191,7 +20191,7 @@ server <- shinyServer(function(input, output, session) {
       tagList(
         tags$p(class = "fairy-eq-tol-help", sprintf("This model has %s vertices. They are shown in blocks of %d (every block is a small animation, only one block is loaded at a time): choose the block.",
                                                     format(n, big.mark = ","), EDGE_MAX_FRAMES)),
-        tags$style(HTML("#edge_block + .irs .irs-grid-pol.small {display: none;}")),
+        tags$style(HTML(".shiny-input-container:has(#edge_block) .irs-grid-pol.small {display: none;}")),
         sliderInput("edge_block", "Block", min = 1, max = nb, value = 1, step = 1, width = "100%", post = paste0(" of ", format(nb, big.mark = ","))))
     })
     output$plot_example <- renderPlotly({
