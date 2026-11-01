@@ -6229,12 +6229,23 @@ ui <- shinyUI(fluidPage(
              btn.textContent = document.body.classList.contains('dark-mode') ? '☀' : '🌙';
            }
            updateIcon();
-           btn.addEventListener('click', function() {
-             var isDark = document.body.classList.toggle('dark-mode');
-             localStorage.setItem('fairy-dark', isDark ? '1' : '0');
+           var embedded = window.parent !== window;
+           function setDark(isDark, tellParent) {
+             document.body.classList.toggle('dark-mode', isDark);
+             try { localStorage.setItem('fairy-dark', isDark ? '1' : '0'); } catch (e) {}
              updateIcon();
              applyPlotlyTheme(isDark);
-           });
+             if (embedded && tellParent) { try { window.parent.postMessage({ type: 'fairy-theme-changed', dark: isDark }, 'https://modeling-for-everyone.eu'); } catch (e) {} }
+           }
+           btn.addEventListener('click', function() { setDark(!document.body.classList.contains('dark-mode'), true); });
+           // embedded in the tutorial page: the page decides the colour scheme and the two switches stay in step
+           if (embedded) {
+             window.addEventListener('message', function(e) {
+               if (e.origin !== 'https://modeling-for-everyone.eu' || e.source !== window.parent || !e.data || e.data.type !== 'fairy-theme') return;
+               if (!!e.data.dark !== document.body.classList.contains('dark-mode')) setDark(!!e.data.dark, false);
+             });
+             try { window.parent.postMessage({ type: 'fairy-app-ready' }, 'https://modeling-for-everyone.eu'); } catch (e) {}
+           }
          });
          // Tooltips off: the bubbles are hidden by CSS; the title attributes are parked in data-fairy-title and put back when switched on
          $(document).ready(function() {
