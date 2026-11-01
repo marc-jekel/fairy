@@ -7238,20 +7238,30 @@ ui <- shinyUI(fluidPage(
           # share their own row at the bottom of the stack.
           class = "fairy-primary-controls", `data-fab-layout` = "column",
           tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
-            `data-tooltip` = "General-purpose, recommended",
-            materialSwitch("CB", "Cooling Bodies", value = TRUE, status = "primary", right = TRUE)
+            `data-tooltip` = paste0("Calculates the volume from the corner points of the model (up to ", EXACT_VOLUME_LIMIT, " s in total); where it works, no algorithm is needed"),
+            materialSwitch("EX", "Exact volume", value = TRUE, status = "primary", right = TRUE)
           ),
-          # the two other algorithms are rarely needed: folded behind a link (still reachable, and both switched off by default)
-          tags$a(id = "fairy_more_algos_toggle", href = "#", style = "display:block; font-size:11.5px; margin:2px 0 4px 4px;", "more algorithms \u25be"),
-          tags$div(id = "fairy_more_algos_wrap", style = "display:none;",
+          tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
+            `data-tooltip` = "Estimate the volume with algorithms for every model. Off: Cooling Bodies only runs for models without an exact volume",
+            materialSwitch("ALG", "Algorithms", value = FALSE, status = "primary", right = TRUE)
+          ),
+          conditionalPanel("input.ALG",
             tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
-              `data-tooltip` = "Gaussian annealing",
-              materialSwitch("CG", "Cooling Gaussian", value = FALSE, status = "primary", right = TRUE)
+              `data-tooltip` = "General-purpose, recommended",
+              materialSwitch("CB", "Cooling Bodies", value = TRUE, status = "primary", right = TRUE)
             ),
-            tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
-              `data-tooltip` = "Ball-based annealing",
-              materialSwitch("SoB", "Sequ. of Balls", value = FALSE, status = "primary", right = TRUE)
-            )
+            # the two other algorithms are rarely needed: folded behind a link (still reachable, and both switched off by default)
+            tags$a(id = "fairy_more_algos_toggle", href = "#", style = "display:block; font-size:11.5px; margin:2px 0 4px 4px;", "more algorithms \u25be"),
+            tags$div(id = "fairy_more_algos_wrap", style = "display:none;",
+              tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
+                `data-tooltip` = "Gaussian annealing",
+                materialSwitch("CG", "Cooling Gaussian", value = FALSE, status = "primary", right = TRUE)
+              ),
+              tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
+                `data-tooltip` = "Ball-based annealing",
+                materialSwitch("SoB", "Sequ. of Balls", value = FALSE, status = "primary", right = TRUE)
+              )
+            ),
           ),
           div(class = "fairy-fab-action-row",
             tags$span(class = "fairy-tooltip fairy-tooltip-left", `data-tooltip` = "Algorithm settings",
@@ -10357,6 +10367,17 @@ server <- shinyServer(function(input, output, session) {
     )
   }
 
+  # Go needs the exact volume or the algorithms (or both)
+  observeEvent(list(input$EX, input$ALG), {
+    if (!isTRUE(input$EX) && !isTRUE(input$ALG)) {
+      disable("go")
+      runjs("document.getElementById('go').setAttribute('data-tooltip', 'Switch on Exact volume or Algorithms to enable this option.');")
+    } else {
+      enable("go")
+      runjs("document.getElementById('go').setAttribute('data-tooltip', 'Compute parsimony (⌘/Ctrl+Enter)');")
+    }
+  })
+
   # Stale results no longer render a separate badge — Go/Compute itself
   # blinks (fairy-stale-blink) and its own data-tooltip explains why,
   # both toggled here via shinyjs rather than through a renderUI output.
@@ -10412,7 +10433,7 @@ server <- shinyServer(function(input, output, session) {
     # data-tooltip (disabled-state message vs. the normal Compute
     # message) — this branch only fires while it's enabled, so the two
     # never fight over the same attribute at the same time.
-    {
+    if (isTRUE(input$EX) || isTRUE(input$ALG)) {
       tooltip_txt <- if (is_stale) {
         "Models changed since parsimony was last computed — click to update (⌘/Ctrl+Enter)"
       } else {
@@ -16042,7 +16063,7 @@ server <- shinyServer(function(input, output, session) {
     vol_jobs <- list()
     vol_results <- isolate(parsim_state$results)
     vol_call <- function(key, model_s4, settings) {
-      if (has_exact(sub("\\|[^|]*$", "", key))) return(NA_real_)
+      if (skip_estimate(sub("\\|[^|]*$", "", key))) return(NA_real_)
       if (plan_mode) {
         vol_jobs[[key]] <<- list(A = model_s4@A, b = model_s4@b, settings = settings)
         return(NA_real_)
@@ -16079,9 +16100,15 @@ server <- shinyServer(function(input, output, session) {
       names_h_rep <- names_h_rep[!is.na(names_h_rep) & nchar(names_h_rep) > 0]
 
       # the exact volume first: a model that has one needs no estimate (the algorithms only run for the others)
-      if (plan_mode) parsim_state$exact <- exact_volumes(as.character(names_h_rep))
+      exact_on <- !identical(isolate(input$EX), FALSE)
+      alg_on <- isTRUE(isolate(input$ALG))
+      # which algorithms run: the selected ones when Algorithms is on, otherwise (a backup for models without an exact volume) Cooling Bodies
+      sel_algo <- c(CB = isTRUE(isolate(input$CB)), SoB = isTRUE(isolate(input$SoB)), CG = isTRUE(isolate(input$CG)))
+      if (!alg_on || !any(sel_algo)) sel_algo <- c(CB = TRUE, SoB = FALSE, CG = FALSE)
+      if (plan_mode) parsim_state$exact <- if (exact_on) exact_volumes(as.character(names_h_rep)) else NULL
       ex_pre <- isolate(parsim_state$exact)
       has_exact <- function(nm) !is.null(ex_pre) && isTRUE(is.finite(unname(ex_pre[nm])))
+      skip_estimate <- function(nm) has_exact(nm) && !alg_on   # an exact volume makes the estimate unnecessary, unless Algorithms is switched on
 
       n_rep <- 1
       parsim_rep <- numeric()
@@ -16112,7 +16139,7 @@ server <- shinyServer(function(input, output, session) {
 
             ####* CB ####
 
-            if (isolate(input$CB) == TRUE) {
+            if (sel_algo[["CB"]]) {
               #####* settings strings ####
 
 
@@ -16171,7 +16198,7 @@ server <- shinyServer(function(input, output, session) {
 
             ####* SoB ####
 
-            if (isolate(input$SoB) == TRUE) {
+            if (sel_algo[["SoB"]]) {
               #####* settings strings ####
 
 
@@ -16222,7 +16249,7 @@ server <- shinyServer(function(input, output, session) {
 
             ####* CG ####
 
-            if (isolate(input$CG) == TRUE) {
+            if (sel_algo[["CG"]]) {
               #####* settings strings ####
 
 
@@ -16278,21 +16305,21 @@ server <- shinyServer(function(input, output, session) {
             n_dims <- ncol(act_pars) - 2
             act_dim <- c(act_dim, paste0("Full-dimensional (", n_dims, "D)"))
           } else {
-            if (isolate(input$CB) == TRUE) {
+            if (sel_algo[["CB"]]) {
               act_vol_CB <- 0
             } else {
               act_vol_CB <- NA
             }
 
 
-            if (isolate(input$SoB) == TRUE) {
+            if (sel_algo[["SoB"]]) {
               act_vol_SoB <- 0
             } else {
               act_vol_SoB <- NA
             }
 
 
-            if (isolate(input$CG) == TRUE) {
+            if (sel_algo[["CG"]]) {
               act_vol_CG <- 0
             } else {
               act_vol_CG <- NA
@@ -16344,14 +16371,13 @@ server <- shinyServer(function(input, output, session) {
 
 
         selected_algos <- c(
-          if (isolate(input$CB)) "Cooling Bodies",
-          if (isolate(input$SoB)) "Sequence of Balls",
-          if (isolate(input$CG)) "Cooling Gaussian"
+          if (sel_algo[["CB"]]) "Cooling Bodies",
+          if (sel_algo[["SoB"]]) "Sequence of Balls",
+          if (sel_algo[["CG"]]) "Cooling Gaussian"
         )
-        parsim <- parsim[parsim$Algorithm %in% selected_algos | length(selected_algos) == 0, ]
-        # a model with an exact volume gets one row without an estimate (no algorithm was run for it); with only the
-        # exact volume switched on, this holds for every model
-        ex_row <- vapply(as.character(parsim$Model), has_exact, logical(1)) | length(selected_algos) == 0
+        parsim <- parsim[parsim$Algorithm %in% selected_algos, ]
+        # a model with an exact volume gets one row without an estimate (no algorithm was run for it)
+        ex_row <- vapply(as.character(parsim$Model), skip_estimate, logical(1))
         algo_chr <- as.character(parsim$Algorithm); algo_chr[ex_row] <- "Exact"
         parsim$Volume[ex_row] <- NA_real_
         parsim$Algorithm <- factor(algo_chr, levels = c(levels(parsim$Algorithm), "Exact"))
@@ -16394,7 +16420,7 @@ server <- shinyServer(function(input, output, session) {
 
       # Build display table: one row per model × algorithm
       parsim_display <- as.data.frame(parsim[order(parsim$Model, parsim$Algorithm), ])
-      exact_vol <- if (!is.null(ex_pre)) unname(ex_pre[as.character(parsim_display$Model)]) else rep(NA_real_, nrow(parsim_display))
+      exact_vol <- if (exact_on && !is.null(ex_pre)) unname(ex_pre[as.character(parsim_display$Model)]) else rep(NA_real_, nrow(parsim_display))
       # Max BF = 1 / volume: taken from the exact volume where there is one, else from the estimate of the algorithm
       maxbf_use <- ifelse(is.finite(exact_vol) & exact_vol > 0, 1 / exact_vol, parsim_display$Max_BF)
       # Plain decimal rounds tiny volumes to "0.0000", and as.character()'s
@@ -16456,6 +16482,7 @@ server <- shinyServer(function(input, output, session) {
         }, character(1)),
         check.names    = FALSE
       )
+      if (!exact_on) simple_tbl[["Exact volume"]] <- NULL
       # Sort: base models first, intersections (containing ∩) below
       is_intersection <- grepl("∩", simple_tbl$Model)
       simple_tbl <- rbind(simple_tbl[!is_intersection, ], simple_tbl[is_intersection, ])
@@ -16502,7 +16529,7 @@ server <- shinyServer(function(input, output, session) {
             lengthMenu = c(6, 12, 18, 24, 48, 96),
             dom = "ltp",
             # a short explanation when the mouse is over a column header
-            headerCallback = DT::JS(paste0("function(thead) { var t = { 'Volume': 'The same share, estimated by random sampling: it changes from run to run, by an amount that depends on the model. Only shown for models without an exact volume.', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume (from the exact volume when there is one).', 'Exact volume': 'Calculated from the corner points of the model, not sampled; it does not change between runs. n/a means it took longer than ", EXACT_VOLUME_LIMIT, " seconds: then the algorithms estimate the volume.' }; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }")),
+            headerCallback = DT::JS(paste0("function(thead) { var t = { 'Volume': 'The same share, estimated by random sampling: it changes from run to run, by an amount that depends on the model. By default only shown for models without an exact volume.', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume (from the exact volume when there is one).', 'Exact volume': 'Calculated from the corner points of the model, not sampled; it does not change between runs. n/a means it took longer than ", EXACT_VOLUME_LIMIT, " seconds: then the algorithms estimate the volume.' }; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }")),
             columnDefs = list(
               list(className = "dt-left", targets = 0),
               list(visible = FALSE, targets = ncol(simple_tbl) - 1)
@@ -16612,6 +16639,7 @@ server <- shinyServer(function(input, output, session) {
         Exact_volume   = ifelse(is.nan(exact_vol), NA_real_, exact_vol),
         stringsAsFactors = FALSE
       )
+      if (!exact_on) csv_tbl$Exact_volume <- NULL
       parsim_csv_data(csv_tbl[order(grepl("∩", csv_tbl$Model)), , drop = FALSE])
 
       parsim_has_results(TRUE)
@@ -16624,8 +16652,8 @@ server <- shinyServer(function(input, output, session) {
       div(style = "margin-bottom:10px;",
         h5("Parsimony results", style = "margin:0 0 6px 0;"),
         HTML(paste0("<div style='font-size:13px; color:#555; line-height:1.55;'>
-          <div><b>Exact volume</b> &ndash; the share of the parameter space (all combinations of the probabilities between 0 and 1) that fits the model. It is calculated, not sampled: first the corner points of the model's region are determined, then the volume of the shape they span. The result does not change between runs (apart from rounding), so it needs no estimate: <b>when an exact volume can be calculated, no algorithm is run for that model.</b></div>
-          <div><b>Volume</b> &ndash; the same share, estimated by random sampling with the selected algorithm(s). It only appears for models without an exact volume (n/a when the calculation took longer than the time limit of ", EXACT_VOLUME_LIMIT, " seconds). It differs from run to run, and how much depends on the model (typically more with many dimensions or thin shapes). If you need more precise values, lower the error in the algorithm settings (slower).</div>
+          <div><b>Exact volume</b> &ndash; the share of the parameter space (all combinations of the probabilities between 0 and 1) that fits the model. It is calculated, not sampled: first the corner points of the model's region are determined, then the volume of the shape they span. The result does not change between runs (apart from rounding), so it needs no estimate: <b>when an exact volume can be calculated, no algorithm is run for that model</b> (unless Algorithms is switched on).</div>
+          <div><b>Volume</b> &ndash; the same share, estimated by random sampling with the selected algorithm(s). By default it only appears for models without an exact volume (n/a: the calculation took longer than the time limit of ", EXACT_VOLUME_LIMIT, " seconds); switch Algorithms on to estimate every model. It differs from run to run, and how much depends on the model (typically more with many dimensions or thin shapes). If you need more precise values, lower the error in the algorithm settings (slower).</div>
           <div><b>Max BF</b> &ndash; the largest Bayes factor the model can reach against the unconstrained model (1 / volume; taken from the exact volume where there is one). Smaller volume = more restrictive model = larger Max BF.</div>
         </div>"))
       )
