@@ -796,17 +796,18 @@ ui <- shinyUI(fluidPage(
       #fairy-card-overlay-content[data-h-view='aligned-color'] .fairy-h-aligned-color-table { display: inline-table !important; }
       #fairy-card-overlay-content[data-h-view='compact'] .fairy-h-packed-plain-table { display: inline-table !important; }
       #fairy-card-overlay-content[data-h-view='compact-color'] .fairy-h-packed-color-table { display: inline-table !important; }
-      /* A model with many probabilities (e.g. an unpacked items model) is shown in the compact layout whatever the layout toggle says:
+      /* A model with many probabilities (e.g. an unpacked items model) is shown in the compact layout unless Aligned is chosen explicitly (the layout toggle):
          one reserved column per probability would make the aligned table very wide and mostly empty. The colour toggle still works. */
       .fairy-auto-pack-note { font-size: 11.5px; color: var(--fairy-text-muted, #667085); margin: -4px 0 6px; }
-      #outP .model-card:has(.fairy-auto-pack-flag) .fairy-h-aligned-plain-table,
-      #outP .model-card:has(.fairy-auto-pack-flag) .fairy-h-aligned-color-table { display: none !important; }
-      #outP .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-plain-table { display: inline-table !important; }
-      #outP[data-h-view='aligned-color'] .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-plain-table,
-      #outP[data-h-view='compact-color'] .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-plain-table { display: none !important; }
-      #outP[data-h-view='aligned-color'] .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-color-table,
-      #outP[data-h-view='compact-color'] .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-color-table { display: inline-table !important; }
+      #outP:not([data-h-aligned-chosen]) .model-card:has(.fairy-auto-pack-flag) .fairy-h-aligned-plain-table,
+      #outP:not([data-h-aligned-chosen]) .model-card:has(.fairy-auto-pack-flag) .fairy-h-aligned-color-table { display: none !important; }
+      #outP:not([data-h-aligned-chosen]) .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-plain-table { display: inline-table !important; }
+      #outP:not([data-h-aligned-chosen])[data-h-view='aligned-color'] .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-plain-table,
+      #outP:not([data-h-aligned-chosen])[data-h-view='compact-color'] .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-plain-table { display: none !important; }
+      #outP:not([data-h-aligned-chosen])[data-h-view='aligned-color'] .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-color-table,
+      #outP:not([data-h-aligned-chosen])[data-h-view='compact-color'] .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-color-table { display: inline-table !important; }
       #outP[data-h-view='compact'] .fairy-auto-pack-note, #outP[data-h-view='compact-color'] .fairy-auto-pack-note { display: none; }
+      #outP[data-h-aligned-chosen] .fairy-auto-pack-note, #fairy-card-overlay-content[data-h-aligned-chosen] .fairy-auto-pack-note { display: none; }
       #fairy-card-overlay-content .model-card:has(.fairy-auto-pack-flag) .fairy-h-aligned-plain-table,
       #fairy-card-overlay-content .model-card:has(.fairy-auto-pack-flag) .fairy-h-aligned-color-table { display: none !important; }
       #fairy-card-overlay-content .model-card:has(.fairy-auto-pack-flag) .fairy-h-packed-plain-table { display: inline-table !important; }
@@ -832,6 +833,8 @@ ui <- shinyUI(fluidPage(
       }
       /* a small caption above a group of icon buttons says what the group does (the icons alone are hard to read) */
       .fairy-segmented[data-cap] { position: relative; margin-top: 13px; }
+      .fairy-rail-cap { font-size: 9.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--fairy-text-muted, #667085);
+        text-align: center; margin: 7px 0 -3px; }
       .fairy-segmented[data-cap]::before {
         content: attr(data-cap); position: absolute; top: -13px; left: -4px; right: -4px; text-align: center; pointer-events: none;
         font-size: 9.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--fairy-text-muted, #667085);
@@ -5706,6 +5709,7 @@ ui <- shinyUI(fluidPage(
              // regardless of the current toggles.
              var curView = outP.getAttribute('data-h-view');
              if (curView) overlayContent.attr('data-h-view', curView);
+             if (outP.getAttribute('data-h-aligned-chosen')) overlayContent.attr('data-h-aligned-chosen', '1'); else overlayContent.removeAttr('data-h-aligned-chosen');
            }
            $('#fairy-card-overlay').addClass('active');
            document.body.style.overflow = 'hidden';
@@ -6408,7 +6412,7 @@ ui <- shinyUI(fluidPage(
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "No color", `data-state` = "off", icon("droplet-slash")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Color terms by parameter", `data-state` = "on", icon("droplet"))
           ),
-          tags$div(class = "fairy-segmented fairy-card-layout-group", `data-cap` = "Cards",
+          tags$div(class = "fairy-segmented fairy-card-layout-group", `data-cap` = "Arrange",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", icon("table-cells-large")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Free layout: drag the cards anywhere", `data-state` = "free", icon("up-down-left-right")),
             tags$button(type = "button", class = "fairy-tooltip fairy-card-reset", `data-tooltip` = "Reset order, positions and sizes", `data-state` = "reset", icon("rotate-left"))
@@ -6515,6 +6519,10 @@ ui <- shinyUI(fluidPage(
           var group = $(this).parent();
           group.find("button").removeClass("active");
           $(this).addClass("active");
+          // an explicit click on Aligned switches the automatic compact layout of models with many probabilities off
+          if (group.attr("id") === "h_layout_toggle_group") {
+            if ($(this).data("state") === "aligned") $("#outP").attr("data-h-aligned-chosen", "1"); else $("#outP").removeAttr("data-h-aligned-chosen");
+          }
           fairyApplyHView();
         });
                         '
@@ -6536,11 +6544,12 @@ ui <- shinyUI(fluidPage(
         div(
           class = "fairy-input-toolbar",
           style = "display:flex; flex-direction:column; align-items:center; gap:6px; padding:4px; flex:0 0 auto;",
-          tags$div(class = "fairy-segmented fairy-card-layout-group", `data-cap` = "Cards",
+          tags$div(class = "fairy-segmented fairy-card-layout-group", `data-cap` = "Arrange",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", icon("table-cells-large")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Free layout: drag the cards anywhere", `data-state` = "free", icon("up-down-left-right")),
             tags$button(type = "button", class = "fairy-tooltip fairy-card-reset", `data-tooltip` = "Reset order, positions and sizes", `data-state` = "reset", icon("rotate-left"))
           ),
+          tags$div(id = "v_compare_cap", class = "fairy-rail-cap", "Compare"),
           tags$span(id = "v_shared_wrap", class = "fairy-tooltip", `data-tooltip` = "Mark vertices that other models share (vertices only this model has are tinted)",
             tags$button(id = "v_shared_btn", type = "button", class = "fairy-toolbar-iconbtn", `aria-pressed` = "false", `aria-label` = "Mark shared vertices", icon("link"))),
           tags$span(id = "v_unique_wrap", class = "fairy-tooltip", `data-tooltip` = "Show only the vertices that no other model has",
@@ -11336,6 +11345,7 @@ server <- shinyServer(function(input, output, session) {
   # marking shared vertices / showing only the unique ones needs at least two models
   observe({
     several <- isTRUE(counter_input$n > 1)
+    shinyjs::toggle("v_compare_cap", condition = several)
     shinyjs::toggle("v_shared_wrap", condition = several)
     shinyjs::toggle("v_unique_wrap", condition = several)
   })
