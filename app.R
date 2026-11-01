@@ -6263,9 +6263,9 @@ ui <- shinyUI(fluidPage(
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Free layout: drag the cards anywhere", `data-state` = "free", icon("up-down-left-right")),
             tags$button(type = "button", class = "fairy-tooltip fairy-card-reset", `data-tooltip` = "Reset order, positions and sizes", `data-state` = "reset", icon("rotate-left"))
           ),
-          tags$span(class = "fairy-tooltip", `data-tooltip` = "Mark vertices that other models share (vertices only this model has are tinted)",
+          tags$span(id = "v_shared_wrap", class = "fairy-tooltip", `data-tooltip` = "Mark vertices that other models share (vertices only this model has are tinted)",
             tags$button(id = "v_shared_btn", type = "button", class = "fairy-toolbar-iconbtn", `aria-pressed` = "false", `aria-label` = "Mark shared vertices", icon("link"))),
-          tags$span(class = "fairy-tooltip", `data-tooltip` = "Show only the vertices that no other model has",
+          tags$span(id = "v_unique_wrap", class = "fairy-tooltip", `data-tooltip` = "Show only the vertices that no other model has",
             tags$button(id = "v_unique_btn", type = "button", class = "fairy-toolbar-iconbtn", `aria-pressed` = "false", `aria-label` = "Show only unique vertices", icon("filter"))),
           tags$hr(class = "fairy-toolbar-divider"),
           tags$div(class = "fairy-dl-group",
@@ -10950,6 +10950,13 @@ server <- shinyServer(function(input, output, session) {
       }
       equality_clause_keys$value[[key]] <- cl
     }
+  })
+
+  # marking shared vertices / showing only the unique ones needs at least two models
+  observe({
+    several <- isTRUE(counter_input$n > 1)
+    shinyjs::toggle("v_shared_wrap", condition = several)
+    shinyjs::toggle("v_unique_wrap", condition = several)
   })
 
   # header of a specification box: title, a small info icon with a tooltip, and one line saying what it holds
@@ -16206,6 +16213,74 @@ server <- shinyServer(function(input, output, session) {
   # way, just fed a different (already numeric, already reduced-to-the-
   # right-columns) inequality matrix, so there's exactly one place that
   # knows the actual QTEST text layout.
+  # R script that ships inside the multinomineq downloads: it reads the files that are next to it and runs the analysis
+  multinomineq_script <- function(first_model, n_p) {
+    ex <- paste(round(25 * seq(0.8, 0.2, length.out = n_p)), collapse = ", ")   # example frequencies (not all equal: that can stop the sampler)
+    paste(c(
+      '#### Analysis with the multinomineq package, for the files of this download ####',
+      '# Put this script in one folder with the files from the Fairy app:',
+      '#   A_<model>.csv and b_<model>.csv   (download of the H-representation)',
+      '#   V_<model>.csv                      (download of the V-representation; optional)',
+      '# Package: https://www.dwheck.de/software/multinomineq/',
+      '#',
+      '# Note: multinomineq samples inside the model, so the model needs a positive volume. A model with exact',
+      '# equalities (p1 = p2) has volume zero and sampling stops with an error: switch the equalities to',
+      '# "Approximate" in the app before you download the files.',
+      '',
+      '#### Packages ####',
+      '# install.packages(c("multinomineq", "rcdd", "readr", "coda"))',
+      'library("rcdd")',
+      'library("readr")',
+      'library("multinomineq")',
+      'library("coda")',
+      'set.seed(1234)',
+      '',
+      '#### Your input ####',
+      '# models found next to this script (the model name with every run of special characters replaced by "_")',
+      'models <- unique(sub("^[AbV]_(.*)\\\\.csv$", "\\\\1", list.files(pattern = "^[AbV]_.*\\\\.csv$")))',
+      'print(models)',
+      paste0('model_name <- "', first_model, '"   # choose the model to analyse'),
+      '',
+      'n <- 25                      # number of decisions per probability',
+      paste0('choices <- c(', ex, ")   # frequencies of choosing the left option: one number per probability"),
+      '',
+      '#### Read the files ####',
+      'read_q <- function(x) {      # numbers or fractions such as 1/2',
+      '  if (is.numeric(unlist(x))) matrix(unlist(x), ncol = ncol(x)) else matrix(q2d(unlist(x)), ncol = ncol(x))',
+      '}',
+      'file_A <- paste0("A_", model_name, ".csv")',
+      'file_V <- paste0("V_", model_name, ".csv")',
+      'A <- b <- V <- NULL',
+      'if (file.exists(file_A)) {',
+      '  A_raw <- read_csv(file_A, show_col_types = FALSE)',
+      '  A <- read_q(A_raw); colnames(A) <- colnames(A_raw)',
+      '  b <- unlist(read_csv(paste0("b_", model_name, ".csv"), col_names = FALSE, show_col_types = FALSE))',
+      '  if (!is.numeric(b)) b <- q2d(b)',
+      '}',
+      'if (file.exists(file_V)) {',
+      '  V_raw <- read_csv(file_V, show_col_types = FALSE)',
+      '  V <- read_q(V_raw); colnames(V) <- colnames(V_raw)',
+      '}',
+      'n_p <- if (!is.null(A)) ncol(A) else ncol(V)',
+      'if (length(choices) != n_p) stop("`choices` needs one frequency for each of the ", n_p, " probabilities of this model.")',
+      '',
+      '#### Posterior and Bayes factors ####',
+      'if (!is.null(V)) {',
+      '  posterior_V <- sampling_binom(k = choices, n = n, V = V, M = 2000, progress = FALSE)',
+      '  plot(posterior_V)',
+      '  bf_V <- bf_binom(k = choices, n = n, V = V, M = 10000, progress = FALSE)',
+      '  print(bf_V)',
+      '}',
+      'if (!is.null(A)) {',
+      '  posterior_H <- sampling_binom(k = choices, n = n, A = A, b = b, M = 2000, progress = FALSE)',
+      '  plot(posterior_H)',
+      '  bf_H <- bf_binom(k = choices, n = n, A = A, b = b, M = 10000, progress = FALSE)',
+      '  print(bf_H)',
+      '}',
+      '# see https://www.dwheck.de/vignettes/multinomineq_intro.html for further commands'
+    ), collapse = "\n")
+  }
+
   # file name from a model name: every run of odd characters becomes one underscore ("m1 [2 items · joint]" -> "m1_2_items_joint")
   safe_file_name <- function(x) {
     x <- gsub("[^A-Za-z0-9_.-]+", "_", x)
@@ -16509,7 +16584,7 @@ server <- shinyServer(function(input, output, session) {
     },
     content = function(file) {
       
-      showNotification(HTML("Your download has started. To use the H- or V-representation in R, see the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package (<a href='https://modeling-for-everyone.eu/analysis_multinomineq.R' target='_blank'>example script</a>)."), type = "message", duration = 9)
+      showNotification(HTML("Your download has started. It contains <b>analysis_multinomineq.R</b>, an R script for the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package that reads these files."), type = "message", duration = 9)
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
       files <- NULL
@@ -16587,6 +16662,13 @@ server <- shinyServer(function(input, output, session) {
 
 
         files <- c(fileName, files)
+      }
+
+      # the matching R script for multinomineq (reads the files next to it)
+      first_ix <- which(!vapply(export_names, function(nm) is.null(isolate(h_reactive[[nm]])), logical(1)))[1]
+      if (!is.na(first_ix)) {
+        writeLines(multinomineq_script(export_files[first_ix], ncol(isolate(h_reactive[[export_names[first_ix]]])) - 2L), "analysis_multinomineq.R")
+        files <- c(files, "analysis_multinomineq.R")
       }
 
       # zip::zip(file, files)
@@ -16687,7 +16769,7 @@ server <- shinyServer(function(input, output, session) {
     },
     content = function(file) {
       
-      showNotification(HTML("Your download has started. To use the H- or V-representation in R, see the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package (<a href='https://modeling-for-everyone.eu/analysis_multinomineq.R' target='_blank'>example script</a>)."), type = "message", duration = 9)
+      showNotification(HTML("Your download has started. It contains <b>analysis_multinomineq.R</b>, an R script for the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package that reads these files."), type = "message", duration = 9)
   
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
@@ -16730,6 +16812,14 @@ server <- shinyServer(function(input, output, session) {
         )
 
         files <- c(fileName, files)
+      }
+
+      # the matching R script for multinomineq (reads the files next to it)
+      if (length(download_v_names) > 0) {
+        ve1 <- v_reactive[[download_v_names[1]]]
+        vm1 <- if (is.list(ve1) && !is.null(ve1$output)) ve1$output else ve1
+        writeLines(multinomineq_script(safe_file_name(download_v_names[1]), ncol(vm1) - 2L), "analysis_multinomineq.R")
+        files <- c(files, "analysis_multinomineq.R")
       }
 
       tar(file, files)
