@@ -87,7 +87,7 @@ test_that("the script runs on the downloaded files", {
 test_that("the analysis runs inside the app and shows the results", {
   js("[].slice.call(document.querySelectorAll('[id*=tabs] a')).filter(function(a) { return /H-representation/.test(a.textContent); })[0].click();")
   Sys.sleep(3)
-  js("document.getElementById('mn_data_open').click();")
+  js("document.getElementById('mn_run_open').click();")
   Sys.sleep(3)
   # choose the models to analyse: switch the second one off
   expect_equal(jsv("document.querySelectorAll('input[name=mn_models]').length"), 2)

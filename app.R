@@ -400,13 +400,14 @@ ui <- shinyUI(fluidPage(
       #qtest_order_open .fa, #qtest_order_open_v .fa, #qtest_order_open svg, #qtest_order_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
       #qtest_order_open:hover, #qtest_order_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       /* Data: same small grey row as Order, for the multinomineq data file */
-      #mn_data_open, #mn_data_open_v { position: relative !important; margin-bottom: 14px !important; }
-      #mn_data_open::after, #mn_data_open_v::after { content: 'Data & run'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
+      #mn_data_open, #mn_data_open_v, #mn_run_open, #mn_run_open_v { position: relative !important; margin-bottom: 14px !important; }
+      #mn_data_open::after, #mn_data_open_v::after, #mn_run_open::after, #mn_run_open_v::after { content: 'Data'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
         border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 12px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
       /* Order is a setting for the two downloads below it, not a third program: plain grey, a thin row, a divider under it */
-      #mn_data_open.fairy-order-btn, #mn_data_open_v.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
-      #mn_data_open .fa, #mn_data_open_v .fa, #mn_data_open svg, #mn_data_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
-      #mn_data_open:hover, #mn_data_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
+      #mn_data_open.fairy-order-btn, #mn_data_open_v.fairy-order-btn, #mn_run_open.fairy-order-btn, #mn_run_open_v.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
+      #mn_data_open .fa, #mn_data_open_v .fa, #mn_data_open svg, #mn_data_open_v svg, #mn_run_open .fa, #mn_run_open_v .fa, #mn_run_open svg, #mn_run_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
+      #mn_data_open:hover, #mn_data_open_v:hover, #mn_run_open:hover, #mn_run_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
+      #mn_run_open::after, #mn_run_open_v::after { content: 'Run'; }
       /* Results: same small grey row, reopens the last analysis */
       #mn_results_open, #mn_results_open_v { position: relative !important; margin-bottom: 14px !important; }
       #mn_results_open::after, #mn_results_open_v::after { content: 'Results'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
@@ -2568,11 +2569,11 @@ ui <- shinyUI(fluidPage(
         box-shadow: 0 0 0 2px var(--fairy-panel, #fff);
       }
       /* icon above, label below, both centred inside one equally wide button */
-      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex, #qtest_order_open, #qtest_order_open_v, #mn_data_open, #mn_data_open_v, #mn_results_open, #mn_results_open_v {
+      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex, #qtest_order_open, #qtest_order_open_v, #mn_data_open, #mn_data_open_v, #mn_run_open, #mn_run_open_v, #mn_results_open, #mn_results_open_v {
         margin-bottom: 0 !important; width: 66px !important; height: auto !important; padding: 7px 4px 6px !important;
         display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
       #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_v_multinomineq::after, #d_latex::after, #d_v_latex::after,
-      #qtest_order_open::after, #qtest_order_open_v::after, #mn_data_open::after, #mn_data_open_v::after, #mn_results_open::after, #mn_results_open_v::after { position: static !important; transform: none !important; box-shadow: none !important; margin: 0 auto; }
+      #qtest_order_open::after, #qtest_order_open_v::after, #mn_data_open::after, #mn_data_open_v::after, #mn_run_open::after, #mn_run_open_v::after, #mn_results_open::after, #mn_results_open_v::after { position: static !important; transform: none !important; box-shadow: none !important; margin: 0 auto; }
       #d_h_multinomineq::after, #d_v_multinomineq::after {
         content: 'multinom';
         background: #8a5cf6;
@@ -6595,8 +6596,10 @@ ui <- shinyUI(fluidPage(
               downloadButton("d_h", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the H-representation for multinomineq (R package): files, analysis script and data file",
               downloadButton("d_h_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
-            tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data for multinomineq: enter n and frequencies (they go into the data file of the multinom download). You can also run the analysis here (small analyses), or run the script from the download on your own computer",
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data and settings for multinomineq: n and frequencies, number of samples, prior. They go into the files and the script of the multinomineq download and are used by Run.",
               actionButton("mn_data_open", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Run the multinomineq analysis here (small analyses). It uses the numbers and settings saved under Data.",
+              actionButton("mn_run_open", NULL, icon = icon("play"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
             uiOutput("mn_results_btn_ui", inline = TRUE)),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the H-representation as a LaTeX file",
             downloadButton("d_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
@@ -6727,8 +6730,10 @@ ui <- shinyUI(fluidPage(
               downloadButton("d_v", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the V-representation for multinomineq (R package): files, analysis script and data file",
               downloadButton("d_v_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
-            tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data for multinomineq: enter n and frequencies (they go into the data file of the multinom download). You can also run the analysis here (small analyses), or run the script from the download on your own computer",
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data and settings for multinomineq: n and frequencies, number of samples, prior. They go into the files and the script of the multinomineq download and are used by Run.",
               actionButton("mn_data_open_v", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Run the multinomineq analysis here (small analyses). It uses the numbers and settings saved under Data.",
+              actionButton("mn_run_open_v", NULL, icon = icon("play"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
             uiOutput("mn_results_btn_ui_v", inline = TRUE)),
           tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the V-representation as a LaTeX table (words: all/none/fractions)",
             downloadButton("d_v_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
@@ -18220,15 +18225,12 @@ server <- shinyServer(function(input, output, session) {
       }
     }
     showModal(modalDialog(
-      title = "Your data for the multinomineq analysis", size = "l", easyClose = TRUE,
+      title = "Your data and settings for the multinomineq analysis", size = "l", easyClose = TRUE,
       tags$style(HTML(".mn-foot .btn { margin: 0 !important; }")),
       tags$p(class = "fairy-eq-tol-help", tags$b("n"), ": number of observations. ", tags$b("frequency"),
-        ": how often the outcome happened, out of n. Your numbers go into the data files of the next multinomineq download and into the analysis you can run here."),
+        ": how often the outcome happened, out of n. Save keeps your numbers and settings: they go into the files and the script of the multinomineq download (the download buttons next to Data) and are used when you press Run."),
       if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Every unpacked model has its own tab, because its probabilities can mean something of their own. Tick the box in its tab to use the numbers of the other models instead. The numbers move with their probability when you change the order."),
       tags$div(style = "max-height:46vh; overflow-y:auto;", body),
-      if (length(mn_model_choices()) > 1)
-        checkboxGroupInput("mn_models", "Models to analyse (the downloads always contain all of them)",
-                           choices = mn_model_choices(), selected = unname(mn_model_choices()), inline = TRUE, width = "100%"),
       selectInput("mn_samples", "Number of samples", width = "100%", selected = (function(x) if (is.null(x)) "std" else x)(isolate(mn_settings())$samples), choices = c(
         "Standard: 10,000 samples for the Bayes factors, 5,000 for the posterior" = "std",
         "More: 100,000 and 20,000 (smaller Monte-Carlo error, slower)" = "more",
@@ -18249,20 +18251,51 @@ server <- shinyServer(function(input, output, session) {
           "Burn-in: draws discarded at the start of each run (the package default is 10 for the posterior and 5 per step for the Bayes factors). ",
           "Prior: Beta(a, b) on every probability; Beta(1, 1) is uniform and the Bayes factors depend on it. ",
           "The seed makes a run repeatable.")),
-      if (identical(isolate(mn_source()), "V"))
-        tags$div(style = "background:rgba(58,109,240,.10); border-left:4px solid #3a6df0; border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
-          tags$b("Tip:"), " the analysis from the vertices (V) is much slower than from the inequalities (H) and gives the same result: a few seconds against a fraction of a second for small models, minutes for larger ones. For larger models open this window from the H-representation tab."),
-      tags$div(style = "background:rgba(245,158,11,.16); border-left:4px solid #f59e0b; border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
-        tags$b("Running here uses our shared server."), " Please keep it small: a few models, the default number of samples. For larger or repeated analyses download the files (the download buttons next to Data) and run ",
-        tags$code("analysis_multinomineq.R"), " on your own computer. It needs only R with the packages ", tags$code("multinomineq"), ", ", tags$code("rcdd"), " and ", tags$code("coda"), "."),
       footer = tags$div(class = "mn-foot", style = "display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; align-items:center; width:100%;",
         tags$div(style = "display:flex; gap:8px;",
           order_button,
           actionButton("mn_data_reset", "Reset numbers", title = "Back to the example numbers; your saved numbers are discarded (the models are not touched)")),
         tags$div(style = "display:flex; gap:8px;",
-          modalButton("Cancel"), actionButton("mn_data_save", "Save"),
-          actionButton("mn_run", "Run analysis here", class = "btn-primary", title = "Runs on our shared server (best for small analyses). For larger ones, run the script from the download on your own computer.")))))
+          modalButton("Cancel"), actionButton("mn_data_save", "Save", class = "btn-primary", title = "Keeps your numbers and settings for the next download and for Run")))))
   }
+
+  # The window of the Run button: only the analysis (the numbers and settings come from Data)
+  show_mn_run <- function() {
+    groups <- mn_np_labels()
+    if (length(groups) == 0) {
+      showNotification("No H-representation yet: click Go first.", type = "warning"); return()
+    }
+    st <- isolate(mn_settings())
+    mb <- if (is.null(st$mb)) 10000 else st$mb; mp <- if (is.null(st$mp)) 5000 else st$mp
+    own <- length(isolate(mn_user_data())) > 0
+    showModal(modalDialog(
+      title = "Run the multinomineq analysis here", size = "m", easyClose = TRUE,
+      tags$style(HTML(".mn-foot .btn { margin: 0 !important; }")),
+      tags$p(class = "fairy-eq-tol-help",
+        "The analysis uses the numbers and settings saved under ", tags$b("Data"), ": ",
+        if (own) "your own numbers" else "the example numbers (you have not saved your own yet)", "; ",
+        format(mb, big.mark = ","), " samples for the Bayes factors and ", format(mp, big.mark = ","), " for the posterior. ",
+        actionLink("mn_run_to_data", "Change the data or settings")),
+      if (length(mn_model_choices()) > 1)
+        checkboxGroupInput("mn_models", "Models to analyse (the downloads always contain all of them)",
+                           choices = mn_model_choices(), selected = unname(mn_model_choices()), inline = TRUE, width = "100%"),
+      if (identical(isolate(mn_source()), "V"))
+        tags$div(style = "background:rgba(58,109,240,.10); border-left:4px solid #3a6df0; border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
+          tags$b("Tip:"), " the analysis from the vertices (V) is much slower than from the inequalities (H) and gives the same result: a few seconds against a fraction of a second for small models, minutes for larger ones. For larger models use Run in the H-representation tab."),
+      tags$div(style = "background:rgba(245,158,11,.16); border-left:4px solid #f59e0b; border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
+        tags$b("Running here uses our shared server."), " Please keep it small: a few models, the default number of samples. For larger or repeated analyses download the files (the download buttons next to Data) and run ",
+        tags$code("analysis_multinomineq.R"), " on your own computer. It needs only R with the packages ", tags$code("multinomineq"), ", ", tags$code("rcdd"), " and ", tags$code("coda"), "."),
+      footer = tags$div(class = "mn-foot", style = "display:flex; gap:8px; justify-content:flex-end; width:100%;",
+        modalButton("Cancel"),
+        actionButton("mn_run", "Run analysis here", class = "btn-primary", title = "Runs on our shared server (best for small analyses). For larger ones, run the script from the download on your own computer."))))
+  }
+  for (btn_id in c("mn_run_open", "mn_run_open_v")) local({
+    id <- btn_id
+    observeEvent(input[[id]], {
+      if (isTRUE(input[[id]] > 0)) { mn_source(if (identical(id, "mn_run_open_v")) "V" else "H"); show_mn_run() }
+    }, ignoreInit = TRUE)
+  })
+  observeEvent(input$mn_run_to_data, { show_mn_data() })
   mn_source <- reactiveVal("H")   # the analysis uses the representation of the tab the window was opened from
   for (btn_id in c("mn_data_open", "mn_data_open_v")) local({
     id <- btn_id
@@ -18277,7 +18310,7 @@ server <- shinyServer(function(input, output, session) {
     }
     if (!mn_settings_collect()) return()
     removeModal()
-    showNotification("Saved. Your numbers are in the data file and your settings in the script of the next multinomineq download.", type = "message", duration = 6)
+    showNotification("Saved. The next multinomineq download (the download buttons next to Data) and Run use your numbers and settings.", type = "message", duration = 7)
   })
   # data and order belong together for unpacked models: switch between the two windows without losing what was typed
   observeEvent(input$mn_data_to_order, {
@@ -18291,10 +18324,6 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$mn_run, {
     groups <- mn_np_labels()
     if (length(groups) == 0) { showNotification("No H-representation yet: click Go first.", type = "warning"); return() }
-    if (!mn_collect(groups, strict = TRUE)) {
-      showNotification("n and frequency must be whole numbers, n at least 1, and frequency between 0 and n.", type = "error"); return()
-    }
-    if (!mn_settings_collect()) return()
     choices_mn <- mn_model_choices()
     sel <- if (length(choices_mn) > 1) input$mn_models else unname(choices_mn)
     if (length(sel) == 0) { showNotification("Choose at least one model to analyse.", type = "warning"); return() }
