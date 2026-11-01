@@ -2004,7 +2004,7 @@ ui <- shinyUI(fluidPage(
         height: auto !important;
       }
       #banner {
-        background-color: var(--fairy-navbar) !important;
+        background-color: var(--fairy-primary-contrast-bg) !important;   /* purple in day mode, blue at night */
         border: none;
         box-shadow: 0 -2px 8px rgba(0,0,0,0.15);
         min-height: 0;
