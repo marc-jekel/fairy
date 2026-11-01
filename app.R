@@ -8251,7 +8251,7 @@ server <- shinyServer(function(input, output, session) {
               if (!(key in keyIdx)) {
                 keyIdx[key] = sets.length + 1; sets.push({ n: x.n, type: x.t });
                 // a list name that was given earlier (opening the dialog again): not the default group A, group B, ...
-                gNames.push((!uniform && x.g && !/^group [A-Z0-9]+$/.test(x.g)) ? x.g : '');
+                gNames.push((!uniform && x.g && !/^(group [A-Z0-9]+|set [0-9]+)$/.test(x.g)) ? x.g : '');
               }
               asg.push(keyIdx[key]);
             });
