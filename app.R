@@ -11054,6 +11054,20 @@ server <- shinyServer(function(input, output, session) {
     nm <- vapply(ks, function(k) isolate(input[[paste0("textin_relations_name", k)]]) %||% "", character(1))
     unname(nm[nzchar(nm)])
   }
+  # The order of the models on the Input page: every calculation (volumes, analysis) takes the models in this order.
+  # A name like "m1 [4 items \u00b7 average]" belongs to the row "m1"; models of one row stay in their given order.
+  page_model_order <- function() {
+    n <- isolate(counter_input$n)
+    if (is.null(n) || n < 1) return(character(0))
+    vapply(seq_len(n), function(i) isolate(input[[paste0("textin_relations_name", i)]]) %||% "", character(1))
+  }
+  order_by_page <- function(nms) {
+    nms <- as.character(nms)
+    po <- page_model_order()
+    key <- match(sub(" ?\\[.*\\]$", "", nms), po)
+    key[is.na(key)] <- length(po) + 1L
+    nms[order(key, seq_along(nms))]
+  }
   # Short form of a model name for labels: long names are cut, the full name stays in the tooltip.
   # An unpacked model "m1 [3 items \u00b7 average]" is shown as "m1 [average]" (the item count is in the model itself).
   short_model_name <- function(x, n = 24) {
@@ -16525,7 +16539,7 @@ server <- shinyServer(function(input, output, session) {
         isolate(mixtures_reactive$names),
         isolate(items_reactive$names)
       )
-      names_h_rep <- names_h_rep[!is.na(names_h_rep) & nchar(names_h_rep) > 0]
+      names_h_rep <- order_by_page(names_h_rep[!is.na(names_h_rep) & nchar(names_h_rep) > 0])
 
       # the exact volume first: a model that has one needs no estimate (the algorithms only run for the others)
       exact_on <- !identical(isolate(input$EX), FALSE)
@@ -17721,6 +17735,12 @@ server <- shinyServer(function(input, output, session) {
       '  stop("No A_*.csv or V_*.csv files found in ", getwd(), ". Put this",',
       '       " script in the folder with the downloaded files (RStudio:",',
       '       " Session > Set Working Directory > To Source File Location).")',
+      '# the order of the Input page (model_order.txt of the download), else',
+      '# the alphabetical order of the files',
+      'if (file.exists("model_order.txt")) {',
+      '  ord <- readLines("model_order.txt")',
+      '  models <- c(intersect(ord, models), setdiff(models, ord))',
+      '}',
       'cat("Models found:", paste(models, collapse = ", "), "\\n")',
       '# Optional arguments (the app uses them to run every model in its own',
       '# process; without arguments the script analyses all models):',
@@ -18481,6 +18501,8 @@ server <- shinyServer(function(input, output, session) {
       # only the chosen models: the script analyses every model it finds in the folder
       for (st in setdiff(unname(choices_mn), sel))
         unlink(file.path(d, paste0(c("A_", "b_", "V_", "map_"), st, ".csv")))
+      ord <- tryCatch(readLines(file.path(d, "model_order.txt")), error = function(e) character(0))
+      sel <- c(intersect(ord, sel), setdiff(sel, ord))   # the order of the Input page
       TRUE
     }, error = function(e) FALSE)
     if (!isTRUE(prep)) {
@@ -18934,7 +18956,7 @@ server <- shinyServer(function(input, output, session) {
         isolate(items_reactive$names)
       )
       # "m1 AND m2" is not filename-safe -> "m1_AND_m2"
-      export_names <- unique(export_names[!is.na(export_names) & nzchar(export_names)])
+      export_names <- order_by_page(unique(export_names[!is.na(export_names) & nzchar(export_names)]))
       export_files <- str_replace_all(export_names, fixed(" AND "), "_AND_")
       export_files <- safe_file_name(export_files)
       numb_models <- length(export_names)
@@ -19035,6 +19057,9 @@ server <- shinyServer(function(input, output, session) {
       # the matching R script for multinomineq (reads the files next to it)
       first_ix <- which(!vapply(export_names, function(nm) is.null(isolate(h_reactive[[nm]])), logical(1)))[1]
       if (!is.na(first_ix)) {
+        # the models are analysed in the order of the Input page
+        writeLines(export_files, "model_order.txt")
+        files <- c(files, "model_order.txt")
         writeLines(mn_apply_settings(multinomineq_script(export_files[first_ix], ncol(isolate(h_reactive[[export_names[first_ix]]])) - 2L)), "analysis_multinomineq.R")
         files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_groups, isolate(mn_user_data()), isolate(mn_share())))
       }
@@ -19218,6 +19243,8 @@ server <- shinyServer(function(input, output, session) {
 
       # the matching R script for multinomineq (reads the files next to it)
       if (length(download_v_names) > 0) {
+        writeLines(safe_file_name(download_v_names), "model_order.txt")   # analysed in the order of the Input page
+        files <- c(files, "model_order.txt")
         ve1 <- v_reactive[[download_v_names[1]]]
         vm1 <- if (is.list(ve1) && !is.null(ve1$output)) ve1$output else ve1
         writeLines(mn_apply_settings(multinomineq_script(safe_file_name(download_v_names[1]), ncol(vm1) - 2L)), "analysis_multinomineq.R")
