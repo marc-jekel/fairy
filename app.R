@@ -1623,9 +1623,10 @@ ui <- shinyUI(fluidPage(
         background: transparent;
         color: var(--fairy-text, #1d2433);
         cursor: pointer;
-        margin-right: 10px;
       }
       #fairy-run-cancel.visible { display: inline-block; }
+      /* while Cancel is shown it is the only button and sits in the middle; Close takes its place afterwards */
+      #fairy-run-actions:has(#fairy-run-cancel.visible) #fairy-run-close { display: none; }
       #fairy-run-cancel:disabled { opacity: .6; cursor: default; }
       .fairy-run-cell.st-cancel { color: #b05000; }
       #fairy-run-close:focus-visible { outline: 3px solid var(--fairy-primary, #3a6df0); outline-offset: 2px; }
@@ -1887,6 +1888,8 @@ ui <- shinyUI(fluidPage(
       }
       .bttn-material-flat.bttn-primary:hover { filter: brightness(0.92); }
       .modal-footer .btn, .modal-footer .bttn { border-radius: 6px; }
+      /* a footer with a single button: the button sits in the middle */
+      .modal-footer:has(> :only-child) { text-align: center; }
       .bttn-primary.bttn-jelly, .bttn-primary.bttn-unite {
         background: var(--fairy-primary-contrast-bg) !important;
       }
