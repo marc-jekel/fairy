@@ -16248,7 +16248,13 @@ server <- shinyServer(function(input, output, session) {
                           ifelse(is.na(parsim_display$Volume), "—", vapply(parsim_display$Volume, function(v) if (is.na(v)) "—" else vol_str(v), character(1)))),
         `Max BF`       = ifelse(startsWith(parsim_display$Dimensionality, "Not full-dimensional"), "∞",
                           vapply(parsim_display$Max_BF, bf_str, character(1))),
-        `Exact volume` = vapply(exact_vol, function(v) if (is.na(v)) "—" else vol_str(v), character(1)),
+        `Exact volume` = vapply(seq_along(exact_vol), function(i) {
+          v <- exact_vol[i]
+          if (!is.na(v)) return(vol_str(v))
+          # not computed: more than 7 probabilities (too costly), or the model has no volume to compute
+          nd <- suppressWarnings(as.integer(sub(".*\\(([0-9]+)D\\).*", "\\1", as.character(parsim_display$Dimensionality[i]))))
+          if (!is.na(nd) && nd > 7) "n/a (more than 7 probabilities)" else "—"
+        }, character(1)),
         check.names    = FALSE
       )
       # Sort: base models first, intersections (containing ∩) below
