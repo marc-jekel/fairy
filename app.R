@@ -6118,6 +6118,12 @@ ui <- shinyUI(fluidPage(
                  layout[ax].tickfont = Object.assign({}, layout[ax].tickfont, { color: font });
                });
              }
+             // the theme colour of the data: purple by day, blue at night
+             var fromC = isDark ? '#7a4fc4' : '#4f7be8', toC = isDark ? '#4f7be8' : '#7a4fc4';
+             (div.data || []).forEach(function(tr) {
+               if (tr && tr.marker && tr.marker.color === fromC) tr.marker.color = toC;
+               if (tr && tr.marker && Array.isArray(tr.marker.color)) tr.marker.color = tr.marker.color.map(function(c) { return c === fromC ? toC : c; });
+             });
              Plotly.react(div, div.data, layout);
              // react() alone can leave a stale WebGL/SVG paint on this build
              // until something forces a reflow — resize does that reliably,
