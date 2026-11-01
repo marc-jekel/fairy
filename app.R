@@ -363,6 +363,12 @@ ui <- shinyUI(fluidPage(
         cursor: pointer; transition: background 0.2s; color: #d0d4e0; line-height: 1; padding: 0; }
       #tips-toggle:hover { background: rgba(255,255,255,0.22); }
       body.fairy-no-tips #tips-toggle { text-decoration: line-through; opacity: .6; }
+      /* the two round buttons in the header explain themselves at once, below the button (the page title tip comes late) */
+      #dm-toggle::after, #tips-toggle::after { content: attr(data-tip); position: absolute; top: 36px; right: 0; width: max-content; max-width: 220px;
+        padding: 6px 9px; border-radius: 8px; background: #1d2433; color: #fff; font-size: 12px; font-weight: 500; line-height: 1.3; text-align: left;
+        box-shadow: 0 4px 14px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .12s ease; }
+      #dm-toggle:hover::after, #tips-toggle:hover::after, #dm-toggle:focus-visible::after, #tips-toggle:focus-visible::after { opacity: 1; }
+      body.fairy-no-tips #dm-toggle::after { display: none; }
       body.fairy-no-tips .fairy-tooltip::after, body.fairy-no-tips [class*=fairy-tooltip]::after { display: none !important; }
 
       .fairy-compact-toggle-btn:hover { background: var(--ct-default) !important; }
@@ -6204,7 +6210,7 @@ ui <- shinyUI(fluidPage(
            }
            function apply(off) {
              document.body.classList.toggle('fairy-no-tips', off);
-             tb.title = off ? 'Tooltips are off (click to show them)' : 'Tooltips are on (click to hide them)';
+             tb.setAttribute('data-tip', off ? 'Tooltips and hover hints are off: click to show them' : 'Tooltips and hover hints: click to hide them');
              if (off) {
                park(document.body);
                if (!obs) {
@@ -6267,8 +6273,8 @@ ui <- shinyUI(fluidPage(
        })();"
     ))
   ),
-  tags$button(id = "dm-toggle", title = "Toggle dark mode", "\U0001F319"),
-  tags$button(id = "tips-toggle", title = "Tooltips are on (click to hide them)", "?"),
+  tags$button(id = "dm-toggle", `data-tip` = "Switch between light and dark mode", `aria-label` = "Toggle dark mode", "\U0001F319"),
+  tags$button(id = "tips-toggle", `data-tip` = "Tooltips and hover hints: click to hide them", `aria-label` = "Show or hide tooltips", "?"),
   # Quiet loading screen: the page shell arrives long before the server has
   # rendered the model rows (cold start, or a busy R process), which left a
   # half-empty Input tab. Shown from the first paint, removed on the first
