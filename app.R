@@ -17245,8 +17245,8 @@ server <- shinyServer(function(input, output, session) {
       tags$div(style = "max-height:46vh; overflow-y:auto;", body),
       if (length(mn_model_choices()) > 1)
         checkboxGroupInput("mn_models", "Models to analyse (the downloads always contain all of them)",
-                           choices = mn_model_choices(), selected = unname(mn_model_choices()), inline = TRUE),
-      checkboxInput("mn_final", "More samples (slower, uses more of the shared server)", value = FALSE),
+                           choices = mn_model_choices(), selected = unname(mn_model_choices()), inline = TRUE, width = "100%"),
+      checkboxInput("mn_final", "More samples (slower, uses more of the shared server)", value = FALSE, width = "100%"),
       if (identical(isolate(mn_source()), "V"))
         tags$div(style = "background:rgba(58,109,240,.10); border-left:4px solid #3a6df0; border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
           tags$b("Tip:"), " the analysis from the vertices (V) is much slower than from the inequalities (H) and gives the same result: a few seconds against a fraction of a second for small models, minutes for larger ones. For larger models open this window from the H-representation tab."),
