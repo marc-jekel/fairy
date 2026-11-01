@@ -16500,7 +16500,7 @@ server <- shinyServer(function(input, output, session) {
             lengthMenu = c(6, 12, 18, 24, 48, 96),
             dom = "ltp",
             # a short explanation when the mouse is over a column header
-            headerCallback = DT::JS("function(thead) { var t = { 'Volume': 'The same share, estimated by random sampling: it changes from run to run, more so with many dimensions. Use the exact volume where it is shown.', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume (from the exact volume when there is one).', 'Exact volume': 'The precise value, calculated from the vertices; it does not change between runs. n/a means it took longer than 30 seconds: then only the estimate is available.' }; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }"),
+            headerCallback = DT::JS("function(thead) { var t = { 'Volume': 'The same share, estimated by random sampling: it changes from run to run, by an amount that depends on the model. Use the exact volume where it is shown.', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume (from the exact volume when there is one).', 'Exact volume': 'The precise value, calculated from the vertices; it does not change between runs. n/a means it took longer than 30 seconds: then only the estimate is available.' }; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }"),
             columnDefs = list(
               list(className = "dt-left", targets = 0),
               list(visible = FALSE, targets = ncol(simple_tbl) - 1)
@@ -16624,7 +16624,7 @@ server <- shinyServer(function(input, output, session) {
         h5("Parsimony results", style = "margin:0 0 6px 0;"),
         HTML("<div style='font-size:13px; color:#555; line-height:1.55;'>
           <div><b>Exact volume</b> &ndash; the precise share of the parameter space that fits the model. <b>If a number is shown here, use it</b>: it does not change between runs.</div>
-          <div><b>Volume</b> &ndash; the same share, but estimated by random sampling, so it differs from run to run. The more dimensions a model has, the larger the deviation (with many dimensions it can be a fifth or more). The exact volume has no such problem; it is only missing (n/a) when it could not be calculated within the time limit. Where both are shown, use the exact one. If only the estimate exists and you need more precise values, lower the error in the algorithm settings (slower).</div>
+          <div><b>Volume</b> &ndash; the same share, but estimated by random sampling, so it differs from run to run, and how much depends on the model (typically more with many dimensions or thin shapes). The exact volume has no such problem; it is only missing (n/a) when it could not be calculated within the time limit. Where both are shown, use the exact one. If only the estimate exists and you need more precise values, lower the error in the algorithm settings (slower).</div>
           <div><b>Max BF</b> &ndash; the largest Bayes factor the model can reach against the unconstrained model (1 / volume; taken from the exact volume where there is one). Smaller volume = more restrictive model = larger Max BF.</div>
         </div>")
       )
