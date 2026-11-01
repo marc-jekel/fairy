@@ -4234,7 +4234,7 @@ ui <- shinyUI(fluidPage(
         var LABEL = { wait: 'waiting', run: 'computing', done: 'done', cached: 'unchanged', warn: 'empty set', fail: 'failed', cancel: 'cancelled', na: 'not available', stop: 'stopped' };
         var ICON  = { wait: '\\u25CB', run: '\\u25D0', done: '\\u2713', cached: '\\u2713', warn: '\\u26A0', fail: '\\u2715', cancel: '\\u2715', na: '\\u2013', stop: '\\u25A0' };
         var rows = {}, showTimer = null, idleTimer = null, shown = false, dismissed = false, everRan = false, running = false;
-        var cancelable = false, t0 = 0, tick = null, cancelInput = 'v_cancel', ncols = 2;
+        var cancelable = false, t0 = 0, tick = null, cancelInput = 'v_cancel', ncols = 2, limitSec = 0;
         // Safety net: if the run dies without a final message (an R error in
         // the middle of a Go), offer the Close button after 45 s of silence.
         function armIdle() {
@@ -4286,7 +4286,8 @@ ui <- shinyUI(fluidPage(
             });
           });
           var el = running ? Math.round((Date.now() - t0) / 1000) : 0;
-          var elTxt = running ? ' \\u00b7 ' + Math.floor(el / 60) + ':' + ('0' + (el % 60)).slice(-2) + ' elapsed' : '';
+          var mmss = function(x) { return Math.floor(x / 60) + ':' + ('0' + (x % 60)).slice(-2); };
+          var elTxt = running ? ' \\u00b7 ' + mmss(el) + ' elapsed' + (limitSec > 0 ? ' (exact volume: at most ' + mmss(limitSec) + ')' : '') : '';
           $id('fairy-run-sub').textContent = total ? (done + ' of ' + total + ' steps done' + elTxt) : '';
           $id('fairy-run-bar-fill').style.width = (total ? Math.round(100 * done / total) : 0) + '%';
           return { total: total, done: done, bad: bad };
@@ -4308,6 +4309,7 @@ ui <- shinyUI(fluidPage(
           $id('fairy-run-note').innerHTML = '';
           $id('fairy-run-close').classList.remove('visible');
           $id('fairy-run-table-wrap').scrollTop = 0;
+          limitSec = 0;
           dismissed = false; everRan = false; running = true; t0 = Date.now(); refresh(); armIdle();
           if (tick) clearInterval(tick);
           tick = setInterval(function() { if (running) refresh(); }, 1000);
@@ -4316,6 +4318,8 @@ ui <- shinyUI(fluidPage(
           showTimer = setTimeout(function() { showTimer = null; if (running) show(); }, 300);
         });
         // a column that is only needed once it is used (e.g. the backup algorithm when an exact volume could not be calculated)
+        // longest time of the phase that is running now (0: none); shown next to the elapsed time
+        Shiny.addCustomMessageHandler('fairy_run_limit', function(msg) { limitSec = msg.seconds || 0; refresh(); });
         Shiny.addCustomMessageHandler('fairy_run_addcol', function(msg) {
           var htr = document.querySelector('.fairy-run-table thead tr');
           var th = document.createElement('th'); th.textContent = msg.name; htr.appendChild(th);
@@ -16264,6 +16268,7 @@ server <- shinyServer(function(input, output, session) {
     ex$active <- TRUE
     for (i in seq_along(u)) fairy_run_cell(u[i], "Exact volume", if (as.character(i) %in% names(procs)) "run" else "na")
     session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "ex_skip", label = "Skip, use the algorithm"))
+    session$sendCustomMessage("fairy_run_limit", list(seconds = EXACT_VOLUME_LIMIT))
   }
   observe({
     if (!isTRUE(ex$active)) return()
@@ -16289,6 +16294,7 @@ server <- shinyServer(function(input, output, session) {
     if (length(procs) == 0) {
       ex$active <- FALSE
       session$sendCustomMessage("fairy_run_cancelable", list(on = FALSE))
+      session$sendCustomMessage("fairy_run_limit", list(seconds = 0))
       unlink(d, recursive = TRUE)
       parsim_state$exact <- res
       parsim_state$exact_done <- TRUE
