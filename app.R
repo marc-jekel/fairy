@@ -7732,8 +7732,11 @@ server <- shinyServer(function(input, output, session) {
     nm <- vapply(seq_len(n), function(i) isolate(input[[paste0("textin_relations_name", i)]]) %||% paste0("m", i), character(1))
     idx <- which(nm == model_name)[1]
     if (is.na(idx)) return(NULL)
-    spec <- paste(isolate(input[["add_for_all_models"]]) %||% "", isolate(input[[paste0("textin_relations_", idx)]]) %||% "", sep = ";")
+    spec <- paste(isolate(input[[paste0("textin_relations_", idx)]]) %||% "", isolate(input[["add_for_all_models"]]) %||% "", sep = ";")
     spec <- gsub("\u2265", ">=", gsub("\u2264", "<=", spec, fixed = TRUE), fixed = TRUE)
+    # one flag per "=" sign of the text (also the one inside >= and <=): "1" when that equality is approximate
+    eq_flags <- strsplit(equality_flags_str(spec, isolate(equality_tolerances_reactive$value[[as.character(idx)]])), ",", fixed = TRUE)[[1]]
+    eq_ix <- 0L
     pairs <- list()
     for (cl in strsplit(spec, "[;,\n]")[[1]]) {
       ops <- regmatches(cl, gregexpr("<=|>=|<|>|=", cl))[[1]]
@@ -7758,11 +7761,13 @@ server <- shinyServer(function(input, output, session) {
       }
       for (i in seq_along(ops)) {
         a1 <- parse_op(opd[i]); b1 <- parse_op(opd[i + 1])
+        if (ops[i] %in% c("=", ">=", "<=")) eq_ix <- eq_ix + 1L
         if (ops[i] == "=") {
           # an equality of two single probabilities is drawn as a line without an arrow (9th entry: TRUE)
           if (!is.null(a1) && !is.null(b1) && length(a1$ps) == 1L && length(b1$ps) == 1L && !nzchar(a1$cst) && !nzchar(b1$cst) &&
               a1$cf == 1 && b1$cf == 1 && a1$ps != b1$ps)
-            pairs[[length(pairs) + 1L]] <- list(as.integer(a1$ps - 1L), as.integer(b1$ps - 1L), "", "", "", "", "", "", TRUE)
+            pairs[[length(pairs) + 1L]] <- list(as.integer(a1$ps - 1L), as.integer(b1$ps - 1L), "", "", "", "", "", "", TRUE,
+              eq_ix <= length(eq_flags) && identical(eq_flags[eq_ix], "1"))
           next
         }
         if (is.null(a1) || is.null(b1) || length(intersect(a1$ps, b1$ps)) > 0) next
@@ -8515,7 +8520,7 @@ server <- shinyServer(function(input, output, session) {
                   return nProb + vi;
                 });
                 if (ends[0] === null || ends[1] === null || ends[0] === ends[1]) return;
-                tmpP.push([ends[0], ends[1], p[2] || '', '', p[7] || '', !!p[8]]);
+                tmpP.push([ends[0], ends[1], p[2] || '', '', p[7] || '', !!p[8], !!p[9]]);
               });
               pairs0 = tmpP;
               vM.forEach(function(ms, vi) { ms.forEach(function(mm, kk) { var wk = vW[vi][kk]; mlinks.push([mm, nProb + vi, '', (wk && wk !== '1') ? wk + String.fromCharCode(215) : '+']); }); });
@@ -8565,7 +8570,7 @@ server <- shinyServer(function(input, output, session) {
               inv = best || inv;
               idxs = inv.slice();
               for (var zz = 0; zz < nProb; zz++) if (idxs.indexOf(zz) < 0) idxs.push(zz);
-              pdisp = ordP.map(function(p) { return [idxs.indexOf(p[0]), idxs.indexOf(p[1]), p[3] || p[2] || '', !!p[3], p[4] || '', !!p[5]]; }).filter(function(q) { return q[0] >= 0 && q[1] >= 0; });
+              pdisp = ordP.map(function(p) { return [idxs.indexOf(p[0]), idxs.indexOf(p[1]), p[3] || p[2] || '', !!p[3], p[4] || '', !!p[5], !!p[6]]; }).filter(function(q) { return q[0] >= 0 && q[1] >= 0; });
             } else {
               idxs = []; for (var z = 0; z < Math.min(2, nProb); z++) idxs.push(z);
               pdisp = idxs.length > 1 ? [[0, 1]] : [];   // a single probability has nothing to compare
@@ -8767,7 +8772,7 @@ server <- shinyServer(function(input, output, session) {
                   var en = g.childNodes[ei];
                   if (en.tagName !== 'line') continue;
                   var et = el('text', { x: (parseFloat(en.getAttribute('x1')) + parseFloat(en.getAttribute('x2'))) / 2 + 8, y: (parseFloat(en.getAttribute('y1')) + parseFloat(en.getAttribute('y2'))) / 2 + 4, 'text-anchor': 'start', 'font-size': '12', 'font-weight': '700', fill: BL, stroke: 'none' }, svg);
-                  et.textContent = '=';
+                  et.textContent = pp[6] ? String.fromCharCode(8776) : '=';
                 }
                 return;
               }
@@ -8793,7 +8798,7 @@ server <- shinyServer(function(input, output, session) {
             if (R[0].n <= 4) { var fp = []; for (var q3 = 1; q3 <= R[0].n; q3++) fp.push('1/' + R[0].n + ' ' + midDot + ' item ' + q3); avgFormula = fp.join(' + '); }
             else avgFormula = '(item 1 + ... + item ' + R[0].n + ') / ' + R[0].n;
             var cmpTxt = realPairs ? pairs0.map(function(p) { var dt = ' ' + String.fromCharCode(183) + ' ', wrap = function(x) { return x.indexOf('+') >= 0 ? '(' + x + ')' : x; };
-              return (p[4] ? p[4] + dt + wrap(nm(p[0])) : nm(p[0])) + ' ' + (p[5] ? '=' : String.fromCharCode(8805)) + ' ' + (p[2] ? p[2] + dt + wrap(nm(p[1])) : nm(p[1])); }) : null;
+              return (p[4] ? p[4] + dt + wrap(nm(p[0])) : nm(p[0])) + ' ' + (p[5] ? (p[6] ? String.fromCharCode(8776) : '=') : String.fromCharCode(8805)) + ' ' + (p[2] ? p[2] + dt + wrap(nm(p[1])) : nm(p[1])); }) : null;
             var hintEl = document.getElementById('fairy_items_pairs_hint'), bmEl = document.getElementById('items_base_model'), bmName = bmEl ? bmEl.value : '';
             if (hintEl) hintEl.textContent = realPairs
               ? ('Taken from your model' + (bmName ? ' ' + bmName : '') + '.')
@@ -8840,7 +8845,7 @@ server <- shinyServer(function(input, output, session) {
                 var forT = !vars.length ? (terms.some(function(t) { return t.avg; }) ? 'averages over the items' : 'all items of a probability equal')
                   : (allN ? vars.map(function(v) { return v.l; }).join(', ') + ' = 1' + ELL + vars[0].n : vars.map(function(v) { return v.l + ' = 1' + ELL + v.n; }).join(', '));
                 total += count; shownAny = true;
-                sRows.push([hiT + ' ' + (p[8] ? '=' : String.fromCharCode(8805)) + ' ' + loT, forT + ' ' + String.fromCharCode(8212) + ' ' + count + (count === 1 ? ' statement' : ' statements')]);
+                sRows.push([hiT + ' ' + (p[8] ? (p[9] ? String.fromCharCode(8776) : '=') : String.fromCharCode(8805)) + ' ' + loT, forT + ' ' + String.fromCharCode(8212) + ' ' + count + (count === 1 ? ' statement' : ' statements')]);
               });
               if (realPairs) (window.fairyItemsConsts || []).forEach(function(cc) {
                 if (cc[0] >= nProb) return;
@@ -8890,7 +8895,8 @@ server <- shinyServer(function(input, output, session) {
               if (vN.length) entries.push([SQ, 'sum (grey lines: its parts)', null]);
               if (hasAvg) entries.push([String.fromCharCode(9675), 'average over the items', BL]);
               if (hasTol) entries.push(['=', 'items equal (' + AP + ': roughly)', null]);
-              if (pdisp.some(function(q) { return q[5]; })) entries.push(['=', 'probabilities equal (line without arrow)', BL]);
+              if (pdisp.some(function(q) { return q[5] && !q[6]; })) entries.push(['=', 'probabilities equal (line without arrow)', BL]);
+              if (pdisp.some(function(q) { return q[5] && q[6]; })) entries.push([AP, 'probabilities roughly equal (line without arrow)', BL]);
               if (hasDash || hasFade) entries.push([null, 'dashed or faded: the same for the other items', null]);
               if (hubDrawn) entries.push([C9, 'lines meet here: every item above is compared with every item below', BL]);
               if (wLab || cLab) entries.push([null, 'labels: ' + (wLab ? 'weight (2' + String.fromCharCode(215) + ' p2)' : '') + (wLab && cLab ? ', ' : '') + (cLab ? 'compared with a number (p5 < 0.1)' : ''), null]);
