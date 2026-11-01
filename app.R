@@ -394,7 +394,7 @@ ui <- shinyUI(fluidPage(
       .fairy-dl-group > .shiny-html-output { display: block; }
       #qtest_order_open, #qtest_order_open_v { position: relative !important; margin-bottom: 14px !important; }
       #qtest_order_open::after, #qtest_order_open_v::after { content: 'Order'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
-        border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 10.5px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
+        border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 12px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
       /* Order is a setting for the two downloads below it, not a third program: plain grey, a thin row, a divider under it */
       #qtest_order_open.fairy-order-btn, #qtest_order_open_v.fairy-order-btn { flex-direction: row !important; width: 66px !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
       #qtest_order_open .fa, #qtest_order_open_v .fa, #qtest_order_open svg, #qtest_order_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
@@ -402,7 +402,7 @@ ui <- shinyUI(fluidPage(
       /* Data: same small grey row as Order, for the multinomineq data file */
       #mn_data_open, #mn_data_open_v { position: relative !important; margin-bottom: 14px !important; }
       #mn_data_open::after, #mn_data_open_v::after { content: 'Data & run'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
-        border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 10.5px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
+        border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 12px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
       /* Order is a setting for the two downloads below it, not a third program: plain grey, a thin row, a divider under it */
       #mn_data_open.fairy-order-btn, #mn_data_open_v.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
       #mn_data_open .fa, #mn_data_open_v .fa, #mn_data_open svg, #mn_data_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
@@ -410,7 +410,7 @@ ui <- shinyUI(fluidPage(
       /* Results: same small grey row, reopens the last analysis */
       #mn_results_open, #mn_results_open_v { position: relative !important; margin-bottom: 14px !important; }
       #mn_results_open::after, #mn_results_open_v::after { content: 'Results'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
-        border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 10.5px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
+        border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 12px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
       /* Order is a setting for the two downloads below it, not a third program: plain grey, a thin row, a divider under it */
       #mn_results_open.fairy-order-btn, #mn_results_open_v.fairy-order-btn { flex-direction: row !important; width: 66px !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
       #mn_results_open .fa, #mn_results_open_v .fa, #mn_results_open svg, #mn_results_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
@@ -1126,6 +1126,14 @@ ui <- shinyUI(fluidPage(
       /* Same jelly/default style as the other add/remove buttons on this
          page, just darkened a bit for contrast against the pnames card's
          own tinted background. */
+      /* text links in the app blue: slightly darker, so the contrast on white is above 4.5:1 (WCAG AA) */
+      #fairy_shared_toggle, #fairy_more_algos_toggle, details > summary[style*='3a6df0'] { color: #2a5bd7 !important; }
+      /* keyboard focus: every control gets a visible ring, also those whose own style removed the outline */
+      a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
+        outline: 3px solid var(--fairy-primary, #3a6df0) !important; outline-offset: 2px;
+      }
+      /* the floating Go button must not cover the last rows of a page */
+      .tab-content { padding-bottom: 110px; }
       /* tap targets: at least 24 px (WCAG 2.2), about 40 px on touch screens */
       .fairy-del-model-btn, [id^='copy_model_btn_'], [id^='vrep_toggle_btn_'], #rm_prob, #add_prob, #rm_ie, #add_ie,
       .fairy-compact-toggle-btn, #dm-toggle, .fairy-plot-expand-btn, #show_items_modal { min-width: 24px; min-height: 24px; }
@@ -1958,8 +1966,8 @@ ui <- shinyUI(fluidPage(
         padding: 2px 12px;
       }
       #banner span, #banner p {
-        line-height: 1.2;
-        font-size: 10.5px;
+        line-height: 1.25;
+        font-size: 12px;
       }
       /* Bootstrap floats the nav list left from 768px up, which shrank the text box to the left */
       #banner { float: none !important; width: 100% !important; margin: 0 !important; }
@@ -5100,6 +5108,48 @@ ui <- shinyUI(fluidPage(
         });
       })();
 
+      // ---- Touch screens have no hover: press and hold on a control with a hint shows the hint ----
+      (function() {
+        var tipEl = null, timer = null, hideTimer = null, startX = 0, startY = 0, justHeld = false;
+        function clear() { if (timer) { clearTimeout(timer); timer = null; } }
+        function show(target, x, y) {
+          var txt = target.getAttribute('data-tooltip'); if (!txt) return;
+          if (!tipEl) {
+            tipEl = document.createElement('div');
+            tipEl.style.cssText = 'position:fixed; z-index:200001; max-width:240px; background:#1f2430; color:#fff; font-size:13px; line-height:1.35; padding:7px 10px; border-radius:7px; box-shadow:0 4px 14px rgba(0,0,0,.3); pointer-events:none;';
+            tipEl.setAttribute('role', 'tooltip');
+            document.body.appendChild(tipEl);
+          }
+          tipEl.textContent = txt; tipEl.style.display = 'block';
+          var w = Math.min(240, window.innerWidth - 16);
+          tipEl.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, x - w / 2)) + 'px';
+          tipEl.style.top = Math.max(8, y - 64) + 'px';
+          if (hideTimer) clearTimeout(hideTimer);
+          hideTimer = setTimeout(function() { tipEl.style.display = 'none'; }, 3500);
+        }
+        document.addEventListener('touchstart', function(e) {
+          if (!window.matchMedia || !window.matchMedia('(hover: none)').matches) return;
+          var t = e.target.closest ? e.target.closest('[data-tooltip]') : null;
+          if (!t) return;
+          var tc = e.touches[0]; startX = tc.clientX; startY = tc.clientY;
+          clear();
+          timer = setTimeout(function() { timer = null; justHeld = true; show(t, startX, startY); }, 550);
+        }, { passive: true });
+        document.addEventListener('touchmove', function(e) {
+          var tc = e.touches[0];
+          if (Math.abs(tc.clientX - startX) > 10 || Math.abs(tc.clientY - startY) > 10) clear();
+        }, { passive: true });
+        document.addEventListener('touchend', clear, { passive: true });
+        document.addEventListener('touchcancel', clear, { passive: true });
+        // the click that follows a long press should not do the action of the control
+        document.addEventListener('click', function(e) {
+          if (justHeld) { justHeld = false; e.preventDefault(); e.stopPropagation(); }
+        }, true);
+        document.addEventListener('contextmenu', function(e) {
+          if (e.target.closest && e.target.closest('[data-tooltip]') && window.matchMedia && window.matchMedia('(hover: none)').matches) e.preventDefault();
+        });
+      })();
+
       // ---- Fairy dust: five quick clicks on the title of the analysis window switch its time limit off (and on again) ----
       (function() {
         var st = document.createElement('style');
@@ -7428,7 +7478,8 @@ server <- shinyServer(function(input, output, session) {
         "). Your input is unchanged; please check the models and try again."))
     } else {
       if (identical(where, "go")) fairy_run_hide()
-      showNotification(paste0("Something went wrong (", msg, "). Please check your input and try again."),
+      showNotification(HTML(paste0("Something went wrong. Please check your input and try again.<br><small style='opacity:.75;'>Technical detail: ",
+                                   htmltools::htmlEscape(msg), "</small>")),
         type = "error", duration = 12)
     }
   }
@@ -16410,6 +16461,11 @@ server <- shinyServer(function(input, output, session) {
       # which algorithms run: the selected ones when Algorithms is on, otherwise (a backup for models without an exact volume) Cooling Bodies
       sel_algo <- c(CB = isTRUE(isolate(input$CB)), SoB = isTRUE(isolate(input$SoB)), CG = isTRUE(isolate(input$CG)))
       if (!alg_on || !any(sel_algo)) sel_algo <- c(CB = TRUE, SoB = FALSE, CG = FALSE)
+      if (any(vapply(unlist(names_h_rep), function(nm) is.null(isolate(h_reactive[[nm]])), logical(1)))) {
+        fairy_run_hide()
+        fairy_notify("The H-representations are not there yet", "Click Go on the Input tab first, then compute the parsimony.", type = "warning")
+        return(invisible())
+      }
       if (exact_on && !isTRUE(isolate(parsim_state$exact_done))) {
         exact_start_jobs(as.character(names_h_rep))   # the handler runs again when they are done
         return(invisible())
@@ -16786,10 +16842,11 @@ server <- shinyServer(function(input, output, session) {
       long_nfd <- startsWith(long_df$Dimensionality, "Not full-dimensional")
       # a model that is not full-dimensional has volume 0 whatever the method says
       long_df$Volume[long_nfd] <- 0
+      dim_short <- function(x) sub("^Not full-dimensional \\(in (\\d+)D space\\)$", "Not full-dim. (in \\1D)", sub("^Full-dimensional \\((\\d+D)\\)$", "\\1", x))
       simple_tbl <- data.frame(
         Model          = long_df$Model,
         Algorithm      = long_df$Algorithm,
-        Dimensionality = long_df$Dimensionality,
+        Dimensionality = dim_short(long_df$Dimensionality),
         Volume         = vapply(long_df$Volume, function(v) {
           if (is.nan(v)) return(paste0("n/a (stopped after ", EXACT_VOLUME_LIMIT_TXT, " or skipped)"))
           if (is.na(v)) return("\u2014")
@@ -16849,7 +16906,7 @@ server <- shinyServer(function(input, output, session) {
             lengthMenu = c(6, 12, 18, 24, 48, 96),
             dom = if (nrow(simple_tbl) > 6) "ltp" else "t",
             # a short explanation when the mouse is over a column header
-            headerCallback = DT::JS(paste0("function(thead) { var t = { 'Algorithm': 'Exact: calculated from the corner points of the model, not sampled, does not change between runs. The other rows: estimated by random sampling with that algorithm; they change from run to run, by an amount that depends on the model. By default only shown for models without an exact volume.', 'Volume': 'The share of the parameter space that fits the model. n/a: the exact calculation was stopped (time limit of ", EXACT_VOLUME_LIMIT_TXT, " or skipped); then the algorithm estimates the volume.', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume of that row.'}; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }")),
+            headerCallback = DT::JS(paste0("function(thead) { var t = { 'Dimensionality': 'Number of dimensions of the model (3D: three free probabilities). Not full-dim.: the model is flat in some direction because of an equality, so its volume is 0.', 'Algorithm': 'Exact: calculated from the corner points of the model, not sampled, does not change between runs. The other rows: estimated by random sampling with that algorithm; they change from run to run, by an amount that depends on the model. By default only shown for models without an exact volume.', 'Volume': 'The share of the parameter space that fits the model. n/a: the exact calculation was stopped (time limit of ", EXACT_VOLUME_LIMIT_TXT, " or skipped); then the algorithm estimates the volume.', 'Max BF': 'Largest Bayes factor the model can reach against the unconstrained model: 1 / volume of that row.'}; $(thead).find('th').each(function() { var k = $(this).text().trim(); if (t[k]) this.title = t[k]; }); }")),
             columnDefs = list(
               list(className = "dt-left", targets = 0),
               list(visible = FALSE, targets = ncol(simple_tbl) - 1)
