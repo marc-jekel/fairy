@@ -17871,6 +17871,8 @@ server <- shinyServer(function(input, output, session) {
       '  "table{border-collapse:collapse;width:100%;margin:.7em 0;",',
       '  "border:1px solid var(--line)}",',
       '  ".tw{overflow-x:auto;max-width:100%}",',
+      '  "th{overflow-wrap:normal;word-break:normal;hyphens:none}",',
+      '  "td[class]{white-space:nowrap}",',
       '  "th{vertical-align:bottom}th:first-child,th:nth-child(2),",',
       '  "th:last-child{white-space:nowrap}",',
       '  "th{background:var(--head);text-align:left;font-weight:600;",',
