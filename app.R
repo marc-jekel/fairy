@@ -16624,7 +16624,7 @@ server <- shinyServer(function(input, output, session) {
         h5("Parsimony results", style = "margin:0 0 6px 0;"),
         HTML("<div style='font-size:13px; color:#555; line-height:1.55;'>
           <div><b>Exact volume</b> &ndash; the precise share of the parameter space that fits the model. <b>If a number is shown here, use it</b>: it does not change between runs.</div>
-          <div><b>Volume</b> &ndash; the same share, but estimated by random sampling, so it differs from run to run, and how much depends on the model (typically more with many dimensions or thin shapes). The exact volume has no such problem; it is only missing (n/a) when it could not be calculated within the time limit. Where both are shown, use the exact one. If only the estimate exists and you need more precise values, lower the error in the algorithm settings (slower).</div>
+          <div><b>Volume</b> &ndash; the same share, but estimated by random sampling, so it differs from run to run, and how much depends on the model (typically more with many dimensions or thin shapes). The exact volume has no such problem; it is only missing (n/a) when it could not be calculated within the time limit of 60 seconds. Where both are shown, use the exact one. If only the estimate exists and you need more precise values, lower the error in the algorithm settings (slower).</div>
           <div><b>Max BF</b> &ndash; the largest Bayes factor the model can reach against the unconstrained model (1 / volume; taken from the exact volume where there is one). Smaller volume = more restrictive model = larger Max BF.</div>
         </div>")
       )
