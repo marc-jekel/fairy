@@ -1633,6 +1633,9 @@ ui <- shinyUI(fluidPage(
       #fairy-run-actions:has(#fairy-run-cancel.visible) #fairy-run-close { display: none; }
       #fairy-run-cancel:disabled { opacity: .6; cursor: default; }
       .fairy-run-cell.st-cancel { color: #b05000; }
+      .fairy-run-cell.st-na { color: var(--fairy-text-muted, #667085); }
+      .fairy-run-cell.st-stop { color: #b05000; }
+      .fairy-run-table.one-col th:nth-child(3), .fairy-run-table.one-col td:nth-child(3) { display: none; }
       #fairy-run-close:focus-visible { outline: 3px solid var(--fairy-primary, #3a6df0); outline-offset: 2px; }
       @media (prefers-reduced-motion: reduce) {
         #fairy-run-overlay, #fairy-run-bar-fill { transition: none; }
@@ -4229,10 +4232,10 @@ ui <- shinyUI(fluidPage(
       // Large run window: a table of all models with an H and a V state each,
       // updated in place. Opens once per Go click, stays until closed.
       (function() {
-        var LABEL = { wait: 'waiting', run: 'computing', done: 'done', cached: 'unchanged', warn: 'empty set', fail: 'failed', cancel: 'cancelled' };
-        var ICON  = { wait: '\\u25CB', run: '\\u25D0', done: '\\u2713', cached: '\\u2713', warn: '\\u26A0', fail: '\\u2715', cancel: '\\u2715' };
+        var LABEL = { wait: 'waiting', run: 'computing', done: 'done', cached: 'unchanged', warn: 'empty set', fail: 'failed', cancel: 'cancelled', na: 'not available', stop: 'stopped' };
+        var ICON  = { wait: '\\u25CB', run: '\\u25D0', done: '\\u2713', cached: '\\u2713', warn: '\\u26A0', fail: '\\u2715', cancel: '\\u2715', na: '\\u2013', stop: '\\u25A0' };
         var rows = {}, showTimer = null, idleTimer = null, shown = false, dismissed = false, everRan = false, running = false;
-        var cancelable = false, t0 = 0, tick = null;
+        var cancelable = false, t0 = 0, tick = null, cancelInput = 'v_cancel';
         // Safety net: if the run dies without a final message (an R error in
         // the middle of a Go), offer the Close button after 45 s of silence.
         function armIdle() {
@@ -4279,7 +4282,7 @@ ui <- shinyUI(fluidPage(
               var st = rows[n][c].getAttribute('data-state');
               if (st === 'none') return;
               total++;
-              if (st === 'done' || st === 'cached' || st === 'warn' || st === 'fail' || st === 'cancel') done++;
+              if (st === 'done' || st === 'cached' || st === 'warn' || st === 'fail' || st === 'cancel' || st === 'na' || st === 'stop') done++;
               if (st === 'warn' || st === 'fail' || st === 'cancel') bad++;
             });
           });
@@ -4296,7 +4299,12 @@ ui <- shinyUI(fluidPage(
         }
         Shiny.addCustomMessageHandler('fairy_run_begin', function(msg) {
           rows = {}; $id('fairy-run-body').innerHTML = '';
-          $id('fairy-run-title').textContent = 'Calculating';
+          var cols = (msg && msg.cols) ? [].concat(msg.cols) : ['H-representation', 'V-representation'];
+          var ths = document.querySelectorAll('.fairy-run-table th');
+          ths[1].textContent = cols[0]; ths[2].textContent = cols.length > 1 ? cols[1] : '';
+          document.querySelector('.fairy-run-table').classList.toggle('one-col', cols.length < 2);
+          cancelInput = 'v_cancel'; $id('fairy-run-cancel').textContent = 'Cancel';
+          $id('fairy-run-title').textContent = (msg && msg.title) ? msg.title : 'Calculating';
           $id('fairy-run-note').innerHTML = '';
           $id('fairy-run-close').classList.remove('visible');
           $id('fairy-run-table-wrap').scrollTop = 0;
@@ -4319,7 +4327,7 @@ ui <- shinyUI(fluidPage(
           cancelable = !!msg.on;
           var b = $id('fairy-run-cancel');
           b.classList.toggle('visible', cancelable);
-          if (cancelable) { b.disabled = false; b.textContent = 'Cancel'; if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; } }
+          if (cancelable) { cancelInput = msg.input || 'v_cancel'; b.disabled = false; b.textContent = msg.label || 'Cancel'; if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; } }
         });
         Shiny.addCustomMessageHandler('fairy_run_end', function(msg) {
           running = false; cancelable = false; $id('fairy-run-cancel').classList.remove('visible');
@@ -4345,7 +4353,7 @@ ui <- shinyUI(fluidPage(
           $id('fairy-run-close').addEventListener('click', dismiss);
           $id('fairy-run-cancel').addEventListener('click', function() {
             this.disabled = true; this.textContent = 'Cancelling ...';
-            Shiny.setInputValue('v_cancel', Date.now(), { priority: 'event' });
+            Shiny.setInputValue(cancelInput, Date.now(), { priority: 'event' });
           });
           $id('fairy-run-overlay').addEventListener('click', function(e) {
             if (!running && e.target === this) dismiss();
@@ -7337,7 +7345,9 @@ server <- shinyServer(function(input, output, session) {
   # fail). It stays on screen until the user closes it. Rows are created on
   # first use, so intersections, mixtures and items models simply appear when
   # their phase starts.
-  fairy_run_begin <- function() session$sendCustomMessage("fairy_run_begin", list())
+  fairy_run_begin <- function(title = "Calculating", cols = c("H-representation", "V-representation")) {
+    session$sendCustomMessage("fairy_run_begin", list(title = title, cols = as.list(cols)))
+  }
   fairy_run_row <- function(name, kind = NULL, h = NULL, v = NULL) {
     msg <- Filter(Negate(is.null), list(name = as.character(name), kind = kind, h = h, v = v))
     session$sendCustomMessage("fairy_run_row", msg)
@@ -7357,6 +7367,7 @@ server <- shinyServer(function(input, output, session) {
       fairy_run_end(paste0("<b>Error:</b> the calculation stopped (", htmltools::htmlEscape(msg),
         "). Your input is unchanged; please check the models and try again."))
     } else {
+      if (identical(where, "go")) fairy_run_hide()
       showNotification(paste0("Something went wrong (", msg, "). Please check your input and try again."),
         type = "error", duration = 12)
     }
@@ -15951,19 +15962,9 @@ server <- shinyServer(function(input, output, session) {
     pv$parallel <- isTRUE(isolate(input$use_parallel))
     parsim_state$results <- NULL
     pv$active <- TRUE
-    showModal(modalDialog(title = "Computing the volumes", easyClose = FALSE, uiOutput("pv_progress"),
-                          footer = actionButton("pv_cancel", "Cancel")))
+    for (m in unique(sub("\\|[^|]*$", "", keys))) fairy_run_row(m, v = "wait")
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "pv_cancel", label = "Cancel"))
   }
-  output$pv_progress <- renderUI({
-    el <- pv$elapsed
-    tagList(
-      tags$p(style = "font-size:15px; margin-bottom:6px; overflow-wrap:anywhere;", pv$status),
-      tags$div(style = "height:6px; background:var(--fairy-border, #e4e7ec); border-radius:3px; margin:6px 0 4px 0;",
-        tags$div(style = paste0("height:6px; border-radius:3px; background:var(--fairy-primary, #3a6df0); width:",
-                                round(100 * (pv$total - length(pv$queue) - length(pv$procs)) / max(1, pv$total)), "%;"))),
-      tags$p(class = "fairy-eq-tol-help", sprintf("%d:%02d elapsed. ", as.integer(el %/% 60), as.integer(round(el) %% 60)),
-             "You can cancel at any time."))
-  })
   observe({
     if (!isTRUE(pv$active)) return()
     invalidateLater(400)
@@ -15975,6 +15976,8 @@ server <- shinyServer(function(input, output, session) {
         v <- tryCatch(readRDS(file.path(d, paste0("out", idx, ".rds"))), error = function(e) NA_real_)
         res[[k]] <- if (is.numeric(v) && length(v) == 1) v else NA_real_
         procs[[k]] <- NULL
+        m_k <- sub("\\|[^|]*$", "", k)
+        if (!any(sub("\\|[^|]*$", "", c(names(procs), queue)) == m_k)) fairy_run_row(m_k, v = "done")
       }
     }
     max_run <- if (isolate(pv$parallel)) length(keys) else 1L
@@ -15984,11 +15987,9 @@ server <- shinyServer(function(input, output, session) {
       p <- tryCatch(processx::process$new(file.path(R.home("bin"), "Rscript"),
                       c(file.path(d, "job.R"), file.path(d, paste0("in", idx, ".rds")), file.path(d, paste0("out", idx, ".rds"))),
                       cleanup_tree = TRUE), error = function(e) NULL)
-      if (is.null(p)) { res[[k]] <- NA_real_ } else {
+      if (is.null(p)) { res[[k]] <- NA_real_; fairy_run_row(sub("\\|[^|]*$", "", k), v = "fail") } else {
         procs[[k]] <- p
-        parts <- strsplit(k, "|", fixed = TRUE)[[1]]
-        algo <- c(CB = "Cooling Bodies", SoB = "Sequence of Balls", CG = "Cooling Gaussian")[[parts[length(parts)]]]
-        pv$status <- sprintf("Job %d of %d: %s \u2013 %s", idx, length(keys), paste(parts[-length(parts)], collapse = "|"), algo)
+        fairy_run_row(sub("\\|[^|]*$", "", k), v = "run")
       }
     }
     pv$procs <- procs; pv$queue <- queue
@@ -15996,7 +15997,7 @@ server <- shinyServer(function(input, output, session) {
     parsim_state$results <- res
     if (length(queue) == 0 && length(procs) == 0) {
       pv$active <- FALSE
-      removeModal()
+      session$sendCustomMessage("fairy_run_cancelable", list(on = FALSE))
       parsim_state$resume <- isolate(parsim_state$resume) + 1   # runs the Go handler again, now with the volumes
     }
   })
@@ -16006,7 +16007,7 @@ server <- shinyServer(function(input, output, session) {
     pv$queue <- character(0); pv$active <- FALSE
     parsim_state$results <- NULL
     if (!is.null(isolate(pv$prev_snap))) last_parsimony_snapshot(isolate(pv$prev_snap))
-    removeModal()
+    fairy_run_hide()
     showNotification("The volume computation was cancelled; the earlier results (if any) are unchanged.", type = "message", duration = 6)
   })
   session$onSessionEnded(function() { for (p in isolate(pv$procs)) try(p$kill_tree(), silent = TRUE) })
@@ -16050,23 +16051,9 @@ server <- shinyServer(function(input, output, session) {
     ex$dir <- d; ex$names <- u; ex$procs <- procs; ex$res <- res; ex$start <- Sys.time(); ex$elapsed <- 0; ex$skip <- FALSE
     ex$prev_snap <- isolate(pv$prev_snap)
     ex$active <- TRUE
-    showModal(modalDialog(title = "Calculating the exact volumes", easyClose = FALSE, uiOutput("ex_progress"),
-                          footer = tagList(actionButton("ex_skip", "Skip, use the algorithm"), actionButton("ex_cancel", "Cancel"))))
+    for (i in seq_along(u)) fairy_run_row(u[i], h = if (as.character(i) %in% names(procs)) "run" else "na")
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "ex_skip", label = "Skip, use the algorithm"))
   }
-  output$ex_progress <- renderUI({
-    u <- ex$names; running <- u[as.integer(names(ex$procs))]
-    n_done <- length(u) - length(running)
-    el <- ex$elapsed
-    fmt <- function(x) sprintf("%d:%02d", as.integer(x %/% 60), as.integer(round(x) %% 60))
-    tagList(
-      tags$p(style = "font-size:15px; margin-bottom:6px; overflow-wrap:anywhere;",
-             if (length(running) == 0) "Finishing ..." else paste0("Calculating: ", paste(running, collapse = ", "))),
-      tags$div(style = "height:6px; background:var(--fairy-border, #e4e7ec); border-radius:3px; margin:6px 0 4px 0;",
-        tags$div(style = paste0("height:6px; border-radius:3px; background:var(--fairy-primary, #3a6df0); width:",
-                                round(100 * n_done / max(1, length(u))), "%;"))),
-      tags$p(class = "fairy-eq-tol-help", sprintf("%d of %d models done. %s elapsed, at most %s. ", n_done, length(u), fmt(el), fmt(EXACT_VOLUME_LIMIT)),
-             "Skipping stops the exact calculation; the algorithm then estimates the volume of the models that are not done yet."))
-  })
   observe({
     if (!isTRUE(ex$active)) return()
     invalidateLater(400)
@@ -16076,17 +16063,21 @@ server <- shinyServer(function(input, output, session) {
       if (!procs[[k]]$is_alive()) {
         v <- tryCatch(readRDS(file.path(d, paste0("v", k, ".rds"))), error = function(e) NA_real_)
         res[[u[as.integer(k)]]] <- if (is.numeric(v) && length(v) == 1) v else NA_real_
+        fairy_run_row(u[as.integer(k)], h = if (is.finite(res[[u[as.integer(k)]]])) "done" else "na")
         procs[[k]] <- NULL
       }
     }
     if (length(procs) > 0 && (el > EXACT_VOLUME_LIMIT || isTRUE(isolate(ex$skip)))) {
-      for (k in names(procs)) { try(procs[[k]]$kill_tree(), silent = TRUE); res[[u[as.integer(k)]]] <- NaN }
+      for (k in names(procs)) {
+        try(procs[[k]]$kill_tree(), silent = TRUE); res[[u[as.integer(k)]]] <- NaN
+        fairy_run_row(u[as.integer(k)], h = "stop")
+      }
       procs <- list()
     }
     ex$procs <- procs; ex$res <- res; ex$elapsed <- el
     if (length(procs) == 0) {
       ex$active <- FALSE
-      removeModal()
+      session$sendCustomMessage("fairy_run_cancelable", list(on = FALSE))
       unlink(d, recursive = TRUE)
       parsim_state$exact <- res
       parsim_state$exact_done <- TRUE
@@ -16094,15 +16085,6 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   observeEvent(input$ex_skip, { if (isTRUE(isolate(ex$active))) ex$skip <- TRUE })
-  observeEvent(input$ex_cancel, {
-    if (!isTRUE(isolate(ex$active))) return()
-    exact_kill_all()
-    ex$active <- FALSE
-    parsim_state$exact <- NULL; parsim_state$exact_done <- FALSE; parsim_state$results <- NULL
-    if (!is.null(isolate(ex$prev_snap))) last_parsimony_snapshot(isolate(ex$prev_snap))
-    removeModal()
-    showNotification("The calculation was cancelled; the earlier results (if any) are unchanged.", type = "message", duration = 6)
-  })
   session$onSessionEnded(function() { for (p in isolate(ex$procs)) try(p$kill_tree(), silent = TRUE) })
 
   observe_guarded(list(input$go, parsim_state$resume), {
@@ -16112,6 +16094,7 @@ server <- shinyServer(function(input, output, session) {
     go_now <- isolate(input$go)
     if (!identical(go_now, isolate(parsim_state$go_seen))) {
       parsim_state$go_seen <- go_now
+      fairy_run_begin("Calculating the volumes", c("Exact volume", "Algorithm volume"))
       parsim_state$exact <- NULL; parsim_state$exact_done <- FALSE
       parsim_state$results <- NULL
       pv$prev_snap <- isolate(last_parsimony_snapshot())
@@ -16708,6 +16691,7 @@ server <- shinyServer(function(input, output, session) {
       parsim_csv_data(csv_tbl[order(grepl("∩", csv_tbl$Model)), , drop = FALSE])
 
       parsim_has_results(TRUE)
+      fairy_run_end("")
 
     }
 
