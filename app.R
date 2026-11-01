@@ -1162,7 +1162,7 @@ ui <- shinyUI(fluidPage(
          page, just darkened a bit for contrast against the pnames card's
          own tinted background. */
       /* text links in the app blue: slightly darker, so the contrast on white is above 4.5:1 (WCAG AA) */
-      #fairy_shared_toggle, #fairy_more_algos_toggle, details > summary[style*='3a6df0'] { color: #2a5bd7 !important; }
+      #fairy_shared_toggle, #fairy_more_algos_toggle, details > summary[style*='fairy-primary'] { color: var(--fairy-primary) !important; }
       /* keyboard focus: every control gets a visible ring, also those whose own style removed the outline */
       a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
         outline: 3px solid var(--fairy-primary, #3a6df0) !important; outline-offset: 2px;
