@@ -17250,6 +17250,8 @@ server <- shinyServer(function(input, output, session) {
       tar(file, intersect(c("results.html", "results.csv", "posterior.csv", "analysis_multinomineq.R"), list.files(d)))
     }
   )
+  # without this the link can still be empty when the window has just opened (the browser would then save the page itself)
+  outputOptions(output, "mn_results_dl", suspendWhenHidden = FALSE)
   output$qtest_order_btn_ui <- renderUI({
     if (length(items_reactive$names) == 0) return(NULL)
     tags$span(class = "fairy-tooltip", `data-tooltip` = "Order of the probabilities (p1, p2, ...) for unpacked models: used by the QTEST and multinomineq downloads, H and V, and by the R script",
