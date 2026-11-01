@@ -23,7 +23,7 @@ test_that("two models: type, Go, both appear", {
   Sys.sleep(1.5)
   js("document.getElementById('add_ie').click();")
   Sys.sleep(3)
-  app$set_inputs(textin_relations_2 = "p1 < p2; p2 < p3", wait_ = FALSE)
+  app$set_inputs(textin_relations_2 = "p1 = p2; p2 > p3", wait_ = FALSE)
   Sys.sleep(1.5)
   js("document.getElementById('go_v_h').click();")
   idle(120)
@@ -52,6 +52,7 @@ test_that("multinomineq download contains script, data, A and b for both models"
   expect_true(any(grepl("^data_choices", files)))
   expect_equal(sum(grepl("^A_", files)), 2)
   expect_equal(sum(grepl("^b_", files)), 2)
+  expect_true(any(grepl("^map_", files)))   # the exact equality p1 = p2 becomes one parameter
 })
 
 test_that("data window saves numbers into the data file", {

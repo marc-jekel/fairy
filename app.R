@@ -16397,11 +16397,34 @@ server <- shinyServer(function(input, output, session) {
     }
     out
   }
+  # Exact equalities between two probabilities (p_i = p_j) can be used by multinomineq through its map argument: the equal
+  # probabilities become ONE free parameter. h_num: numeric H-representation [type, b, coefficients]. Returns NULL if there is
+  # no such equality, else list(map = group of every probability, groups = first member of every group, keep = rows to keep).
+  mn_reduce_equalities <- function(h_num) {
+    n_p <- ncol(h_num) - 2L
+    parent <- seq_len(n_p)
+    find <- function(i) { while (parent[i] != i) i <- parent[i]; i }
+    simple <- rep(FALSE, nrow(h_num))
+    for (r in which(h_num[, 1] == 1)) {
+      cf <- h_num[r, -(1:2)]
+      nz <- which(abs(cf) > 1e-12)
+      if (length(nz) == 2 && abs(h_num[r, 2]) < 1e-12 && abs(cf[nz[1]] + cf[nz[2]]) < 1e-12) {
+        simple[r] <- TRUE
+        a <- find(nz[1]); b <- find(nz[2])
+        if (a != b) parent[max(a, b)] <- min(a, b)
+      }
+    }
+    if (!any(simple) || all(simple)) return(NULL)
+    root <- vapply(seq_len(n_p), find, integer(1))
+    groups <- sort(unique(root))
+    list(map = match(root, groups), groups = groups, keep = !simple)
+  }
   multinomineq_script <- function(first_model, n_p) {
     paste(c(
       '#### Analysis with the multinomineq package ####',
       '# Put this script in one folder with the files of this download:',
       '#   A_<model>.csv, b_<model>.csv   H-representation',
+      '#   map_<model>.csv                only with equal probabilities',
       '#   V_<model>.csv                  V-representation (optional)',
       '#   data_choices*.csv              your data (see below)',
       '# Then run the whole script. It analyses EVERY model in the',
@@ -16409,6 +16432,13 @@ server <- shinyServer(function(input, output, session) {
       '# posterior.csv (estimates of the probabilities) and',
       '# results.html (the main results as a web page).',
       '# Package: https://www.dwheck.de/software/multinomineq/',
+      '#',
+      '# Equalities: multinomineq needs a model with positive volume.',
+      '# Exact equalities between two probabilities (p1 = p2) are',
+      '# handled: the files have fewer columns, and map_<model>.csv',
+      '# says which probabilities are equal. Other exact equalities',
+      '# (p1 = 0.3, p1 = p2 + p3) give volume zero: set them to',
+      '# "Approximate" in the app before you download.',
       '#',
       '# Your data: open the data file(s) next to this script and',
       '# replace the example numbers by your own (or enter them in the',
@@ -16473,14 +16503,34 @@ server <- shinyServer(function(input, output, session) {
       '  }',
       '  if (!nzchar(note) && any(c(out$bf_0u, out$bf_00) == 0,',
       '                           na.rm = TRUE))',
-      '    note <- "estimate 0: no sample inside the model (final <- TRUE)"',
+      '    note <- paste("The estimate is 0: no sample fell inside the",',
+      '                  "model, so the true value is very small but not",',
+      '                  "0. Set final <- TRUE for a more precise value.")',
+      '  if (!nzchar(note) && is.finite(out$bf_0u) && !is.finite(out$bf_00))',
+      '    note <- paste("No Bayes factor against the complement for this",',
+      '                  "model (it is only defined without equalities).")',
       '  out$note <- note',
       '  out',
       '}',
       'empty_bf <- matrix(NA_real_, 3, 4, dimnames = list(',
       '  c("bf_0u", "bf_u0", "bf_00\'"), c("bf", "se", "ci.5%", "ci.95%")))',
       '',
-      'no_result <- "no estimate: volume zero? (exact equalities)"',
+      '# plain explanations for models that cannot be computed',
+      'no_result <- paste("No result: the model most likely has volume",',
+      '  "zero (exact equalities such as p1 = 0.3), so there is nothing",',
+      '  "to sample from. In the app set such equalities to",',
+      '  "Approximate and download the files again.")',
+      'friendly <- function(msg) {',
+      '  if (grepl("Truncation|min<max|boundar", msg))',
+      '    return(paste("The sampler could not start. The model probably",',
+      '      "has volume zero (exact equalities) or is extremely thin:",',
+      '      "use Approximate equalities in the app and download again.",',
+      '      "Technical message:", msg))',
+      '  if (grepl("data file|needs one row|cannot be larger", msg))',
+      '    return(msg)',
+      '  paste("Unexpected problem:", msg, "- check that all files of",',
+      '        "the download are in this folder.")',
+      '}',
       '# labels like p_{1}^{(2)} as plotmath for the plot titles',
       'to_plotmath <- function(x) {',
       '  gsub("_[{]([^}]*)[}]", "[\\\\1]", x)   # ^{...} is plotmath already',
@@ -16553,14 +16603,23 @@ server <- shinyServer(function(input, output, session) {
       '                      stringsAsFactors = FALSE)',
       '    V <- read_q(V_raw); colnames(V) <- colnames(V_raw)',
       '  }',
-      '  n_p <- if (!is.null(A)) ncol(A) else ncol(V)',
+      '  # equal probabilities: map says which parameter each belongs to',
+      '  file_map <- paste0("map_", model_name, ".csv")',
+      '  n_free <- if (!is.null(A)) ncol(A) else ncol(V)',
+      '  map <- if (file.exists(file_map)) {',
+      '    read.csv(file_map, header = FALSE)[[1]]',
+      '  } else seq_len(n_free)',
+      '  n_p <- length(map)',
       '',
       '  # your data for this number of probabilities',
       '  data_file <- c(paste0("data_model_", model_name, ".csv"),',
       '                 paste0("data_choices_", n_p, "_probabilities.csv"),',
       '                 "data_choices.csv")',
       '  data_file <- data_file[file.exists(data_file)][1]',
-      '  if (is.na(data_file)) stop("no data file found")',
+      '  if (is.na(data_file))',
+      '    stop("No data file found for model ", model_name, ": expected",',
+      '         " data_choices.csv or data_model_", model_name,',
+      '         ".csv next to this script.")',
       '  dat <- read.csv(data_file, stringsAsFactors = FALSE)',
       '  n <- dat$n',
       '  choices <- dat$frequency',
@@ -16570,20 +16629,24 @@ server <- shinyServer(function(input, output, session) {
       '  if (any(choices > n))',
       '    stop("In ", data_file, ": frequency cannot be larger than n.")',
       '',
+      '  # equal probabilities share one parameter: add up their counts',
+      '  k_use <- as.vector(tapply(choices, map, sum))',
+      '  n_use <- as.vector(tapply(n, map, sum))',
       '  rows <- list(); post <- list(); dg <- list(); note <- ""',
       '  one <- function(rep, ...) {',
-      '    p <- tryCatch(sampling_binom(k = choices, n = n, ...,',
+      '    p <- tryCatch(sampling_binom(k = k_use, n = n_use, ...,',
       '      prior = prior, M = M_post, progress = FALSE),',
       '      error = function(e) NULL)',
       '    if (is.null(p)) {',
-      '      note <<- "posterior not available: volume zero?"',
+      '      note <<- paste("No posterior: the sampler could not start",',
+      '        "(probably volume zero, see the explanation above).")',
       '    } else {',
       '      labs <- colnames(if (rep == "V") V else A)',
       '      post[[rep]] <<- post_rows(model_name, rep, p, labs)',
       '      dg[[rep]] <<- diag_rows(model_name, rep, p, labs)',
       '      if (plots) plot(p)',
       '    }',
-      '    bf <- bf_binom(k = choices, n = n, ..., prior = prior,',
+      '    bf <- bf_binom(k = k_use, n = n_use, ..., prior = prior,',
       '                   M = M_bf, progress = FALSE)',
       '    rows[[rep]] <<- bf_row(model_name, rep, bf,',
       '      if (is.finite(bf["bf_0u", "bf"])) note else no_result)',
@@ -16606,7 +16669,7 @@ server <- shinyServer(function(input, output, session) {
       '# every model is shown as soon as it is done',
       'runs <- lapply(models, function(m) {',
       '  res <- tryCatch(analyse(m), error = function(e) {',
-      '    list(bf = bf_row(m, NA, empty_bf, conditionMessage(e)),',
+      '    list(bf = bf_row(m, NA, empty_bf, friendly(conditionMessage(e))),',
       '         posterior = NULL, diag = NULL)',
       '  })',
       '  cat("\\n==== Model", m, "====\\n")',
@@ -16716,7 +16779,12 @@ server <- shinyServer(function(input, output, session) {
       '# the page of one model: Bayes factors, posterior, diagnostics',
       'model_page <- function(m) {',
       '  r <- results$model == m',
-      '  out <- c(paste0("<h2>", esc(m), "</h2>"), "<h3>Bayes factors</h3>",',
+      '  nt <- unique(results$note[results$model == m])',
+      '  nt <- nt[nzchar(nt)]',
+      '  out <- c(paste0("<h2>", esc(m), "</h2>"),',
+      '           if (length(nt) > 0) paste0("<p class=problem><b>Note:</b> ",',
+      '                                      esc(nt), "</p>"),',
+      '           "<h3>Bayes factors</h3>",',
       '           "<p class=small>Note: empty when all went well, otherwise",',
       '           "the reason why a value is missing or unreliable.</p>",',
       '           html_table(key[r, -1, drop = FALSE],',
@@ -16769,6 +16837,8 @@ server <- shinyServer(function(input, output, session) {
       '  ".b2{background:rgba(229,72,77,.24)}",',
       '  ".b1{background:#d6383d;color:#fff}",',
       '  ".warn{background:rgba(245,158,11,.28)}",',
+      '  ".problem{background:rgba(245,158,11,.18);padding:8px 12px;",',
+      '  "border-left:4px solid #f59e0b;border-radius:4px;margin:.8em 0}",',
       '  "input[name=tab]{display:none}",',
       '  "nav{display:flex;flex-wrap:wrap;gap:4px;margin-top:1em;",',
       '  "border-bottom:1px solid var(--line)}",',
@@ -16825,7 +16895,12 @@ server <- shinyServer(function(input, output, session) {
       '  "Otherwise it says why a value is missing or unreliable, e.g.",',
       '  "exact equalities (the model has volume zero, use Approximate in",',
       '  "the app) or no sample inside the model (use more samples).</p>",',
-      '  legend, html_table(key, key_cls), "</section>")',
+      '  legend, html_table(key, key_cls),',
+      '  if (any(nzchar(results$note))) c("<h3>Models with a note</h3>",',
+      '    paste0("<p class=problem><b>",',
+      '           esc(results$model[nzchar(results$note)]), "</b>: ",',
+      '           esc(results$note[nzchar(results$note)]), "</p>")),',
+      '  "</section>")',
       'for (i in seq_along(mods)) {',
       '  page <- c(page, paste0("<section class=p", i + 1, ">"),',
       '            model_page(mods[i]), "</section>")',
@@ -17358,6 +17433,20 @@ server <- shinyServer(function(input, output, session) {
         # ordinary inequality rows -- no other change needed here,
         # since from this point on every row is already treated as a
         # plain "A.p <= b" row regardless of where it came from.
+        lab_full <- colnames(A)[-(1:2)]
+        k_full <- length(lab_full)
+        # equalities p_i = p_j: one free parameter for the equal probabilities (map file), other equalities stay as below
+        red <- mn_reduce_equalities(q2d(A))
+        map_mn <- NULL
+        if (!is.null(red)) {
+          coefs <- q2d(A)[red$keep, -(1:2), drop = FALSE]
+          newc <- matrix(unlist(lapply(seq_along(red$groups), function(g) rowSums(coefs[, red$map == g, drop = FALSE]))), nrow = nrow(coefs))
+          grp_lab <- vapply(seq_along(red$groups), function(g) paste(lab_full[red$map == g], collapse = " = "), character(1))
+          A2 <- cbind(A[red$keep, 1:2, drop = FALSE], d2q(newc))
+          colnames(A2) <- c(colnames(A)[1:2], grp_lab)
+          A <- A2
+          map_mn <- red$map
+        }
         h_num_mn <- q2d(A)
         is_eq_mn <- h_num_mn[, 1] == 1
         if (any(is_eq_mn)) {
@@ -17372,8 +17461,8 @@ server <- shinyServer(function(input, output, session) {
         A <- d2q(-1 * q2d(A))
         names_A <- colnames(A)
         colnames(A) <- names_A
-        gkey <- if (export_names[loop_qtest_h] %in% isolate(items_reactive$names)) paste0("m:", export_names[loop_qtest_h]) else paste0("k:", ncol(A))
-        if (is.null(np_groups[[gkey]])) np_groups[[gkey]] <- list(k = ncol(A), labels = names_A, stem = export_files[loop_qtest_h])
+        gkey <- if (export_names[loop_qtest_h] %in% isolate(items_reactive$names)) paste0("m:", export_names[loop_qtest_h]) else paste0("k:", k_full)
+        if (is.null(np_groups[[gkey]])) np_groups[[gkey]] <- list(k = k_full, labels = lab_full, stem = export_files[loop_qtest_h])
 
         fileName <-
           paste("A_", export_files[loop_qtest_h], ".csv", sep = "")
@@ -17388,6 +17477,12 @@ server <- shinyServer(function(input, output, session) {
         )
 
         files <- c(fileName, files)
+
+        if (!is.null(map_mn)) {
+          fileName <- paste0("map_", export_files[loop_qtest_h], ".csv")
+          write.table(map_mn, fileName, quote = FALSE, col.names = FALSE, row.names = FALSE, sep = ",")
+          files <- c(fileName, files)
+        }
 
         fileName <-
           paste("b_", export_files[loop_qtest_h], ".csv", sep = "")
@@ -17553,6 +17648,17 @@ server <- shinyServer(function(input, output, session) {
         gkey <- paste0("k:", ncol(current_model))
         if (is.null(np_groups[[gkey]])) np_groups[[gkey]] <- list(k = ncol(current_model), labels = colnames(current_model), stem = NULL)
 
+        # columns that are identical at every vertex are equal probabilities: one free parameter (map file)
+        key_cols <- apply(current_model, 2, paste, collapse = "|")
+        map_v <- NULL
+        if (anyDuplicated(key_cols) > 0 && length(unique(key_cols)) >= 1) {
+          uk <- unique(key_cols)
+          map_v <- match(key_cols, uk)
+          lab_g <- vapply(seq_along(uk), function(g) paste(colnames(current_model)[map_v == g], collapse = " = "), character(1))
+          current_model <- current_model[, !duplicated(key_cols), drop = FALSE]
+          colnames(current_model) <- lab_g
+        }
+
         fileName <-
           paste0("V_", safe_file_name(download_v_names[loop_v_qtest]), ".csv")
 
@@ -17566,6 +17672,11 @@ server <- shinyServer(function(input, output, session) {
         )
 
         files <- c(fileName, files)
+        if (!is.null(map_v)) {
+          fileName <- paste0("map_", safe_file_name(download_v_names[loop_v_qtest]), ".csv")
+          write.table(map_v, fileName, quote = FALSE, col.names = FALSE, row.names = FALSE, sep = ",")
+          files <- c(fileName, files)
+        }
       }
 
       # the matching R script for multinomineq (reads the files next to it)
