@@ -1656,7 +1656,9 @@ ui <- shinyUI(fluidPage(
       #fairy-run-cancel.fairy-run-nudge { border-color: var(--fairy-primary, #3a6df0); color: var(--fairy-primary, #3a6df0); animation: fairy-run-nudge 1.6s ease-in-out infinite; }
       @media (prefers-reduced-motion: reduce) { #fairy-run-cancel.fairy-run-nudge { animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--fairy-primary, #3a6df0) 35%, transparent); } }
       .fairy-run-cell.st-cancel { color: #b05000; }
-      .fairy-run-cell.st-na { color: var(--fairy-text-muted, #667085); }
+      .fairy-run-cell.st-na, .fairy-run-cell.st-skip { color: var(--fairy-text-muted, #667085); }
+      .fairy-run-skip { margin-left: 10px; padding: 0 8px; min-height: 22px; font-size: 12px; font-weight: 600; border: 1px solid var(--fairy-border, #e2e6ee); border-radius: 6px; background: transparent; color: var(--fairy-text-muted, #667085); cursor: pointer; }
+      .fairy-run-skip:hover { color: var(--fairy-primary, #3a6df0); border-color: var(--fairy-primary, #3a6df0); }
       .fairy-run-cell.st-stop { color: #b05000; }
       #fairy-run-close:focus-visible { outline: 3px solid var(--fairy-primary, #3a6df0); outline-offset: 2px; }
       @media (prefers-reduced-motion: reduce) {
@@ -4258,10 +4260,10 @@ ui <- shinyUI(fluidPage(
       // Large run window: a table of all models with an H and a V state each,
       // updated in place. Opens once per Go click, stays until closed.
       (function() {
-        var LABEL = { wait: 'waiting', run: 'computing', done: 'done', cached: 'unchanged', warn: 'empty set', fail: 'failed', cancel: 'cancelled', na: 'not available', stop: 'stopped', step: 'computing (stepwise)' };
-        var ICON  = { wait: '\\u25CB', run: '\\u25D0', done: '\\u2713', cached: '\\u2713', warn: '\\u26A0', fail: '\\u2715', cancel: '\\u2715', na: '\\u2013', stop: '\\u25A0', step: '\\u25D0' };
+        var LABEL = { wait: 'waiting', run: 'computing', done: 'done', cached: 'unchanged', warn: 'empty set', fail: 'failed', cancel: 'cancelled', na: 'not available', stop: 'stopped', step: 'computing (stepwise)', skip: 'skipped' };
+        var ICON  = { wait: '\\u25CB', run: '\\u25D0', done: '\\u2713', cached: '\\u2713', warn: '\\u26A0', fail: '\\u2715', cancel: '\\u2715', na: '\\u2013', stop: '\\u25A0', step: '\\u25D0', skip: '\\u2013' };
         var rows = {}, showTimer = null, idleTimer = null, shown = false, dismissed = false, everRan = false, running = false;
-        var cancelable = false, t0 = 0, tick = null, cancelInput = 'v_cancel', ncols = 2, limitSec = 0, noLimit = false, limitLabel = 'exact volume', dustClicks = [];
+        var cancelable = false, t0 = 0, tick = null, cancelInput = 'v_cancel', ncols = 2, skippable = false, limitSec = 0, noLimit = false, limitLabel = 'exact volume', dustClicks = [];
         // Safety net: if the run dies without a final message (an R error in
         // the middle of a Go), offer the Close button after 45 s of silence.
         function armIdle() {
@@ -4289,6 +4291,12 @@ ui <- shinyUI(fluidPage(
             var tr = document.createElement('tr');
             var tn = document.createElement('td'); tn.className = 'fairy-run-name'; tn.textContent = name;
             tr.appendChild(tn);
+            if (skippable) {
+              var sb = document.createElement('button'); sb.type = 'button'; sb.className = 'fairy-run-skip'; sb.textContent = 'skip';
+              sb.title = 'Skip this model: it is not analysed';
+              sb.addEventListener('click', function() { if (window.Shiny) Shiny.setInputValue('mn_skip_model', name, { priority: 'event' }); });
+              tn.appendChild(sb);
+            }
             var cells = [];
             for (var ci = 0; ci < ncols; ci++) { var tc = document.createElement('td'); noneCell(tc); tr.appendChild(tc); cells.push(tc); }
             $id('fairy-run-body').appendChild(tr);
@@ -4303,12 +4311,17 @@ ui <- shinyUI(fluidPage(
         }
         function refresh() {
           var total = 0, done = 0, bad = 0;
+          // the skip button of a row is only there while something of that row is still to be done
+          Object.keys(rows).forEach(function(n) {
+            var sbtn = rows[n].name.querySelector('.fairy-run-skip');
+            if (sbtn) sbtn.style.display = rows[n].cells.some(function(c) { var st = c.getAttribute('data-state'); return st === 'wait' || st === 'run' || st === 'step'; }) ? '' : 'none';
+          });
           Object.keys(rows).forEach(function(n) {
             rows[n].cells.forEach(function(cell) {
               var st = cell.getAttribute('data-state');
               if (st === 'none') return;
               total++;
-              if (st === 'done' || st === 'cached' || st === 'warn' || st === 'fail' || st === 'cancel' || st === 'na' || st === 'stop') done++;
+              if (st === 'done' || st === 'cached' || st === 'warn' || st === 'fail' || st === 'cancel' || st === 'na' || st === 'stop' || st === 'skip') done++;
               if (st === 'warn' || st === 'fail' || st === 'cancel') bad++;
             });
           });
@@ -4333,6 +4346,7 @@ ui <- shinyUI(fluidPage(
           var htr = document.querySelector('.fairy-run-table thead tr');
           htr.innerHTML = '';
           ['Model'].concat(cols).forEach(function(t) { var th = document.createElement('th'); th.textContent = t; htr.appendChild(th); });
+          skippable = !!(msg && msg.skippable);
           cancelInput = 'v_cancel'; limitLabel = 'exact volume'; $id('fairy-run-cancel').textContent = 'Cancel';
           $id('fairy-run-title').textContent = (msg && msg.title) ? msg.title : 'Calculating';
           $id('fairy-run-note').innerHTML = '';
@@ -7472,8 +7486,8 @@ server <- shinyServer(function(input, output, session) {
   # fail). It stays on screen until the user closes it. Rows are created on
   # first use, so intersections, mixtures and items models simply appear when
   # their phase starts.
-  fairy_run_begin <- function(title = "Calculating", cols = c("H-representation", "V-representation")) {
-    session$sendCustomMessage("fairy_run_begin", list(title = title, cols = as.list(cols)))
+  fairy_run_begin <- function(title = "Calculating", cols = c("H-representation", "V-representation"), skippable = FALSE) {
+    session$sendCustomMessage("fairy_run_begin", list(title = title, cols = as.list(cols), skippable = skippable))
   }
   fairy_run_row <- function(name, kind = NULL, h = NULL, v = NULL) {
     msg <- Filter(Negate(is.null), list(name = as.character(name), kind = kind, h = h, v = v))
@@ -17457,7 +17471,7 @@ server <- shinyServer(function(input, output, session) {
       'library("rcdd")',
       'library("multinomineq")',
       'library("coda")',
-      'set.seed(1234)',
+      'seed <- 1234   # makes a run repeatable; every model gets its own random numbers',
       '',
       '# In RStudio: work in the folder of this script',
       'try({',
@@ -17684,7 +17698,10 @@ server <- shinyServer(function(input, output, session) {
       '      if (!is.null(bf2) && is.finite(bf2["bf_0u", "bf"])) {',
       '        bf <- bf2',
       '        note <<- paste("The model has a very small volume:",',
-      '                       "computed stepwise (less precise, see se).")',
+      '                       "computed stepwise (less precise, see se).",',
+      '                       "For a more precise value use more samples (in the",',
+      '                       "app: Data & settings, Number of samples; in the",',
+      '                       "script: M_bf).")',
       '      }',
       '    }',
       '    rows[[rep]] <<- bf_row(model_name, rep, bf,',
@@ -17705,9 +17722,15 @@ server <- shinyServer(function(input, output, session) {
       '       " script in the folder with the downloaded files (RStudio:",',
       '       " Session > Set Working Directory > To Source File Location).")',
       'cat("Models found:", paste(models, collapse = ", "), "\\n")',
-      '# every model is shown as soon as it is done',
-      'runs <- lapply(seq_along(models), function(i) {',
+      '# Optional arguments (the app uses them to run every model in its own',
+      '# process; without arguments the script analyses all models):',
+      '#   only=<model>   analyse this model and save res_<model>.rds',
+      '#   report         build the tables and results.html from the res_*.rds',
+      'args <- commandArgs(TRUE)',
+      'only <- sub("^only=", "", args[grepl("^only=", args)])',
+      'run_one <- function(i) {',
       '  m <- models[i]',
+      '  set.seed(seed + i)',
       '  cur$i <- i; cur$n <- length(models); cur$model <- m',
       '  status("starting")',
       '  res <- tryCatch(analyse(m), error = function(e) {',
@@ -17720,7 +17743,21 @@ server <- shinyServer(function(input, output, session) {
       '  if (!is.null(res$posterior))',
       '    print(res$posterior[, -1], row.names = FALSE)',
       '  res',
-      '})',
+      '}',
+      'skipped <- character(0)',
+      'if (length(only) == 1) {',
+      '  saveRDS(run_one(match(only, models)), paste0("res_", only, ".rds"))',
+      '  quit(save = "no")',
+      '}',
+      'if ("report" %in% args) {',
+      '  have <- models[file.exists(paste0("res_", models, ".rds"))]',
+      '  skipped <- setdiff(models, have)',
+      '  if (file.exists("skipped.txt")) skipped <- union(skipped, readLines("skipped.txt"))',
+      '  runs <- lapply(have, function(m) readRDS(paste0("res_", m, ".rds")))',
+      '} else {',
+      '  # every model is shown as soon as it is done',
+      '  runs <- lapply(seq_along(models), run_one)',
+      '}',
       'results <- do.call(rbind, lapply(runs, `[[`, "bf"))',
       'posterior <- do.call(rbind, lapply(runs, `[[`, "posterior"))',
       'diags <- unlist(lapply(runs, `[[`, "diag"), recursive = FALSE)',
@@ -17992,15 +18029,18 @@ server <- shinyServer(function(input, output, session) {
       '  paste0("<p>multinomineq analysis, ",',
       '         format(Sys.time(), "%Y-%m-%d %H:%M %Z"), " | prior Beta(",',
       '         prior[1], ", ", prior[2], ") | ", M_bf,',
-      '         " samples for the Bayes factors | R package multinomineq ",',
+      '         " samples for the Bayes factors | multinomineq ",',
       '         as.character(utils::packageVersion("multinomineq")),',
-      '         " (Heck &amp; Davis-Stober, 2019)</p></header><main>"),',
+      '         "</p></header><main>"),',
       '  paste0("<input type=radio name=tab id=tab", tabs,',
       '         c(" checked", rep("", n_tab - 1)), ">"),',
       '  "<nav><label for=tab1>Overview</label>",',
       '  paste0("<label for=tab", tabs[-1], ">",',
       '         esc(short_name(mods)), "</label>"),',
       '  "</nav>",',
+      '  if (length(skipped) > 0) paste0("<p class=problem><b>Not analysed",',
+      '    " (skipped or stopped):</b> ", esc(paste(skipped, collapse = ", ")),',
+      '    "</p>"),',
       '  "<section class=p1><h2>Bayes factors of all models</h2>",',
       '  "<p class=small>A value above 1 favours the model. se =",',
       '  "Monte-Carlo error; &lt; x: no sample fell inside the model,",',
@@ -18199,7 +18239,7 @@ server <- shinyServer(function(input, output, session) {
     ln <- sub("^burnin_post <- [0-9.]+", paste0("burnin_post <- ", fmt(g("bp", 10))), ln)
     ln <- sub("^burnin_bf <- [0-9.]+", paste0("burnin_bf <- ", fmt(g("bb", 5))), ln)
     ln <- sub("^prior <- c\\(1, 1\\)", paste0("prior <- c(", fmt(g("pa", 1)), ", ", fmt(g("pb", 1)), ")"), ln)
-    ln <- sub("^set.seed\\(1234\\)", paste0("set.seed(", fmt(round(g("seed", 1234))), ")"), ln)
+    ln <- sub("^seed <- 1234", paste0("seed <- ", fmt(round(g("seed", 1234)))), ln)
     paste(ln, collapse = "\n")
   }
   mn_share <- reactiveVal(list())   # unpacked model (key m:<name>) -> TRUE: uses the numbers of the models with the same number of probabilities
@@ -18443,103 +18483,169 @@ server <- shinyServer(function(input, output, session) {
         unlink(file.path(d, paste0(c("A_", "b_", "V_", "map_"), st, ".csv")))
       TRUE
     }, error = function(e) FALSE)
-    p <- if (isTRUE(prep)) tryCatch(
-      processx::process$new(file.path(R.home("bin"), "Rscript"), "analysis_multinomineq.R", wd = d,
-                            stdout = file.path(d, "out.txt"), stderr = "2>&1", cleanup_tree = TRUE),
-      error = function(e) NULL) else NULL
-    if (is.null(p)) {
+    if (!isTRUE(prep)) {
       showNotification("The analysis could not be started. Download the files and run the script in R.", type = "error", duration = NULL)
       return()
     }
-    mn_proc$p <- p; mn_proc$dir <- d; mn_proc$start <- Sys.time(); mn_proc$status <- "starting ..."
-    mn_proc$elapsed <- 0; mn_proc$limit <- if (isTRUE(mn_nolimit())) Inf else 900
-    # the same run window as everywhere else: one row per model, a column for each step
-    mn_rows <- vapply(sel, function(x) if (nchar(x) > 40) paste0(substr(x, 1, 37), "...") else x, character(1), USE.NAMES = FALSE)
-    mn_proc$rows <- unique(mn_rows)
+    # every model runs in its own R process (one after the other), so a single model can be skipped; at the end the page with the results
+    # is built from what is finished (the same script, started with only=<model> and with report)
+    short_row <- function(x) if (nchar(x) > 40) paste0(substr(x, 1, 37), "...") else x
+    mn_proc$dir <- d; mn_proc$stems <- sel; mn_proc$row_of <- stats::setNames(vapply(sel, short_row, character(1)), sel)
+    mn_proc$queue <- sel; mn_proc$procs <- list(); mn_proc$phase <- "models"; mn_proc$report_p <- NULL
+    mn_proc$skipped <- character(0); mn_proc$failed <- character(0); mn_proc$last <- list()
+    mn_proc$start <- Sys.time(); mn_proc$elapsed <- 0; mn_proc$limit <- if (isTRUE(mn_nolimit())) Inf else 900
+    mn_proc$parallel <- isTRUE(isolate(input$use_parallel))
+    mn_proc$active <- TRUE
+    # the same run window as everywhere else: one row per model, a column for each step, a skip button per row
     run_cols(c("Posterior", "Bayes factors"))
-    fairy_run_begin("Running the analysis", c("Posterior", "Bayes factors"))
-    for (m in mn_proc$rows) { fairy_run_cell(m, "Posterior", "wait"); fairy_run_cell(m, "Bayes factors", "wait") }
-    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "mn_cancel", label = "Cancel"))
+    fairy_run_begin("Running the analysis", c("Posterior", "Bayes factors"), skippable = TRUE)
+    for (m in mn_proc$row_of) { fairy_run_cell(m, "Posterior", "wait"); fairy_run_cell(m, "Bayes factors", "wait") }
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "mn_cancel", label = "Cancel all"))
     session$sendCustomMessage("fairy_run_limit", list(seconds = if (is.finite(mn_proc$limit)) mn_proc$limit else 0, nolimit = !is.finite(mn_proc$limit), label = "analysis"))
   })
-  # the analysis runs in its own process, so the window stays alive: it shows what is being computed and can be cancelled
-  mn_proc <- reactiveValues(p = NULL, dir = NULL, start = NULL, status = "", elapsed = 0, limit = 900, rows = character(0), seen = character(0))
-  observe({
-    p <- mn_proc$p
-    if (is.null(p)) return()
-    invalidateLater(1000)
-    el <- as.numeric(difftime(Sys.time(), isolate(mn_proc$start), units = "secs"))
-    d <- isolate(mn_proc$dir)
-    out <- tryCatch(readLines(file.path(d, "out.txt"), warn = FALSE), error = function(e) character(0))
+  mn_proc <- reactiveValues(active = FALSE, dir = NULL, start = NULL, elapsed = 0, limit = 900, stems = character(0), row_of = NULL,
+                            queue = character(0), procs = list(), phase = "models", report_p = NULL, skipped = character(0),
+                            failed = character(0), last = list(), parallel = FALSE)
+  mn_rscript <- function(d, args, out) {
+    tryCatch(processx::process$new(file.path(R.home("bin"), "Rscript"), c("analysis_multinomineq.R", args), wd = d,
+                                   stdout = file.path(d, out), stderr = "2>&1", cleanup_tree = TRUE), error = function(e) NULL)
+  }
+  mn_end_ui <- function() {
+    session$sendCustomMessage("fairy_run_cancelable", list(on = FALSE))
+    session$sendCustomMessage("fairy_run_limit", list(seconds = 0))
+  }
+  mn_kill_all <- function() {
+    for (p in isolate(mn_proc$procs)) try(p$kill_tree(), silent = TRUE)
+    rp <- isolate(mn_proc$report_p); if (!is.null(rp)) try(rp$kill_tree(), silent = TRUE)
+    mn_proc$procs <- list(); mn_proc$report_p <- NULL; mn_proc$queue <- character(0)
+  }
+  # the window state of one model from the progress lines of its process
+  mn_model_cells <- function(m, out) {
+    row <- isolate(mn_proc$row_of)[[m]]
     st <- grep("^\\[[0-9]+/[0-9]+\\] ", out, value = TRUE)
-    if (length(st) > 0) mn_proc$status <- tail(st, 1)
+    if (length(st) == 0) return(invisible())
+    step <- sub("^\\[[0-9]+/[0-9]+\\] [^:]*: ", "", tail(st, 1))
+    key <- paste(m, step)
+    if (identical(isolate(mn_proc$last)[[m]], key)) return(invisible())   # nothing new
+    mn_proc$last[[m]] <- key
+    if (grepl("posterior", step, ignore.case = TRUE)) {
+      fairy_run_cell(row, "Posterior", "run")
+    } else {
+      fairy_run_cell(row, "Posterior", "done")
+      # a very small model: no sample fell inside it, the package then works one constraint at a time
+      fairy_run_cell(row, "Bayes factors", if (grepl("stepwise", step, fixed = TRUE)) "step" else "run")
+    }
+  }
+  observe({
+    if (!isTRUE(mn_proc$active)) return()
+    invalidateLater(500)
+    d <- isolate(mn_proc$dir)
+    el <- as.numeric(difftime(Sys.time(), isolate(mn_proc$start), units = "secs"))
     mn_proc$elapsed <- el
-    # states of the run window from the progress lines "[i/n] model: step": the model of the last line is the one that runs now,
-    # the models before it are done
-    parsed <- regmatches(st, regexec("^\\[([0-9]+)/([0-9]+)\\] ([^:]*): (.*)$", st))
-    if (length(parsed) > 0) {
-      last <- parsed[[length(parsed)]]
-      cur_model <- last[4]; step <- last[5]
-      seen <- unique(vapply(parsed, function(x) x[4], character(1)))
-      for (m in setdiff(seen, cur_model)) if (!(m %in% isolate(mn_proc$seen))) {
-        fairy_run_cell(m, "Posterior", "done"); fairy_run_cell(m, "Bayes factors", "done")
+    row_of <- isolate(mn_proc$row_of)
+    if (identical(isolate(mn_proc$phase), "models")) {
+      procs <- isolate(mn_proc$procs); queue <- isolate(mn_proc$queue)
+      for (m in names(procs)) {
+        out <- tryCatch(readLines(file.path(d, paste0("out_", m, ".txt")), warn = FALSE), error = function(e) character(0))
+        if (procs[[m]]$is_alive()) { mn_model_cells(m, out); next }
+        if (file.exists(file.path(d, paste0("res_", m, ".rds")))) {
+          fairy_run_cell(row_of[[m]], "Posterior", "done"); fairy_run_cell(row_of[[m]], "Bayes factors", "done")
+        } else {
+          fairy_run_cell(row_of[[m]], "Posterior", "fail"); fairy_run_cell(row_of[[m]], "Bayes factors", "fail")
+          mn_proc$failed <- c(isolate(mn_proc$failed), paste0(m, ": ", paste(tail(out, 2), collapse = " ")))
+        }
+        procs[[m]] <- NULL
       }
-      mn_proc$seen <- setdiff(seen, cur_model)
-      if (grepl("posterior", step, ignore.case = TRUE)) {
-        fairy_run_cell(cur_model, "Posterior", "run")
-      } else {
-        fairy_run_cell(cur_model, "Posterior", "done")
-        # a very small model: no sample fell inside it, the package then works one constraint at a time
-        fairy_run_cell(cur_model, "Bayes factors", if (grepl("stepwise", step, fixed = TRUE)) "step" else "run")
+      max_run <- if (isTRUE(isolate(mn_proc$parallel))) length(isolate(mn_proc$stems)) else 1L
+      while (length(queue) > 0 && length(procs) < max_run) {
+        m <- queue[1]; queue <- queue[-1]
+        pr <- mn_rscript(d, paste0("only=", m), paste0("out_", m, ".txt"))
+        if (is.null(pr)) {
+          fairy_run_cell(row_of[[m]], "Posterior", "fail"); fairy_run_cell(row_of[[m]], "Bayes factors", "fail")
+          mn_proc$failed <- c(isolate(mn_proc$failed), paste0(m, ": could not be started"))
+        } else {
+          procs[[m]] <- pr
+          fairy_run_cell(row_of[[m]], "Posterior", "run")
+        }
+      }
+      mn_proc$procs <- procs; mn_proc$queue <- queue
+      if (el > isolate(mn_proc$limit)) {
+        # the time is over: what is still running or waiting is stopped, the finished models are reported
+        for (m in c(names(procs), queue)) {
+          if (!is.null(procs[[m]])) try(procs[[m]]$kill_tree(), silent = TRUE)
+          fairy_run_cell(row_of[[m]], "Posterior", "stop"); fairy_run_cell(row_of[[m]], "Bayes factors", "stop")
+          mn_proc$skipped <- c(isolate(mn_proc$skipped), m)
+        }
+        mn_proc$procs <- list(); mn_proc$queue <- character(0)
+        procs <- list(); queue <- character(0)
+      }
+      if (length(procs) == 0 && length(queue) == 0) {
+        mn_end_ui()
+        have <- file.exists(file.path(d, paste0("res_", isolate(mn_proc$stems), ".rds")))
+        if (!any(have)) {
+          mn_proc$active <- FALSE
+          fe <- isolate(mn_proc$failed)
+          fairy_run_end(paste0("<b>No model was analysed.</b> ", if (length(fe)) htmltools::htmlEscape(paste(fe, collapse = " | ")) else "All models were skipped or stopped."))
+          return()
+        }
+        writeLines(isolate(mn_proc$skipped), file.path(d, "skipped.txt"))
+        mn_proc$phase <- "report"
+        mn_proc$report_p <- mn_rscript(d, "report", "out_report.txt")
+        if (is.null(isolate(mn_proc$report_p))) {
+          mn_proc$active <- FALSE
+          fairy_run_end("<b>The results page could not be built.</b> Download the files and run the script in R.")
+        }
+      }
+    } else {
+      rp <- isolate(mn_proc$report_p)
+      if (!is.null(rp) && !rp$is_alive()) {
+        mn_proc$active <- FALSE; mn_proc$report_p <- NULL
+        if (file.exists(file.path(d, "results.html"))) {
+          mn_result$dir <- d
+          mn_result$time <- Sys.time()
+          fairy_run_hide()
+          show_mn_results()
+          fe <- isolate(mn_proc$failed)
+          if (length(fe)) showNotification(paste("Not every model could be analysed:", paste(fe, collapse = " | ")), type = "warning", duration = 12)
+        } else {
+          out <- tryCatch(readLines(file.path(d, "out_report.txt"), warn = FALSE), error = function(e) character(0))
+          fairy_run_end(paste0("<b>The results page could not be built:</b> ", htmltools::htmlEscape(paste(tail(out, 3), collapse = " "))))
+        }
       }
     }
-    mn_end <- function() {
-      session$sendCustomMessage("fairy_run_cancelable", list(on = FALSE))
-      session$sendCustomMessage("fairy_run_limit", list(seconds = 0))
-    }
-    if (!p$is_alive()) {
-      mn_proc$p <- NULL
-      mn_end()
-      if (file.exists(file.path(d, "results.html"))) {
-        mn_result$dir <- d
-        mn_result$time <- Sys.time()
-        fairy_run_hide()
-        show_mn_results()
-      } else {
-        fairy_run_end(paste0("<b>The analysis did not finish:</b> ", htmltools::htmlEscape(paste(tail(out, 3), collapse = " "))))
-      }
-    } else if (el > isolate(mn_proc$limit)) {
-      try(p$kill_tree(), silent = TRUE)
-      mn_proc$p <- NULL
-      mn_end()
-      for (m in isolate(mn_proc$rows)) { fairy_run_cell(m, "Posterior", "stop"); fairy_run_cell(m, "Bayes factors", "stop") }
-      fairy_run_end("<b>Stopped:</b> the analysis took too long. Try fewer models, or download the files and run the script on your own computer.")
-    }
+  })
+  # a single model is skipped: its process is stopped (or it is taken out of the queue), the others go on
+  observeEvent(input$mn_skip_model, {
+    if (!isTRUE(isolate(mn_proc$active)) || !identical(isolate(mn_proc$phase), "models")) return()
+    row_of <- isolate(mn_proc$row_of)
+    m <- names(row_of)[match(input$mn_skip_model, unname(row_of))]
+    if (is.na(m)) return()
+    procs <- isolate(mn_proc$procs)
+    if (!is.null(procs[[m]])) { try(procs[[m]]$kill_tree(), silent = TRUE); procs[[m]] <- NULL; mn_proc$procs <- procs }
+    mn_proc$queue <- setdiff(isolate(mn_proc$queue), m)
+    mn_proc$skipped <- unique(c(isolate(mn_proc$skipped), m))
+    fairy_run_cell(row_of[[m]], "Posterior", "skip"); fairy_run_cell(row_of[[m]], "Bayes factors", "skip")
   })
   # fairy dust (five quick clicks on the window title, see the script above): no time limit for the analysis here
   mn_nolimit <- reactiveVal(FALSE)
   observeEvent(input$mn_unlock, {
     mn_nolimit(!isTRUE(mn_nolimit()))
-    if (!is.null(isolate(mn_proc$p))) {
+    if (isTRUE(isolate(mn_proc$active))) {
       mn_proc$limit <- if (mn_nolimit()) Inf else 900
       session$sendCustomMessage("fairy_run_limit", list(seconds = if (mn_nolimit()) 0 else 900, nolimit = mn_nolimit(), label = "analysis"))
     }
-    showNotification(if (mn_nolimit()) "\u2728 Fairy dust: no time limit for the analysis (five quick clicks on the title switch it off again)." else "The time limit is back (15 minutes).",
+    showNotification(if (mn_nolimit()) "✨ Fairy dust: no time limit for the analysis (five quick clicks on the title switch it off again)." else "The time limit is back (15 minutes).",
                      type = "message", duration = 6)
   })
   observeEvent(input$mn_cancel, {
-    p <- isolate(mn_proc$p)
-    if (!is.null(p)) try(p$kill_tree(), silent = TRUE)
-    mn_proc$p <- NULL
-    session$sendCustomMessage("fairy_run_cancelable", list(on = FALSE))
-    session$sendCustomMessage("fairy_run_limit", list(seconds = 0))
+    if (!isTRUE(isolate(mn_proc$active))) return()
+    mn_kill_all()
+    mn_proc$active <- FALSE
+    mn_end_ui()
     fairy_run_hide()
     showNotification("The analysis was cancelled.", type = "message", duration = 5)
   })
-  session$onSessionEnded(function() {
-    p <- isolate(mn_proc$p)
-    if (!is.null(p)) try(p$kill_tree(), silent = TRUE)
-  })
+  session$onSessionEnded(function() { mn_kill_all() })
   # the last results stay available: a "Results" button next to "Data" opens them again
   show_mn_results <- function() {
     d <- isolate(mn_result$dir)
@@ -18549,7 +18655,7 @@ server <- shinyServer(function(input, output, session) {
     page <- paste(readLines(file.path(d, "results.html"), warn = FALSE, encoding = "UTF-8"), collapse = "\n")
     showModal(modalDialog(
       title = "Results of the multinomineq analysis", size = "l", easyClose = TRUE,
-      tags$p(class = "fairy-eq-tol-help", HTML("The Bayes factors and the posterior were computed by the R package <a href='https://www.dwheck.de/software/multinomineq/' target='_blank' rel='noopener'>multinomineq</a> (Heck &amp; Davis-Stober, 2019; please cite it, in R: <code>citation(\"multinomineq\")</code>). "),
+      tags$p(class = "fairy-eq-tol-help", HTML("The Bayes factors and the posterior were computed by the R package <a href='https://www.dwheck.de/software/multinomineq/' target='_blank' rel='noopener'>multinomineq</a> (Heck &amp; Davis-Stober, 2019). "),
         "This ran on our shared server. For larger or repeated analyses, download the results below: the download contains the files and ", tags$code("analysis_multinomineq.R"), ", which you can run on your own computer."),
       # the page is put into the window itself (in a shadow root, so its styles stay apart from the app's): no frame to scroll in
       tags$textarea(id = "mn_results_src", style = "display:none;", page),
