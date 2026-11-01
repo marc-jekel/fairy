@@ -17231,6 +17231,10 @@ server <- shinyServer(function(input, output, session) {
       '# (for even more samples set M_post and M_bf to larger numbers)',
       'M_post <- if (final) 20000 else 5000     # posterior samples',
       'M_bf <- if (final) 100000 else 10000     # Bayes factor samples',
+      '# Advanced: draws discarded at the start (burn-in); these are the',
+      '# defaults of multinomineq. The seed makes a run repeatable.',
+      'burnin_post <- 10   # posterior',
+      'burnin_bf <- 5      # Bayes factors (per step)',
       '',
       '#### Packages (installed if missing) ####',
       'for (p in c("multinomineq", "rcdd", "coda")) {',
@@ -17433,7 +17437,8 @@ server <- shinyServer(function(input, output, session) {
       '  one <- function(rep, ...) {',
       '    status(paste0("drawing the posterior (", rep, ")"))',
       '    p <- tryCatch(sampling_binom(k = k_use, n = n_use, ...,',
-      '      prior = prior, M = M_post, progress = FALSE),',
+      '      prior = prior, M = M_post, burnin = burnin_post,',
+      '      progress = FALSE),',
       '      error = function(e) NULL)',
       '    if (is.null(p)) {',
       '      note <<- paste("No posterior could be drawn: the sampler",',
@@ -17449,7 +17454,8 @@ server <- shinyServer(function(input, output, session) {
       '    # with map the equalities belong to the model; the',
       '    # unconstrained model has all probabilities free',
       '    bf <- bf_binom(k = choices, n = n, ..., map = map,',
-      '                   prior = prior, M = M_bf, progress = FALSE)',
+      '                   prior = prior, M = M_bf, burnin = burnin_bf,',
+      '                   progress = FALSE)',
       '    # very small models: no sample falls inside. Then use the',
       '    # stepwise method of the package (one constraint at a time)',
       '    first <- bf["bf_0u", "bf"]',
@@ -17458,7 +17464,8 @@ server <- shinyServer(function(input, output, session) {
       '    if (!is.finite(first)) {',
       '      status("very small model: stepwise estimate")',
       '      bf2 <- tryCatch(bf_binom(k = choices, n = n, ..., map = map,',
-      '        prior = prior, M = M_bf, cmin = 100, progress = FALSE),',
+      '        prior = prior, M = M_bf, cmin = 100, burnin = burnin_bf,',
+      '        progress = FALSE),',
       '        error = function(e) NULL)',
       '      if (!is.null(bf2) && is.finite(bf2["bf_0u", "bf"])) {',
       '        bf <- bf2',
@@ -18042,6 +18049,18 @@ server <- shinyServer(function(input, output, session) {
         "Standard: 10,000 samples for the Bayes factors, 5,000 for the posterior" = "std",
         "More: 100,000 and 20,000 (smaller Monte-Carlo error, slower)" = "more",
         "Even more: 1,000,000 and 100,000 (can take a long time and uses a lot of the shared server)" = "max")),
+      tags$details(style = "margin:4px 0 8px 0;",
+        tags$summary(style = "cursor:pointer; color:#3a6df0; font-size:13px;", "Advanced"),
+        tags$div(style = "display:flex; flex-wrap:wrap; gap:12px; margin-top:6px;",
+          numericInput("mn_burnin_post", "Burn-in, posterior", value = 10, min = 0, step = 10, width = "150px"),
+          numericInput("mn_burnin_bf", "Burn-in, Bayes factors", value = 5, min = 0, step = 5, width = "170px"),
+          numericInput("mn_prior_a", "Prior, a (Beta)", value = 1, min = 0.001, step = 0.5, width = "130px"),
+          numericInput("mn_prior_b", "Prior, b (Beta)", value = 1, min = 0.001, step = 0.5, width = "130px"),
+          numericInput("mn_seed", "Random seed", value = 1234, step = 1, width = "130px")),
+        tags$p(style = "font-size:12px; color:#667085; margin:4px 0 0 0;",
+          "Burn-in: draws discarded at the start of each run (the package default is 10 for the posterior and 5 per step for the Bayes factors). ",
+          "Prior: Beta(a, b) on every probability; Beta(1, 1) is uniform and the Bayes factors depend on it. ",
+          "The seed makes a run repeatable.")),
       if (identical(isolate(mn_source()), "V"))
         tags$div(style = "background:rgba(58,109,240,.10); border-left:4px solid #3a6df0; border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
           tags$b("Tip:"), " the analysis from the vertices (V) is much slower than from the inequalities (H) and gives the same result: a few seconds against a fraction of a second for small models, minutes for larger ones. For larger models open this window from the H-representation tab."),
@@ -18086,6 +18105,15 @@ server <- shinyServer(function(input, output, session) {
     if (!mn_collect(groups, strict = TRUE)) {
       showNotification("n and frequency must be whole numbers, n at least 1, and frequency between 0 and n.", type = "error"); return()
     }
+    adv_num <- function(x, default) if (is.null(x) || length(x) != 1 || is.na(x)) default else as.numeric(x)
+    adv <- list(bp = adv_num(input$mn_burnin_post, 10), bb = adv_num(input$mn_burnin_bf, 5),
+                pa = adv_num(input$mn_prior_a, 1), pb = adv_num(input$mn_prior_b, 1), seed = adv_num(input$mn_seed, 1234))
+    if (adv$bp < 0 || adv$bb < 0 || adv$bp != round(adv$bp) || adv$bb != round(adv$bb)) {
+      showNotification("Burn-in must be a whole number, 0 or more.", type = "error"); return()
+    }
+    if (adv$pa <= 0 || adv$pb <= 0) {
+      showNotification("The prior numbers a and b must be positive.", type = "error"); return()
+    }
     samples_mn <- if (is.null(input$mn_samples)) "std" else input$mn_samples
     final <- samples_mn %in% c("more", "max")
     choices_mn <- mn_model_choices()
@@ -18106,6 +18134,10 @@ server <- shinyServer(function(input, output, session) {
       scr <- file.path(d, "analysis_multinomineq.R")
       txt <- readLines(scr, warn = FALSE)
       if (final) txt <- sub("^final <- FALSE.*", "final <- TRUE", txt)
+      txt <- sub("^burnin_post <- [0-9.]+", paste0("burnin_post <- ", format(adv$bp, scientific = FALSE)), txt)
+      txt <- sub("^burnin_bf <- [0-9.]+", paste0("burnin_bf <- ", format(adv$bb, scientific = FALSE)), txt)
+      txt <- sub("^prior <- c\\(1, 1\\)", paste0("prior <- c(", format(adv$pa, scientific = FALSE), ", ", format(adv$pb, scientific = FALSE), ")"), txt)
+      txt <- sub("^set.seed\\(1234\\)", paste0("set.seed(", format(round(adv$seed), scientific = FALSE), ")"), txt)
       if (identical(samples_mn, "max")) {
         txt <- sub("^M_post <- .*", "M_post <- 100000", txt)
         txt <- sub("^M_bf <- .*", "M_bf <- 1000000", txt)
