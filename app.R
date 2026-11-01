@@ -15732,7 +15732,110 @@ server <- shinyServer(function(input, output, session) {
 
   #### Parsimony ####
 
-  observe_guarded(input$go, {
+  # The volumes are estimated in separate R processes (volesti), so the window stays alive: it shows what is being computed
+  # and can be cancelled. The Go handler below runs twice with the same code: first it only collects the jobs and starts them
+  # (plan mode), when all are done it runs again and takes the volumes from parsim_state$results.
+  parsim_state <- reactiveValues(go_seen = 0, results = NULL, resume = 0)
+  pv <- reactiveValues(active = FALSE, dir = NULL, keys = character(0), queue = character(0), procs = list(),
+                       parallel = FALSE, start = NULL, status = "", elapsed = 0, prev_snap = NULL, total = 0)
+  pv_kill_all <- function() {
+    for (p in isolate(pv$procs)) try(p$kill_tree(), silent = TRUE)
+    pv$procs <- list()
+  }
+  parsim_start_jobs <- function(jobs) {
+    pv_kill_all()
+    d <- tempfile("pvrun_"); dir.create(d)
+    writeLines(c("suppressMessages(library(volesti))", "a <- commandArgs(TRUE)", "x <- readRDS(a[1])",
+                 "setClass(\"model_s4\", representation(A = \"matrix\", b = \"numeric\", type = \"character\"))",
+                 "P <- new(\"model_s4\", A = x$A, b = x$b, type = \"Hpolytope\")",
+                 "v <- tryCatch(volume(P, settings = x$settings), error = function(e) NA_real_)",
+                 "saveRDS(v, a[2])"), file.path(d, "job.R"))
+    keys <- names(jobs)
+    for (i in seq_along(keys)) saveRDS(jobs[[keys[i]]], file.path(d, paste0("in", i, ".rds")))
+    pv$dir <- d; pv$keys <- keys; pv$queue <- keys; pv$procs <- list(); pv$start <- Sys.time(); pv$elapsed <- 0
+    pv$total <- length(keys); pv$status <- "starting ..."
+    pv$parallel <- isTRUE(isolate(input$use_parallel))
+    parsim_state$results <- NULL
+    pv$active <- TRUE
+    showModal(modalDialog(title = "Computing the volumes", easyClose = FALSE, uiOutput("pv_progress"),
+                          footer = actionButton("pv_cancel", "Cancel")))
+  }
+  output$pv_progress <- renderUI({
+    el <- pv$elapsed
+    tagList(
+      tags$p(style = "font-size:15px; margin-bottom:6px; overflow-wrap:anywhere;", pv$status),
+      tags$div(style = "height:6px; background:var(--fairy-border, #e4e7ec); border-radius:3px; margin:6px 0 4px 0;",
+        tags$div(style = paste0("height:6px; border-radius:3px; background:var(--fairy-primary, #3a6df0); width:",
+                                round(100 * (pv$total - length(pv$queue) - length(pv$procs)) / max(1, pv$total)), "%;"))),
+      tags$p(class = "fairy-eq-tol-help", sprintf("%d:%02d elapsed. ", as.integer(el %/% 60), as.integer(round(el) %% 60)),
+             "You can cancel at any time."))
+  })
+  observe({
+    if (!isTRUE(pv$active)) return()
+    invalidateLater(400)
+    d <- isolate(pv$dir); keys <- isolate(pv$keys); procs <- isolate(pv$procs); queue <- isolate(pv$queue)
+    res <- isolate(parsim_state$results); if (is.null(res)) res <- list()
+    for (k in names(procs)) {
+      if (!procs[[k]]$is_alive()) {
+        idx <- match(k, keys)
+        v <- tryCatch(readRDS(file.path(d, paste0("out", idx, ".rds"))), error = function(e) NA_real_)
+        res[[k]] <- if (is.numeric(v) && length(v) == 1) v else NA_real_
+        procs[[k]] <- NULL
+      }
+    }
+    max_run <- if (isolate(pv$parallel)) length(keys) else 1L
+    while (length(queue) > 0 && length(procs) < max_run) {
+      k <- queue[1]; queue <- queue[-1]
+      idx <- match(k, keys)
+      p <- tryCatch(processx::process$new(file.path(R.home("bin"), "Rscript"),
+                      c(file.path(d, "job.R"), file.path(d, paste0("in", idx, ".rds")), file.path(d, paste0("out", idx, ".rds"))),
+                      cleanup_tree = TRUE), error = function(e) NULL)
+      if (is.null(p)) { res[[k]] <- NA_real_ } else {
+        procs[[k]] <- p
+        parts <- strsplit(k, "|", fixed = TRUE)[[1]]
+        algo <- c(CB = "Cooling Bodies", SoB = "Sequence of Balls", CG = "Cooling Gaussian")[[parts[length(parts)]]]
+        pv$status <- sprintf("Job %d of %d: %s \u2013 %s", idx, length(keys), paste(parts[-length(parts)], collapse = "|"), algo)
+      }
+    }
+    pv$procs <- procs; pv$queue <- queue
+    pv$elapsed <- as.numeric(difftime(Sys.time(), isolate(pv$start), units = "secs"))
+    parsim_state$results <- res
+    if (length(queue) == 0 && length(procs) == 0) {
+      pv$active <- FALSE
+      removeModal()
+      parsim_state$resume <- isolate(parsim_state$resume) + 1   # runs the Go handler again, now with the volumes
+    }
+  })
+  observeEvent(input$pv_cancel, {
+    if (!isTRUE(isolate(pv$active))) return()
+    pv_kill_all()
+    pv$queue <- character(0); pv$active <- FALSE
+    parsim_state$results <- NULL
+    if (!is.null(isolate(pv$prev_snap))) last_parsimony_snapshot(isolate(pv$prev_snap))
+    removeModal()
+    showNotification("The volume computation was cancelled; the earlier results (if any) are unchanged.", type = "message", duration = 6)
+  })
+  session$onSessionEnded(function() { for (p in isolate(pv$procs)) try(p$kill_tree(), silent = TRUE) })
+
+  observe_guarded(list(input$go, parsim_state$resume), {
+    # a new press of Go starts from scratch (plan mode); the second run (resume) takes the finished volumes
+    go_now <- isolate(input$go)
+    if (!identical(go_now, isolate(parsim_state$go_seen))) {
+      parsim_state$go_seen <- go_now
+      parsim_state$results <- NULL
+      pv$prev_snap <- isolate(last_parsimony_snapshot())
+    }
+    plan_mode <- is.null(isolate(parsim_state$results))
+    vol_jobs <- list()
+    vol_results <- isolate(parsim_state$results)
+    vol_call <- function(key, model_s4, settings) {
+      if (plan_mode) {
+        vol_jobs[[key]] <<- list(A = model_s4@A, b = model_s4@b, settings = settings)
+        return(NA_real_)
+      }
+      r <- vol_results[[key]]
+      if (is.null(r)) NA_real_ else r
+    }
     last_parsimony_snapshot(make_parsimony_snapshot())
     input_volume <- isolate(input_volume_reactive)
 
@@ -15841,12 +15944,7 @@ server <- shinyServer(function(input, output, session) {
 
               #####* calc volume ####
 
-              act_vol_CB <- tryCatch(volume(model_s4,
-                settings =
-                  eval(parse(
-                    text = (settings_string_final_CB)
-                  ))
-              ), error = function(e) NA)
+              act_vol_CB <- vol_call(paste(names_h_rep[loop_parsimony], "CB", sep = "|"), model_s4, tryCatch(eval(parse(text = settings_string_final_CB)), error = function(e) NULL))
             } else {
               act_vol_CB <- NA
             }
@@ -15898,11 +15996,7 @@ server <- shinyServer(function(input, output, session) {
 
               #####* calc volume ####
 
-              act_vol_SoB <- tryCatch(volume(model_s4,
-                settings = eval(parse(
-                  text = (settings_string_final_SoB)
-                ))
-              ), error = function(e) NA)
+              act_vol_SoB <- vol_call(paste(names_h_rep[loop_parsimony], "SoB", sep = "|"), model_s4, tryCatch(eval(parse(text = settings_string_final_SoB)), error = function(e) NULL))
             } else {
               act_vol_SoB <- NA
             }
@@ -15956,11 +16050,7 @@ server <- shinyServer(function(input, output, session) {
 
               #####* calc volume ####
 
-              act_vol_CG <- tryCatch(volume(model_s4,
-                settings = eval(parse(
-                  text = (settings_string_final_CG)
-                ))
-              ), error = function(e) NA)
+              act_vol_CG <- vol_call(paste(names_h_rep[loop_parsimony], "CG", sep = "|"), model_s4, tryCatch(eval(parse(text = settings_string_final_CG)), error = function(e) NULL))
             } else {
               act_vol_CG <- NA
             }
@@ -16007,6 +16097,15 @@ server <- shinyServer(function(input, output, session) {
           }
 
           parsim <- c(parsim, c(act_vol_CB, act_vol_SoB, act_vol_CG))
+        }
+
+        # plan mode: the volumes are computed in separate processes; this handler runs again when they are done
+        if (plan_mode) {
+          if (length(vol_jobs) > 0) {
+            parsim_start_jobs(vol_jobs)
+            return(invisible())
+          }
+          vol_results <- list(); plan_mode <- FALSE   # nothing to compute (e.g. only lower-dimensional models)
         }
 
 
@@ -17254,7 +17353,7 @@ server <- shinyServer(function(input, output, session) {
     items_nms <- isolate(items_reactive$names)
     nms <- c(isolate(names_models_reactive$value), isolate(intersections_reactive$names),
              isolate(mixtures_reactive$names), items_nms)
-    nms <- nms[!is.na(nms) & nzchar(nms)]
+    nms <- unique(nms[!is.na(nms) & nzchar(nms)])
     out <- list()
     for (nm in nms) {
       h <- isolate(h_reactive[[nm]])
@@ -17320,7 +17419,7 @@ server <- shinyServer(function(input, output, session) {
     }
     nms <- c(isolate(names_models_reactive$value), isolate(intersections_reactive$names),
              isolate(mixtures_reactive$names), isolate(items_reactive$names))
-    nms <- nms[!is.na(nms) & nzchar(nms)]
+    nms <- unique(nms[!is.na(nms) & nzchar(nms)])   # an unpacked model is in the model list and in the items list: once
     nms <- nms[vapply(nms, function(nm) !is.null(isolate(h_reactive[[nm]])), logical(1))]
     stats::setNames(safe_file_name(str_replace_all(nms, fixed(" AND "), "_AND_")), nms)
   }
@@ -17355,6 +17454,18 @@ server <- shinyServer(function(input, output, session) {
       do.call(tabsetPanel, c(list(id = "mn_data_tabs", type = "tabs"),
         lapply(seq_along(groups), function(gi) tabPanel(groups[[gi]]$title, one_group(gi)))))
     has_unpacked <- length(isolate(items_reactive$names)) > 0
+    # the order of the probabilities only matters for unpacked item models: the button is there only while their tab is open
+    order_button <- NULL
+    if (has_unpacked) {
+      btn <- actionButton("mn_data_to_order", "Order of the probabilities",
+                          title = "Only for unpacked item models: in which order their probabilities (p1, p2, ...) appear in the downloaded files and in this table")
+      order_button <- if (length(groups) == 1) {
+        if (startsWith(groups[[1]]$key, "m:")) btn else NULL
+      } else {
+        tags$div(style = "display:inline-block;",
+                 conditionalPanel("input.mn_data_tabs && input.mn_data_tabs.indexOf('probabilities') < 0", btn))
+      }
+    }
     showModal(modalDialog(
       title = "Your data for the multinomineq analysis", size = "l", easyClose = TRUE,
       tags$style(HTML(".mn-foot .btn { margin: 0 !important; }")),
@@ -17374,11 +17485,11 @@ server <- shinyServer(function(input, output, session) {
         tags$code("analysis_multinomineq.R"), " on your own computer. It needs only R with the packages ", tags$code("multinomineq"), ", ", tags$code("rcdd"), " and ", tags$code("coda"), "."),
       footer = tags$div(class = "mn-foot", style = "display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; align-items:center; width:100%;",
         tags$div(style = "display:flex; gap:8px;",
-          if (has_unpacked) actionButton("mn_data_to_order", "Change order"),
-          actionButton("mn_data_reset", "Reset")),
+          order_button,
+          actionButton("mn_data_reset", "Reset numbers", title = "Back to the example numbers; your saved numbers are discarded (the models are not touched)")),
         tags$div(style = "display:flex; gap:8px;",
           modalButton("Cancel"), actionButton("mn_data_save", "Save"),
-          actionButton("mn_run", "Run here (small)", class = "btn-primary")))))
+          actionButton("mn_run", "Run analysis here", class = "btn-primary", title = "Runs on our shared server (best for small analyses). For larger ones, run the script from the download on your own computer.")))))
   }
   mn_source <- reactiveVal("H")   # the analysis uses the representation of the tab the window was opened from
   for (btn_id in c("mn_data_open", "mn_data_open_v")) local({
@@ -17793,7 +17904,7 @@ server <- shinyServer(function(input, output, session) {
         isolate(items_reactive$names)
       )
       # "m1 AND m2" is not filename-safe -> "m1_AND_m2"
-      export_names <- export_names[!is.na(export_names) & nzchar(export_names)]
+      export_names <- unique(export_names[!is.na(export_names) & nzchar(export_names)])
       export_files <- str_replace_all(export_names, fixed(" AND "), "_AND_")
       export_files <- safe_file_name(export_files)
       numb_models <- length(export_names)
