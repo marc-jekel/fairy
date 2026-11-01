@@ -89,6 +89,10 @@ test_that("the analysis runs inside the app and shows the results", {
   Sys.sleep(3)
   js("document.getElementById('mn_data_open').click();")
   Sys.sleep(3)
+  # choose the models to analyse: switch the second one off
+  expect_equal(jsv("document.querySelectorAll('input[name=mn_models]').length"), 2)
+  js("document.querySelectorAll('input[name=mn_models]')[1].click();")
+  Sys.sleep(1)
   js("document.getElementById('mn_run').click();")
   ok <- FALSE
   for (i in 1:120) {                      # up to 2 minutes
@@ -97,6 +101,8 @@ test_that("the analysis runs inside the app and shows the results", {
   }
   expect_true(ok)
   expect_true(jsv("document.querySelector('iframe[srcdoc]').getAttribute('srcdoc').indexOf('Bayes factors') > 0"))
+  # only one model was analysed: tabs = overview + 1
+  expect_equal(jsv("(document.querySelector('iframe[srcdoc]').getAttribute('srcdoc').match(/<label for=tab/g) || []).length"), 2)
   js("[].forEach.call(document.querySelectorAll('.modal [data-dismiss=modal]'), function(b) { b.click(); });")
   Sys.sleep(2)
   # the results can be opened again after closing the window
@@ -106,7 +112,9 @@ test_that("the analysis runs inside the app and shows the results", {
   expect_true(jsv("!!document.querySelector('iframe[srcdoc]')"))
   # and the download of the results works
   f <- app$get_download("mn_results_dl")
-  expect_true("results.html" %in% utils::untar(f, list = TRUE))
+  fl <- utils::untar(f, list = TRUE)
+  expect_true(all(c("results.html", "results.csv") %in% fl))
+  expect_true(any(grepl("^A_", fl)))   # the input files are in the download, too
   js("[].forEach.call(document.querySelectorAll('.modal [data-dismiss=modal]'), function(b) { b.click(); });")
   Sys.sleep(2)
 })

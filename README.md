@@ -106,4 +106,4 @@ are very welcome — email mjekel@uni-koeln.de or open an issue on this repo.
 
 ## Publishing
 
-`./deploy.sh` checks the syntax, runs the tests (helper functions and a browser smoke test in `tests/smoke.R`), pushes to git, uploads `app.R` to the server, restarts it and compares the md5. `./deploy.sh --quick` skips the browser smoke test. The smoke test alone: `NOT_CRAN=true Rscript -e 'testthat::test_file("tests/smoke.R")'`.
+`./deploy.sh` checks the syntax, runs the helper tests, pushes to git, uploads `app.R` to the server, restarts it and compares the md5. `./deploy.sh --full` also runs the browser smoke test in `tests/smoke.R` (about a minute); it is only run on request. The smoke test alone: `NOT_CRAN=true Rscript -e 'testthat::test_file("tests/smoke.R")'`.

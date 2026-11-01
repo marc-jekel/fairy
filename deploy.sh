@@ -1,7 +1,7 @@
 #!/bin/bash
 # Publish the app: checks first, then upload and compare.
-#   ./deploy.sh           all checks incl. the browser smoke test (about 1 minute)
-#   ./deploy.sh --quick   without the browser smoke test
+#   ./deploy.sh           syntax + helper tests, then upload (fast)
+#   ./deploy.sh --full    additionally the browser smoke test (about 1 minute)
 set -e
 cd "$(dirname "$0")"
 SERVER=root@139.59.214.176
@@ -13,11 +13,11 @@ Rscript -e 'invisible(parse("app.R"))'
 echo "2/5 tests of the helper functions"
 Rscript -e 'testthat::test_file("tests/test-app-helpers.R", reporter = "summary", stop_on_failure = TRUE)'
 
-if [ "$1" != "--quick" ]; then
+if [ "$1" = "--full" ]; then
   echo "3/5 smoke test in a headless browser"
   NOT_CRAN=true Rscript -e 'testthat::test_file("tests/smoke.R", reporter = "summary", stop_on_failure = TRUE)'
 else
-  echo "3/5 smoke test skipped (--quick)"
+  echo "3/5 smoke test skipped (use --full to run it)"
 fi
 
 echo "4/5 git: everything committed, then push"

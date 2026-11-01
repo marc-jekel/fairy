@@ -16429,6 +16429,25 @@ server <- shinyServer(function(input, output, session) {
     groups <- sort(unique(root))
     list(map = match(root, groups), groups = groups, keep = !simple)
   }
+  # Does an H-representation (character rcdd matrix, after the equalities p_i = p_j are merged) have volume? NULL = yes,
+  # otherwise the reason as text: an exact equality is left, or some inequalities hold with equality everywhere.
+  mn_volume_zero <- function(A) {
+    num <- q2d(A)
+    labs <- colnames(A)[-(1:2)]
+    eqs <- which(num[, 1] == 1)
+    if (length(eqs) > 0) {
+      txt <- vapply(eqs, function(r) {
+        cf <- num[r, -(1:2)]; nz <- which(abs(cf) > 1e-12)
+        lhs <- paste(vapply(nz, function(j) paste0(if (abs(cf[j] - 1) < 1e-12) "" else format(cf[j], digits = 4), labs[j]), character(1)), collapse = " + ")
+        paste0(lhs, " = ", format(-num[r, 2], digits = 4))
+      }, character(1))
+      return(paste0("it contains the exact equality ", paste(txt, collapse = "; "), " (other than p = p)"))
+    }
+    hh <- A; attr(hh, "representation") <- "H"
+    lin <- tryCatch(rcdd::linearity(hh), error = function(e) integer(0))
+    if (length(lin) > 0) return("some of its inequalities hold with equality everywhere, so it is flat in some direction")
+    NULL
+  }
   multinomineq_script <- function(first_model, n_p) {
     paste(c(
       '#### Analysis with the multinomineq package ####',
@@ -16526,15 +16545,14 @@ server <- shinyServer(function(input, output, session) {
       '  c("bf_0u", "bf_u0", "bf_00\'"), c("bf", "se", "ci.5%", "ci.95%")))',
       '',
       '# plain explanations for models that cannot be computed',
-      'no_result <- paste("No result: not even the stepwise method found",',
-      '  "a point inside the model. It most likely has volume zero",',
-      '  "(exact equalities such as p1 = 0.3). In the app set such",',
-      '  "equalities to Approximate and download the files again.")',
+      'no_result <- paste("No result: the model has volume, but not even",',
+      '  "the stepwise method found a point inside it (very thin?).",',
+      '  "Try final <- TRUE; if it still fails, check the files.")',
       'friendly <- function(msg) {',
       '  if (grepl("Truncation|min<max|boundar", msg))',
       '    return(paste("The sampler could not start. The model probably",',
-      '      "has volume zero (exact equalities) or is extremely thin:",',
-      '      "use Approximate equalities in the app and download again.",',
+      '      "has volume zero or is extremely thin; check the equalities",',
+      '      "in the app and download the files again.",',
       '      "Technical message:", msg))',
       '  if (grepl("data file|needs one row|cannot be larger", msg))',
       '    return(msg)',
@@ -16613,6 +16631,20 @@ server <- shinyServer(function(input, output, session) {
       '                      stringsAsFactors = FALSE)',
       '    V <- read_q(V_raw); colnames(V) <- colnames(V_raw)',
       '  }',
+      '  # does the model have volume? (the app checked the files)',
+      '  info <- if (file.exists("model_info.csv")) {',
+      '    read.csv("model_info.csv", stringsAsFactors = FALSE)',
+      '  } else NULL',
+      '  zero <- !is.null(info) && any(info$model == model_name &',
+      '                                 info$volume == "zero")',
+      '  if (zero) {',
+      '    why <- info$reason[info$model == model_name][1]',
+      '    return(list(bf = bf_row(model_name, if (!is.null(A)) "H" else "V",',
+      '      empty_bf, paste0("This model has volume zero: ", why, ".",',
+      '      " multinomineq needs a model with volume. In the app set",',
+      '      " such equalities to Approximate and download again.")),',
+      '      posterior = NULL, diag = NULL))',
+      '  }',
       '  # equal probabilities: map says which parameter each belongs to',
       '  file_map <- paste0("map_", model_name, ".csv")',
       '  n_free <- if (!is.null(A)) ncol(A) else ncol(V)',
@@ -16663,14 +16695,21 @@ server <- shinyServer(function(input, output, session) {
       '                   prior = prior, M = M_bf, progress = FALSE)',
       '    # very small models: no sample falls inside. Then use the',
       '    # stepwise method of the package (one constraint at a time)',
-      '    if (!is.finite(bf["bf_0u", "bf"]) || bf["bf_0u", "bf"] == 0) {',
+      '    first <- bf["bf_0u", "bf"]',
+      '    if (!is.finite(first) || first == 0) {',
       '      bf2 <- tryCatch(bf_binom(k = choices, n = n, ..., map = map,',
       '        prior = prior, M = M_bf, cmin = 100, progress = FALSE),',
       '        error = function(e) NULL)',
       '      if (!is.null(bf2) && is.finite(bf2["bf_0u", "bf"])) {',
       '        bf <- bf2',
-      '        note <<- paste("Very small model: computed stepwise",',
-      '                       "(less precise, see se).")',
+      '        note <<- if (is.finite(first)) {',
+      '          paste("The data speak strongly against the model: no",',
+      '                "posterior sample fell inside, so the value was",',
+      '                "computed stepwise (less precise, see se).")',
+      '        } else {',
+      '          paste("The model has a very small volume: computed",',
+      '                "stepwise (less precise, see se).")',
+      '        }',
       '      }',
       '    }',
       '    rows[[rep]] <<- bf_row(model_name, rep, bf,',
@@ -17115,6 +17154,19 @@ server <- shinyServer(function(input, output, session) {
     x <- gsub("_[{]([^}]*)[}]", "<sub>\\1</sub>", x)
     gsub("[\\^][{]([^}]*)[}]", "<sup>\\1</sup>", x)
   }
+  # the models that can be analysed from the current tab: display name -> file name part
+  mn_model_choices <- function() {
+    if (identical(isolate(mn_source()), "V")) {
+      nms <- intersect(isolate(names_models_reactive$value), names(v_reactive))
+      nms <- nms[!is.na(nms) & nzchar(nms)]
+      return(stats::setNames(safe_file_name(nms), nms))
+    }
+    nms <- c(isolate(names_models_reactive$value), isolate(intersections_reactive$names),
+             isolate(mixtures_reactive$names), isolate(items_reactive$names))
+    nms <- nms[!is.na(nms) & nzchar(nms)]
+    nms <- nms[vapply(nms, function(nm) !is.null(isolate(h_reactive[[nm]])), logical(1))]
+    stats::setNames(safe_file_name(str_replace_all(nms, fixed(" AND "), "_AND_")), nms)
+  }
   show_mn_data <- function() {
     groups <- mn_np_labels()
     if (length(groups) == 0) {
@@ -17153,6 +17205,9 @@ server <- shinyServer(function(input, output, session) {
         ": how often the outcome happened, out of n. Your numbers go into the data files of the next multinomineq download and into the analysis you can run here."),
       if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Every unpacked model has its own tab, because its probabilities can mean something of their own. Tick the box in its tab to use the numbers of the other models instead. The numbers move with their probability when you change the order."),
       tags$div(style = "max-height:46vh; overflow-y:auto;", body),
+      if (length(mn_model_choices()) > 1)
+        checkboxGroupInput("mn_models", "Models to analyse (the downloads always contain all of them)",
+                           choices = mn_model_choices(), selected = unname(mn_model_choices()), inline = TRUE),
       checkboxInput("mn_final", "More samples (slower, smaller error)", value = FALSE),
       footer = tags$div(class = "mn-foot", style = "display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; align-items:center; width:100%;",
         tags$div(style = "display:flex; gap:8px;",
@@ -17193,12 +17248,18 @@ server <- shinyServer(function(input, output, session) {
       showNotification("n and frequency must be whole numbers, n at least 1, and frequency between 0 and n.", type = "error"); return()
     }
     final <- isTRUE(input$mn_final)
+    choices_mn <- mn_model_choices()
+    sel <- if (length(choices_mn) > 1) input$mn_models else unname(choices_mn)
+    if (length(sel) == 0) { showNotification("Choose at least one model to analyse.", type = "warning"); return() }
     removeModal()
     d <- tempfile("mn_run_"); dir.create(d)
     ok <- tryCatch(withProgress(message = "Running the analysis ...", detail = "up to 2 minutes", value = 0.2, {
       if (identical(isolate(mn_source()), "V")) mn_v_content(file.path(d, "in.tar"), quiet = TRUE)
       else mn_h_content(file.path(d, "in.tar"), quiet = TRUE)
       utils::untar(file.path(d, "in.tar"), exdir = d)
+      # only the chosen models: the script analyses every model it finds in the folder
+      for (st in setdiff(unname(choices_mn), sel))
+        unlink(file.path(d, paste0(c("A_", "b_", "V_", "map_"), st, ".csv")))
       scr <- file.path(d, "analysis_multinomineq.R")
       txt <- readLines(scr, warn = FALSE)
       if (final) txt <- sub("^final <- FALSE.*", "final <- TRUE", txt)
@@ -17247,7 +17308,8 @@ server <- shinyServer(function(input, output, session) {
       d <- isolate(mn_result$dir)
       req(!is.null(d))
       old <- setwd(d); on.exit(setwd(old), add = TRUE)
-      tar(file, intersect(c("results.html", "results.csv", "posterior.csv", "analysis_multinomineq.R"), list.files(d)))
+      # the results and the files they came from (A, b, V, map, data, script), so the analysis can be repeated in R
+      tar(file, setdiff(list.files(d), "in.tar"))
     }
   )
   # without this the link can still be empty when the window has just opened (the browser would then save the page itself)
@@ -17481,6 +17543,7 @@ server <- shinyServer(function(input, output, session) {
       export_files <- safe_file_name(export_files)
       numb_models <- length(export_names)
       np_groups <- list()
+      vol_info <- list()
 
       for (loop_qtest_h in seq_len(numb_models)) {
         A <- isolate(h_reactive[[export_names[loop_qtest_h]]])
@@ -17513,6 +17576,8 @@ server <- shinyServer(function(input, output, session) {
           A <- A2
           map_mn <- red$map
         }
+        vol_why <- tryCatch(mn_volume_zero(A), error = function(e) NULL)
+        vol_info[[export_files[loop_qtest_h]]] <- if (is.null(vol_why)) "" else vol_why
         h_num_mn <- q2d(A)
         is_eq_mn <- h_num_mn[, 1] == 1
         if (any(is_eq_mn)) {
@@ -17565,6 +17630,11 @@ server <- shinyServer(function(input, output, session) {
 
         files <- c(fileName, files)
       }
+
+      # which models have volume (the script does not have to guess)
+      utils::write.csv(data.frame(model = names(vol_info), volume = ifelse(nzchar(unlist(vol_info)), "zero", "positive"),
+                                  reason = unlist(vol_info), row.names = NULL), "model_info.csv", row.names = FALSE)
+      files <- c(files, "model_info.csv")
 
       # the matching R script for multinomineq (reads the files next to it)
       first_ix <- which(!vapply(export_names, function(nm) is.null(isolate(h_reactive[[nm]])), logical(1)))[1]
@@ -17683,6 +17753,7 @@ server <- shinyServer(function(input, output, session) {
       download_v_names <- download_v_names[download_v_names %in% names_models_reactive$value]
       download_v_names <- names_models_reactive$value[names_models_reactive$value %in% download_v_names]
       np_groups <- list()
+      vol_info <- list()
 
       for (loop_v_qtest in seq_len(length(download_v_names))) {
         vrep_entry    <- v_reactive[[download_v_names[loop_v_qtest]]]
@@ -17717,6 +17788,12 @@ server <- shinyServer(function(input, output, session) {
           colnames(current_model) <- lab_g
         }
 
+        # volume: the vertices must span all dimensions
+        cm_chk <- tryCatch(q2d(current_model), error = function(e) NULL)
+        rk <- if (is.null(cm_chk) || nrow(cm_chk) < 2) NA else qr(sweep(cm_chk, 2, cm_chk[1, ]))$rank
+        vol_info[[safe_file_name(download_v_names[loop_v_qtest])]] <-
+          if (is.na(rk) || rk >= ncol(current_model)) "" else paste0("its vertices span only ", rk, " of ", ncol(current_model), " dimensions (exact equalities or a flat model)")
+
         fileName <-
           paste0("V_", safe_file_name(download_v_names[loop_v_qtest]), ".csv")
 
@@ -17735,6 +17812,12 @@ server <- shinyServer(function(input, output, session) {
           write.table(map_v, fileName, quote = FALSE, col.names = FALSE, row.names = FALSE, sep = ",")
           files <- c(fileName, files)
         }
+      }
+
+      if (length(vol_info) > 0) {
+        utils::write.csv(data.frame(model = names(vol_info), volume = ifelse(nzchar(unlist(vol_info)), "zero", "positive"),
+                                    reason = unlist(vol_info), row.names = NULL), "model_info.csv", row.names = FALSE)
+        files <- c(files, "model_info.csv")
       }
 
       # the matching R script for multinomineq (reads the files next to it)
