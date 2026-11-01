@@ -199,7 +199,7 @@ ui <- shinyUI(fluidPage(
       body.dark-mode .selectize-input .item, body.dark-mode .selectize-input > input { color: var(--fairy-text) !important; background: transparent !important; }
       body.dark-mode .material-switch > label::after { background: #8b93a7 !important; box-shadow: none !important; }
       body.dark-mode select, body.dark-mode .form-control { background-color: var(--fairy-panel) !important; background-image: none; color: var(--fairy-text) !important; border-color: var(--fairy-border) !important; }
-      html:has(body.dark-mode) { background-color: var(--fairy-bg, #0e1117) !important; }
+      html:has(body.dark-mode) { background-color: #0e1117 !important; }
       /* shinyWidgets pickers (bootstrap-select) */
       body.dark-mode .bootstrap-select > .dropdown-toggle, body.dark-mode .bootstrap-select > .dropdown-toggle.btn-default, body.dark-mode .bootstrap-select .btn-default {
         background-color: var(--fairy-panel) !important; background-image: none !important; color: var(--fairy-text) !important; border-color: var(--fairy-border) !important; box-shadow: none !important; }
