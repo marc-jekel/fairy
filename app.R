@@ -16260,11 +16260,21 @@ server <- shinyServer(function(input, output, session) {
   # right-columns) inequality matrix, so there's exactly one place that
   # knows the actual QTEST text layout.
   # R script that ships inside the multinomineq downloads: it reads the files that are next to it and runs the analysis
-  # example data file next to the script: one row per probability, to be overwritten with the own frequencies
+  # example data files next to the script: one row per probability, to be overwritten with the own frequencies. Models with a
+  # different number of probabilities (e.g. unpacked items models) need their own file, so there is one file per number of
+  # probabilities: data_choices.csv if all models have the same number, data_choices_<k>_probabilities.csv otherwise.
+  # np_labels: list named by the number of probabilities, holding the column names. Returns the file names.
   # (decreasing example frequencies: equal ones can stop the sampler)
-  write_multinomineq_data <- function(file, n_p) {
-    utils::write.csv(data.frame(probability = paste0("p", seq_len(n_p)), n = 25L,
-                                left = round(25 * seq(0.8, 0.2, length.out = n_p))), file, row.names = FALSE, quote = FALSE)
+  write_multinomineq_data <- function(np_labels) {
+    ks <- sort(as.integer(names(np_labels)))
+    out <- character(0)
+    for (k in ks) {
+      f <- if (length(ks) == 1) "data_choices.csv" else paste0("data_choices_", k, "_probabilities.csv")
+      utils::write.csv(data.frame(probability = np_labels[[as.character(k)]], n = 25L,
+                                  left = round(25 * seq(0.8, 0.2, length.out = k))), f, row.names = FALSE, quote = FALSE)
+      out <- c(out, f)
+    }
+    out
   }
   multinomineq_script <- function(first_model, n_p) {
     paste(c(
@@ -16292,15 +16302,13 @@ server <- shinyServer(function(input, output, session) {
       'print(models)',
       paste0('model_name <- "', first_model, '"   # choose the model to analyse'),
       '',
-      '# Your data: open data_choices.csv (next to this script) and replace the example numbers by your own.',
-      '#   one row per probability, in the order of the columns of A / V (p1, p2, p3, ...); if you changed the order',
+      '# Your data: open the data file next to this script and replace the example numbers by your own.',
+      '#   data_choices.csv, or, if the models have different numbers of probabilities (e.g. unpacked items models),',
+      '#   data_choices_<k>_probabilities.csv for the models with k probabilities (the script takes the matching one)',
+      '#   one row per probability, in the order of the columns of A / V; if you changed the order',
       '#   of the probabilities in the app (Order window), the files already use that order',
       '#   n     number of decisions for this probability',
       '#   left  how often the left option was chosen',
-      'data_file <- "data_choices.csv"',
-      'dat <- read_csv(data_file, show_col_types = FALSE)',
-      'n <- dat$n',
-      'choices <- dat$left',
       '',
       '#### Settings ####',
       '# These are the defaults of the multinomineq package. You can leave them as they are.',
@@ -16327,6 +16335,11 @@ server <- shinyServer(function(input, output, session) {
       '  V <- read_q(V_raw); colnames(V) <- colnames(V_raw)',
       '}',
       'n_p <- if (!is.null(A)) ncol(A) else ncol(V)',
+      'data_file <- paste0("data_choices_", n_p, "_probabilities.csv")',
+      'if (!file.exists(data_file)) data_file <- "data_choices.csv"',
+      'dat <- read_csv(data_file, show_col_types = FALSE)',
+      'n <- dat$n',
+      'choices <- dat$left',
       'if (length(choices) != n_p) stop(data_file, " needs one row for each of the ", n_p, " probabilities of this model.")',
       'if (any(choices > n)) stop("In ", data_file, ": left cannot be larger than n.")',
       '',
@@ -16656,7 +16669,7 @@ server <- shinyServer(function(input, output, session) {
     },
     content = function(file) {
       
-      showNotification(HTML("Your download has started. It contains <b>analysis_multinomineq.R</b>, an R script for the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package, and <b>data_choices.csv</b> with example data: replace the numbers by your own and run the script."), type = "message", duration = 9)
+      showNotification(HTML("Your download has started. It contains <b>analysis_multinomineq.R</b>, an R script for the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package, and a <b>data_choices</b> csv file with example data: replace the numbers by your own and run the script."), type = "message", duration = 9)
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
       files <- NULL
@@ -16673,6 +16686,7 @@ server <- shinyServer(function(input, output, session) {
       export_files <- str_replace_all(export_names, fixed(" AND "), "_AND_")
       export_files <- safe_file_name(export_files)
       numb_models <- length(export_names)
+      np_labels <- list()
 
       for (loop_qtest_h in seq_len(numb_models)) {
         A <- isolate(h_reactive[[export_names[loop_qtest_h]]])
@@ -16705,6 +16719,7 @@ server <- shinyServer(function(input, output, session) {
         A <- d2q(-1 * q2d(A))
         names_A <- colnames(A)
         colnames(A) <- names_A
+        np_labels[[as.character(ncol(A))]] <- names_A
 
         fileName <-
           paste("A_", export_files[loop_qtest_h], ".csv", sep = "")
@@ -16740,8 +16755,7 @@ server <- shinyServer(function(input, output, session) {
       first_ix <- which(!vapply(export_names, function(nm) is.null(isolate(h_reactive[[nm]])), logical(1)))[1]
       if (!is.na(first_ix)) {
         writeLines(multinomineq_script(export_files[first_ix], ncol(isolate(h_reactive[[export_names[first_ix]]])) - 2L), "analysis_multinomineq.R")
-        write_multinomineq_data("data_choices.csv", ncol(isolate(h_reactive[[export_names[first_ix]]])) - 2L)
-        files <- c(files, "analysis_multinomineq.R", "data_choices.csv")
+        files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_labels))
       }
 
       # zip::zip(file, files)
@@ -16842,7 +16856,7 @@ server <- shinyServer(function(input, output, session) {
     },
     content = function(file) {
       
-      showNotification(HTML("Your download has started. It contains <b>analysis_multinomineq.R</b>, an R script for the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package, and <b>data_choices.csv</b> with example data: replace the numbers by your own and run the script."), type = "message", duration = 9)
+      showNotification(HTML("Your download has started. It contains <b>analysis_multinomineq.R</b>, an R script for the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package, and a <b>data_choices</b> csv file with example data: replace the numbers by your own and run the script."), type = "message", duration = 9)
   
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
@@ -16852,6 +16866,7 @@ server <- shinyServer(function(input, output, session) {
 
       download_v_names <- download_v_names[download_v_names %in% names_models_reactive$value]
       download_v_names <- names_models_reactive$value[names_models_reactive$value %in% download_v_names]
+      np_labels <- list()
 
       for (loop_v_qtest in seq_len(length(download_v_names))) {
         vrep_entry    <- v_reactive[[download_v_names[loop_v_qtest]]]
@@ -16871,6 +16886,8 @@ server <- shinyServer(function(input, output, session) {
         h_this <- isolate(h_reactive[[download_v_names[loop_v_qtest]]])
         colnames(current_model) <- if (!is.null(h_this) && ncol(h_this) - 2L == ncol(current_model))
           colnames(h_this)[-(1:2)][pm_vm] else paste0("V", seq_len(ncol(current_model)))
+
+        np_labels[[as.character(ncol(current_model))]] <- colnames(current_model)
 
         fileName <-
           paste0("V_", safe_file_name(download_v_names[loop_v_qtest]), ".csv")
@@ -16892,8 +16909,7 @@ server <- shinyServer(function(input, output, session) {
         ve1 <- v_reactive[[download_v_names[1]]]
         vm1 <- if (is.list(ve1) && !is.null(ve1$output)) ve1$output else ve1
         writeLines(multinomineq_script(safe_file_name(download_v_names[1]), ncol(vm1) - 2L), "analysis_multinomineq.R")
-        write_multinomineq_data("data_choices.csv", ncol(vm1) - 2L)
-        files <- c(files, "analysis_multinomineq.R", "data_choices.csv")
+        files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_labels))
       }
 
       tar(file, files)
