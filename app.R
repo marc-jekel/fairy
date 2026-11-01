@@ -16358,15 +16358,19 @@ server <- shinyServer(function(input, output, session) {
   # computed, "skip" stops it and the algorithm takes over, and EXACT_VOLUME_LIMIT is the longest it may take in total.
   # Result per model: a number, NaN = stopped (time limit or skipped), NA = no exact volume exists / can be computed.
   ex <- reactiveValues(active = FALSE, dir = NULL, names = character(0), procs = list(), res = NULL, start = NULL,
-                       elapsed = 0, skip = FALSE, prev_snap = NULL)
+                       elapsed = 0, skip = FALSE, prev_snap = NULL, hkeys = NULL)
   exact_kill_all <- function() {
     for (p in isolate(ex$procs)) try(p$kill_tree(), silent = TRUE)
     ex$procs <- list()
   }
+  # results of the exact calculation by H-representation: a number or NA (no exact volume exists) is kept, and so is a calculation
+  # that ran into the time limit (it is not tried again for the same model, unless the time limit is switched off)
+  exact_cache <- new.env()
   exact_start_jobs <- function(nms) {
     exact_kill_all()
     u <- unique(nms)
     res <- stats::setNames(rep(NA_real_, length(u)), u)
+    hkeys <- stats::setNames(vapply(u, function(nm) rlang::hash(isolate(h_reactive[[nm]])), character(1)), u)
     d <- tempfile("exact_"); dir.create(d)
     writeLines(c("suppressMessages(library(rcdd))", "a <- commandArgs(TRUE)", "h <- readRDS(a[1])",
       "res <- tryCatch({",
@@ -16381,19 +16385,27 @@ server <- shinyServer(function(input, output, session) {
       "}, error = function(e) NA_real_)",
       "saveRDS(res, a[2])"), file.path(d, "job.R"))
     procs <- list()
+    cached_state <- stats::setNames(rep(NA_character_, length(u)), u)
     if (requireNamespace("geometry", quietly = TRUE)) for (i in seq_along(u)) {
       h <- isolate(h_reactive[[u[i]]])
       if (is.null(h)) next
+      ch <- get0(hkeys[[i]], envir = exact_cache, inherits = FALSE)
+      if (!is.null(ch) && (ch$kind != "timeout" || !isTRUE(isolate(ex_nolimit())))) {
+        res[[u[i]]] <- ch$value
+        cached_state[[u[i]]] <- ch$kind
+        next
+      }
       saveRDS(h, file.path(d, paste0("h", i, ".rds")))
       pr <- tryCatch(processx::process$new(file.path(R.home("bin"), "Rscript"),
         c(file.path(d, "job.R"), file.path(d, paste0("h", i, ".rds")), file.path(d, paste0("v", i, ".rds"))), cleanup_tree = TRUE),
         error = function(e) NULL)
       if (!is.null(pr)) procs[[as.character(i)]] <- pr
     }
-    ex$dir <- d; ex$names <- u; ex$procs <- procs; ex$res <- res; ex$start <- Sys.time(); ex$elapsed <- 0; ex$skip <- FALSE
+    ex$dir <- d; ex$names <- u; ex$procs <- procs; ex$res <- res; ex$start <- Sys.time(); ex$elapsed <- 0; ex$skip <- FALSE; ex$hkeys <- hkeys
     ex$prev_snap <- isolate(pv$prev_snap)
     ex$active <- TRUE
-    for (i in seq_along(u)) fairy_run_cell(u[i], "Exact volume", if (as.character(i) %in% names(procs)) "run" else "na")
+    for (i in seq_along(u)) fairy_run_cell(u[i], "Exact volume", if (as.character(i) %in% names(procs)) "run" else
+      switch(if (is.na(cached_state[[u[i]]])) "none" else cached_state[[u[i]]], ok = "cached", timeout = "stop", "na"))
     session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "ex_skip", label = "Skip, use the algorithm"))
     session$sendCustomMessage("fairy_run_limit", list(seconds = if (isTRUE(isolate(ex_nolimit()))) 0 else EXACT_VOLUME_LIMIT, nolimit = isTRUE(isolate(ex_nolimit()))))
   }
@@ -16407,6 +16419,8 @@ server <- shinyServer(function(input, output, session) {
         v <- tryCatch(readRDS(file.path(d, paste0("v", k, ".rds"))), error = function(e) NA_real_)
         res[[u[as.integer(k)]]] <- if (is.numeric(v) && length(v) == 1) v else NA_real_
         fairy_run_cell(u[as.integer(k)], "Exact volume", if (is.finite(res[[u[as.integer(k)]]])) "done" else "na")
+        hk <- isolate(ex$hkeys)[[u[as.integer(k)]]]
+        if (!is.null(hk)) assign(hk, list(kind = if (is.finite(res[[u[as.integer(k)]]])) "ok" else "na", value = res[[u[as.integer(k)]]]), envir = exact_cache)
         procs[[k]] <- NULL
       }
     }
@@ -16414,6 +16428,9 @@ server <- shinyServer(function(input, output, session) {
       for (k in names(procs)) {
         try(procs[[k]]$kill_tree(), silent = TRUE); res[[u[as.integer(k)]]] <- NaN
         fairy_run_cell(u[as.integer(k)], "Exact volume", "stop")
+        # only the time limit is remembered; a skip was a choice of this moment
+        hk <- isolate(ex$hkeys)[[u[as.integer(k)]]]
+        if (!is.null(hk) && !isTRUE(isolate(ex$skip))) assign(hk, list(kind = "timeout", value = NaN), envir = exact_cache)
       }
       procs <- list()
     }
@@ -17803,10 +17820,11 @@ server <- shinyServer(function(input, output, session) {
       '  g_cl <- level(abs(d$geweke), 2, 3, above = FALSE)  # |z| <= 2 ok',
       '  tab <- data.frame(',
       '    Probability = lab_html(d$labels),',
-      '    "Effective sample size" =',
-      '      ifelse(is.finite(d$ess), paste0(round(d$ess), " of ",',
-      '             format(d$n_draws, big.mark = ",")), "-"),',
-      '    "Geweke z" = num(d$geweke, 2), check.names = FALSE)',
+      '    "Effective sample size (of all draws)" =',
+      '      ifelse(is.finite(d$ess), paste0(format(round(d$ess), big.mark = ",", trim = TRUE),',
+      '             " of ", format(d$n_draws, big.mark = ",", trim = TRUE)), "-"),',
+      '    "Geweke z (-2 to 2 is fine)" = num(d$geweke, 2),',
+      '    check.names = FALSE)',
       '  cls <- data.frame("", e_cl, g_cl)',
       '  n_bad <- sum(c(e_cl, g_cl) == "bad")',
       '  n_warn <- sum(c(e_cl, g_cl) == "warn")',
@@ -17848,7 +17866,11 @@ server <- shinyServer(function(input, output, session) {
       '  if (length(dg) > 0) {',
       '    out <- c(out, "<h3>Diagnostics of the posterior sample</h3>",',
       '      "<p class=small>Is the sample of the posterior reliable?",',
-      '      "Green = fine, amber = borderline, red = check.</p>",',
+      '      "Green = fine, amber = borderline, red = check.",',
+      '      "<b>Effective sample size</b>: how many independent draws the",',
+      '      "sample is worth; 1000 or more is good. <b>Geweke z</b>:",',
+      '      "start and end of the chain should agree, between -2 and 2",',
+      '      "is fine. More below under &quot;How to read this&quot;.</p>",',
       '      "<details><summary>How to read this</summary>",',
       '      "<p class=small><b>Trace plot</b> (left): the values over the",',
       '      "draws. Good: a fuzzy band around a fixed level. Bad: a trend,",',
@@ -17899,7 +17921,9 @@ server <- shinyServer(function(input, output, session) {
       '  "th:last-child{white-space:nowrap}",',
       '  "th{background:var(--head);text-align:left;font-weight:600;",',
       '  "font-size:.85em;color:var(--mut)}",',
-      '  "th,td{padding:7px 12px;border-bottom:1px solid var(--line)}",',
+      '  "th,td{padding:4px 10px;border-bottom:1px solid var(--line)}",',
+      '  "td{font-size:.94em}",',
+      '  "th:nth-child(n+3),td:nth-child(n+3){text-align:center}",',
       '  "tr:last-child td{border-bottom:0}",',
       '  ".b10{--c:#16794a}.b9{--c:#1f9d62}.b8{--c:#4cb883}",',
       '  ".b7{--c:#8fd0b0}.b6{--c:#b9e0cb}",',
@@ -17908,9 +17932,9 @@ server <- shinyServer(function(input, output, session) {
       '  ".b1,.b2,.b3,.b4,.b5,.b6,.b7,.b8,.b9,.b10{",',
       '  "background:color-mix(in srgb,var(--c) 16%,transparent);",',
       '  "box-shadow:inset 4px 0 0 var(--c)}",',
-      '  ".warn{background:rgba(245,158,11,.28)}",',
-      '  ".ok{background:rgba(26,155,90,.22)}",',
-      '  ".bad{background:rgba(229,72,77,.30)}",',
+      '  ".ok{--c:#1f9d62}.warn{--c:#d9941e}.bad{--c:#c9353b}",',
+      '  ".ok,.warn,.bad{background:color-mix(in srgb,var(--c) 16%,",',
+      '  "transparent);box-shadow:inset 4px 0 0 var(--c)}",',
       '  "details{margin:.4em 0}summary{cursor:pointer;color:var(--mut);",',
       '  "font-size:.9em}",',
       '  ".problem{background:rgba(245,158,11,.18);padding:8px 12px;",',
