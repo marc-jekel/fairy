@@ -16469,7 +16469,6 @@ server <- shinyServer(function(input, output, session) {
         )
 
       parsim_wide_table <- (parsim_wide %>% select(-contains("SD")))
-      parsim_wide_table[3:ncol(parsim_wide_table)] <- (parsim_wide_table[3:ncol(parsim_wide_table)])
 
       parsim_wide_table_reactive$value <- parsim_wide_table
 
