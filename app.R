@@ -7760,6 +7760,7 @@ server <- shinyServer(function(input, output, session) {
   # per-model loops for parsimony / V-representations).
   intersections_reactive  <- reactiveValues(names = NULL, disjoint = NULL)
   mixtures_reactive       <- reactiveValues(names = NULL)
+  mix_components          <- new.env()   # mixture name -> names of the models it is made of (for the marks in the V-representation)
   mytable_mix_reactive    <- reactiveValues(value = NULL)
   mytable_items_reactive  <- reactiveValues(value = NULL)
   items_reactive          <- reactiveValues(names = character())
@@ -15255,6 +15256,7 @@ server <- shinyServer(function(input, output, session) {
             next
           }
           if (length(selected_mix) < 1 || length(selected_mix) + length(extra_mix) < 2) next
+          assign(mix_name, selected_mix, envir = mix_components)
 
           # unchanged components (same H-representations as at the last Go): reuse the last mixture
           mix_sig <- paste(selected_mix, collapse = "+")
@@ -16215,6 +16217,18 @@ server <- shinyServer(function(input, output, session) {
                       if (!length(others)) return(v_lab[j])
                       lab <- if (length(others) == 1) paste("also in", short_model_name(others)) else paste("shared by", length(others) + 1L)
                       paste0(v_lab[j], " <span class='fairy-v-shared' title='", htmltools::htmlEscape(paste("also in:", paste(others, collapse = " | ")), attribute = TRUE), "'>", htmltools::htmlEscape(lab), "</span>")
+                    }, character(1))
+                  }
+                  # a mixture: say which of its models each vertex comes from (the vertices of a mixture are vertices of its models)
+                  mix_srcs <- if (!is.null(vkey_tab[[my_i]]) && isTRUE(vkey_tab[[my_i]]$derived)) get0(vkey_tab[[my_i]]$name, envir = mix_components, inherits = FALSE) else NULL
+                  if (isTRUE(input$v_shared) && length(mix_srcs) > 0) {
+                    by_name <- Filter(Negate(is.null), vkey_tab); names(by_name) <- vapply(by_name, function(x) x$name, character(1))
+                    mine <- vkey_tab[[my_i]]$keys
+                    v_lab <- vapply(seq_along(v_lab), function(j) {
+                      from <- Filter(function(nm) !is.null(by_name[[nm]]) && mine[j] %in% by_name[[nm]]$keys, mix_srcs)
+                      if (!length(from)) return(v_lab[j])
+                      paste0(v_lab[j], " <span class='fairy-v-shared' title='", htmltools::htmlEscape(paste("from:", paste(from, collapse = " | ")), attribute = TRUE), "'>",
+                             htmltools::htmlEscape(paste("from", paste(vapply(from, short_model_name, character(1)), collapse = ", "))), "</span>")
                     }, character(1))
                   }
                   display_t[, 1] <- v_lab
