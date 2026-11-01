@@ -16278,7 +16278,10 @@ server <- shinyServer(function(input, output, session) {
   # groups: list named by group ("k:<number>" for models that share their probabilities, "m:<model>" for an unpacked model of its
   # own), each with k, labels (column names), stem (file name part). Returns the file names.
   # (decreasing example frequencies: equal ones can stop the sampler)
-  write_multinomineq_data <- function(groups, user = list()) {
+  write_multinomineq_data <- function(groups, user = list(), share = list()) {
+    # an unpacked model that uses the numbers of the models with the same number of probabilities gets no file of its own
+    drop <- vapply(names(groups), function(key) startsWith(key, "m:") && isTRUE(share[[key]]) && !is.null(groups[[paste0("k:", groups[[key]]$k)]]), logical(1))
+    groups <- groups[!drop]
     base_ks <- unique(vapply(groups[grepl("^k:", names(groups))], function(g) as.integer(g$k), integer(1)))
     out <- character(0)
     for (key in names(groups)) {
@@ -16586,6 +16589,7 @@ server <- shinyServer(function(input, output, session) {
   # Data for the multinomineq script: typed in the app, written into data_choices*.csv of the download.
   # Stored per probability (by its name), so the numbers stay with the probability when the order is changed.
   mn_user_data <- reactiveVal(list())
+  mn_share <- reactiveVal(list())   # unpacked model (key m:<name>) -> TRUE: uses the numbers of the models with the same number of probabilities
   # one group per set of probabilities that mean the same thing: the base models (and intersections, mixtures) with the same number
   # of probabilities share one; every unpacked items model has its own, because its probabilities mean something of their own
   mn_np_labels <- function() {
@@ -16620,8 +16624,10 @@ server <- shinyServer(function(input, output, session) {
   # numbers typed in the window -> stored per probability; returns FALSE if something is not valid
   mn_collect <- function(groups, strict = TRUE) {
     cur <- isolate(mn_user_data())
+    sh <- isolate(mn_share())
     for (gi in seq_along(groups)) {
       g <- groups[[gi]]
+      if (startsWith(g$key, "m:") && !is.null(input[[paste0("mn_share_", gi)]])) sh[[g$key]] <- isTRUE(input[[paste0("mn_share_", gi)]])
       nn <- vapply(seq_len(g$k), function(i) as.numeric(input[[paste0("mn_n_", gi, "_", i)]] %||% NA), numeric(1))
       ff <- vapply(seq_len(g$k), function(i) as.numeric(input[[paste0("mn_f_", gi, "_", i)]] %||% NA), numeric(1))
       bad <- anyNA(nn) || anyNA(ff) || any(nn < 1) || any(ff < 0) || any(ff > nn) || any(nn != round(nn)) || any(ff != round(ff))
@@ -16634,6 +16640,7 @@ server <- shinyServer(function(input, output, session) {
       cur[[g$key]] <- u
     }
     mn_user_data(cur)
+    mn_share(sh)
     TRUE
   }
   show_mn_data <- function() {
@@ -16646,9 +16653,9 @@ server <- shinyServer(function(input, output, session) {
       g <- groups[[gi]]
       ex <- round(25 * seq(0.8, 0.2, length.out = g$k))
       u <- cur[[g$key]]
-      tags$div(
-        if (length(g$models)) tags$p(class = "fairy-eq-tol-help", paste0("For: ", paste(g$models, collapse = ", "))),
-        tags$table(class = "table table-condensed", style = "width:auto;",
+      # an unpacked model can use the numbers of the models with the same number of probabilities instead of its own
+      can_share <- startsWith(g$key, "m:") && any(vapply(groups, function(x) identical(x$key, paste0("k:", g$k)), logical(1)))
+      tbl <- tags$table(class = "table table-condensed", style = "width:auto;",
           tags$thead(tags$tr(tags$th("probability"), if (!is.null(g$desc)) tags$th("stands for"), tags$th("n"), tags$th("frequency"))),
           tags$tbody(lapply(seq_len(g$k), function(i) {
             v <- u[[g$labels[i]]]
@@ -16657,7 +16664,12 @@ server <- shinyServer(function(input, output, session) {
               if (!is.null(g$desc)) tags$td(style = "vertical-align:middle; font-size:12.5px;", HTML(g$desc[i])),
               tags$td(numericInput(paste0("mn_n_", gi, "_", i), NULL, value = if (!is.null(v)) v$n else 25, min = 1, step = 1, width = "90px")),
               tags$td(numericInput(paste0("mn_f_", gi, "_", i), NULL, value = if (!is.null(v)) v$f else ex[i], min = 0, step = 1, width = "90px")))
-          }))))
+          })))
+      tags$div(
+        if (length(g$models)) tags$p(class = "fairy-eq-tol-help", paste0("For: ", paste(g$models, collapse = ", "))),
+        if (can_share) checkboxInput(paste0("mn_share_", gi), paste0("Use the same numbers as the other models with ", g$k, " probabilities (row by row)"),
+                                     value = isTRUE(isolate(mn_share())[[g$key]])),
+        if (can_share) conditionalPanel(sprintf("!input.mn_share_%d", gi), tbl) else tbl)
     }
     body <- if (length(groups) == 1) one_group(1) else
       do.call(tabsetPanel, c(list(id = "mn_data_tabs", type = "tabs"),
@@ -16667,7 +16679,7 @@ server <- shinyServer(function(input, output, session) {
       title = "Your data for the multinomineq script",
       tags$p(class = "fairy-eq-tol-help", tags$b("n"), ": number of observations for this probability. ", tags$b("frequency"),
         ": how often the outcome the probability stands for was observed, out of n. The numbers go into the data files of the next multinomineq download (H and V); the script then runs without any editing. Until you save your own, the files contain example numbers."),
-      if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Every unpacked model has its own tab, because its probabilities mean something of their own; the models with the same probabilities share one. The rows are in the order of the downloaded files, and the numbers move with their probability when you change the order."),
+      if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Every unpacked model has its own tab, because its probabilities can mean something of their own; the models with the same probabilities share one. If the probabilities of an unpacked model mean the same as those of the other models, tick the box in its tab to use their numbers instead. The rows are in the order of the downloaded files, and the numbers move with their probability when you change the order."),
       tags$div(style = "max-height:50vh; overflow-y:auto;", body),
       footer = tagList(
         if (has_unpacked) actionButton("mn_data_to_order", "Change order of the probabilities"),
@@ -16998,7 +17010,7 @@ server <- shinyServer(function(input, output, session) {
       first_ix <- which(!vapply(export_names, function(nm) is.null(isolate(h_reactive[[nm]])), logical(1)))[1]
       if (!is.na(first_ix)) {
         writeLines(multinomineq_script(export_files[first_ix], ncol(isolate(h_reactive[[export_names[first_ix]]])) - 2L), "analysis_multinomineq.R")
-        files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_groups, isolate(mn_user_data())))
+        files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_groups, isolate(mn_user_data()), isolate(mn_share())))
       }
 
       # zip::zip(file, files)
@@ -17153,7 +17165,7 @@ server <- shinyServer(function(input, output, session) {
         ve1 <- v_reactive[[download_v_names[1]]]
         vm1 <- if (is.list(ve1) && !is.null(ve1$output)) ve1$output else ve1
         writeLines(multinomineq_script(safe_file_name(download_v_names[1]), ncol(vm1) - 2L), "analysis_multinomineq.R")
-        files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_groups, isolate(mn_user_data())))
+        files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_groups, isolate(mn_user_data()), isolate(mn_share())))
       }
 
       tar(file, files)
