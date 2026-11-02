@@ -1709,6 +1709,8 @@ ui <- shinyUI(fluidPage(
       .fairy-run-rowbtn:hover { border-color: var(--fairy-primary); color: var(--fairy-primary); background: color-mix(in srgb, var(--fairy-primary) 8%, transparent); }
       #fairy-run-card.fairy-run-skippable tr.fairy-run-active:not(.fairy-run-skipped) .fairy-run-rowbtn:not(.fairy-run-rowundo) { display: inline-block; }
       #fairy-run-card.fairy-run-skippable tr.fairy-run-skipped .fairy-run-rowundo { display: inline-block; }
+      .fairy-run-rowundo { border-color: var(--fairy-primary) !important; color: var(--fairy-primary) !important; background: color-mix(in srgb, var(--fairy-primary) 10%, transparent) !important; }
+      .fairy-run-rowundo:hover { background: color-mix(in srgb, var(--fairy-primary) 20%, transparent) !important; }
       /* while Cancel is shown it is the only button and sits in the middle; Close takes its place afterwards */
       #fairy-run-actions:has(#fairy-run-cancel.visible) #fairy-run-close { display: none; }
       #fairy-run-cancel:disabled { opacity: .6; cursor: default; }
@@ -18919,8 +18921,10 @@ server <- shinyServer(function(input, output, session) {
     # is built from what is finished (the same script, started with only=<model> and with report)
     short_row <- function(x) if (nchar(x) > 40) paste0(substr(x, 1, 37), "...") else x
     mn_proc$dir <- d; mn_proc$stems <- sel; mn_proc$row_of <- stats::setNames(vapply(sel, short_row, character(1)), sel)
-    mn_proc$queue <- sel; mn_proc$procs <- list(); mn_proc$phase <- "models"; mn_proc$report_p <- NULL
-    mn_proc$skipped <- character(0); mn_proc$failed <- character(0); mn_proc$last <- list()
+    # models that were skipped by hand in an earlier run stay skipped (Undo skip in the window takes it back)
+    rem <- intersect(sel, isolate(mn_skipped_mem()))
+    mn_proc$queue <- setdiff(sel, rem); mn_proc$procs <- list(); mn_proc$phase <- "models"; mn_proc$report_p <- NULL
+    mn_proc$skipped <- rem; mn_proc$failed <- character(0); mn_proc$last <- list()
     mn_grace(NULL)
     mn_proc$start <- Sys.time(); mn_proc$elapsed <- 0; mn_proc$limit <- if (isTRUE(mn_nolimit())) Inf else 900
     mn_proc$parallel <- isTRUE(isolate(input$use_parallel))
@@ -18929,9 +18933,11 @@ server <- shinyServer(function(input, output, session) {
     run_cols(c("Posterior", "Bayes factors"))
     fairy_run_begin("Running the analysis", c("Posterior", "Bayes factors"), skippable = TRUE)
     for (m in mn_proc$row_of) { fairy_run_cell(m, "Posterior", "wait"); fairy_run_cell(m, "Bayes factors", "wait") }
+    for (m in rem) { fairy_run_cell(mn_proc$row_of[[m]], "Posterior", "skip"); fairy_run_cell(mn_proc$row_of[[m]], "Bayes factors", "skip") }
     session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "mn_cancel", label = if (length(sel) > 1) "Cancel all" else "Cancel"))
     session$sendCustomMessage("fairy_run_limit", list(seconds = if (is.finite(mn_proc$limit)) mn_proc$limit else 0, nolimit = !is.finite(mn_proc$limit), label = "analysis"))
   })
+  mn_skipped_mem <- reactiveVal(character(0))
   mn_proc <- reactiveValues(active = FALSE, dir = NULL, start = NULL, elapsed = 0, limit = 900, stems = character(0), row_of = NULL,
                             queue = character(0), procs = list(), phase = "models", report_p = NULL, skipped = character(0),
                             failed = character(0), last = list(), parallel = FALSE)
@@ -19052,7 +19058,7 @@ server <- shinyServer(function(input, output, session) {
     for (m in intersect(stem, c(names(procs), queue))) {
       if (!is.null(procs[[m]])) { try(procs[[m]]$kill_tree(), silent = TRUE); procs[[m]] <- NULL; mn_proc$procs <- procs }
       queue <- setdiff(queue, m); mn_proc$queue <- queue
-      mn_proc$skipped <- unique(c(isolate(mn_proc$skipped), m))
+      mn_proc$skipped <- unique(c(isolate(mn_proc$skipped), m)); mn_skipped_mem(union(isolate(mn_skipped_mem()), m))
       fairy_run_cell(row_of[[m]], "Posterior", "skip"); fairy_run_cell(row_of[[m]], "Bayes factors", "skip")
     }
   })
@@ -19062,6 +19068,7 @@ server <- shinyServer(function(input, output, session) {
     row_of <- isolate(mn_proc$row_of); stem <- names(row_of)[unname(row_of) == input$mn_unskip_model]
     for (m in intersect(stem, isolate(mn_proc$skipped))) {
       mn_proc$skipped <- setdiff(isolate(mn_proc$skipped), m)
+      mn_skipped_mem(setdiff(isolate(mn_skipped_mem()), m))
       mn_proc$queue <- c(isolate(mn_proc$queue), m)
       fairy_run_cell(row_of[[m]], "Posterior", "wait"); fairy_run_cell(row_of[[m]], "Bayes factors", "wait")
       mn_grace(NULL); session$sendCustomMessage("fairy_run_phase", list(text = "Running the analysis")); session$sendCustomMessage("fairy_run_cancel_label", list(text = ""))
