@@ -385,6 +385,18 @@ ui <- shinyUI(fluidPage(
         width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;
         cursor: pointer; transition: background 0.2s; color: #d0d4e0; line-height: 1; padding: 0; }
       #tips-toggle:hover { background: rgba(255,255,255,0.22); }
+      /* leave Fill window of the tutorial page: same round button as the two above, left of them, only while the page fills its window */
+      #fill-exit { display: none; position: fixed; top: 13px; right: 134px; z-index: 1035; background: rgba(255,255,255,0.10); border: none; border-radius: 999px;
+        width: 28px; height: 28px; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;
+        cursor: pointer; transition: background 0.2s; color: #d0d4e0; line-height: 1; padding: 0; }
+      body.fairy-fill-window #fill-exit { display: flex; }
+      #fill-exit:hover { background: rgba(255,255,255,0.22); }
+      body:not(.dark-mode) #fill-exit { background: rgba(0,0,0,0.06); color: var(--fairy-text-muted); }
+      #fill-exit::after { content: attr(data-tip); position: absolute; top: 36px; right: 0; width: max-content; max-width: 220px;
+        padding: 6px 9px; border-radius: 8px; background: #1d2433; color: #fff; font-size: 12px; font-weight: 500; line-height: 1.3; text-align: left;
+        box-shadow: 0 4px 14px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .12s ease; }
+      #fill-exit:hover::after, #fill-exit:focus-visible::after { opacity: 1; }
+      body.fairy-no-tips #fill-exit::after { display: none; }
       body.fairy-no-tips #tips-toggle { text-decoration: line-through; opacity: .6; }
       /* the two round buttons in the header explain themselves at once, below the button (the page title tip comes late) */
       #dm-toggle::after, #tips-toggle::after { content: attr(data-tip); position: absolute; top: 36px; right: 0; width: max-content; max-width: 220px;
@@ -6272,9 +6284,17 @@ ui <- shinyUI(fluidPage(
            // embedded in the tutorial page: the page decides the colour scheme and the two switches stay in step
            if (embedded) {
              window.addEventListener('message', function(e) {
-               if (e.origin !== 'https://modeling-for-everyone.eu' || e.source !== window.parent || !e.data || e.data.type !== 'fairy-theme') return;
+               if (e.origin !== 'https://modeling-for-everyone.eu' || e.source !== window.parent || !e.data) return;
+               if (e.data.type === 'fairy-fill') { document.body.classList.toggle('fairy-fill-window', !!e.data.on); return; }
+               if (e.data.type !== 'fairy-theme') return;
                if (!!e.data.dark !== document.body.classList.contains('dark-mode')) setDark(!!e.data.dark, false);
              });
+             document.addEventListener('keydown', function(e) {
+               if (e.key === 'Escape' && document.body.classList.contains('fairy-fill-window') && !document.querySelector('.modal.in, .modal.show'))
+                 try { window.parent.postMessage({ type: 'fairy-exit-fill' }, 'https://modeling-for-everyone.eu'); } catch (err) {}
+             });
+             var fx = document.getElementById('fill-exit');
+             if (fx) fx.addEventListener('click', function() { try { window.parent.postMessage({ type: 'fairy-exit-fill' }, 'https://modeling-for-everyone.eu'); } catch (e) {} });
              try { window.parent.postMessage({ type: 'fairy-app-ready' }, 'https://modeling-for-everyone.eu'); } catch (e) {}
            }
          });
@@ -6355,6 +6375,8 @@ ui <- shinyUI(fluidPage(
   ),
   tags$button(id = "dm-toggle", `data-tip` = "Switch between light and dark mode", `aria-label` = "Toggle dark mode", "\U0001F319"),
   tags$button(id = "tips-toggle", `data-tip` = "Tooltips and hover hints: click to hide them", `aria-label` = "Show or hide tooltips", "?"),
+  # only shown when the tutorial page has enlarged the app to its whole window ("Fill window"); the click is passed to the page
+  tags$button(id = "fill-exit", `data-tip` = "Leave the full window (Esc)", `aria-label` = "Leave the full window", "\u2715"),
   # Quiet loading screen: the page shell arrives long before the server has
   # rendered the model rows (cold start, or a busy R process), which left a
   # half-empty Input tab. Shown from the first paint, removed on the first
