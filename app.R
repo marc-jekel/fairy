@@ -1989,7 +1989,15 @@ ui <- shinyUI(fluidPage(
         text-transform: none !important; letter-spacing: 0 !important; font-weight: 600; font-size: 14px; border-radius: 6px;
       }
       .bttn-material-flat.bttn-primary:hover { filter: brightness(0.92); }
-      .modal-footer .btn, .modal-footer .bttn { border-radius: 6px; }
+      /* every window footer: same height, padding, type and corners; the main action filled, the rest outlined */
+      .modal-footer .btn, .modal-footer .bttn, .modal-footer a.btn, .modal-footer button {
+        box-sizing: border-box !important; height: 38px !important; padding: 0 18px !important; margin: 0 0 0 8px !important; display: inline-flex !important; align-items: center; justify-content: center;
+        font-size: 14px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: 0 !important; line-height: 1 !important; border-radius: 6px !important; box-shadow: none !important; }
+      .modal-footer .btn-default, .modal-footer .bttn-default { background: transparent !important; color: var(--fairy-text) !important; border: 1.5px solid var(--fairy-border, #c8cdd8) !important; }
+      .modal-footer .btn-default:hover, .modal-footer .bttn-default:hover { border-color: var(--fairy-primary) !important; color: var(--fairy-primary) !important; }
+      .modal-footer .btn-primary, .modal-footer .bttn-primary { background: var(--fairy-primary-contrast-bg) !important; color: #fff !important; border: 1.5px solid var(--fairy-primary-contrast-bg) !important; }
+      .modal-footer .btn-primary:hover, .modal-footer .bttn-primary:hover { background: var(--fairy-primary-contrast-bg-hover) !important; border-color: var(--fairy-primary-contrast-bg-hover) !important; }
+      .modal-footer .btn-link { border: none !important; background: transparent !important; padding: 0 8px !important; }
       /* a footer with a single button: the button sits in the middle */
       .modal-footer:has(> :only-child) { text-align: center; }
       .bttn-primary.bttn-jelly, .bttn-primary.bttn-unite {
@@ -6061,6 +6069,35 @@ ui <- shinyUI(fluidPage(
            }
          }
 
+         // one look for every hint: the title attributes of the app are shown in the same bubble as the other tooltips
+         (function() {
+           var tip = null;
+           function bubble() {
+             if (!tip) {
+               tip = document.createElement('div'); tip.id = 'fairy-tip'; tip.setAttribute('role', 'tooltip');
+               tip.style.cssText = 'position:fixed; z-index:3000000; display:none; max-width:230px; padding:4px 8px; border-radius:5px; background:#1f2430; color:#fff; font-size:11px; line-height:1.3; pointer-events:none; text-align:center;';
+               document.body.appendChild(tip);
+             }
+             return tip;
+           }
+           function hideTip() { if (tip) tip.style.display = 'none'; }
+           document.addEventListener('mouseover', function(e) {
+             var el = e.target && e.target.closest ? e.target.closest('[title], [data-fairy-title]') : null;
+             if (!el || el.id === 'tips-toggle' || el.id === 'dm-toggle' || el.closest('.js-plotly-plot')) { hideTip(); return; }
+             var t = el.getAttribute('title');
+             if (t) { el.setAttribute('data-fairy-title', t); el.removeAttribute('title'); } else t = el.getAttribute('data-fairy-title');
+             if (!t || document.body.classList.contains('fairy-no-tips')) { hideTip(); return; }
+             var b = bubble(); b.textContent = t; b.style.display = 'block';
+             var r = el.getBoundingClientRect(), w = b.offsetWidth, h = b.offsetHeight;
+             var x = Math.max(6, Math.min(window.innerWidth - w - 6, r.left + r.width / 2 - w / 2));
+             var y = r.top - h - 6; if (y < 6) y = r.bottom + 6;
+             b.style.left = x + 'px'; b.style.top = y + 'px';
+           }, true);
+           document.addEventListener('mouseout', function(e) { if (!e.relatedTarget || !e.target.closest || !e.relatedTarget.closest || e.target.closest('[data-fairy-title]') !== e.relatedTarget.closest('[data-fairy-title]')) hideTip(); }, true);
+           document.addEventListener('scroll', hideTip, true);
+           document.addEventListener('mousedown', hideTip, true);
+         })();
+
          $(document).on('click', '.model-card', function(e) {
            if ($(e.target).closest('table, textarea, input, .btn, button').length) return;
            if ($(this).hasClass('fairy-has-handle')) return;   // tiles expand with their own button
@@ -7819,6 +7856,13 @@ server <- shinyServer(function(input, output, session) {
   fairy_run_hide <- function() session$sendCustomMessage("fairy_run_hide", list())
   # one way to tell the user something that needs attention: a toast that stays until it is closed (errors, warnings) or
   # goes away by itself (info). Replaces the pop-up windows (shinyalert), which blocked the page.
+  # every notification of the app: information disappears by itself after the same time, warnings and errors stay until they are closed
+  showNotification <- function(ui, action = NULL, duration = 5, closeButton = TRUE, id = NULL,
+                               type = c("default", "message", "warning", "error"), session = shiny::getDefaultReactiveDomain()) {
+    type <- match.arg(type)
+    shiny::showNotification(ui, action = action, duration = if (type %in% c("warning", "error")) NULL else 8,
+                            closeButton = TRUE, id = id, type = type, session = session)
+  }
   fairy_notify <- function(title, text = "", type = "warning", html = FALSE) {
     body <- if (nzchar(text)) paste0("<br>", if (html) text else gsub("\n", "<br>", htmltools::htmlEscape(text))) else ""
     showNotification(HTML(paste0("<b>", htmltools::htmlEscape(title), "</b>", body)),
