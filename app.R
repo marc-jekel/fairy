@@ -12521,6 +12521,12 @@ server <- shinyServer(function(input, output, session) {
       item_spec_idx_json   <- toJSON(item_model_spec_idx$value, auto_unbox = TRUE, null = "null")
       # the order of the probabilities chosen for QTEST / multinomineq (one permutation per unpacked model)
       qtest_order_json     <- toJSON(isolate(qtest_perm$map), null = "null")
+      # the numbers and settings of the multinomineq analysis and the switches of the volume calculation travel with the input
+      analysis_json <- toJSON(list(
+        mn_data = isolate(mn_user_data()), mn_share = isolate(mn_share()), mn_settings = isolate(mn_settings()),
+        switches = list(EX = isolate(input$EX), ALG = isolate(input$ALG), CB = isolate(input$CB), CG = isolate(input$CG),
+                        SoB = isolate(input$SoB), use_parallel = isolate(input$use_parallel))
+      ), auto_unbox = TRUE, null = "null", digits = NA)
 
       out <- list(
         "V-description" = mytable_v,
@@ -12537,7 +12543,8 @@ server <- shinyServer(function(input, output, session) {
         "Derived model sources" = data.frame(json = as.character(derived_sources_json)),
         "Mixture model flags" = data.frame(json = as.character(mixture_flags_json)),
         "Item model spec idx" = data.frame(json = as.character(item_spec_idx_json)),
-        "QTEST order" = data.frame(json = as.character(qtest_order_json))
+        "QTEST order" = data.frame(json = as.character(qtest_order_json)),
+        "Analysis settings" = data.frame(json = as.character(analysis_json))
       )
 
       out
@@ -13078,6 +13085,20 @@ server <- shinyServer(function(input, output, session) {
       raw <- fromJSON(read_excel(upload_file(), 15)$json[1], simplifyVector = FALSE)
       lapply(raw, function(x) as.integer(unlist(x)))
     }, error = function(e) list())
+
+    # sheet 16: numbers and settings of the multinomineq analysis, switches of the volume calculation (older files have none)
+    tryCatch({
+      an <- fromJSON(read_excel(upload_file(), 16)$json[1], simplifyVector = FALSE)
+      mn_user_data(if (length(an$mn_data)) an$mn_data else list())
+      mn_share(if (length(an$mn_share)) an$mn_share else list())
+      mn_settings(if (length(an$mn_settings)) an$mn_settings else list())
+      for (sw in c("EX", "ALG", "CB", "CG", "SoB", "use_parallel")) {
+        v <- an$switches[[sw]]
+        if (!is.null(v)) shinyWidgets::updateMaterialSwitch(session, sw, value = isTRUE(v))
+      }
+    }, error = function(e) {
+      mn_user_data(list()); mn_share(list()); mn_settings(list())
+    })
 
     # Each modal's row count is a SEPARATE counter (counter_int$n,
     # counter_mix$n, ...) from the actual data just restored above — the
