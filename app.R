@@ -11783,8 +11783,12 @@ server <- shinyServer(function(input, output, session) {
   })
 
   # marking shared vertices / showing only the unique ones needs at least two models
+  # ... and two models whose vertices live in the same space (same number of probabilities): otherwise there is nothing to compare
   observe({
-    several <- isTRUE(counter_input$n > 1)
+    vs <- shiny::reactiveValuesToList(v_reactive)
+    vs <- vs[vapply(vs, function(x) is.matrix(x) && nrow(x) > 0, logical(1))]
+    widths <- vapply(vs, ncol, integer(1))
+    several <- isTRUE(counter_input$n > 1) && length(widths) > 1 && any(table(widths) > 1)
     shinyjs::toggle("v_compare_cap", condition = several)
     shinyjs::toggle("v_shared_wrap", condition = several)
     shinyjs::toggle("v_unique_wrap", condition = several)
