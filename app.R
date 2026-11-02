@@ -6285,7 +6285,12 @@ ui <- shinyUI(fluidPage(
            if (embedded) {
              window.addEventListener('message', function(e) {
                if (e.origin !== 'https://modeling-for-everyone.eu' || e.source !== window.parent || !e.data) return;
-               if (e.data.type === 'fairy-fill') { document.body.classList.toggle('fairy-fill-window', !!e.data.on); return; }
+               if (e.data.type === 'fairy-fill') {
+                 document.body.classList.toggle('fairy-fill-window', !!e.data.on);
+                 var fb = document.getElementById('fill-exit'), what = e.data.mode === 'full' ? 'fullscreen' : 'Fill window';
+                 if (fb) { fb.setAttribute('data-tip', 'Leave ' + what + ' (Esc)'); fb.setAttribute('aria-label', 'Leave ' + what); }
+                 return;
+               }
                if (e.data.type !== 'fairy-theme') return;
                if (!!e.data.dark !== document.body.classList.contains('dark-mode')) setDark(!!e.data.dark, false);
              });
