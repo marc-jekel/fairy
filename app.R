@@ -4448,6 +4448,8 @@ ui <- shinyUI(fluidPage(
         }
         function $id(i) { return document.getElementById(i); }
         function setCell(td, st) {
+          // the second stage of a Go with mixtures finds the models of the first stage unchanged: they stay 'done'
+          if (st === 'cached' && td.getAttribute('data-state') === 'done') return;
           td.className = 'fairy-run-cell st-' + st;
           td.setAttribute('data-state', st);
           while (td.firstChild) td.removeChild(td.firstChild);
