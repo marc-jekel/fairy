@@ -18510,6 +18510,7 @@ server <- shinyServer(function(input, output, session) {
     nms <- nms[vapply(nms, function(nm) !is.null(isolate(h_reactive[[nm]])), logical(1))]
     stats::setNames(safe_file_name(str_replace_all(nms, fixed(" AND "), "_AND_")), nms)
   }
+  mn_nall_ids <- character(0)
   show_mn_data <- function() {
     groups <- mn_np_labels()
     if (length(groups) == 0) {
@@ -18531,12 +18532,26 @@ server <- shinyServer(function(input, output, session) {
               tags$td(numericInput(paste0("mn_n_", gi, "_", i), NULL, value = if (!is.null(v)) v$n else 25, min = 1, step = 1, width = "90px")),
               tags$td(numericInput(paste0("mn_f_", gi, "_", i), NULL, value = if (!is.null(v)) v$f else ex[i], min = 0, step = 1, width = "90px")))
           })))
+      # one n for every probability of the table in one step (the single n fields stay editable)
+      nall <- numericInput(paste0("mn_nall_", gi), "Same n for all probabilities (optional, fills the n column)", value = NA, min = 1, step = 1, width = "260px")
+      tbl <- tags$div(nall, tbl)
       tags$div(
         if (length(g$models)) tags$p(class = "fairy-eq-tol-help", paste0("For: ", paste(g$models, collapse = ", "))),
         if (can_share) checkboxInput(paste0("mn_share_", gi), paste0("Use the same numbers as the other models with ", g$k, " probabilities (row by row)"),
                                      value = isTRUE(isolate(mn_share())[[g$key]])),
         if (can_share) conditionalPanel(sprintf("!input.mn_share_%d", gi), tbl) else tbl)
     }
+    for (gi in seq_along(groups)) local({
+      gi_ <- gi; id <- paste0("mn_nall_", gi_)
+      if (id %in% mn_nall_ids) return()
+      mn_nall_ids <<- c(mn_nall_ids, id)
+      observeEvent(input[[id]], {
+        v <- input[[id]]
+        k <- isolate(mn_np_labels())[[gi_]]$k
+        if (is.null(v) || is.na(v) || v < 1 || is.null(k)) return()
+        for (i in seq_len(k)) updateNumericInput(session, paste0("mn_n_", gi_, "_", i), value = v)
+      }, ignoreInit = TRUE)
+    })
     body <- if (length(groups) == 1) one_group(1) else
       do.call(tabsetPanel, c(list(id = "mn_data_tabs", type = "tabs"),
         lapply(seq_along(groups), function(gi) tabPanel(groups[[gi]]$title, one_group(gi)))))
