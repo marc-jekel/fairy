@@ -7105,15 +7105,6 @@ ui <- shinyUI(fluidPage(
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the V-representation for QTEST",
               downloadButton("d_v", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
             ),
-            tags$div(class = "fairy-dl-group", `data-cap` = "multinomineq", `data-sub` = "R package", title = "multinomineq is an R package by Heck and Davis-Stober (2019), not part of this app. The app prepares its files and can run it here.",
-            tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data and settings for multinomineq: n and frequencies, number of samples, prior. They go into the files and the script of the multinomineq download and are used by Run.",
-              actionButton("mn_data_open_v", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
-            tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the V-representation for multinomineq (R package): files, analysis script and data file",
-              downloadButton("d_v_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
-            tags$span(class = "fairy-tooltip", `data-tooltip` = "Run the multinomineq analysis here (small analyses). It uses the numbers and settings saved under Data.",
-              actionButton("mn_run_open_v", NULL, icon = icon("play"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
-            uiOutput("mn_results_btn_ui_v", inline = TRUE)
-            ),
           tags$div(class = "fairy-dl-group", `data-cap` = "LaTeX",
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the V-representation as a LaTeX table (words: all/none/fractions)",
               downloadButton("d_v_latex", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
@@ -19245,6 +19236,10 @@ server <- shinyServer(function(input, output, session) {
           if (own) "your own numbers" else "the example numbers (you have not saved your own yet)",
           "; ", format(mb, big.mark = ","), " samples for the Bayes factors and ", format(mp, big.mark = ","), " for the posterior. ")),
         actionLink("mn_run_to_data", "Change the data or settings")),
+      if (length(intersect(isolate(names_models_reactive$value), names(v_reactive))) > 0)
+        radioButtons("mn_src_choice", "Compute from", inline = TRUE,
+                     choices = c("Inequalities (H, recommended)" = "H", "Vertices (V, slower, same result)" = "V"),
+                     selected = isolate(mn_source())),
       if (length(mn_model_choices()) > 1)
         checkboxGroupInput("mn_models", "Models to analyse (the downloads always contain all of them)",
                            choices = mn_model_choices(), selected = unname(mn_model_choices()), inline = TRUE, width = "100%"),
@@ -19554,6 +19549,9 @@ server <- shinyServer(function(input, output, session) {
         actionButton(paste0("mn_results_open", sf), NULL, icon = icon("chart-column"), class = "fairy-toolbar-iconbtn fairy-order-btn"))
     })
   })
+  observeEvent(input$mn_src_choice, {
+    if (!identical(input$mn_src_choice, isolate(mn_source()))) { mn_source(input$mn_src_choice); show_mn_run() }
+  }, ignoreInit = TRUE)
   observeEvent(input$mn_results_again, { removeModal(); show_mn_run() })
   output$mn_results_pdf <- downloadHandler(
     filename = function() paste0("multinomineq_results_", Sys.Date(), ".pdf"),
