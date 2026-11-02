@@ -7570,6 +7570,7 @@ ui <- shinyUI(fluidPage(
             `data-tooltip` = paste0("Calculates the volume from the corner points of the model (up to ", EXACT_VOLUME_LIMIT_TXT, " in total; you can skip it); where it works, no algorithm is needed"),
             materialSwitch("EX", "Exact volume", value = TRUE, status = "primary", right = TRUE)
           ),
+          uiOutput("ex_avoid_ui"),
           tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
             `data-tooltip` = "Estimate the volume with algorithms for every model. Off: Cooling Bodies only runs for models without an exact volume",
             materialSwitch("ALG", "Algorithms", value = FALSE, status = "primary", right = TRUE)
@@ -16592,6 +16593,15 @@ server <- shinyServer(function(input, output, session) {
   # results of the exact calculation by H-representation: a number or NA (no exact volume exists) is kept, and so is a calculation
   # that ran into the time limit (it is not tried again for the same model, unless the time limit is switched off)
   exact_cache <- new.env()
+  # models for which the exact volume was skipped by hand: optionally not tried again (the checkbox appears once there are some)
+  exact_skipped <- reactiveVal(character(0))
+  output$ex_avoid_ui <- renderUI({
+    sk <- exact_skipped()
+    if (length(sk) == 0 || identical(input$EX, FALSE)) return(NULL)
+    tags$div(style = "margin:-2px 0 6px 0; max-width:230px;", class = "fairy-tooltip fairy-tooltip-left",
+      `data-tooltip` = "Optional. The exact volume of these models took too long and you skipped it. Tick to use the algorithm for them right away next time.",
+      checkboxInput("ex_avoid", paste0("Don't try exact again for: ", paste(sk, collapse = ", ")), value = isTRUE(isolate(input$ex_avoid))))
+  })
   exact_start_jobs <- function(nms) {
     exact_kill_all()
     u <- unique(nms)
@@ -16615,6 +16625,9 @@ server <- shinyServer(function(input, output, session) {
     if (requireNamespace("geometry", quietly = TRUE)) for (i in seq_along(u)) {
       h <- isolate(h_reactive[[u[i]]])
       if (is.null(h)) next
+      if (isTRUE(isolate(input$ex_avoid)) && u[i] %in% isolate(exact_skipped())) {
+        res[[u[i]]] <- NaN; cached_state[[u[i]]] <- "skipped"; next
+      }
       ch <- get0(hkeys[[i]], envir = exact_cache, inherits = FALSE)
       if (!is.null(ch) && (ch$kind != "timeout" || !isTRUE(isolate(ex_nolimit())))) {
         res[[u[i]]] <- ch$value
@@ -16631,7 +16644,7 @@ server <- shinyServer(function(input, output, session) {
     ex$prev_snap <- isolate(pv$prev_snap)
     ex$active <- TRUE
     for (i in seq_along(u)) fairy_run_cell(u[i], "Exact volume", if (as.character(i) %in% names(procs)) "run" else
-      switch(if (is.na(cached_state[[u[i]]])) "none" else cached_state[[u[i]]], ok = "cached", timeout = "stop", "na"))
+      switch(if (is.na(cached_state[[u[i]]])) "none" else cached_state[[u[i]]], ok = "cached", timeout = "stop", skipped = "skip", "na"))
     session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "ex_skip", label = "Skip exact, use the algorithm"))
     session$sendCustomMessage("fairy_run_limit", list(seconds = if (isTRUE(isolate(ex_nolimit()))) 0 else EXACT_VOLUME_LIMIT, nolimit = isTRUE(isolate(ex_nolimit()))))
   }
@@ -16651,6 +16664,7 @@ server <- shinyServer(function(input, output, session) {
       }
     }
     if (length(procs) > 0 && ((!isTRUE(isolate(ex_nolimit())) && el > EXACT_VOLUME_LIMIT) || isTRUE(isolate(ex$skip)))) {
+      if (isTRUE(isolate(ex$skip))) exact_skipped(union(isolate(exact_skipped()), u[as.integer(names(procs))]))
       for (k in names(procs)) {
         try(procs[[k]]$kill_tree(), silent = TRUE); res[[u[as.integer(k)]]] <- NaN
         fairy_run_cell(u[as.integer(k)], "Exact volume", "stop")
