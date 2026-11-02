@@ -11428,6 +11428,43 @@ server <- shinyServer(function(input, output, session) {
     session$sendCustomMessage("fairy_resync_inputs", list())
   }
 
+  # Renaming a model is cosmetic: what is kept under its name (V-representation on/off, the order of its probabilities, skipped
+  # calculations, the numbers of the multinomineq analysis) moves to the new name. A rename is recognised as: the same number of rows,
+  # exactly one row has another name, the new name did not exist before and the old one is gone (a deletion or a copy never looks like that).
+  rename_state <- new.env()
+  carry_over_rename <- function(old, new) {
+    vtab <- isolate(mytable_v_reactive$value)
+    if (!is.null(vtab) && ncol(vtab) >= 2) {
+      ri <- which(vtab[[1]] == old)
+      if (length(ri) > 0) { vtab[ri, 1] <- new; mytable_v_reactive$value <- vtab }
+    }
+    pm <- isolate(qtest_perm$map)
+    if (!is.null(pm[[old]])) { pm[[new]] <- pm[[old]]; pm[[old]] <- NULL; qtest_perm$map <- pm }
+    sk <- isolate(exact_skipped())
+    if (old %in% sk) exact_skipped(replace(sk, sk == old, new))
+    stem <- function(nm) safe_file_name(str_replace_all(nm, fixed(" AND "), "_AND_"))
+    mem <- isolate(mn_skipped_mem())
+    if (stem(old) %in% mem) mn_skipped_mem(replace(mem, mem == stem(old), stem(new)))
+    for (rv in list(mn_user_data, mn_share)) {
+      cur <- isolate(rv())
+      ko <- paste0("m:", old)
+      if (!is.null(cur[[ko]])) { cur[[paste0("m:", new)]] <- cur[[ko]]; cur[[ko]] <- NULL; rv(cur) }
+    }
+  }
+  observe({
+    n <- counter_input$n
+    cur <- vapply(seq_len(n), function(i) {
+      x <- input[[paste0("textin_relations_name", i)]]
+      if (is.null(x) || length(x) != 1 || !nzchar(x)) NA_character_ else as.character(x)
+    }, character(1))
+    prev <- rename_state$names
+    rename_state$names <- cur
+    if (!is.null(prev) && length(prev) == length(cur)) {
+      d <- which(!is.na(prev) & !is.na(cur) & prev != cur)
+      if (length(d) == 1 && !(cur[d] %in% prev) && !(prev[d] %in% cur)) isolate(carry_over_rename(prev[d], cur[d]))
+    }
+  })
+
   observeEvent(input$delete_model_idx, {
     delete_model_at_idx(suppressWarnings(as.integer(input$delete_model_idx)))
   })
