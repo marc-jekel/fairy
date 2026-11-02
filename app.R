@@ -12961,7 +12961,7 @@ server <- shinyServer(function(input, output, session) {
     ok <- tryCatch({
       txt <- rawToChar(memDecompress(jsonlite::base64_dec(tok), type = "gzip"))
       sheets <- fromJSON(txt, simplifyVector = TRUE)
-      stopifnot(is.list(sheets), length(sheets) %in% c(14, 15))
+      stopifnot(is.list(sheets), length(sheets) %in% c(14, 15, 16))
       sheets <- lapply(sheets, function(x) as.data.frame(x, stringsAsFactors = FALSE, check.names = FALSE))
       write_xlsx(sheets, tmp)
       TRUE
