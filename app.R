@@ -16833,8 +16833,8 @@ server <- shinyServer(function(input, output, session) {
     if (!isTRUE(isolate(ex$active))) {
       # the run is over: forget the skip and calculate again (the other models come from the cache)
       exact_skipped(setdiff(isolate(exact_skipped()), input$ex_unskip_model))
-      parsim_state$exact_done <- FALSE
-      parsim_state$resume <- isolate(parsim_state$resume) + 1
+      fairy_run_hide()
+      shinyjs::runjs("var g = document.getElementById('go'); if (g) g.click();")   # a new run, as if Go was pressed
       return()
     }
     m <- input$ex_unskip_model; u <- isolate(ex$names); i <- match(m, u)
