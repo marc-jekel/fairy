@@ -16653,9 +16653,9 @@ server <- shinyServer(function(input, output, session) {
     ex$dir <- d; ex$names <- u; ex$procs <- procs; ex$res <- res; ex$start <- Sys.time(); ex$elapsed <- 0; ex$skip <- FALSE; ex$hkeys <- hkeys
     ex$prev_snap <- isolate(pv$prev_snap)
     ex$active <- TRUE
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "ex_skip", label = "Skip exact, use the algorithm"))
     for (i in seq_along(u)) fairy_run_cell(u[i], "Exact volume", if (as.character(i) %in% names(procs)) "run" else
       switch(if (is.na(cached_state[[u[i]]])) "none" else cached_state[[u[i]]], ok = "cached", timeout = "stop", skipped = "skip", "na"))
-    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "ex_skip", label = "Skip exact, use the algorithm"))
     session$sendCustomMessage("fairy_run_limit", list(seconds = if (isTRUE(isolate(ex_nolimit()))) 0 else EXACT_VOLUME_LIMIT, nolimit = isTRUE(isolate(ex_nolimit()))))
   }
   observe({
