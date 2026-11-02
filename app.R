@@ -5577,6 +5577,16 @@ ui <- shinyUI(fluidPage(
             ta.remove(); ok ? res() : rej();
           });
         }
+        // after rows were renumbered (a model was deleted) the boxes can show a text that the server never received: send what the boxes show
+        Shiny.addCustomMessageHandler('fairy_resync_inputs', function(m) {
+          [250, 1200].forEach(function(ms) {
+            setTimeout(function() {
+              [].forEach.call(document.querySelectorAll('textarea'), function(t) {
+                if (/^textin_relations_(name|complete_)?[0-9]+$/.test(t.id) && Shiny.shinyapp.$inputValues[t.id] !== t.value) Shiny.setInputValue(t.id, t.value);
+              });
+            }, ms);
+          });
+        });
         Shiny.addCustomMessageHandler('fairy_share', function(m) {
           // embedded in the tutorial page: share a link to that page, which loads the app with this input
           var embedded = false;
@@ -11413,6 +11423,8 @@ server <- shinyServer(function(input, output, session) {
       }
     }
     counter_input$n <- n - 1
+    # the boxes got their new texts from update messages: make sure the server holds exactly what the boxes show (names and texts)
+    session$sendCustomMessage("fairy_resync_inputs", list())
   }
 
   observeEvent(input$delete_model_idx, {
