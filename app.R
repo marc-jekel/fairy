@@ -15460,6 +15460,9 @@ server <- shinyServer(function(input, output, session) {
         # placeholder H here must not show up in the run window as a separate calculation.
         run_row_here <- function(...) if (!identical(kinds_run[loop_numb_models], "mixture") && !isTRUE(dms_run[[as.character(loop_numb_models)]]$by_h)) fairy_run_row(...)
 
+        # a multiple-items model gets its H-representation in its own step further down (from its base model):
+        # computing it here from the row's text as well was a second, unused calculation
+        if (identical(kinds_run[loop_numb_models], "items")) next
         model_snap <- list(
           spec    = mytable_input[loop_numb_models, 2],
           n_p     = counter$n,
