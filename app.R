@@ -7890,9 +7890,12 @@ server <- shinyServer(function(input, output, session) {
     if (length(sk) == 0) return(NULL)
     tags$div(class = "fairy-eq-tol-help", style = "margin:6px 0 10px 0;",
       icon("circle-info"), " Skipped earlier: ", tags$b(paste(sk, collapse = ", ")),
-      " (no V-representation). ", actionLink("v_forget", "Calculate them again"))
+      " (no V-representation). ", actionLink("v_forget", "Undo skip and calculate"))
   })
-  observeEvent(input$v_forget, { v_skipped_mem(character(0)) })
+  observeEvent(input$v_forget, {
+    v_skipped_mem(character(0))
+    shinyjs::runjs("var g = document.getElementById('go_v_h'); if (g) g.click();")   # and calculate them now
+  })
   fairy_notify <- function(title, text = "", type = "warning", html = FALSE) {
     body <- if (nzchar(text)) paste0("<br>", if (html) text else gsub("\n", "<br>", htmltools::htmlEscape(text))) else ""
     showNotification(HTML(paste0("<b>", htmltools::htmlEscape(title), "</b>", body)),
@@ -16716,9 +16719,12 @@ server <- shinyServer(function(input, output, session) {
     if (length(sk) == 0 || identical(input$EX, FALSE)) return(NULL)
     tags$div(class = "fairy-eq-tol-help", style = "margin:6px 0 10px 0;",
       icon("circle-info"), " Skipped earlier: ", tags$b(paste(sk, collapse = ", ")),
-      " (no exact volume, the algorithm is used). ", actionLink("ex_forget", "Try exact again"))
+      " (no exact volume, the algorithm is used). ", actionLink("ex_forget", "Undo skip and calculate"))
   })
-  observeEvent(input$ex_forget, { exact_skipped(character(0)) })
+  observeEvent(input$ex_forget, {
+    exact_skipped(character(0))
+    shinyjs::runjs("var g = document.getElementById('go'); if (g) g.click();")   # and calculate them now
+  })
   ex_spawn <- function(d, u, i) {
     saveRDS(isolate(h_reactive[[u[i]]]), file.path(d, paste0("h", i, ".rds")))
     tryCatch(processx::process$new(file.path(R.home("bin"), "Rscript"),
@@ -20264,7 +20270,11 @@ server <- shinyServer(function(input, output, session) {
   # the whole row markup, just this line).
   output$model_count_summary_ui <- renderUI({
     n <- counter_input$n
-    if (n <= 1) return(NULL)
+    sk_v <- v_skipped_mem()
+    skipped_note <- if (length(sk_v) > 0) tags$span(class = "fairy-vrep-count", style = "font-size:12px; color:var(--fairy-text-muted); margin-left:12px; white-space:nowrap;",
+      icon("circle-info"), " Skipped earlier: ", tags$b(paste(sk_v, collapse = ", ")), " (no V-representation) ",
+      actionLink("v_forget_input", "Undo skip and calculate")) else NULL
+    if (n <= 1) return(skipped_note)
     vtab <- mytable_v_reactive$value
     model_names <- vapply(seq_len(n), function(i)
       input[[paste0("textin_relations_name", i)]] %||% paste0("m", i), character(1))
@@ -20282,12 +20292,16 @@ server <- shinyServer(function(input, output, session) {
         model_names[i] %in% vtab[[1]][vtab[[2]] == TRUE]
     }, logical(1))
     included_count <- sum(row_included)
-    tags$span(
+    tagList(tags$span(
       class = "fairy-vrep-count",
       style = "font-size:12px; color:var(--fairy-text-muted); white-space:nowrap;",
       paste0(n, " model", if (n != 1) "s" else "", " · ",
         included_count, " selected for V-representation")
-    )
+    ), skipped_note)
+  })
+  observeEvent(input$v_forget_input, {
+    v_skipped_mem(character(0))
+    shinyjs::runjs("var g = document.getElementById('go_v_h'); if (g) g.click();")
   })
 
   observeEvent(input$vrep_toggle_all_btn, {
