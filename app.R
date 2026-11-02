@@ -15857,6 +15857,14 @@ server <- shinyServer(function(input, output, session) {
           if (!identical(row_display_name, computed_name) &&
               !is.null(isolate(h_reactive[[computed_name]]))) {
             h_reactive[[row_display_name]] <- isolate(h_reactive[[computed_name]])
+            # a copy of an unpacked row has the same computed name as the row it was copied from: that row still shows the
+            # computed name, so its entry must stay (copy instead of move), or the original loses its H-representation
+            other_rows_use_it <- computed_name %in% mytable_input[-row_idx, 1]
+            if (other_rows_use_it) {
+              items_names <- union(items_names, row_display_name)
+              if (computed_name %in% recomputed_models) recomputed_models <- union(recomputed_models, row_display_name)
+              next
+            }
             h_reactive[[computed_name]] <- NULL
             items_names[items_names == computed_name] <- row_display_name
             # recomputed_models also still says computed_name — same
