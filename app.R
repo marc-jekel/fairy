@@ -1707,7 +1707,8 @@ ui <- shinyUI(fluidPage(
       .fairy-run-rowbtn { display: none; margin-left: 12px; padding: 2px 11px; font-size: 12px; font-weight: 600; line-height: 1.5; vertical-align: middle;
         border: 1.5px solid var(--fairy-border, #c8cdd8); border-radius: 8px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
       .fairy-run-rowbtn:hover { border-color: var(--fairy-primary); color: var(--fairy-primary); background: color-mix(in srgb, var(--fairy-primary) 8%, transparent); }
-      #fairy-run-card.fairy-run-skippable tr.fairy-run-active .fairy-run-rowbtn { display: inline-block; }
+      #fairy-run-card.fairy-run-skippable tr.fairy-run-active .fairy-run-rowbtn:not(.fairy-run-rowundo) { display: inline-block; }
+      #fairy-run-card.fairy-run-skippable tr.fairy-run-skipped .fairy-run-rowundo { display: inline-block; }
       /* while Cancel is shown it is the only button and sits in the middle; Close takes its place afterwards */
       #fairy-run-actions:has(#fairy-run-cancel.visible) #fairy-run-close { display: none; }
       #fairy-run-cancel:disabled { opacity: .6; cursor: default; }
@@ -4406,7 +4407,13 @@ ui <- shinyUI(fluidPage(
               e.stopPropagation();
               if (window.Shiny) Shiny.setInputValue(cancelInput === 'mn_cancel' ? 'mn_skip_model' : (cancelInput === 'ex_skip' ? 'ex_skip_model' : 'v_skip_model'), name, { priority: 'event' });
             });
-            tn.appendChild(sb);
+            var ub = document.createElement('button'); ub.type = 'button'; ub.className = 'fairy-run-rowbtn fairy-run-rowundo'; ub.textContent = 'Undo skip';
+            ub.setAttribute('title', 'Calculate this model after all');
+            ub.addEventListener('click', function(e) {
+              e.stopPropagation();
+              if (window.Shiny) Shiny.setInputValue(cancelInput === 'mn_cancel' ? 'mn_unskip_model' : (cancelInput === 'ex_skip' ? 'ex_unskip_model' : 'v_unskip_model'), name, { priority: 'event' });
+            });
+            tn.appendChild(sb); tn.appendChild(ub);
             tr.appendChild(tn);
             var cells = [];
             for (var ci = 0; ci < ncols; ci++) { var tc = document.createElement('td'); noneCell(tc); tr.appendChild(tc); cells.push(tc); }
@@ -4427,7 +4434,10 @@ ui <- shinyUI(fluidPage(
           var anyRunning = Object.keys(rows).some(function(n) { return rows[n].cells.some(function(c) { var st = c.getAttribute('data-state'); return st === 'run' || st === 'step'; }); });
           $id('fairy-run-card').classList.toggle('fairy-run-skippable', skippable && running && cancelable);
           Object.keys(rows).forEach(function(n) {
-            rows[n].tr.classList.toggle('fairy-run-active', rows[n].cells.some(function(c) { var st = c.getAttribute('data-state'); return st === 'run' || st === 'step'; }));
+            var sts = rows[n].cells.map(function(c) { return c.getAttribute('data-state'); });
+            var act = sts.some(function(st) { return st === 'run' || st === 'step' || st === 'wait'; });
+            rows[n].tr.classList.toggle('fairy-run-active', act);
+            rows[n].tr.classList.toggle('fairy-run-skipped', !act && sts.indexOf('skip') >= 0);
           });
           Object.keys(rows).forEach(function(n) {
             rows[n].cells.forEach(function(cell) {
@@ -7933,11 +7943,21 @@ server <- shinyServer(function(input, output, session) {
   # one model is skipped: its process is stopped (or it leaves the queue), the others go on
   observeEvent(input$v_skip_model, {
     if (!isTRUE(isolate(v_state$active))) return()
-    m <- input$v_skip_model; procs <- isolate(v_state$procs)
-    if (is.null(procs[[m]])) return()
-    try(procs[[m]]$kill_tree(), silent = TRUE); procs[[m]] <- NULL; v_state$procs <- procs
+    m <- input$v_skip_model; procs <- isolate(v_state$procs); queue <- isolate(v_state$queue)
+    if (is.null(procs[[m]]) && !(m %in% queue)) return()
+    if (!is.null(procs[[m]])) { try(procs[[m]]$kill_tree(), silent = TRUE); procs[[m]] <- NULL; v_state$procs <- procs }
+    v_state$queue <- setdiff(queue, m)
     v_state$skipped <- unique(c(isolate(v_state$skipped), m))
     fairy_run_row(m, v = "skip")
+  })
+  # the skip is taken back: the model waits for its turn again
+  observeEvent(input$v_unskip_model, {
+    if (!isTRUE(isolate(v_state$active))) return()
+    m <- input$v_unskip_model
+    if (!(m %in% isolate(v_state$skipped))) return()
+    v_state$skipped <- setdiff(isolate(v_state$skipped), m)
+    v_state$queue <- c(isolate(v_state$queue), m)
+    fairy_run_row(m, v = "wait")
   })
   observeEvent(input$v_cancel, {
     if (!isTRUE(isolate(v_state$active))) return()
@@ -16766,14 +16786,26 @@ server <- shinyServer(function(input, output, session) {
   # the same Skip current model as in the other windows: the model that is running now is stopped, the next one starts
   observeEvent(input$ex_skip_model, {
     if (!isTRUE(isolate(ex$active))) return()
-    u <- isolate(ex$names); procs <- isolate(ex$procs); res <- isolate(ex$res)
-    k <- names(procs)[vapply(names(procs), function(k) identical(u[as.integer(k)], input$ex_skip_model), logical(1))]
-    if (length(k) == 0) return()
-    try(procs[[k[1]]]$kill_tree(), silent = TRUE); procs[[k[1]]] <- NULL
-    m <- input$ex_skip_model; res[[m]] <- NaN
+    m <- input$ex_skip_model; u <- isolate(ex$names); procs <- isolate(ex$procs); res <- isolate(ex$res); q <- isolate(ex$queue)
+    k <- names(procs)[vapply(names(procs), function(k) identical(u[as.integer(k)], m), logical(1))]
+    iq <- match(as.character(match(m, u)), q)
+    if (length(k) == 0 && is.na(iq)) return()
+    if (length(k) > 0) { try(procs[[k[1]]]$kill_tree(), silent = TRUE); procs[[k[1]]] <- NULL }
+    if (!is.na(iq)) q <- q[-iq]
+    res[[m]] <- NaN
     fairy_run_cell(m, "Exact volume", "skip")
     exact_skipped(union(isolate(exact_skipped()), m))
-    ex$procs <- procs; ex$res <- res
+    ex$procs <- procs; ex$res <- res; ex$queue <- q
+  })
+  # the skip is taken back: the model waits for its turn again
+  observeEvent(input$ex_unskip_model, {
+    if (!isTRUE(isolate(ex$active))) return()
+    m <- input$ex_unskip_model; u <- isolate(ex$names); i <- match(m, u)
+    if (is.na(i) || !(m %in% isolate(exact_skipped()))) return()
+    exact_skipped(setdiff(isolate(exact_skipped()), m))
+    res <- isolate(ex$res); res[[m]] <- NA_real_
+    ex$res <- res; ex$queue <- c(isolate(ex$queue), as.character(i))
+    fairy_run_cell(m, "Exact volume", "wait")
   })
   # fairy dust (five quick clicks on the title or the time of the run window): no time limit for the exact calculation
   ex_nolimit <- reactiveVal(FALSE)
@@ -18990,11 +19022,22 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$mn_skip_model, {
     if (!isTRUE(isolate(mn_proc$active)) || !identical(isolate(mn_proc$phase), "models")) return()
     row_of <- isolate(mn_proc$row_of); stem <- names(row_of)[unname(row_of) == input$mn_skip_model]
-    procs <- isolate(mn_proc$procs)
-    for (m in intersect(stem, names(procs))) {
-      try(procs[[m]]$kill_tree(), silent = TRUE); procs[[m]] <- NULL; mn_proc$procs <- procs
+    procs <- isolate(mn_proc$procs); queue <- isolate(mn_proc$queue)
+    for (m in intersect(stem, c(names(procs), queue))) {
+      if (!is.null(procs[[m]])) { try(procs[[m]]$kill_tree(), silent = TRUE); procs[[m]] <- NULL; mn_proc$procs <- procs }
+      queue <- setdiff(queue, m); mn_proc$queue <- queue
       mn_proc$skipped <- unique(c(isolate(mn_proc$skipped), m))
       fairy_run_cell(row_of[[m]], "Posterior", "skip"); fairy_run_cell(row_of[[m]], "Bayes factors", "skip")
+    }
+  })
+  # the skip is taken back: the model waits for its turn again
+  observeEvent(input$mn_unskip_model, {
+    if (!isTRUE(isolate(mn_proc$active)) || !identical(isolate(mn_proc$phase), "models")) return()
+    row_of <- isolate(mn_proc$row_of); stem <- names(row_of)[unname(row_of) == input$mn_unskip_model]
+    for (m in intersect(stem, isolate(mn_proc$skipped))) {
+      mn_proc$skipped <- setdiff(isolate(mn_proc$skipped), m)
+      mn_proc$queue <- c(isolate(mn_proc$queue), m)
+      fairy_run_cell(row_of[[m]], "Posterior", "wait"); fairy_run_cell(row_of[[m]], "Bayes factors", "wait")
     }
   })
   # fairy dust (five quick clicks on the window title, see the script above): no time limit for the analysis here
