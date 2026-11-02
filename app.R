@@ -4380,6 +4380,14 @@ ui <- shinyUI(fluidPage(
           var ic = document.createElement('span'); ic.className = 'fairy-run-ico'; ic.setAttribute('aria-hidden', 'true'); ic.textContent = ICON[st];
           var lb = document.createElement('span'); lb.className = 'fairy-run-lbl'; lb.textContent = LABEL[st];
           td.appendChild(ic); td.appendChild(lb);
+          // a skipped exact calculation can be started again while the window is still open
+          if (st === 'skip' && cancelInput === 'ex_skip' && running && td.parentNode && td.parentNode.firstChild) {
+            var nm2 = td.parentNode.firstChild.firstChild ? td.parentNode.firstChild.firstChild.textContent : '';
+            var rb = document.createElement('button'); rb.type = 'button'; rb.className = 'fairy-run-rowskip'; rb.textContent = 'undo';
+            rb.setAttribute('title', 'Calculate the exact volume of this model after all');
+            rb.addEventListener('click', function(e) { e.stopPropagation(); if (window.Shiny) Shiny.setInputValue('ex_retry_model', nm2, { priority: 'event' }); });
+            td.appendChild(rb);
+          }
           // the exact volume: every model that is still being calculated has its own skip
           if (st === 'run' && cancelInput === 'ex_skip' && td.parentNode && td.parentNode.firstChild) {
             var nm = td.parentNode.firstChild.firstChild ? td.parentNode.firstChild.firstChild.textContent : '';
@@ -16696,6 +16704,24 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   observeEvent(input$ex_skip, { if (isTRUE(isolate(ex$active))) ex$skip <- TRUE })
+  # undo of such a skip while the window is open: the exact calculation of this model starts again
+  observeEvent(input$ex_retry_model, {
+    if (!isTRUE(isolate(ex$active))) return()
+    m <- input$ex_retry_model; u <- isolate(ex$names); i <- match(m, u)
+    if (is.na(i)) return()
+    d <- isolate(ex$dir); h <- isolate(h_reactive[[m]])
+    if (is.null(h) || is.null(d) || !dir.exists(d)) return()
+    saveRDS(h, file.path(d, paste0("h", i, ".rds")))
+    pr <- tryCatch(processx::process$new(file.path(R.home("bin"), "Rscript"),
+      c(file.path(d, "job.R"), file.path(d, paste0("h", i, ".rds")), file.path(d, paste0("v", i, ".rds"))), cleanup_tree = TRUE),
+      error = function(e) NULL)
+    if (is.null(pr)) return()
+    procs <- isolate(ex$procs); procs[[as.character(i)]] <- pr
+    res <- isolate(ex$res); res[[m]] <- NA_real_
+    exact_skipped(setdiff(isolate(exact_skipped()), m))
+    fairy_run_cell(m, "Exact volume", "run")
+    ex$procs <- procs; ex$res <- res; ex$skip <- FALSE
+  })
   # one model: its exact calculation is stopped, the others go on
   observeEvent(input$ex_skip_model, {
     if (!isTRUE(isolate(ex$active))) return()
