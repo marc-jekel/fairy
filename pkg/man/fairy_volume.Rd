@@ -26,13 +26,12 @@ of the vertices, exact up to floating-point error, but can be very slow
 or run out of memory in high dimensions. \code{"mc"}: uniform Monte Carlo
 draws from the hypercube. \code{"auto"}: the exact volume first (as in the app), and the volesti estimate only if the
 exact volume cannot be calculated or, with a finite \code{time_limit} (needs the package \pkg{callr}), takes longer than that;
-\verb{$method} says which one was used. The other methods are never switched automatically.}
+\verb{$method} says which one was used.}
 
 \item{n_samples}{Monte Carlo draws for \code{method = "mc"}.}
 
-\item{time_limit}{Seconds for the exact calculation when \code{method = "auto"}. Default \code{Inf}: no limit, nothing is ever stopped
-(only if the exact calculation fails, the estimate is returned). The online app stops the exact volume after 300 seconds to
-protect its server; \code{time_limit = 300} reproduces that.}
+\item{time_limit}{Optional, for \code{method = "auto"}: seconds after which the volesti estimate replaces the exact calculation
+(needs the package \pkg{callr}). Default \code{Inf}: the exact volume is calculated however long it takes.}
 
 \item{...}{Passed on to \code{volesti::volume()} when \code{method = "volesti"}.}
 }

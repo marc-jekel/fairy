@@ -49,7 +49,7 @@ A verbal hypothesis about proportions, "category A is more common than B, which 
 | `fairy_h_table()`, `fairy_v_table()` | H- and V-description as tables; `fairy_table_write()` writes Markdown, LaTeX or CSV |
 | `fairy_h_latex()`, `fairy_write_latex()` | H-description as LaTeX (`align*`, readable form); a compilable `.tex` for several models |
 | `fairy_dim()` | dimension of a model |
-| `fairy_volume()` | parsimony: volume in the unit cube (exact, volesti, Monte Carlo, or `"auto"`: exact first, as in the app; no time limit unless you set one) |
+| `fairy_volume()` | parsimony: volume in the unit cube (exact, volesti, Monte Carlo, or `"auto"`: exact first, as in the app) |
 | `fairy_max_bf()` | largest possible Bayes factor against the unconstrained model (1 / volume) |
 | `fairy_info()` | dimension, vertices, constraints, volume, max. Bayes factor in one row |
 | `fairy_parsimony()` | older interface to the volume |
@@ -115,7 +115,7 @@ fairy_info(fairy_replicate(m$M4, 3, "joint"))
 
 ## Parsimony is a volume
 
-The parsimony of a model is its volume inside the unit hypercube, so the share of all families of Binomial parameters the model allows. A smaller volume means a more restrictive, more precise model. `1 / volume` is the largest Bayes factor in favor of the model against the unconstrained model (uniform prior, unbounded sample size). It is `Inf` for models with an equality constraint. By default the volume is estimated with `volesti` and its own default settings (further `volesti::volume()` options can be passed via `...`); `method = "exact"` (convex hull) and `method = "mc"` are available on request. The package never switches method automatically. Joint replication models use the product formula.
+The parsimony of a model is its volume inside the unit hypercube, so the share of all families of Binomial parameters the model allows. A smaller volume means a more restrictive, more precise model. `1 / volume` is the largest Bayes factor in favor of the model against the unconstrained model (uniform prior, unbounded sample size). It is `Inf` for models with an equality constraint. By default the volume is estimated with `volesti` and its own default settings (further `volesti::volume()` options can be passed via `...`); `method = "exact"` (convex hull) and `method = "mc"` are available on request, and `method = "auto"` calculates the exact volume first, as the app does. Joint replication models use the product formula.
 
 ## Export
 

@@ -131,12 +131,10 @@ v$volume                                     # 1/6, exact
 v$method                                     # "exact"
 ```
 
-Nothing is ever stopped in the package: the exact volume takes as long as it takes (up to about 10 dimensions it is usually quick,
-with 12 and more it can take minutes or longer). The **online app** stops the exact volume after five minutes and then uses an algorithm
-for that model: that limit protects the server of the app and is a property of the web interface, not of the method. The downloaded
-scripts and the package have no limit. If you want the same behaviour in R, set `time_limit = 300` (seconds; the stopped calculation runs in a
-separate R process, which needs the package callr), and `$method` then says `"volesti (the exact volume took too long)"` when it was stopped.
-The default of `fairy_volume()` itself stays `"volesti"`, an estimate.
+The exact volume is calculated however long it takes (up to about 10 dimensions it is usually quick, with 12 and more it can take minutes or
+longer). `time_limit = 300` (seconds) is an option: the exact calculation then runs in a separate R process (this needs the package callr) and
+is replaced by the volesti estimate after that time, and `$method` says `"volesti (the exact volume took too long)"`. The default of
+`fairy_volume()` itself is `"volesti"`, an estimate.
 
 # Several models at once
 

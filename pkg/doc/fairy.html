@@ -544,19 +544,15 @@ the models that have no exact volume. In the package this is
 <span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt; [1] 0.1666667</span></span>
 <span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>v<span class="sc">$</span>method                                     <span class="co"># &quot;exact&quot;</span></span>
 <span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="co">#&gt; [1] &quot;exact&quot;</span></span></code></pre></div>
-<p>Nothing is ever stopped in the package: the exact volume takes as
-long as it takes (up to about 10 dimensions it is usually quick, with 12
-and more it can take minutes or longer). The <strong>online app</strong>
-stops the exact volume after five minutes and then uses an algorithm for
-that model: that limit protects the server of the app and is a property
-of the web interface, not of the method. The downloaded scripts and the
-package have no limit. If you want the same behaviour in R, set
-<code>time_limit = 300</code> (seconds; the stopped calculation runs in
-a separate R process, which needs the package callr), and
-<code>$method</code> then says
-<code>&quot;volesti (the exact volume took too long)&quot;</code> when it was
-stopped. The default of <code>fairy_volume()</code> itself stays
-<code>&quot;volesti&quot;</code>, an estimate.</p>
+<p>The exact volume is calculated however long it takes (up to about 10
+dimensions it is usually quick, with 12 and more it can take minutes or
+longer). <code>time_limit = 300</code> (seconds) is an option: the exact
+calculation then runs in a separate R process (this needs the package
+callr) and is replaced by the volesti estimate after that time, and
+<code>$method</code> says
+<code>&quot;volesti (the exact volume took too long)&quot;</code>. The default of
+<code>fairy_volume()</code> itself is <code>&quot;volesti&quot;</code>, an
+estimate.</p>
 </div>
 </div>
 <div id="several-models-at-once" class="section level1">

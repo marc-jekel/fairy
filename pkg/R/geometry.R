@@ -146,10 +146,9 @@ exact_volume_limited <- function(v, time_limit) {
 #'   or run out of memory in high dimensions. `"mc"`: uniform Monte Carlo
 #'   draws from the hypercube. `"auto"`: the exact volume first (as in the app), and the volesti estimate only if the
 #'   exact volume cannot be calculated or, with a finite `time_limit` (needs the package \pkg{callr}), takes longer than that;
-#'   `$method` says which one was used. The other methods are never switched automatically.
-#' @param time_limit Seconds for the exact calculation when `method = "auto"`. Default `Inf`: no limit, nothing is ever stopped
-#'   (only if the exact calculation fails, the estimate is returned). The online app stops the exact volume after 300 seconds to
-#'   protect its server; `time_limit = 300` reproduces that.
+#'   `$method` says which one was used.
+#' @param time_limit Optional, for `method = "auto"`: seconds after which the volesti estimate replaces the exact calculation
+#'   (needs the package \pkg{callr}). Default `Inf`: the exact volume is calculated however long it takes.
 #' @param ... Passed on to `volesti::volume()` when `method = "volesti"`.
 #' @param n_samples Monte Carlo draws for `method = "mc"`.
 #'

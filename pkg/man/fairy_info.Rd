@@ -19,7 +19,7 @@ of the vertices, exact up to floating-point error, but can be very slow
 or run out of memory in high dimensions. \code{"mc"}: uniform Monte Carlo
 draws from the hypercube. \code{"auto"}: the exact volume first (as in the app), and the volesti estimate only if the
 exact volume cannot be calculated or, with a finite \code{time_limit} (needs the package \pkg{callr}), takes longer than that;
-\verb{$method} says which one was used. The other methods are never switched automatically.}
+\verb{$method} says which one was used.}
 
 \item{volume}{Compute the volume as well? Skip it (\code{FALSE}) when the
 polytope is large.}
