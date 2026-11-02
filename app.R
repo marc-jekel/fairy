@@ -2297,6 +2297,77 @@ ui <- shinyUI(fluidPage(
            'This is technically a business meeting. With math.',
            'I will be right there. The polytope will not enumerate itself.'
          ];
+         // jokes for the two long calculations: the volumes and the Bayesian analysis (told by the fairy on her own every now and then,
+         // and when she is clicked while the progress window is open)
+         var volQuips = [
+           'Exact volume: no sampling, no excuses, just a convex hull and a deep breath.',
+           'Estimating a volume by random walks is the scenic route. Exact is the tunnel.',
+           'The volume of a 12-dimensional cube is 1. The volume of my patience is smaller.',
+           'In high dimensions almost everything lives near the surface. Including my nerves.',
+           'Thin theories are cheap to falsify and expensive to compute. Life is unfair.',
+           'I convexified your hull. It said thank you in Qhull.',
+           'Some volumes are so tiny I need a microscope and a calculator that believes in 1e-30.',
+           'If this takes five minutes, the algorithm gets the job. I will sulk privately.',
+           'Triangulating the hull. Think of it as pizza for geometers.',
+           'My favorite fraction today: 1/6. A simplex never lies.',
+           'The unit ball peaks in volume at five dimensions. Nobody tells you that in school.',
+           'Dimension 12 is where intuition goes on vacation and the hull has to do the thinking.',
+           'A theory with measure zero is always right and never tested. Convenient, and sad.',
+           'Exact volumes are like exact change: lovely when you have them, annoying when you are three vertices short.',
+           'Why did the polytope go to therapy? Too many vertices, too few boundaries.',
+           'You may skip a model. I will not take it personally. Much.',
+           'I do not count the volume. I count the simplices, and then I count them again.',
+           'A hull with 1296 vertices just walked in. It looks rounded.',
+           'Somewhere a Monte Carlo walker is wandering through your polytope. I do not trust it with directions.',
+           'The smaller the volume, the sharper the theory. The sharper the theory, the longer the wait.'
+         ];
+         var bayesQuips = [
+           'Posterior sampling: a polite way of asking the data what it thinks of your prior.',
+           'Bayes factor of 1 means the data shrugged. I know that shrug.',
+           'The prior is flat. I am not. I am concentrated.',
+           'Burn-in is just the sampler finding its seat. Please do not rush it.',
+           'Every draw is a tiny vote. I am counting them all, even the shy ones.',
+           'Somewhere a frequentist is pretending not to watch this progress bar.',
+           'Your posterior is a lot like a fairy: lives in the middle, does not touch the edges.',
+           'I do not do p-values. I do probabilities of probabilities, which is much less relaxing.',
+           'Monte Carlo error is the price of not integrating by hand. I accept it with grace.',
+           'Marginal likelihood walks into a bar. Nobody can compute the bill.',
+           'A Bayes factor of 100 is extreme. A Bayes factor of 99 is also extreme. I do not make the rules.',
+           'This is what it sounds like when a Gibbs sampler hums. Hmm. Hmm. Hmm.',
+           'The sampler is exploring. I am supervising. We both feel important.',
+           'If your Bayes factor is bigger than your sample size, check the units.',
+           'Order constraints make the prior shrink. The data decides whether it was worth it.',
+           'Some models have a posterior probability so small it needs a footnote.',
+           'You can skip a model. The sampler will sulk. I will pour it tea.',
+           'Complement or unconstrained, I love both. One of them is just easier to sample from.',
+           'The chain is mixing well. That is the nicest thing anyone has said to me all day.',
+           'I trust a trace plot more than a person. It cannot lie about its mean.'
+         ];
+         function runKind() {
+           var ov = document.getElementById('fairy-run-overlay');
+           if (!ov || !ov.classList.contains('active')) return null;
+           var t = (document.getElementById('fairy-run-title') || {}).textContent || '';
+           if (/volume/i.test(t)) return 'vol';
+           if (/analysis|results/i.test(t)) return 'bayes';
+           return null;
+         }
+         function questPool(kind) { return kind === 'vol' ? volQuips : (kind === 'bayes' ? bayesQuips : busyQuips); }
+         (function() {
+           var lastKind = null, since = 0, lastAt = 0;
+           setInterval(function() {
+             var k = runKind();
+             if (!k) { lastKind = null; return; }
+             var now = Date.now();
+             if (k !== lastKind) { lastKind = k; since = now; }
+             if (now - since > 6000 && now - lastAt > 16000) {
+               var el = document.querySelector('.fairy-progress-figure.fairy-landed, #fairy-flyer.fairy-parked');
+               if (!el) return;
+               lastAt = now;
+               var pool = questPool(k);
+               showBubble(el.getBoundingClientRect(), pool[Math.floor(Math.random() * pool.length)]);
+             }
+           }, 2000);
+         })();
          $(document).on('click', '.fairy-progress-figure.fairy-landed, #fairy-flyer.fairy-parked', function(e) {
            e.stopPropagation();
            var el = this;
@@ -2318,7 +2389,8 @@ ui <- shinyUI(fluidPage(
                { transform: 'rotate(0deg)' }
              ], { duration: 350, easing: 'ease-in-out' });
            }
-           showBubble(r, busyQuips[Math.floor(Math.random() * busyQuips.length)]);
+           var pool = questPool(runKind());
+           showBubble(r, pool[Math.floor(Math.random() * pool.length)]);
          });
        })();
        $(document).on('shiny:idle', function(){
