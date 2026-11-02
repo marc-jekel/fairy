@@ -61,8 +61,8 @@ fairy_svg <- HTML(
   '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
      <g fill="none" stroke-linecap="round" stroke-linejoin="round">
        <!-- wings -->
-       <path d="M31 34 C16 20, 6 24, 10 34 C6 44, 18 44, 31 34 Z" style="fill:var(--fairy-wing-a,#b79be0);stroke:var(--fairy-wing-s,#8a63c4)" stroke-width="1.5" opacity="0.85"/>
-       <path d="M33 34 C48 20, 58 24, 54 34 C58 44, 46 44, 33 34 Z" style="fill:var(--fairy-wing-b,#cdb6ee);stroke:var(--fairy-wing-s,#8a63c4)" stroke-width="1.5" opacity="0.85"/>
+       <path d="M31 34 C16 20, 6 24, 10 34 C6 44, 18 44, 31 34 Z" style="fill:var(--fairy-wing-a,#593196);stroke:var(--fairy-wing-s,#4a2a7a)" stroke-width="1.5" opacity="0.85"/>
+       <path d="M33 34 C48 20, 58 24, 54 34 C58 44, 46 44, 33 34 Z" style="fill:var(--fairy-wing-b,#7a4fc4);stroke:var(--fairy-wing-s,#4a2a7a)" stroke-width="1.5" opacity="0.85"/>
        <!-- body -->
        <circle cx="32" cy="20" r="5" fill="#ffd98a" stroke="#e0a94a" stroke-width="1.4"/>
        <path d="M32 25 L32 44 M32 30 L26 38 M32 30 L38 38 M32 44 L27 52 M32 44 L37 52"
@@ -98,7 +98,7 @@ ui <- shinyUI(fluidPage(
         --fairy-panel: #ffffff;
         --fairy-border: #e2e6ee;
         --fairy-primary: #593196;
-        --fairy-wing-a: #b79be0; --fairy-wing-b: #cdb6ee; --fairy-wing-s: #8a63c4;   /* wings of the fairy: purple by day */
+        --fairy-wing-a: #593196; --fairy-wing-b: #7a4fc4; --fairy-wing-s: #4a2a7a;   /* wings of the fairy: purple by day */
         --fairy-primary-dark: #4a2a7a;
         /* Background for any element with WHITE/light text sitting
            directly on it (active toggle buttons, primary filled
@@ -143,7 +143,7 @@ ui <- shinyUI(fluidPage(
            directly: a candidate dark enough for white text dropped its
            own text-on-background contrast under AA). */
         --fairy-primary-contrast-bg: #2a5bd7;
-        --fairy-wing-a: #8fb3ff; --fairy-wing-b: #a9c4ff; --fairy-wing-s: #5b7fd6;   /* ... blue at night */
+        --fairy-wing-a: #2a5bd7; --fairy-wing-b: #4f7be8; --fairy-wing-s: #2350bd;   /* ... blue at night */
         --fairy-primary-contrast-bg-hover: #2350bd;
         --fairy-accent: #1fcc9a;
         --fairy-text: #dde1ea;
