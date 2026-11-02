@@ -6369,6 +6369,11 @@ ui <- shinyUI(fluidPage(
                }
                if (e.data.type !== 'fairy-theme') return;
                document.body.classList.toggle('fairy-hide-dm', !e.data.toggle);
+               if (typeof e.data.fill !== 'undefined') {
+                 document.body.classList.toggle('fairy-fill-window', !!e.data.fill);
+                 var fb2 = document.getElementById('fill-exit'), what2 = e.data.mode === 'full' ? 'fullscreen' : 'Fill window';
+                 if (fb2) { fb2.setAttribute('data-tip', 'Leave ' + what2 + ' (Esc)'); fb2.setAttribute('aria-label', 'Leave ' + what2); }
+               }
                if (!!e.data.dark !== document.body.classList.contains('dark-mode')) setDark(!!e.data.dark, false);
              });
              document.addEventListener('keydown', function(e) {
