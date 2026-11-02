@@ -18558,7 +18558,7 @@ server <- shinyServer(function(input, output, session) {
       tags$style(HTML(".mn-foot .btn { margin: 0 !important; }")),
       tags$p(class = "fairy-eq-tol-help", tags$b("n"), ": number of observations. ", tags$b("frequency"),
         ": how often the outcome happened, out of n. Save keeps your numbers and settings: they go into the files and the script of the multinomineq download (the download buttons next to Data) and are used when you press Run."),
-      if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Every unpacked model has its own tab, because its probabilities can mean something of their own. Tick the box in its tab to use the numbers of the other models instead. The numbers move with their probability when you change the order."),
+      if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Each unpacked model has its own tab, because its probabilities may stand for different outcomes (for example one per item) and then need their own numbers. If they stand for the same outcomes as in the other models, tick the box 'Use the same numbers as the other models' in the tab: the model then takes the numbers of the other models, row by row. If you change the order of the probabilities, each number stays with its probability."),
       tags$div(style = "max-height:46vh; overflow-y:auto;", body),
       tags$hr(style = "margin:14px 0 10px 0;"),
       tags$h5("Analysis settings", style = "margin:0 0 2px 0; font-size:15px; font-weight:650;"),
