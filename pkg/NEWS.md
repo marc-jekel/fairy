@@ -1,7 +1,9 @@
 # fairy 0.6.0
 
-* `fairy_volume(method = "auto")`: the exact volume first, stopped after `time_limit` seconds (default 300, needs callr), then the volesti
-  estimate; `$method` says which was used. This is what the app does. The default stays `"volesti"`.
+* `fairy_volume(method = "auto")`: the exact volume first, as in the app; the volesti estimate only if the exact volume cannot be
+  calculated or, with a finite `time_limit` (needs callr), takes longer. By default (`time_limit = Inf`) nothing is stopped: the five
+  minutes of the online app are a limit of its web interface that protects its server, not part of the method. The default method of
+  `fairy_volume()` stays `"volesti"`.
 * `fairy_write_multinomineq()` also writes your data (`data`), the settings (`settings`) and the analysis script `analysis_multinomineq.R`
   (`analysis = TRUE`, as the app); the numbers stay with the probability when `order` changes.
 * New: `fairy_multinomineq_script()` (text of the analysis script) and `fairy_analyze_multinomineq()` (runs the analysis from R and returns

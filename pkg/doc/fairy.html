@@ -533,28 +533,30 @@ settings; any non-default volesti option can be passed via
 <code>method = &quot;mc&quot;</code> (Monte Carlo) are available on request.
 <code>fairy_parsimony()</code> is the older name of the same
 computation.</p>
-<div id="the-same-as-in-the-app-exact-first-estimate-after-a-time-limit" class="section level2">
-<h2>The same as in the app: exact first, estimate after a time
-limit</h2>
+<div id="the-same-as-in-the-app-exact-first" class="section level2">
+<h2>The same as in the app: exact first</h2>
 <p>The <strong>Shiny app</strong> calculates the exact volume first (it
 is a number such as 1/6, not an estimate) and uses an algorithm only for
-the models that have no exact volume or whose exact volume takes more
-than five minutes. In the package this is
+the models that have no exact volume. In the package this is
 <code>method = &quot;auto&quot;</code>:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>v <span class="ot">&lt;-</span> fairy<span class="sc">::</span><span class="fu">fairy_volume</span>(<span class="st">&quot;p1 &gt; p2 &gt; p3&quot;</span>, <span class="at">n_p =</span> <span class="dv">3</span>, <span class="at">method =</span> <span class="st">&quot;auto&quot;</span>, <span class="at">time_limit =</span> <span class="dv">300</span>)   <span class="co"># the original function (this vignette fixes the default of fairy_volume() to &quot;exact&quot;)</span></span>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>v <span class="ot">&lt;-</span> fairy<span class="sc">::</span><span class="fu">fairy_volume</span>(<span class="st">&quot;p1 &gt; p2 &gt; p3&quot;</span>, <span class="at">n_p =</span> <span class="dv">3</span>, <span class="at">method =</span> <span class="st">&quot;auto&quot;</span>)   <span class="co"># the original function (this vignette fixes the default of fairy_volume() to &quot;exact&quot;)</span></span>
 <span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>v<span class="sc">$</span>volume                                     <span class="co"># 1/6, exact</span></span>
 <span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt; [1] 0.1666667</span></span>
-<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>v<span class="sc">$</span>method                                     <span class="co"># &quot;exact&quot;: it finished within the time limit</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>v<span class="sc">$</span>method                                     <span class="co"># &quot;exact&quot;</span></span>
 <span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="co">#&gt; [1] &quot;exact&quot;</span></span></code></pre></div>
-<p>When the exact calculation takes longer than <code>time_limit</code>
-seconds (it runs in a separate R process that is stopped, which needs
-the package callr), <code>method = &quot;auto&quot;</code> returns the volesti
-estimate, and <code>$method</code> says so
-(<code>&quot;volesti (the exact volume took too long)&quot;</code>). Nothing else
-switches the method on its own: the default stays
-<code>&quot;volesti&quot;</code>, because the exact volume can take very long in
-high dimensions (up to about 10 dimensions it is usually quick, with 12
-and more it can take minutes or longer).</p>
+<p>Nothing is ever stopped in the package: the exact volume takes as
+long as it takes (up to about 10 dimensions it is usually quick, with 12
+and more it can take minutes or longer). The <strong>online app</strong>
+stops the exact volume after five minutes and then uses an algorithm for
+that model: that limit protects the server of the app and is a property
+of the web interface, not of the method. The downloaded scripts and the
+package have no limit. If you want the same behaviour in R, set
+<code>time_limit = 300</code> (seconds; the stopped calculation runs in
+a separate R process, which needs the package callr), and
+<code>$method</code> then says
+<code>&quot;volesti (the exact volume took too long)&quot;</code> when it was
+stopped. The default of <code>fairy_volume()</code> itself stays
+<code>&quot;volesti&quot;</code>, an estimate.</p>
 </div>
 </div>
 <div id="several-models-at-once" class="section level1">

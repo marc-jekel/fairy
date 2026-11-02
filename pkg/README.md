@@ -49,7 +49,7 @@ A verbal hypothesis about proportions, "category A is more common than B, which 
 | `fairy_h_table()`, `fairy_v_table()` | H- and V-description as tables; `fairy_table_write()` writes Markdown, LaTeX or CSV |
 | `fairy_h_latex()`, `fairy_write_latex()` | H-description as LaTeX (`align*`, readable form); a compilable `.tex` for several models |
 | `fairy_dim()` | dimension of a model |
-| `fairy_volume()` | parsimony: volume in the unit cube (exact, volesti, Monte Carlo, or `"auto"`: exact first with a time limit, as in the app) |
+| `fairy_volume()` | parsimony: volume in the unit cube (exact, volesti, Monte Carlo, or `"auto"`: exact first, as in the app; no time limit unless you set one) |
 | `fairy_max_bf()` | largest possible Bayes factor against the unconstrained model (1 / volume) |
 | `fairy_info()` | dimension, vertices, constraints, volume, max. Bayes factor in one row |
 | `fairy_parsimony()` | older interface to the volume |

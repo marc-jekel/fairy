@@ -1,8 +1,9 @@
 test_that("fairy_volume(method = 'auto') is exact when it finishes in time", {
   v <- fairy_volume("p1 > p2 > p3", n_p = 3, method = "auto")
   expect_equal(v$volume, 1/6)
-  expect_identical(v$method, "exact")
+  expect_identical(v$method, "exact")   # no time limit by default
   expect_equal(fairy_max_bf("p1 > p2 > p3", n_p = 3, method = "auto"), 6)
+  expect_equal(fairy_volume("p1 > p2 > p3", n_p = 3, method = "auto", time_limit = 60)$volume, 1/6)
 })
 
 test_that("fairy_volume(method = 'auto') falls back to volesti after the time limit", {

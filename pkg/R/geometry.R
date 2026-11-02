@@ -108,9 +108,12 @@ volume_from_vertices <- function(v) {
   geometry::convhulln(v, options = "FA")$vol
 }
 
-# Exact volume in a separate R process that is stopped after `time_limit` seconds: the volume, or NULL when it did not finish
-# in time (or failed). Needs the package callr; without it the calculation runs in this process and cannot be interrupted.
+# Exact volume; with a finite `time_limit` in a separate R process that is stopped after that many seconds. Returns the volume, or
+# NULL when it did not finish in time (or failed). A limit needs the package callr; without it the calculation runs in this
+# process and cannot be interrupted.
 exact_volume_limited <- function(v, time_limit) {
+  # no limit: nothing is stopped, the exact volume takes as long as it takes (only a failure leads to NULL)
+  if (!is.finite(time_limit)) return(tryCatch(volume_from_vertices(v), error = function(e) NULL))
   if (requireNamespace("callr", quietly = TRUE)) {
     return(tryCatch(
       callr::r(function(v) {
@@ -141,10 +144,12 @@ exact_volume_limited <- function(v, time_limit) {
 #'   so any non-default volesti option is up to the user. `"exact"`: convex hull
 #'   of the vertices, exact up to floating-point error, but can be very slow
 #'   or run out of memory in high dimensions. `"mc"`: uniform Monte Carlo
-#'   draws from the hypercube. `"auto"`: what the app does, the exact volume first, stopped after `time_limit`
-#'   seconds (needs the package \pkg{callr}; without it there is no limit) and then the volesti estimate; `$method`
-#'   says which one was used. The other methods are never switched automatically.
-#' @param time_limit Seconds for the exact calculation when `method = "auto"`. Default `300` (five minutes, as in the app).
+#'   draws from the hypercube. `"auto"`: the exact volume first (as in the app), and the volesti estimate only if the
+#'   exact volume cannot be calculated or, with a finite `time_limit` (needs the package \pkg{callr}), takes longer than that;
+#'   `$method` says which one was used. The other methods are never switched automatically.
+#' @param time_limit Seconds for the exact calculation when `method = "auto"`. Default `Inf`: no limit, nothing is ever stopped
+#'   (only if the exact calculation fails, the estimate is returned). The online app stops the exact volume after 300 seconds to
+#'   protect its server; `time_limit = 300` reproduces that.
 #' @param ... Passed on to `volesti::volume()` when `method = "volesti"`.
 #' @param n_samples Monte Carlo draws for `method = "mc"`.
 #'
@@ -157,7 +162,7 @@ exact_volume_limited <- function(v, time_limit) {
 #' @importFrom stats runif
 #' @export
 fairy_volume <- function(h, n_p = NULL, method = c("volesti", "exact", "mc", "auto"),
-                         n_samples = 1e6, time_limit = 300, ...) {
+                         n_samples = 1e6, time_limit = Inf, ...) {
   method <- match.arg(method)
   h <- resolve_h(h, n_p = n_p)
   jt <- attr(h, "fairy_joint")

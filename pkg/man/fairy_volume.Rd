@@ -9,7 +9,7 @@ fairy_volume(
   n_p = NULL,
   method = c("volesti", "exact", "mc", "auto"),
   n_samples = 1e+06,
-  time_limit = 300,
+  time_limit = Inf,
   ...
 )
 }
@@ -24,13 +24,15 @@ in \code{...} are passed on to \code{volesti::volume()} (e.g. \code{settings = l
 so any non-default volesti option is up to the user. \code{"exact"}: convex hull
 of the vertices, exact up to floating-point error, but can be very slow
 or run out of memory in high dimensions. \code{"mc"}: uniform Monte Carlo
-draws from the hypercube. \code{"auto"}: what the app does, the exact volume first, stopped after \code{time_limit}
-seconds (needs the package \pkg{callr}; without it there is no limit) and then the volesti estimate; \verb{$method}
-says which one was used. The other methods are never switched automatically.}
+draws from the hypercube. \code{"auto"}: the exact volume first (as in the app), and the volesti estimate only if the
+exact volume cannot be calculated or, with a finite \code{time_limit} (needs the package \pkg{callr}), takes longer than that;
+\verb{$method} says which one was used. The other methods are never switched automatically.}
 
 \item{n_samples}{Monte Carlo draws for \code{method = "mc"}.}
 
-\item{time_limit}{Seconds for the exact calculation when \code{method = "auto"}. Default \code{300} (five minutes, as in the app).}
+\item{time_limit}{Seconds for the exact calculation when \code{method = "auto"}. Default \code{Inf}: no limit, nothing is ever stopped
+(only if the exact calculation fails, the estimate is returned). The online app stops the exact volume after 300 seconds to
+protect its server; \code{time_limit = 300} reproduces that.}
 
 \item{...}{Passed on to \code{volesti::volume()} when \code{method = "volesti"}.}
 }

@@ -120,21 +120,23 @@ fairy_info("p1 > p2 > p3")                   # dimension, vertices, constraints,
 
 Outside this vignette, `fairy_volume()` by default estimates the volume with the volesti package and its own default settings; any non-default volesti option can be passed via `...` (e.g. `settings = list(error = 0.01)`). `method = "exact"` (convex hull of the vertices) and `method = "mc"` (Monte Carlo) are available on request. `fairy_parsimony()` is the older name of the same computation.
 
-## The same as in the app: exact first, estimate after a time limit
+## The same as in the app: exact first
 
-The **Shiny app** calculates the exact volume first (it is a number such as 1/6, not an estimate) and uses an algorithm only for the models that
-have no exact volume or whose exact volume takes more than five minutes. In the package this is `method = "auto"`:
+The **Shiny app** calculates the exact volume first (it is a number such as 1/6, not an estimate) and uses an algorithm only for the
+models that have no exact volume. In the package this is `method = "auto"`:
 
 ```{r auto}
-v <- fairy::fairy_volume("p1 > p2 > p3", n_p = 3, method = "auto", time_limit = 300)   # the original function (this vignette fixes the default of fairy_volume() to "exact")
+v <- fairy::fairy_volume("p1 > p2 > p3", n_p = 3, method = "auto")   # the original function (this vignette fixes the default of fairy_volume() to "exact")
 v$volume                                     # 1/6, exact
-v$method                                     # "exact": it finished within the time limit
+v$method                                     # "exact"
 ```
 
-When the exact calculation takes longer than `time_limit` seconds (it runs in a separate R process that is stopped, which needs the package
-callr), `method = "auto"` returns the volesti estimate, and `$method` says so (`"volesti (the exact volume took too long)"`). Nothing else
-switches the method on its own: the default stays `"volesti"`, because the exact volume can take very long in high dimensions
-(up to about 10 dimensions it is usually quick, with 12 and more it can take minutes or longer).
+Nothing is ever stopped in the package: the exact volume takes as long as it takes (up to about 10 dimensions it is usually quick,
+with 12 and more it can take minutes or longer). The **online app** stops the exact volume after five minutes and then uses an algorithm
+for that model: that limit protects the server of the app and is a property of the web interface, not of the method. The downloaded
+scripts and the package have no limit. If you want the same behaviour in R, set `time_limit = 300` (seconds; the stopped calculation runs in a
+separate R process, which needs the package callr), and `$method` then says `"volesti (the exact volume took too long)"` when it was stopped.
+The default of `fairy_volume()` itself stays `"volesti"`, an estimate.
 
 # Several models at once
 
