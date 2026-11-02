@@ -319,6 +319,10 @@ ui <- shinyUI(fluidPage(
         border-color: var(--fairy-border) !important;
       }
       body.dark-mode .modal-title { color: var(--fairy-text) !important; }
+      /* menus of buttons (for example Download in the results window) */
+      body.dark-mode .dropdown-menu { background-color: var(--fairy-panel) !important; border-color: var(--fairy-border) !important; }
+      body.dark-mode .dropdown-menu > li > a { color: var(--fairy-text) !important; }
+      body.dark-mode .dropdown-menu > li > a:hover, body.dark-mode .dropdown-menu > li > a:focus { background-color: color-mix(in srgb, var(--fairy-primary) 18%, transparent) !important; color: var(--fairy-text) !important; }
       body.dark-mode .close { color: var(--fairy-text) !important; opacity: 0.7; }
       body.dark-mode .close:hover { opacity: 1; }
       /* shinyalert / SweetAlert v1 popups */
