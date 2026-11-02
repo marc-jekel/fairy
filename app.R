@@ -1710,8 +1710,6 @@ ui <- shinyUI(fluidPage(
       #fairy-run-card.fairy-run-skippable tr.fairy-run-active:not(.fairy-run-skipped) .fairy-run-rowbtn:not(.fairy-run-rowundo) { display: inline-block; }
       #fairy-run-card.fairy-run-skippable tr.fairy-run-skipped .fairy-run-rowundo { display: inline-block; }
       #fairy-run-card.fairy-run-doneundo tr.fairy-run-skipped .fairy-run-rowundo { display: inline-block; }
-      /* a mixture always needs its V-representation: no Skip for it in the vertex window */
-      #fairy-run-card.fairy-run-vwin tr.fairy-run-kind-mixture .fairy-run-rowbtn { display: none !important; }
       .fairy-run-rowundo { border-color: var(--fairy-primary) !important; color: var(--fairy-primary) !important; background: color-mix(in srgb, var(--fairy-primary) 10%, transparent) !important; }
       .fairy-run-rowundo:hover { background: color-mix(in srgb, var(--fairy-primary) 20%, transparent) !important; }
       /* while Cancel is shown it is the only button and sits in the middle; Close takes its place afterwards */
@@ -4518,7 +4516,9 @@ ui <- shinyUI(fluidPage(
           var hintUndo = cancelInput === 'ex_skip' ? 'Calculate the exact volume of this model after all'
             : (cancelInput === 'mn_cancel' ? 'Analyse this model after all' : 'Calculate the V-representation of this model after all');
           [].forEach.call(document.querySelectorAll('.fairy-run-rowbtn'), function(b) {
-            b.removeAttribute('title'); b.setAttribute('data-fairy-title', b.classList.contains('fairy-run-rowundo') ? hintUndo : hintSkip);
+            var isMix = b.closest('tr') && b.closest('tr').classList.contains('fairy-run-kind-mixture') && cancelInput === 'v_cancel';
+            b.removeAttribute('title'); b.setAttribute('data-fairy-title', b.classList.contains('fairy-run-rowundo') ? hintUndo
+              : (isMix ? 'Skip the V-representation of this mixture for this run only: a mixture always has one, the next Go calculates it again' : hintSkip));
           });
           // after the exact volume has finished, a skipped model can still be taken back (the run is repeated, the rest comes from the cache)
           $id('fairy-run-card').classList.toggle('fairy-run-doneundo', !running && cancelInput === 'ex_skip');
@@ -8068,7 +8068,9 @@ server <- shinyServer(function(input, output, session) {
     if (!is.null(procs[[m]])) { try(procs[[m]]$kill_tree(), silent = TRUE); procs[[m]] <- NULL; v_state$procs <- procs }
     v_state$queue <- setdiff(queue, m)
     v_state$skipped <- unique(c(isolate(v_state$skipped), m))
-    set_v_included(m, FALSE)   # the same switch as the V button of the model on the Input tab
+    # the same switch as the V button of the model on the Input tab; a mixture always has its V-representation (its switch stays on):
+    # for a mixture the skip holds for this run only, the next Go calculates it again
+    if (is.null(get0(m, envir = mix_components, inherits = FALSE))) set_v_included(m, FALSE)
     fairy_run_row(m, v = "skip")
   })
   # the skip is taken back: the model waits for its turn again
@@ -8077,7 +8079,7 @@ server <- shinyServer(function(input, output, session) {
     m <- input$v_unskip_model
     if (!(m %in% isolate(v_state$skipped))) return()
     v_state$skipped <- setdiff(isolate(v_state$skipped), m)
-    set_v_included(m, TRUE)
+    if (is.null(get0(m, envir = mix_components, inherits = FALSE))) set_v_included(m, TRUE)
     v_state$queue <- c(isolate(v_state$queue), m)
     fairy_run_row(m, v = "wait")
     v_grace(NULL); session$sendCustomMessage("fairy_run_phase", list(text = "Calculating")); session$sendCustomMessage("fairy_run_cancel_label", list(text = ""))
