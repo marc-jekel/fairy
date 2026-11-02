@@ -202,6 +202,9 @@ ui <- shinyUI(fluidPage(
         background-color: transparent !important; background-image: none !important; color: var(--fairy-primary) !important; border-color: var(--fairy-primary) !important; }
       body.dark-mode a.btn.btn-default.shiny-download-link:hover, body.dark-mode .btn-default.btn-sm:hover { background-color: color-mix(in srgb, var(--fairy-primary) 16%, transparent) !important; }
       body.dark-mode .material-switch > label::after { background: #8b93a7 !important; box-shadow: none !important; }
+      /* switches (shinyWidgets materialSwitch): knob and track in the theme colour when on */
+      .material-switch > input[type=checkbox]:checked + label.label-primary::before, .material-switch > input[type=checkbox]:checked + label::before { background-color: var(--fairy-primary-contrast-bg) !important; opacity: .5; }
+      .material-switch > input[type=checkbox]:checked + label.label-primary::after, .material-switch > input[type=checkbox]:checked + label::after { background-color: var(--fairy-primary-contrast-bg) !important; }
       body.dark-mode select, body.dark-mode .form-control { background-color: var(--fairy-panel) !important; background-image: none; color: var(--fairy-text) !important; border-color: var(--fairy-border) !important; }
       html:has(body.dark-mode) { background-color: #0e1117 !important; }
       /* shinyWidgets pickers (bootstrap-select) */
