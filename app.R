@@ -1668,7 +1668,8 @@ ui <- shinyUI(fluidPage(
         padding: 7px 12px;
         border-bottom: 1px solid color-mix(in srgb, var(--fairy-border, #e5e5e5) 60%, transparent);
       }
-      .fairy-run-name { font-weight: 600; }
+      /* the room for Stop / Retry is always there, so the table does not change when the button appears */
+      .fairy-run-name { font-weight: 600; position: relative; padding-right: 96px !important; }
       .fairy-run-kind {
         margin-left: 8px;
         font-size: 11px;
@@ -1714,7 +1715,7 @@ ui <- shinyUI(fluidPage(
       }
       #fairy-run-cancel.visible { display: inline-block; }
       /* Skip of a single model: a real small button at the name of the model, the same in every run window */
-      .fairy-run-rowbtn { display: none; float: right; margin-left: 12px; padding: 2px 11px; font-size: 12px; font-weight: 600; line-height: 1.5; vertical-align: middle;
+      .fairy-run-rowbtn { display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); margin-left: 12px; padding: 2px 11px; font-size: 12px; font-weight: 600; line-height: 1.5; vertical-align: middle;
         border: 1.5px solid var(--fairy-border, #c8cdd8); border-radius: 8px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
       .fairy-run-rowbtn:hover { border-color: var(--fairy-primary); color: var(--fairy-primary); background: color-mix(in srgb, var(--fairy-primary) 8%, transparent); }
       #fairy-run-card.fairy-run-skippable tr.fairy-run-active.fairy-run-stopready:not(.fairy-run-skipped) .fairy-run-rowbtn:not(.fairy-run-rowundo) { display: inline-block; }
