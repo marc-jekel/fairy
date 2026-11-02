@@ -4526,9 +4526,11 @@ ui <- shinyUI(fluidPage(
             var sts = rows[n].cells.map(function(c) { return c.getAttribute('data-state'); });
             var act = sts.some(function(st) { return st === 'run' || st === 'step' || st === 'wait'; });
             rows[n].tr.classList.toggle('fairy-run-active', act);
-            // Stop shows only after a row has been active for three seconds, so a model that is done at once never shows it
-            if (act) { if (!rows[n].since) rows[n].since = Date.now(); } else rows[n].since = 0;
-            rows[n].tr.classList.toggle('fairy-run-stopready', !!(act && rows[n].since && Date.now() - rows[n].since >= 3000));
+            // Stop shows only after a model has been calculated for three seconds, so a model that is done at once never shows it
+            // (only while the model itself is being calculated, not while it waits for its turn)
+            var calcNow = sts.some(function(st) { return st === 'run' || st === 'step'; });
+            if (calcNow) { if (!rows[n].since) rows[n].since = Date.now(); } else rows[n].since = 0;
+            rows[n].tr.classList.toggle('fairy-run-stopready', !!(calcNow && rows[n].since && Date.now() - rows[n].since >= 3000));
             rows[n].tr.classList.toggle('fairy-run-skipped', sts.indexOf('skip') >= 0);
           });
           Object.keys(rows).forEach(function(n) {
