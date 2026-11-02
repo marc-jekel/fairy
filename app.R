@@ -1703,6 +1703,8 @@ ui <- shinyUI(fluidPage(
       #fairy-run-cancel.visible { display: inline-block; }
       #fairy-run-skipbtn { display: none; padding: 8px 26px; font-size: 14px; font-weight: 600; border: 1.5px solid var(--fairy-border, #c8cdd8); border-radius: 8px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; margin-right: 10px; }
       #fairy-run-skipbtn.visible { display: inline-block; }
+      .fairy-run-rowskip { margin-left: 10px; border: none; background: transparent; color: var(--fairy-text-muted, #667085); text-decoration: underline; font-size: 12px; cursor: pointer; padding: 0; }
+      .fairy-run-rowskip:hover { color: var(--fairy-primary); }
       /* while Cancel is shown it is the only button and sits in the middle; Close takes its place afterwards */
       #fairy-run-actions:has(#fairy-run-cancel.visible) #fairy-run-close { display: none; }
       #fairy-run-cancel:disabled { opacity: .6; cursor: default; }
@@ -4378,6 +4380,14 @@ ui <- shinyUI(fluidPage(
           var ic = document.createElement('span'); ic.className = 'fairy-run-ico'; ic.setAttribute('aria-hidden', 'true'); ic.textContent = ICON[st];
           var lb = document.createElement('span'); lb.className = 'fairy-run-lbl'; lb.textContent = LABEL[st];
           td.appendChild(ic); td.appendChild(lb);
+          // the exact volume: every model that is still being calculated has its own skip
+          if (st === 'run' && cancelInput === 'ex_skip' && td.parentNode && td.parentNode.firstChild) {
+            var nm = td.parentNode.firstChild.firstChild ? td.parentNode.firstChild.firstChild.textContent : '';
+            var sb = document.createElement('button'); sb.type = 'button'; sb.className = 'fairy-run-rowskip'; sb.textContent = 'skip';
+            sb.setAttribute('title', 'Stop the exact calculation of this model and use the algorithm for it');
+            sb.addEventListener('click', function(e) { e.stopPropagation(); if (window.Shiny) Shiny.setInputValue('ex_skip_model', nm, { priority: 'event' }); });
+            td.appendChild(sb);
+          }
         }
         function noneCell(td) {
           td.className = 'fairy-run-cell st-none'; td.setAttribute('data-state', 'none'); td.textContent = '\\u2013';
@@ -16686,6 +16696,17 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   observeEvent(input$ex_skip, { if (isTRUE(isolate(ex$active))) ex$skip <- TRUE })
+  # one model: its exact calculation is stopped, the others go on
+  observeEvent(input$ex_skip_model, {
+    if (!isTRUE(isolate(ex$active))) return()
+    m <- input$ex_skip_model; u <- isolate(ex$names); procs <- isolate(ex$procs); res <- isolate(ex$res)
+    k <- names(procs)[vapply(names(procs), function(k) identical(u[as.integer(k)], m), logical(1))]
+    if (length(k) == 0) return()
+    try(procs[[k[1]]]$kill_tree(), silent = TRUE); procs[[k[1]]] <- NULL; res[[m]] <- NaN
+    fairy_run_cell(m, "Exact volume", "skip")
+    exact_skipped(union(isolate(exact_skipped()), m))
+    ex$procs <- procs; ex$res <- res
+  })
   # fairy dust (five quick clicks on the title or the time of the run window): no time limit for the exact calculation
   ex_nolimit <- reactiveVal(FALSE)
   observeEvent(input$ex_unlock, {
