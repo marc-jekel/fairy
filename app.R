@@ -458,7 +458,7 @@ ui <- shinyUI(fluidPage(
       #qtest_order_open:hover, #qtest_order_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       /* Data: same small grey row as Order, for the multinomineq data file */
       #mn_data_open, #mn_data_open_v, #mn_run_open, #mn_run_open_v { position: relative !important; margin-bottom: 14px !important; }
-      #mn_data_open::after, #mn_data_open_v::after, #mn_run_open::after, #mn_run_open_v::after { content: 'Data & settings'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
+      #mn_data_open::after, #mn_data_open_v::after, #mn_run_open::after, #mn_run_open_v::after { content: 'Data'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
         border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 12px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
       /* Order is a setting for the two downloads below it, not a third program: plain grey, a thin row, a divider under it */
       #mn_data_open.fairy-order-btn, #mn_data_open_v.fairy-order-btn, #mn_run_open.fairy-order-btn, #mn_run_open_v.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: var(--ct-default) !important; border-color: var(--fairy-border) !important; box-shadow: none !important; }
@@ -6969,7 +6969,7 @@ ui <- shinyUI(fluidPage(
               downloadButton("d_h", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
             ),
             tags$div(class = "fairy-dl-group", `data-cap` = "multinomineq", `data-sub` = "R package", title = "multinomineq is an R package by Heck and Davis-Stober (2019), not part of this app. The app prepares its files and can run it here.",
-            tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data and settings for multinomineq: n and frequencies, number of samples, prior. They go into the files and the script of the multinomineq download and are used by Run.",
+            tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data for multinomineq: n and frequencies. They go into the files and the script of the multinomineq download and are used by Run.",
               actionButton("mn_data_open", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the H-representation for multinomineq (R package): files, analysis script and data file",
               downloadButton("d_h_multinomineq", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")),
@@ -18394,7 +18394,7 @@ server <- shinyServer(function(input, output, session) {
       '        note <<- paste("The model has a very small volume:",',
       '                       "computed stepwise (less precise, see se).",',
       '                       "For a more precise value use more samples (in the",',
-      '                       "app: Data & settings, Number of samples; in the",',
+      '                       "app: Run window, Number of samples; in the",',
       '                       "script: M_bf).")',
       '      }',
       '    }',

@@ -290,7 +290,7 @@ mn_script_base <- function() {
     '        note <<- paste("The model has a very small volume:",',
     '                       "computed stepwise (less precise, see se).",',
     '                       "For a more precise value use more samples (in the",',
-    '                       "app: Data & settings, Number of samples; in the",',
+    '                       "app: Run window, Number of samples; in the",',
     '                       "script: M_bf).")',
     '      }',
     '    }',
