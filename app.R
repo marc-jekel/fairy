@@ -7037,6 +7037,7 @@ ui <- shinyUI(fluidPage(
         # controls" — moving it here keeps the icon column genuinely
         # icon-width and gives the checkbox as much room as it wants.
         uiOutput("h_stale_note_vrep"),
+        uiOutput("v_skipped_note"),
         checkboxInput("v_rep_words", "Show vertices in words", value = FALSE),
         fluidRow(column(
           id = "v_rep",
@@ -7884,6 +7885,14 @@ server <- shinyServer(function(input, output, session) {
     shiny::showNotification(ui, action = action, duration = if (type %in% c("warning", "error")) NULL else 8,
                             closeButton = TRUE, id = id, type = type, session = session)
   }
+  output$v_skipped_note <- renderUI({
+    sk <- v_skipped_mem()
+    if (length(sk) == 0) return(NULL)
+    tags$div(class = "fairy-eq-tol-help", style = "margin:6px 0 10px 0;",
+      icon("circle-info"), " Skipped earlier: ", tags$b(paste(sk, collapse = ", ")),
+      " (no V-representation). ", actionLink("v_forget", "Calculate them again"))
+  })
+  observeEvent(input$v_forget, { v_skipped_mem(character(0)) })
   fairy_notify <- function(title, text = "", type = "warning", html = FALSE) {
     body <- if (nzchar(text)) paste0("<br>", if (html) text else gsub("\n", "<br>", htmltools::htmlEscape(text))) else ""
     showNotification(HTML(paste0("<b>", htmltools::htmlEscape(title), "</b>", body)),
@@ -7894,6 +7903,7 @@ server <- shinyServer(function(input, output, session) {
   # computed and can be cancelled. State of the running job; `after` is what the Go run does when all vertices are there.
   # After the last running model was skipped the window does not close at once: a few seconds remain to take the skip back (Undo skip)
   ex_grace <- reactiveVal(NULL); v_grace <- reactiveVal(NULL); mn_grace <- reactiveVal(NULL)
+  v_skipped_mem <- reactiveVal(character(0))   # models whose V-representation was skipped by hand: not calculated again until taken back
   grace_wait <- function(rv, skipped) {
     if (length(skipped) == 0) return(FALSE)
     g <- isolate(rv())
@@ -7907,13 +7917,13 @@ server <- shinyServer(function(input, output, session) {
     for (p in isolate(v_state$procs)) try(p$kill_tree(), silent = TRUE)
     v_state$procs <- list()
   }
-  v_start_jobs <- function(models) {
+  v_start_jobs <- function(models, remembered = character(0)) {
     v_kill_all()
     d <- tempfile("vrun_"); dir.create(d)
     writeLines(c("suppressMessages(library(rcdd))", "a <- commandArgs(TRUE)", "h <- readRDS(a[1])",
                  "res <- tryCatch(scdd(h), error = function(e) NULL)", "saveRDS(res, a[2])"), file.path(d, "job.R"))
     for (i in seq_along(models)) saveRDS(isolate(h_reactive[[models[i]]]), file.path(d, paste0("h", i, ".rds")))
-    v_state$dir <- d; v_state$models <- models; v_state$queue <- models; v_state$procs <- list(); v_state$after <- NULL; v_state$skipped <- character(0)
+    v_state$dir <- d; v_state$models <- models; v_state$queue <- models; v_state$procs <- list(); v_state$after <- NULL; v_state$skipped <- remembered
     v_state$parallel <- isTRUE(isolate(input$use_parallel))
     v_grace(NULL)
     v_state$active <- TRUE
@@ -7968,7 +7978,7 @@ server <- shinyServer(function(input, output, session) {
     if (is.null(procs[[m]]) && !(m %in% queue)) return()
     if (!is.null(procs[[m]])) { try(procs[[m]]$kill_tree(), silent = TRUE); procs[[m]] <- NULL; v_state$procs <- procs }
     v_state$queue <- setdiff(queue, m)
-    v_state$skipped <- unique(c(isolate(v_state$skipped), m))
+    v_state$skipped <- unique(c(isolate(v_state$skipped), m)); v_skipped_mem(union(isolate(v_skipped_mem()), m))
     fairy_run_row(m, v = "skip")
   })
   # the skip is taken back: the model waits for its turn again
@@ -7976,7 +7986,7 @@ server <- shinyServer(function(input, output, session) {
     if (!isTRUE(isolate(v_state$active))) return()
     m <- input$v_unskip_model
     if (!(m %in% isolate(v_state$skipped))) return()
-    v_state$skipped <- setdiff(isolate(v_state$skipped), m)
+    v_state$skipped <- setdiff(isolate(v_state$skipped), m); v_skipped_mem(setdiff(isolate(v_skipped_mem()), m))
     v_state$queue <- c(isolate(v_state$queue), m)
     fairy_run_row(m, v = "wait")
     v_grace(NULL); session$sendCustomMessage("fairy_run_phase", list(text = "Calculating")); session$sendCustomMessage("fairy_run_cancel_label", list(text = ""))
@@ -16000,8 +16010,12 @@ server <- shinyServer(function(input, output, session) {
           logical(1)
         )]
 
+        # skipped by hand in an earlier run: not calculated again (Undo skip in the window, or the link above the table, takes it back)
+        rem_v <- intersect(models_to_compute_v, isolate(v_skipped_mem()))
+        models_to_compute_v <- setdiff(models_to_compute_v, rem_v)
+
         for (m_run in models_picked_for_v_representation)
-          fairy_run_row(m_run, v = if (m_run %in% models_to_compute_v) "wait" else "cached")
+          fairy_run_row(m_run, v = if (m_run %in% rem_v) "skip" else if (m_run %in% models_to_compute_v) "wait" else "cached")
 
         v_run_note <- paste0(fairy_empty_set_note(empty_set),
           if (length(mix_fail_notes)) paste0("<br><b>Mixture failed</b> - ", paste(htmltools::htmlEscape(mix_fail_notes), collapse = "; ")) else "",
@@ -16011,7 +16025,7 @@ server <- shinyServer(function(input, output, session) {
           # V-representation are built when they are there (render_v_tail, see below)
           v_async <- TRUE
           v_pending_note <- v_run_note
-          v_start_jobs(models_to_compute_v)
+          v_start_jobs(models_to_compute_v, remembered = rem_v)
         } else {
           fairy_run_end(v_run_note)
         }
