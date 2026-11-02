@@ -19072,27 +19072,31 @@ server <- shinyServer(function(input, output, session) {
     want <- if (length(hit) > 0) hit[1] else "custom"
     if (!identical(input$mn_samples, want)) updateSelectInput(session, "mn_samples", selected = want)
   }, ignoreInit = TRUE)
-  mn_settings_collect <- function() {
+  mn_settings_collect <- function(quiet = FALSE) {
+    notify <- function(...) if (!quiet) showNotification(...)
     num <- function(x, d) if (is.null(x) || length(x) != 1 || is.na(x)) d else as.numeric(x)
     st <- list(samples = if (is.null(input$mn_samples)) "std" else input$mn_samples,
                mb = num(input$mn_m_bf, 10000), mp = num(input$mn_m_post, 5000),
                bp = num(input$mn_burnin_post, 10), bb = num(input$mn_burnin_bf, 5),
                pa = num(input$mn_prior_a, 1), pb = num(input$mn_prior_b, 1), seed = num(input$mn_seed, 1234))
     if (st$mb < 100 || st$mp < 100 || st$mb != round(st$mb) || st$mp != round(st$mp)) {
-      showNotification("The numbers of samples must be whole numbers, 100 or more.", type = "error"); return(FALSE)
+      notify("The numbers of samples must be whole numbers, 100 or more.", type = "error"); return(FALSE)
     }
     if (st$mb > 1000000 || st$mp > 100000) {
-      showNotification("That is a large number of samples: it can take a very long time and uses a lot of the shared server. For this, download the files and run analysis_multinomineq.R on your own computer.", type = "warning", duration = 10)
+      notify("That is a large number of samples: it can take a very long time and uses a lot of the shared server. For this, download the files and run analysis_multinomineq.R on your own computer.", type = "warning", duration = 10)
     }
     if (st$bp < 0 || st$bb < 0 || st$bp != round(st$bp) || st$bb != round(st$bb)) {
-      showNotification("Burn-in must be a whole number, 0 or more.", type = "error"); return(FALSE)
+      notify("Burn-in must be a whole number, 0 or more.", type = "error"); return(FALSE)
     }
     if (st$pa <= 0 || st$pb <= 0) {
-      showNotification("The prior numbers a and b must be positive.", type = "error"); return(FALSE)
+      notify("The prior numbers a and b must be positive.", type = "error"); return(FALSE)
     }
     mn_settings(st)
     TRUE
   }
+  # the settings are kept as soon as they are valid, so the downloads use them even if Run is not started
+  observeEvent(list(input$mn_m_bf, input$mn_m_post, input$mn_burnin_post, input$mn_burnin_bf, input$mn_prior_a, input$mn_prior_b, input$mn_seed, input$mn_samples),
+               { mn_settings_collect(quiet = TRUE) }, ignoreInit = TRUE)
   # the settings in the lines of the script (the lines of the default script are replaced)
   mn_apply_settings <- function(txt) {
     st <- isolate(mn_settings())
@@ -19265,32 +19269,9 @@ server <- shinyServer(function(input, output, session) {
         sep = " "))),
       tags$div(class = "mn-data-modal",
       tags$p(class = "mn-lead", tags$b("n"), " = number of observations, ", tags$b("frequency"),
-        " = how often the outcome happened (out of n). Save keeps the numbers and settings for the downloads and for Run."),
+        " = how often the outcome happened (out of n). Save keeps the numbers for the downloads and for Run. The settings of the sampling (samples, prior, seed) are in the Run window."),
       if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Each unpacked model has its own tab, because items can be unpacked in different ways (for example by joke type, operationalisation or sample), so that a different part of your data enters each model and its probabilities need their own numbers. If a model uses the same part of the data as the other models, tick the box 'Use the same numbers as the other models' in the tab: the model then takes the numbers of the other models, row by row. If you change the order of the probabilities, each number stays with its probability."),
-      tags$div(style = "max-height:46vh; overflow-y:auto;", body),
-      tags$hr(),
-      tags$h5("Analysis settings", style = "margin:0 0 2px 0; font-size:15px; font-weight:650;"),
-      tags$p(class = "mn-lead", style = "margin-bottom:10px;", "Settings of the sampling: number of samples, burn-in, prior and random seed."),
-      selectInput("mn_samples", "Number of samples", width = "100%", selected = (function(x) if (is.null(x)) "std" else x)(isolate(mn_settings())$samples), choices = c(
-        "Standard: 10,000 samples for the Bayes factors, 5,000 for the posterior" = "std",
-        "More: 100,000 and 20,000 (smaller Monte-Carlo error, slower)" = "more",
-        "Even more: 1,000,000 and 100,000 (can take a long time and uses a lot of the shared server)" = "max",
-        "Custom: the numbers under Advanced" = "custom")),
-      tags$details(style = "margin:4px 0 8px 0;",
-        tags$summary(style = "cursor:pointer; color:var(--fairy-primary); font-size:13px;", "Advanced"),
-        tags$div(style = "display:flex; flex-wrap:wrap; gap:12px; margin-top:6px;",
-          numericInput("mn_m_bf", "Samples, Bayes factors", value = (function(x) if (is.null(x)) 10000 else x)(isolate(mn_settings())$mb), min = 100, step = 1000, width = "190px"),
-          numericInput("mn_m_post", "Samples, posterior", value = (function(x) if (is.null(x)) 5000 else x)(isolate(mn_settings())$mp), min = 100, step = 1000, width = "170px"),
-          numericInput("mn_burnin_post", "Burn-in, posterior", value = (function(x) if (is.null(x)) 10 else x)(isolate(mn_settings())$bp), min = 0, step = 10, width = "150px"),
-          numericInput("mn_burnin_bf", "Burn-in, Bayes factors", value = (function(x) if (is.null(x)) 5 else x)(isolate(mn_settings())$bb), min = 0, step = 5, width = "170px"),
-          numericInput("mn_prior_a", "Prior, a (Beta)", value = (function(x) if (is.null(x)) 1 else x)(isolate(mn_settings())$pa), min = 0.001, step = 0.5, width = "130px"),
-          numericInput("mn_prior_b", "Prior, b (Beta)", value = (function(x) if (is.null(x)) 1 else x)(isolate(mn_settings())$pb), min = 0.001, step = 0.5, width = "130px"),
-          numericInput("mn_seed", "Random seed", value = (function(x) if (is.null(x)) 1234 else x)(isolate(mn_settings())$seed), step = 1, width = "130px")),
-        tags$p(style = "font-size:12px; color:#667085; margin:4px 0 0 0;",
-          "Samples: the number of draws for the Bayes factors and for the posterior; the choice above sets them to a ready-made pair, and a number of your own switches the choice to Custom. More samples give a smaller Monte-Carlo error but take longer (the package default is 10,000 and 5,000). ",
-          "Burn-in: draws discarded at the start of each run (the package default is 10 for the posterior and 5 per step for the Bayes factors). ",
-          "Prior: Beta(a, b) on every probability; Beta(1, 1) is uniform and the Bayes factors depend on it. ",
-          "The seed makes a run repeatable."))),
+      tags$div(style = "max-height:46vh; overflow-y:auto;", body)),
       footer = tags$div(class = "mn-foot", style = "display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; align-items:center; width:100%;",
         tags$div(style = "display:flex; gap:8px;",
           order_button,
@@ -19298,7 +19279,7 @@ server <- shinyServer(function(input, output, session) {
                        style = "color:var(--fairy-text-muted, #667085); font-size:13px; text-decoration:none;",
                        title = "Your numbers become the example numbers again. The models and the settings stay as they are.")),
         tags$div(style = "display:flex; gap:8px;",
-          modalButton("Cancel"), actionButton("mn_data_save", "Save", class = "btn-primary", title = "Keeps your numbers and settings for the next download and for Run")))))
+          modalButton("Cancel"), actionButton("mn_data_save", "Save", class = "btn-primary", title = "Keeps your numbers for the next download and for Run")))))
   }
 
   # The window of the Run button: only the analysis (the numbers and settings come from Data)
@@ -19323,19 +19304,42 @@ server <- shinyServer(function(input, output, session) {
     own <- length(isolate(mn_user_data())) > 0
     showModal(modalDialog(
       title = "Run the multinomineq analysis here", size = "m", easyClose = TRUE,
-      tags$style(HTML(".mn-foot .btn { margin: 0 !important; }")),
+      tags$style(HTML(".mn-foot .btn { margin: 0 !important; } .mn-lead { font-size: 13px; color: var(--fairy-text-muted, #667085); margin: 0 0 10px 0; } .modal-body hr { margin: 14px 0 12px 0; } .modal-body label.control-label { font-size: 13px; font-weight: 600; margin-bottom: 4px; }")),
       uiOutput("mn_skipped_note"),
       tags$p(class = "fairy-eq-tol-help",
-        HTML(paste0("The analysis is run here in the app, with the R package <a href='https://www.dwheck.de/software/multinomineq/' target='_blank' rel='noopener'>multinomineq</a> (Heck &amp; Davis-Stober, 2019). It uses the numbers and settings saved under <b>Data</b>: ",
+        HTML(paste0("The analysis is run here in the app, with the R package <a href='https://www.dwheck.de/software/multinomineq/' target='_blank' rel='noopener'>multinomineq</a> (Heck &amp; Davis-Stober, 2019). It uses the numbers saved under <b>Data</b>: ",
           if (own) "your own numbers" else "the example numbers (you have not saved your own yet)",
-          "; ", format(mb, big.mark = ","), " samples for the Bayes factors and ", format(mp, big.mark = ","), " for the posterior. ")),
-        actionLink("mn_run_to_data", "Change the data or settings")),
+          ". ")),
+        actionLink("mn_run_to_data", "Change the data")),
       if (length(mn_model_choices()) > 1)
         checkboxGroupInput("mn_models", "Models to analyse (the downloads always contain all of them)",
                            choices = mn_model_choices(), selected = unname(mn_model_choices()), inline = TRUE, width = "100%"),
       if (identical(isolate(mn_source()), "V"))
         tags$div(style = "background:color-mix(in srgb, var(--fairy-primary) 10%, transparent); border-left:4px solid var(--fairy-primary); border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
           tags$b("Tip:"), " the analysis from the vertices (V) is much slower than from the inequalities (H) and gives the same result: a few seconds against a fraction of a second for small models, minutes for larger ones. For larger models use Run in the H-representation tab."),
+      tags$hr(),
+      tags$h5("Analysis settings", style = "margin:0 0 2px 0; font-size:15px; font-weight:650;"),
+      tags$p(class = "mn-lead", style = "margin-bottom:10px;", "Settings of the sampling: number of samples, burn-in, prior and random seed. The downloads (files and script) use the same settings."),
+      selectInput("mn_samples", "Number of samples", width = "100%", selected = (function(x) if (is.null(x)) "std" else x)(isolate(mn_settings())$samples), choices = c(
+        "Standard: 10,000 samples for the Bayes factors, 5,000 for the posterior" = "std",
+        "More: 100,000 and 20,000 (smaller Monte-Carlo error, slower)" = "more",
+        "Even more: 1,000,000 and 100,000 (can take a long time and uses a lot of the shared server)" = "max",
+        "Custom: the numbers under Advanced" = "custom")),
+      tags$details(style = "margin:4px 0 8px 0;",
+        tags$summary(style = "cursor:pointer; color:var(--fairy-primary); font-size:13px;", "Advanced"),
+        tags$div(style = "display:flex; flex-wrap:wrap; gap:12px; margin-top:6px;",
+          numericInput("mn_m_bf", "Samples, Bayes factors", value = (function(x) if (is.null(x)) 10000 else x)(isolate(mn_settings())$mb), min = 100, step = 1000, width = "190px"),
+          numericInput("mn_m_post", "Samples, posterior", value = (function(x) if (is.null(x)) 5000 else x)(isolate(mn_settings())$mp), min = 100, step = 1000, width = "170px"),
+          numericInput("mn_burnin_post", "Burn-in, posterior", value = (function(x) if (is.null(x)) 10 else x)(isolate(mn_settings())$bp), min = 0, step = 10, width = "150px"),
+          numericInput("mn_burnin_bf", "Burn-in, Bayes factors", value = (function(x) if (is.null(x)) 5 else x)(isolate(mn_settings())$bb), min = 0, step = 5, width = "170px"),
+          numericInput("mn_prior_a", "Prior, a (Beta)", value = (function(x) if (is.null(x)) 1 else x)(isolate(mn_settings())$pa), min = 0.001, step = 0.5, width = "130px"),
+          numericInput("mn_prior_b", "Prior, b (Beta)", value = (function(x) if (is.null(x)) 1 else x)(isolate(mn_settings())$pb), min = 0.001, step = 0.5, width = "130px"),
+          numericInput("mn_seed", "Random seed", value = (function(x) if (is.null(x)) 1234 else x)(isolate(mn_settings())$seed), step = 1, width = "130px")),
+        tags$p(style = "font-size:12px; color:#667085; margin:4px 0 0 0;",
+          "Samples: the number of draws for the Bayes factors and for the posterior; the choice above sets them to a ready-made pair, and a number of your own switches the choice to Custom. More samples give a smaller Monte-Carlo error but take longer (the package default is 10,000 and 5,000). ",
+          "Burn-in: draws discarded at the start of each run (the package default is 10 for the posterior and 5 per step for the Bayes factors). ",
+          "Prior: Beta(a, b) on every probability; Beta(1, 1) is uniform and the Bayes factors depend on it. ",
+          "The seed makes a run repeatable.")),
       tags$div(style = "background:rgba(245,158,11,.16); border-left:4px solid #f59e0b; border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
         tags$b("Running here uses our shared server."), " Please keep it small: a few models, the default number of samples. For larger or repeated analyses download the files (the download buttons next to Data) and run ",
         tags$code("analysis_multinomineq.R"), " on your own computer. It needs only R with the packages ", tags$code("multinomineq"), ", ", tags$code("rcdd"), " and ", tags$code("coda"), "."),
@@ -19362,9 +19366,8 @@ server <- shinyServer(function(input, output, session) {
     if (!mn_collect(mn_np_labels(), strict = TRUE)) {
       showNotification("n and frequency must be whole numbers, n at least 1, and frequency between 0 and n.", type = "error"); return()
     }
-    if (!mn_settings_collect()) return()
     removeModal()
-    showNotification("Saved. The next multinomineq download (the download buttons next to Data) and Run use your numbers and settings.", type = "message", duration = 7)
+    showNotification("Saved. The next multinomineq download (the download buttons next to Data) and Run use your numbers.", type = "message", duration = 7)
   })
   # data and order belong together for unpacked models: switch between the two windows without losing what was typed
   observeEvent(input$mn_data_to_order, {
@@ -19376,6 +19379,7 @@ server <- shinyServer(function(input, output, session) {
   # Run the analysis in the app: the same files and the same script as in the download, run in a separate R process
   mn_result <- reactiveValues(dir = NULL, time = NULL)
   observeEvent(input$mn_run, {
+    if (!mn_settings_collect()) return()
     groups <- mn_np_labels()
     if (length(groups) == 0) { showNotification("No H-representation yet: click Go first.", type = "warning"); return() }
     choices_mn <- mn_model_choices()
