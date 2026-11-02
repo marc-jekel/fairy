@@ -1710,6 +1710,7 @@ ui <- shinyUI(fluidPage(
       #fairy-run-card.fairy-run-skippable tr.fairy-run-active:not(.fairy-run-skipped) .fairy-run-rowbtn:not(.fairy-run-rowundo) { display: inline-block; }
       #fairy-run-card.fairy-run-skippable tr.fairy-run-skipped .fairy-run-rowundo { display: inline-block; }
       #fairy-run-card.fairy-run-doneundo tr.fairy-run-skipped .fairy-run-rowundo { display: inline-block; }
+      #fairy-run-card.fairy-run-vwin:not(.fairy-run-vphase) .fairy-run-rowbtn:not(.fairy-run-rowundo) { display: none !important; }
       .fairy-run-rowundo { border-color: var(--fairy-primary) !important; color: var(--fairy-primary) !important; background: color-mix(in srgb, var(--fairy-primary) 10%, transparent) !important; }
       .fairy-run-rowundo:hover { background: color-mix(in srgb, var(--fairy-primary) 20%, transparent) !important; }
       /* while Cancel is shown it is the only button and sits in the middle; Close takes its place afterwards */
@@ -4510,6 +4511,10 @@ ui <- shinyUI(fluidPage(
           var anyRunning = Object.keys(rows).some(function(n) { return rows[n].cells.some(function(c) { var st = c.getAttribute('data-state'); return st === 'run' || st === 'step'; }); });
           $id('fairy-run-card').classList.toggle('fairy-run-skippable', skippable && running && cancelable);
           $id('fairy-run-card').classList.toggle('fairy-run-vwin', cancelInput === 'v_cancel');
+          // vertex window: Skip makes sense only once the vertices are being computed (a model in the last column is running);
+          // before that the H-representations (and the mixtures, inside the main process) are built and cannot be interrupted
+          var vPhase = Object.keys(rows).some(function(n) { var c = rows[n].cells[rows[n].cells.length - 1]; return c && c.getAttribute('data-state') === 'run'; });
+          $id('fairy-run-card').classList.toggle('fairy-run-vphase', vPhase);
           // what Skip and Undo skip do depends on the window: the hint says so
           var hintSkip = cancelInput === 'ex_skip' ? 'Stop the exact calculation of this model: the algorithm is used for it instead'
             : (cancelInput === 'mn_cancel' ? 'Skip the analysis of this model: it is left out of the results' : 'Skip the V-representation of this model: it is missing in the plots and comparisons');
