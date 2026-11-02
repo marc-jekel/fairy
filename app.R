@@ -16616,7 +16616,7 @@ server <- shinyServer(function(input, output, session) {
             if (is.null(t) || nrow(t) == 0) return(NULL)
             m <- matrix(q2d(unlist(t[, 2:ncol(t)])), nrow = nrow(t))
             nm_t <- as.character(t[1, 1])
-            list(name = nm_t, derived = nm_t %in% derived_names_now, keys = apply(m, 1, function(r) paste(round(r, 6), collapse = ",")))
+            list(name = nm_t, derived = nm_t %in% derived_names_now, inter = nm_t %in% derived_names_now && is.null(get0(nm_t, envir = mix_components, inherits = FALSE)), keys = apply(m, 1, function(r) paste(round(r, 6), collapse = ",")))
           })
 
           for (loop_table in seq_len(length(v_table_list))) {
@@ -16640,7 +16640,7 @@ server <- shinyServer(function(input, output, session) {
                 # another model and how many are unique to this one
                 output[[paste0("v_meta_", my_i)]] <- renderUI({
                   txt <- sprintf("%d vertices \u00b7 %d probabilities", nrow(num_v), ncol(num_v))
-                  if ((isTRUE(input$v_shared) || isTRUE(input$v_unique)) && !is.null(vkey_tab[[my_i]]) && !isTRUE(vkey_tab[[my_i]]$derived)) {
+                  if ((isTRUE(input$v_shared) || isTRUE(input$v_unique)) && !is.null(vkey_tab[[my_i]]) && (!isTRUE(vkey_tab[[my_i]]$derived) || isTRUE(vkey_tab[[my_i]]$inter))) {
                     comp <- Filter(function(o) o != my_i && !is.null(vkey_tab[[o]]) && !isTRUE(vkey_tab[[o]]$derived), seq_along(vkey_tab))
                     if (length(comp) > 0) {
                       uniq <- !(vkey_tab[[my_i]]$keys %in% unlist(lapply(comp, function(o) vkey_tab[[o]]$keys)))
@@ -16673,7 +16673,7 @@ server <- shinyServer(function(input, output, session) {
                   # optional tag: this vertex is shared with another plotted model
                   v_lab <- paste0("V", seq_len(nrow(display_t)))
                   uniq_flags <- rep(FALSE, nrow(display_t)); n_other <- 0
-                  if ((isTRUE(input$v_shared) || isTRUE(input$v_unique)) && !is.null(vkey_tab[[my_i]]) && !isTRUE(vkey_tab[[my_i]]$derived)) {
+                  if ((isTRUE(input$v_shared) || isTRUE(input$v_unique)) && !is.null(vkey_tab[[my_i]]) && (!isTRUE(vkey_tab[[my_i]]$derived) || isTRUE(vkey_tab[[my_i]]$inter))) {
                     mine <- vkey_tab[[my_i]]$keys
                     # compared with the other ordinary models only (intersections and mixtures share vertices with their sources by construction)
                     comp <- Filter(function(o) o != my_i && !is.null(vkey_tab[[o]]) && !isTRUE(vkey_tab[[o]]$derived), seq_along(vkey_tab))
