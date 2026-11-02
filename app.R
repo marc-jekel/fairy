@@ -19651,9 +19651,12 @@ server <- shinyServer(function(input, output, session) {
       ")),
       footer = tagList(actionButton("mn_results_again", "Analyse again", icon = icon("rotate-right"), class = "btn-primary",
                                     title = "Opens the Run window: change the models, the settings or the numbers and run again; the new results replace these"),
-                       tags$button(id = "mn_results_newtab", type = "button", class = "btn btn-default", "Open in new tab"),
-                       if (file.exists(file.path(d, "results.pdf"))) downloadButton("mn_results_pdf", "Download PDF", title = "Settings, the Bayes factors of all models and the posterior of every model as a PDF"),
-                       downloadButton("mn_results_dl", "Download all (tar)", title = "Everything in one archive: results.html, results.pdf, the tables (csv), the files the analysis used and analysis_multinomineq.R to repeat it in R"),
+                       tags$div(class = "btn-group dropup", style = "margin-left:6px;",
+                         tags$button(type = "button", class = "btn btn-default dropdown-toggle", `data-toggle` = "dropdown", icon("download"), " Download ", tags$span(class = "caret")),
+                         tags$ul(class = "dropdown-menu dropdown-menu-right",
+                           if (file.exists(file.path(d, "results.pdf"))) tags$li(downloadLink("mn_results_pdf", "PDF report")),
+                           tags$li(downloadLink("mn_results_html", "Web page (.html)")),
+                           tags$li(downloadLink("mn_results_dl", "Everything (.tar): results, tables, files and the R script")))),
                        modalButton("Close"))))
   }
   for (btn_id in c("mn_results_open", "mn_results_open_v")) local({
@@ -19678,6 +19681,15 @@ server <- shinyServer(function(input, output, session) {
     }
   )
   outputOptions(output, "mn_results_pdf", suspendWhenHidden = FALSE)
+  output$mn_results_html <- downloadHandler(
+    filename = function() paste0("multinomineq_results_", Sys.Date(), ".html"),
+    content = function(file) {
+      d <- isolate(mn_result$dir)
+      req(!is.null(d), file.exists(file.path(d, "results.html")))
+      file.copy(file.path(d, "results.html"), file, overwrite = TRUE)
+    }
+  )
+  outputOptions(output, "mn_results_html", suspendWhenHidden = FALSE)
   output$mn_results_dl <- downloadHandler(
     filename = function() paste0("multinomineq_results_", Sys.Date(), ".tar"),
     content = function(file) {
