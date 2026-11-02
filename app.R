@@ -404,6 +404,8 @@ ui <- shinyUI(fluidPage(
         box-shadow: 0 4px 14px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .12s ease; }
       #dm-toggle:hover::after, #tips-toggle:hover::after, #dm-toggle:focus-visible::after, #tips-toggle:focus-visible::after { opacity: 1; }
       body.fairy-no-tips #dm-toggle::after { display: none; }
+      body.fairy-hide-dm #dm-toggle { display: none; }
+      body.fairy-hide-dm #tips-toggle { right: 62px; }
       /* the info symbols (shinyBS / Bootstrap) build their bubbles in the body */
       body.fairy-no-tips .tooltip, body.fairy-no-tips .popover { display: none !important; }
       /* the small info symbols next to headings exist only for their tooltip */
@@ -6297,6 +6299,8 @@ ui <- shinyUI(fluidPage(
            btn.addEventListener('click', function() { setDark(!document.body.classList.contains('dark-mode'), true); });
            // embedded in the tutorial page: the page decides the colour scheme and the two switches stay in step
            if (embedded) {
+             // inside the page the switch of the page itself is there: this one shows only in fill or full screen mode (the page tells)
+             document.body.classList.add('fairy-hide-dm');
              window.addEventListener('message', function(e) {
                if (e.origin !== 'https://modeling-for-everyone.eu' || e.source !== window.parent || !e.data) return;
                if (e.data.type === 'fairy-fill') {
@@ -6306,6 +6310,7 @@ ui <- shinyUI(fluidPage(
                  return;
                }
                if (e.data.type !== 'fairy-theme') return;
+               document.body.classList.toggle('fairy-hide-dm', !e.data.toggle);
                if (!!e.data.dark !== document.body.classList.contains('dark-mode')) setDark(!!e.data.dark, false);
              });
              document.addEventListener('keydown', function(e) {
