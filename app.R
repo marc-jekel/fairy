@@ -4508,6 +4508,14 @@ ui <- shinyUI(fluidPage(
           // the Skip button below the table: only while a model is being calculated
           var anyRunning = Object.keys(rows).some(function(n) { return rows[n].cells.some(function(c) { var st = c.getAttribute('data-state'); return st === 'run' || st === 'step'; }); });
           $id('fairy-run-card').classList.toggle('fairy-run-skippable', skippable && running && cancelable);
+          // what Skip and Undo skip do depends on the window: the hint says so
+          var hintSkip = cancelInput === 'ex_skip' ? 'Stop the exact calculation of this model: the algorithm is used for it instead'
+            : (cancelInput === 'mn_cancel' ? 'Skip the analysis of this model: it is left out of the results' : 'Skip the V-representation of this model: it is missing in the plots and comparisons');
+          var hintUndo = cancelInput === 'ex_skip' ? 'Calculate the exact volume of this model after all'
+            : (cancelInput === 'mn_cancel' ? 'Analyse this model after all' : 'Calculate the V-representation of this model after all');
+          [].forEach.call(document.querySelectorAll('.fairy-run-rowbtn'), function(b) {
+            b.removeAttribute('title'); b.setAttribute('data-fairy-title', b.classList.contains('fairy-run-rowundo') ? hintUndo : hintSkip);
+          });
           // after the exact volume has finished, a skipped model can still be taken back (the run is repeated, the rest comes from the cache)
           $id('fairy-run-card').classList.toggle('fairy-run-doneundo', !running && cancelInput === 'ex_skip');
           Object.keys(rows).forEach(function(n) {
