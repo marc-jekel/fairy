@@ -2298,8 +2298,7 @@ ui <- shinyUI(fluidPage(
            'This is technically a business meeting. With math.',
            'I will be right there. The polytope will not enumerate itself.'
          ];
-         // jokes for the two long calculations: the volumes and the Bayesian analysis (told by the fairy on her own every now and then,
-         // and when she is clicked while the progress window is open)
+         // jokes for the two long calculations: the volumes and the Bayesian analysis (told when she is clicked while the progress window is open)
          var volQuips = [
            'Exact volume: no sampling, no excuses, just a convex hull and a deep breath.',
            'Estimating a volume by random walks is the scenic route. Exact is the tunnel.',
@@ -2353,22 +2352,6 @@ ui <- shinyUI(fluidPage(
            return null;
          }
          function questPool(kind) { return kind === 'vol' ? volQuips : (kind === 'bayes' ? bayesQuips : busyQuips); }
-         (function() {
-           var lastKind = null, since = 0, lastAt = 0;
-           setInterval(function() {
-             var k = runKind();
-             if (!k) { lastKind = null; return; }
-             var now = Date.now();
-             if (k !== lastKind) { lastKind = k; since = now; }
-             if (now - since > 6000 && now - lastAt > 16000) {
-               var el = document.querySelector('.fairy-progress-figure.fairy-landed, #fairy-flyer.fairy-parked');
-               if (!el) return;
-               lastAt = now;
-               var pool = questPool(k);
-               showBubble(el.getBoundingClientRect(), pool[Math.floor(Math.random() * pool.length)]);
-             }
-           }, 2000);
-         })();
          $(document).on('click', '.fairy-progress-figure.fairy-landed, #fairy-flyer.fairy-parked', function(e) {
            e.stopPropagation();
            var el = this;
