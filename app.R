@@ -4449,7 +4449,7 @@ ui <- shinyUI(fluidPage(
           td.setAttribute('data-state', st);
           while (td.firstChild) td.removeChild(td.firstChild);
           var ic = document.createElement('span'); ic.className = 'fairy-run-ico'; ic.setAttribute('aria-hidden', 'true'); ic.textContent = ICON[st];
-          var lb = document.createElement('span'); lb.className = 'fairy-run-lbl'; lb.textContent = LABEL[st];
+          var lb = document.createElement('span'); lb.className = 'fairy-run-lbl'; lb.textContent = (st === 'skip' && cancelInput === 'ex_skip') ? 'algorithm instead' : LABEL[st];
           td.appendChild(ic); td.appendChild(lb);
         }
         function noneCell(td) {
@@ -4506,6 +4506,9 @@ ui <- shinyUI(fluidPage(
             : (cancelInput === 'mn_cancel' ? 'Analyse this model after all' : 'Calculate the V-representation of this model after all');
           [].forEach.call(document.querySelectorAll('.fairy-run-rowbtn'), function(b) {
             var isMix = b.closest('tr') && b.closest('tr').classList.contains('fairy-run-kind-mixture') && cancelInput === 'v_cancel';
+            // in the exact-volume window nothing is skipped: the model gets the algorithm instead, and the buttons say so
+            var isUndo = b.classList.contains('fairy-run-rowundo');
+            b.textContent = cancelInput === 'ex_skip' ? (isUndo ? 'Calculate exact' : 'Use algorithm') : (isUndo ? 'Undo skip' : 'Skip');
             b.removeAttribute('title'); b.setAttribute('data-fairy-title', b.classList.contains('fairy-run-rowundo') ? hintUndo
               : (isMix ? 'Skip the V-representation of this mixture for this run only: a mixture always has one, the next Go calculates it again' : hintSkip));
           });
