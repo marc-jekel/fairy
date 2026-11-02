@@ -4521,7 +4521,7 @@ ui <- shinyUI(fluidPage(
               : (isMix ? 'Stop the V-representation of this mixture for this run only: a mixture always has one, the next Go calculates it again' : hintSkip));
           });
           // after the exact volume has finished, a skipped model can still be taken back (the run is repeated, the rest comes from the cache)
-          $id('fairy-run-card').classList.toggle('fairy-run-doneundo', !running && cancelInput === 'ex_skip');
+          $id('fairy-run-card').classList.toggle('fairy-run-doneundo', !running && (cancelInput === 'ex_skip' || cancelInput === 'v_cancel'));
           Object.keys(rows).forEach(function(n) {
             var sts = rows[n].cells.map(function(c) { return c.getAttribute('data-state'); });
             var act = sts.some(function(st) { return st === 'run' || st === 'step' || st === 'wait'; });
@@ -8172,7 +8172,7 @@ server <- shinyServer(function(input, output, session) {
       if (is.null(p)) { fairy_run_row(m, v = "fail") } else { procs[[m]] <- p; fairy_run_row(m, v = "run") }
     }
     v_state$procs <- procs; v_state$queue <- queue
-    if (length(queue) == 0 && length(procs) == 0 && !grace_wait(v_grace, isolate(v_state$skipped))) {
+    if (length(queue) == 0 && length(procs) == 0 ) {
       v_state$active <- FALSE
       af <- isolate(v_state$after)
       if (is.function(af)) isolate(af(character(0), isolate(v_state$skipped)))
@@ -8195,7 +8195,13 @@ server <- shinyServer(function(input, output, session) {
   # the skip is taken back: the model waits for its turn again
   observeEvent(input$v_unskip_model, {
     if (isTRUE(isolate(mix_job$active))) { mix_unskip(input$v_unskip_model); return() }
-    if (!isTRUE(isolate(v_state$active))) return()
+    if (!isTRUE(isolate(v_state$active))) {
+      # after the run: the V switch of the model is on again and Go is repeated, the rest comes from the cache
+      m0 <- input$v_unskip_model
+      if (is.null(get0(m0, envir = mix_components, inherits = FALSE))) set_v_included(m0, TRUE)
+      shinyjs::runjs("var g = document.getElementById('go_v_h'); if (g) g.click();")
+      return()
+    }
     m <- input$v_unskip_model
     if (!(m %in% isolate(v_state$skipped))) return()
     v_state$skipped <- setdiff(isolate(v_state$skipped), m)
@@ -19516,7 +19522,7 @@ server <- shinyServer(function(input, output, session) {
         mn_proc$procs <- list(); mn_proc$queue <- character(0)
         procs <- list(); queue <- character(0)
       }
-      if (length(procs) == 0 && length(queue) == 0 && !grace_wait(mn_grace, isolate(mn_proc$skipped))) {
+      if (length(procs) == 0 && length(queue) == 0 ) {
         mn_end_ui()
         have <- file.exists(file.path(d, paste0("res_", isolate(mn_proc$stems), ".rds")))
         if (!any(have)) {
