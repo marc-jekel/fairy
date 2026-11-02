@@ -1713,7 +1713,7 @@ ui <- shinyUI(fluidPage(
       .fairy-run-rowbtn { display: none; float: right; margin-left: 12px; padding: 2px 11px; font-size: 12px; font-weight: 600; line-height: 1.5; vertical-align: middle;
         border: 1.5px solid var(--fairy-border, #c8cdd8); border-radius: 8px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
       .fairy-run-rowbtn:hover { border-color: var(--fairy-primary); color: var(--fairy-primary); background: color-mix(in srgb, var(--fairy-primary) 8%, transparent); }
-      #fairy-run-card.fairy-run-skippable tr.fairy-run-active:not(.fairy-run-skipped) .fairy-run-rowbtn:not(.fairy-run-rowundo) { display: inline-block; }
+      #fairy-run-card.fairy-run-skippable tr.fairy-run-active.fairy-run-stopready:not(.fairy-run-skipped) .fairy-run-rowbtn:not(.fairy-run-rowundo) { display: inline-block; }
       #fairy-run-card.fairy-run-skippable tr.fairy-run-skipped .fairy-run-rowundo { display: inline-block; }
       #fairy-run-card.fairy-run-doneundo tr.fairy-run-skipped .fairy-run-rowundo { display: inline-block; }
       #fairy-run-card.fairy-run-vwin:not(.fairy-run-vphase) .fairy-run-rowbtn:not(.fairy-run-rowundo) { display: none !important; }
@@ -4526,6 +4526,9 @@ ui <- shinyUI(fluidPage(
             var sts = rows[n].cells.map(function(c) { return c.getAttribute('data-state'); });
             var act = sts.some(function(st) { return st === 'run' || st === 'step' || st === 'wait'; });
             rows[n].tr.classList.toggle('fairy-run-active', act);
+            // Stop shows only after a row has been active for three seconds, so a model that is done at once never shows it
+            if (act) { if (!rows[n].since) rows[n].since = Date.now(); } else rows[n].since = 0;
+            rows[n].tr.classList.toggle('fairy-run-stopready', !!(act && rows[n].since && Date.now() - rows[n].since >= 3000));
             rows[n].tr.classList.toggle('fairy-run-skipped', sts.indexOf('skip') >= 0);
           });
           Object.keys(rows).forEach(function(n) {
