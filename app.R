@@ -1710,7 +1710,7 @@ ui <- shinyUI(fluidPage(
       }
       #fairy-run-cancel.visible { display: inline-block; }
       /* Skip of a single model: a real small button at the name of the model, the same in every run window */
-      .fairy-run-rowbtn { display: none; margin-left: 12px; padding: 2px 11px; font-size: 12px; font-weight: 600; line-height: 1.5; vertical-align: middle;
+      .fairy-run-rowbtn { display: none; float: right; margin-left: 12px; padding: 2px 11px; font-size: 12px; font-weight: 600; line-height: 1.5; vertical-align: middle;
         border: 1.5px solid var(--fairy-border, #c8cdd8); border-radius: 8px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
       .fairy-run-rowbtn:hover { border-color: var(--fairy-primary); color: var(--fairy-primary); background: color-mix(in srgb, var(--fairy-primary) 8%, transparent); }
       #fairy-run-card.fairy-run-skippable tr.fairy-run-active:not(.fairy-run-skipped) .fairy-run-rowbtn:not(.fairy-run-rowundo) { display: inline-block; }
@@ -4475,7 +4475,7 @@ ui <- shinyUI(fluidPage(
               e.stopPropagation();
               if (window.Shiny) Shiny.setInputValue(cancelInput === 'mn_cancel' ? 'mn_skip_model' : (cancelInput === 'ex_skip' ? 'ex_skip_model' : 'v_skip_model'), name, { priority: 'event' });
             });
-            var ub = document.createElement('button'); ub.type = 'button'; ub.className = 'fairy-run-rowbtn fairy-run-rowundo'; ub.textContent = 'Undo skip';
+            var ub = document.createElement('button'); ub.type = 'button'; ub.className = 'fairy-run-rowbtn fairy-run-rowundo'; ub.textContent = 'Undo';
             ub.setAttribute('title', 'Calculate this model after all');
             ub.addEventListener('click', function(e) {
               e.stopPropagation();
@@ -4516,7 +4516,7 @@ ui <- shinyUI(fluidPage(
             var isMix = b.closest('tr') && b.closest('tr').classList.contains('fairy-run-kind-mixture') && cancelInput === 'v_cancel';
             // in the exact-volume window nothing is skipped: the model gets the algorithm instead, and the buttons say so
             var isUndo = b.classList.contains('fairy-run-rowundo');
-            b.textContent = cancelInput === 'ex_skip' ? (isUndo ? 'Calculate exact' : 'Use algorithm') : (isUndo ? 'Undo skip' : 'Skip');
+            b.textContent = cancelInput === 'ex_skip' ? (isUndo ? 'Calculate exact' : 'Use algorithm') : (isUndo ? 'Undo' : 'Skip');
             b.removeAttribute('title'); b.setAttribute('data-fairy-title', b.classList.contains('fairy-run-rowundo') ? hintUndo
               : (isMix ? 'Skip the V-representation of this mixture for this run only: a mixture always has one, the next Go calculates it again' : hintSkip));
           });
@@ -7912,7 +7912,7 @@ server <- shinyServer(function(input, output, session) {
     mix_job$dir <- d; mix_job$names <- nms; mix_job$sigs <- lapply(pending, function(x) x$sig); mix_job$queue <- nms; mix_job$procs <- list()
     mix_job$parallel <- isTRUE(isolate(input$use_parallel))
     mix_job$active <- TRUE
-    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "v_cancel", label = if (length(nms) > 1) "Cancel all" else "Cancel"))
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "v_cancel", label = "Cancel"))
     for (m in nms) fairy_run_row(m, "mixture", h = "wait", v = "wait")
   }
   observe({
@@ -8134,7 +8134,7 @@ server <- shinyServer(function(input, output, session) {
     v_state$parallel <- isTRUE(isolate(input$use_parallel))
     v_grace(NULL)
     v_state$active <- TRUE
-    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "v_cancel", label = if (length(models) > 1) "Cancel all" else "Cancel"))
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "v_cancel", label = "Cancel"))
   }
   v_finish_models <- function(m, res) {
     h_cn <- colnames(isolate(h_reactive[[m]]))
@@ -17068,7 +17068,7 @@ server <- shinyServer(function(input, output, session) {
     ex$dir <- d; ex$names <- u; ex$procs <- procs; ex$res <- res; ex$start <- Sys.time(); ex$elapsed <- 0; ex$skip <- FALSE; ex$hkeys <- hkeys
     ex$prev_snap <- isolate(pv$prev_snap)
     ex$active <- TRUE
-    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "ex_skip", label = "Cancel all"))
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "ex_skip", label = "Use algorithm for all"))
     for (i in seq_along(u)) fairy_run_cell(u[i], "Exact volume", if (as.character(i) %in% names(procs)) "run" else if (as.character(i) %in% queue) "wait" else
       switch(if (is.na(cached_state[[u[i]]])) "none" else cached_state[[u[i]]], ok = "cached", timeout = "stop", skipped = "skip", "na"))
     session$sendCustomMessage("fairy_run_limit", list(seconds = if (isTRUE(isolate(ex_nolimit()))) 0 else EXACT_VOLUME_LIMIT, nolimit = isTRUE(isolate(ex_nolimit()))))
@@ -19431,7 +19431,7 @@ server <- shinyServer(function(input, output, session) {
     fairy_run_begin("Running the analysis", c("Posterior", "Bayes factors"), skippable = TRUE)
     for (m in mn_proc$row_of) { fairy_run_cell(m, "Posterior", "wait"); fairy_run_cell(m, "Bayes factors", "wait") }
     for (m in rem) { fairy_run_cell(mn_proc$row_of[[m]], "Posterior", "skip"); fairy_run_cell(mn_proc$row_of[[m]], "Bayes factors", "skip") }
-    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "mn_cancel", label = if (length(sel) > 1) "Cancel all" else "Cancel"))
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "mn_cancel", label = "Cancel"))
     session$sendCustomMessage("fairy_run_limit", list(seconds = if (is.finite(mn_proc$limit)) mn_proc$limit else 0, nolimit = !is.finite(mn_proc$limit), label = "analysis"))
   })
   mn_skipped_mem <- reactiveVal(character(0))
