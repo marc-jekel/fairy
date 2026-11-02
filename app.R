@@ -16795,7 +16795,8 @@ server <- shinyServer(function(input, output, session) {
       procs <- list()
     }
     ex$procs <- procs; ex$res <- res; ex$elapsed <- el; ex$queue <- q
-    if (length(procs) == 0 && length(q) == 0 && (isTRUE(isolate(ex$skip)) || !grace_wait(ex_grace, isolate(ex$skipped_run)))) {
+    # after a skip the run goes straight on with the algorithm (no waiting time here: Undo skip works while other models still run, "Try exact again" afterwards)
+    if (length(procs) == 0 && length(q) == 0) {
       ex$active <- FALSE
       session$sendCustomMessage("fairy_run_cancelable", list(on = FALSE))
       session$sendCustomMessage("fairy_run_limit", list(seconds = 0))
