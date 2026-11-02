@@ -1701,8 +1701,11 @@ ui <- shinyUI(fluidPage(
         cursor: pointer;
       }
       #fairy-run-cancel.visible { display: inline-block; }
-      #fairy-run-skipbtn { display: none; padding: 8px 26px; font-size: 14px; font-weight: 600; border: 1.5px solid var(--fairy-border, #c8cdd8); border-radius: 8px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; margin-right: 10px; }
-      #fairy-run-skipbtn.visible { display: inline-block; }
+      /* Skip of a single model: a real small button at the name of the model, the same in every run window */
+      .fairy-run-rowbtn { display: none; margin-left: 12px; padding: 2px 11px; font-size: 12px; font-weight: 600; line-height: 1.5; vertical-align: middle;
+        border: 1.5px solid var(--fairy-border, #c8cdd8); border-radius: 8px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
+      .fairy-run-rowbtn:hover { border-color: var(--fairy-primary); color: var(--fairy-primary); background: color-mix(in srgb, var(--fairy-primary) 8%, transparent); }
+      #fairy-run-card.fairy-run-skippable tr.fairy-run-active .fairy-run-rowbtn { display: inline-block; }
       /* while Cancel is shown it is the only button and sits in the middle; Close takes its place afterwards */
       #fairy-run-actions:has(#fairy-run-cancel.visible) #fairy-run-close { display: none; }
       #fairy-run-cancel:disabled { opacity: .6; cursor: default; }
@@ -4347,7 +4350,6 @@ ui <- shinyUI(fluidPage(
         ),
         tags$div(id = "fairy-run-note"),
         tags$div(id = "fairy-run-actions",
-          tags$button(id = "fairy-run-skipbtn", type = "button", "Skip current model"),
           tags$button(id = "fairy-run-cancel", type = "button", "Cancel"),
           tags$button(id = "fairy-run-close", type = "button", "Close"))
       )
@@ -4387,6 +4389,14 @@ ui <- shinyUI(fluidPage(
           if (!r) {
             var tr = document.createElement('tr');
             var tn = document.createElement('td'); tn.className = 'fairy-run-name'; tn.textContent = name;
+            // Skip of this one model, right at its name (shown while the model is being calculated)
+            var sb = document.createElement('button'); sb.type = 'button'; sb.className = 'fairy-run-rowbtn'; sb.textContent = 'Skip';
+            sb.setAttribute('title', 'Stop the calculation of this model and go on with the others');
+            sb.addEventListener('click', function(e) {
+              e.stopPropagation();
+              if (window.Shiny) Shiny.setInputValue(cancelInput === 'mn_cancel' ? 'mn_skip_model' : (cancelInput === 'ex_skip' ? 'ex_skip_model' : 'v_skip_model'), name, { priority: 'event' });
+            });
+            tn.appendChild(sb);
             tr.appendChild(tn);
             var cells = [];
             for (var ci = 0; ci < ncols; ci++) { var tc = document.createElement('td'); noneCell(tc); tr.appendChild(tc); cells.push(tc); }
@@ -4405,7 +4415,10 @@ ui <- shinyUI(fluidPage(
           var total = 0, done = 0, bad = 0;
           // the Skip button below the table: only while a model is being calculated
           var anyRunning = Object.keys(rows).some(function(n) { return rows[n].cells.some(function(c) { var st = c.getAttribute('data-state'); return st === 'run' || st === 'step'; }); });
-          $id('fairy-run-skipbtn').classList.toggle('visible', skippable && running && cancelable && anyRunning);
+          $id('fairy-run-card').classList.toggle('fairy-run-skippable', skippable && running && cancelable);
+          Object.keys(rows).forEach(function(n) {
+            rows[n].tr.classList.toggle('fairy-run-active', rows[n].cells.some(function(c) { var st = c.getAttribute('data-state'); return st === 'run' || st === 'step'; }));
+          });
           Object.keys(rows).forEach(function(n) {
             rows[n].cells.forEach(function(cell) {
               var st = cell.getAttribute('data-state');
@@ -4530,9 +4543,6 @@ ui <- shinyUI(fluidPage(
         });
         document.addEventListener('DOMContentLoaded', function() {
           $id('fairy-run-close').addEventListener('click', dismiss);
-          $id('fairy-run-skipbtn').addEventListener('click', function() {
-            if (window.Shiny) Shiny.setInputValue(cancelInput === 'mn_cancel' ? 'mn_skip_current' : (cancelInput === 'ex_skip' ? 'ex_skip_current' : 'v_skip_current'), Date.now(), { priority: 'event' });
-          });
           $id('fairy-run-cancel').addEventListener('click', function() {
             this.disabled = true; this.textContent = 'Cancelling ...';
             Shiny.setInputValue(cancelInput, Date.now(), { priority: 'event' });
@@ -7872,14 +7882,13 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   # one model is skipped: its process is stopped (or it leaves the queue), the others go on
-  observeEvent(input$v_skip_current, {
+  observeEvent(input$v_skip_model, {
     if (!isTRUE(isolate(v_state$active))) return()
-    for (m in names(isolate(v_state$procs))) {
-      procs <- isolate(v_state$procs)
-      if (!is.null(procs[[m]])) { try(procs[[m]]$kill_tree(), silent = TRUE); procs[[m]] <- NULL; v_state$procs <- procs }
-      v_state$skipped <- unique(c(isolate(v_state$skipped), m))
-      fairy_run_row(m, v = "skip")
-    }
+    m <- input$v_skip_model; procs <- isolate(v_state$procs)
+    if (is.null(procs[[m]])) return()
+    try(procs[[m]]$kill_tree(), silent = TRUE); procs[[m]] <- NULL; v_state$procs <- procs
+    v_state$skipped <- unique(c(isolate(v_state$skipped), m))
+    fairy_run_row(m, v = "skip")
   })
   observeEvent(input$v_cancel, {
     if (!isTRUE(isolate(v_state$active))) return()
@@ -16706,15 +16715,15 @@ server <- shinyServer(function(input, output, session) {
   })
   observeEvent(input$ex_skip, { if (isTRUE(isolate(ex$active))) ex$skip <- TRUE })
   # the same Skip current model as in the other windows: the model that is running now is stopped, the next one starts
-  observeEvent(input$ex_skip_current, {
+  observeEvent(input$ex_skip_model, {
     if (!isTRUE(isolate(ex$active))) return()
     u <- isolate(ex$names); procs <- isolate(ex$procs); res <- isolate(ex$res)
-    for (k in names(procs)) {
-      try(procs[[k]]$kill_tree(), silent = TRUE); procs[[k]] <- NULL
-      res[[u[as.integer(k)]]] <- NaN
-      fairy_run_cell(u[as.integer(k)], "Exact volume", "skip")
-      exact_skipped(union(isolate(exact_skipped()), u[as.integer(k)]))
-    }
+    k <- names(procs)[vapply(names(procs), function(k) identical(u[as.integer(k)], input$ex_skip_model), logical(1))]
+    if (length(k) == 0) return()
+    try(procs[[k[1]]]$kill_tree(), silent = TRUE); procs[[k[1]]] <- NULL
+    m <- input$ex_skip_model; res[[m]] <- NaN
+    fairy_run_cell(m, "Exact volume", "skip")
+    exact_skipped(union(isolate(exact_skipped()), m))
     ex$procs <- procs; ex$res <- res
   })
   # fairy dust (five quick clicks on the title or the time of the run window): no time limit for the exact calculation
@@ -18929,12 +18938,12 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   # a single model is skipped: its process is stopped (or it is taken out of the queue), the others go on
-  observeEvent(input$mn_skip_current, {
+  observeEvent(input$mn_skip_model, {
     if (!isTRUE(isolate(mn_proc$active)) || !identical(isolate(mn_proc$phase), "models")) return()
-    row_of <- isolate(mn_proc$row_of)
-    for (m in names(isolate(mn_proc$procs))) {
-      procs <- isolate(mn_proc$procs)
-      if (!is.null(procs[[m]])) { try(procs[[m]]$kill_tree(), silent = TRUE); procs[[m]] <- NULL; mn_proc$procs <- procs }
+    row_of <- isolate(mn_proc$row_of); stem <- names(row_of)[unname(row_of) == input$mn_skip_model]
+    procs <- isolate(mn_proc$procs)
+    for (m in intersect(stem, names(procs))) {
+      try(procs[[m]]$kill_tree(), silent = TRUE); procs[[m]] <- NULL; mn_proc$procs <- procs
       mn_proc$skipped <- unique(c(isolate(mn_proc$skipped), m))
       fairy_run_cell(row_of[[m]], "Posterior", "skip"); fairy_run_cell(row_of[[m]], "Bayes factors", "skip")
     }
