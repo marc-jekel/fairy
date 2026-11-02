@@ -18628,7 +18628,7 @@ server <- shinyServer(function(input, output, session) {
       tags$div(style = "max-height:46vh; overflow-y:auto;", body),
       tags$hr(),
       tags$h5("Analysis settings", style = "margin:0 0 2px 0; font-size:15px; font-weight:650;"),
-      tags$p(class = "mn-lead", style = "margin-bottom:10px;", "How the analysis runs, independent of your data."),
+      tags$p(class = "mn-lead", style = "margin-bottom:10px;", "Settings of the sampling: number of samples, burn-in, prior and random seed."),
       selectInput("mn_samples", "Number of samples", width = "100%", selected = (function(x) if (is.null(x)) "std" else x)(isolate(mn_settings())$samples), choices = c(
         "Standard: 10,000 samples for the Bayes factors, 5,000 for the posterior" = "std",
         "More: 100,000 and 20,000 (smaller Monte-Carlo error, slower)" = "more",
