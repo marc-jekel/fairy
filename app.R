@@ -1940,7 +1940,7 @@ ui <- shinyUI(fluidPage(
         color: #fff !important;
       }
       /* Day mode: a light bar (white, thin line) instead of the heavy dark one; the dark bar stays for night mode */
-      body:not(.dark-mode) .navbar { background-color: #ffffff !important; border-bottom: 1px solid var(--fairy-border); box-shadow: none; }
+      body:not(.dark-mode) .navbar:not(.navbar-fixed-bottom) { background-color: #ffffff !important; border-bottom: 1px solid var(--fairy-border); box-shadow: none; }
       body:not(.dark-mode) .navbar-default .navbar-nav > li > a { color: var(--fairy-text-muted) !important; }
       body:not(.dark-mode) .navbar-default .navbar-nav > li > a:hover { color: var(--fairy-primary) !important; background: color-mix(in srgb, var(--fairy-primary) 8%, transparent) !important; }
       body:not(.dark-mode) .navbar-default .navbar-nav > li:last-child > a { color: var(--fairy-primary) !important; }
@@ -2010,6 +2010,7 @@ ui <- shinyUI(fluidPage(
         min-height: 0 !important;
         height: auto !important;
       }
+      nav.navbar-fixed-bottom { background-color: var(--fairy-primary-contrast-bg) !important; }   /* the whole bottom edge, not only the text list */
       #banner {
         background-color: var(--fairy-primary-contrast-bg) !important;   /* purple in day mode, blue at night */
         border: none;
