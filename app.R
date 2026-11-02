@@ -15464,13 +15464,18 @@ server <- shinyServer(function(input, output, session) {
         else if (!is.null(isolate(item_model_spec_idx$value[[as.character(i)]]))) "items"
         else "model"
       }, character(1))
+      # the rows of the run window are listed in the order the models are worked on (models, intersections, mixtures, items),
+      # so the window does not jump between rows
+      run_rank <- c(model = 0, intersection = 1, mixture = 2, items = 3)[kinds_run]; run_rank[is.na(run_rank)] <- 0
+      row_order <- order(run_rank, seq_along(run_rank))
+      names(run_rank) <- as.character(mytable_input[seq_len(numb_models_to_convert), 1])
       session$sendCustomMessage("fairy_kinds", setNames(as.list(kinds_run), as.character(mytable_input[seq_len(numb_models_to_convert), 1])))
       # models selected for the V-representation already show "waiting" in the V column, so the
       # run window is not misleading during the H phase
       v_sel_run <- isolate(mytable_v_reactive$value)
       v_included_run <- if (!is.null(v_sel_run) && ncol(v_sel_run) >= 2) as.character(v_sel_run[[1]][which(as.logical(v_sel_run[[2]]))]) else character()
       # (not in the repeated run after the mixtures: the rows already show what the first run did)
-      for (i_run in if (resume_go) integer(0) else seq_len(numb_models_to_convert)) {
+      for (i_run in if (resume_go) integer(0) else row_order) {
         fairy_run_row(mytable_input[i_run, 1], kinds_run[i_run], h = "wait",
           v = if (mytable_input[i_run, 1] %in% v_included_run) "wait" else NULL)
       }
@@ -16313,6 +16318,11 @@ server <- shinyServer(function(input, output, session) {
           logical(1)
         )]
 
+        # the vertices are worked on in the same order as the rows of the window
+        if (exists("run_rank", inherits = FALSE) && length(models_to_compute_v) > 1) {
+          rk <- run_rank[models_to_compute_v]; rk[is.na(rk)] <- 0
+          models_to_compute_v <- models_to_compute_v[order(rk, seq_along(rk))]
+        }
         for (m_run in models_picked_for_v_representation)
           fairy_run_row(m_run, v = if (m_run %in% models_to_compute_v) "wait" else "cached")
 
