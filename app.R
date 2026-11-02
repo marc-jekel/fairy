@@ -1703,8 +1703,6 @@ ui <- shinyUI(fluidPage(
       #fairy-run-cancel.visible { display: inline-block; }
       #fairy-run-skipbtn { display: none; padding: 8px 26px; font-size: 14px; font-weight: 600; border: 1.5px solid var(--fairy-border, #c8cdd8); border-radius: 8px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; margin-right: 10px; }
       #fairy-run-skipbtn.visible { display: inline-block; }
-      .fairy-run-rowskip { margin-left: 10px; border: none; background: transparent; color: var(--fairy-text-muted, #667085); text-decoration: underline; font-size: 12px; cursor: pointer; padding: 0; }
-      .fairy-run-rowskip:hover { color: var(--fairy-primary); }
       /* while Cancel is shown it is the only button and sits in the middle; Close takes its place afterwards */
       #fairy-run-actions:has(#fairy-run-cancel.visible) #fairy-run-close { display: none; }
       #fairy-run-cancel:disabled { opacity: .6; cursor: default; }
@@ -4380,22 +4378,6 @@ ui <- shinyUI(fluidPage(
           var ic = document.createElement('span'); ic.className = 'fairy-run-ico'; ic.setAttribute('aria-hidden', 'true'); ic.textContent = ICON[st];
           var lb = document.createElement('span'); lb.className = 'fairy-run-lbl'; lb.textContent = LABEL[st];
           td.appendChild(ic); td.appendChild(lb);
-          // a skipped exact calculation can be started again while the window is still open
-          if (st === 'skip' && cancelInput === 'ex_skip' && running && td.parentNode && td.parentNode.firstChild) {
-            var nm2 = td.parentNode.firstChild.firstChild ? td.parentNode.firstChild.firstChild.textContent : '';
-            var rb = document.createElement('button'); rb.type = 'button'; rb.className = 'fairy-run-rowskip'; rb.textContent = 'undo';
-            rb.setAttribute('title', 'Calculate the exact volume of this model after all');
-            rb.addEventListener('click', function(e) { e.stopPropagation(); if (window.Shiny) Shiny.setInputValue('ex_retry_model', nm2, { priority: 'event' }); });
-            td.appendChild(rb);
-          }
-          // the exact volume: every model that is still being calculated has its own skip
-          if (st === 'run' && cancelInput === 'ex_skip' && td.parentNode && td.parentNode.firstChild) {
-            var nm = td.parentNode.firstChild.firstChild ? td.parentNode.firstChild.firstChild.textContent : '';
-            var sb = document.createElement('button'); sb.type = 'button'; sb.className = 'fairy-run-rowskip'; sb.textContent = 'skip';
-            sb.setAttribute('title', 'Stop the exact calculation of this model and use the algorithm for it');
-            sb.addEventListener('click', function(e) { e.stopPropagation(); if (window.Shiny) Shiny.setInputValue('ex_skip_model', nm, { priority: 'event' }); });
-            td.appendChild(sb);
-          }
         }
         function noneCell(td) {
           td.className = 'fairy-run-cell st-none'; td.setAttribute('data-state', 'none'); td.textContent = '\\u2013';
@@ -4549,7 +4531,7 @@ ui <- shinyUI(fluidPage(
         document.addEventListener('DOMContentLoaded', function() {
           $id('fairy-run-close').addEventListener('click', dismiss);
           $id('fairy-run-skipbtn').addEventListener('click', function() {
-            if (window.Shiny) Shiny.setInputValue(cancelInput === 'mn_cancel' ? 'mn_skip_current' : 'v_skip_current', Date.now(), { priority: 'event' });
+            if (window.Shiny) Shiny.setInputValue(cancelInput === 'mn_cancel' ? 'mn_skip_current' : (cancelInput === 'ex_skip' ? 'ex_skip_current' : 'v_skip_current'), Date.now(), { priority: 'event' });
           });
           $id('fairy-run-cancel').addEventListener('click', function() {
             this.disabled = true; this.textContent = 'Cancelling ...';
@@ -16603,7 +16585,7 @@ server <- shinyServer(function(input, output, session) {
   # computed, "skip" stops it and the algorithm takes over, and EXACT_VOLUME_LIMIT is the longest it may take in total.
   # Result per model: a number, NaN = stopped (time limit or skipped), NA = no exact volume exists / can be computed.
   ex <- reactiveValues(active = FALSE, dir = NULL, names = character(0), procs = list(), res = NULL, start = NULL,
-                       elapsed = 0, skip = FALSE, prev_snap = NULL, hkeys = NULL)
+                       elapsed = 0, skip = FALSE, prev_snap = NULL, hkeys = NULL, queue = character(0), parallel = FALSE)
   exact_kill_all <- function() {
     for (p in isolate(ex$procs)) try(p$kill_tree(), silent = TRUE)
     ex$procs <- list()
@@ -16620,6 +16602,12 @@ server <- shinyServer(function(input, output, session) {
       `data-tooltip` = "Optional. The exact volume of these models took too long and you skipped it. Tick to use the algorithm for them right away next time.",
       checkboxInput("ex_avoid", paste0("Don't try exact again for: ", paste(sk, collapse = ", ")), value = isTRUE(isolate(input$ex_avoid))))
   })
+  ex_spawn <- function(d, u, i) {
+    saveRDS(isolate(h_reactive[[u[i]]]), file.path(d, paste0("h", i, ".rds")))
+    tryCatch(processx::process$new(file.path(R.home("bin"), "Rscript"),
+      c(file.path(d, "job.R"), file.path(d, paste0("h", i, ".rds")), file.path(d, paste0("v", i, ".rds"))), cleanup_tree = TRUE),
+      error = function(e) NULL)
+  }
   exact_start_jobs <- function(nms) {
     exact_kill_all()
     u <- unique(nms)
@@ -16640,6 +16628,7 @@ server <- shinyServer(function(input, output, session) {
       "saveRDS(res, a[2])"), file.path(d, "job.R"))
     procs <- list()
     cached_state <- stats::setNames(rep(NA_character_, length(u)), u)
+    todo <- integer(0)
     if (requireNamespace("geometry", quietly = TRUE)) for (i in seq_along(u)) {
       h <- isolate(h_reactive[[u[i]]])
       if (is.null(h)) next
@@ -16652,17 +16641,19 @@ server <- shinyServer(function(input, output, session) {
         cached_state[[u[i]]] <- ch$kind
         next
       }
-      saveRDS(h, file.path(d, paste0("h", i, ".rds")))
-      pr <- tryCatch(processx::process$new(file.path(R.home("bin"), "Rscript"),
-        c(file.path(d, "job.R"), file.path(d, paste0("h", i, ".rds")), file.path(d, paste0("v", i, ".rds"))), cleanup_tree = TRUE),
-        error = function(e) NULL)
-      if (!is.null(pr)) procs[[as.character(i)]] <- pr
+      todo <- c(todo, i)
     }
+    # like the other windows: one model after the other, all at once only with the parallel option
+    par <- isTRUE(isolate(input$use_parallel))
+    first <- if (par) todo else utils::head(todo, 1)
+    for (i in first) { pr <- ex_spawn(d, u, i); if (!is.null(pr)) procs[[as.character(i)]] <- pr }
+    queue <- as.character(setdiff(todo, first))
+    ex$queue <- queue; ex$parallel <- par
     ex$dir <- d; ex$names <- u; ex$procs <- procs; ex$res <- res; ex$start <- Sys.time(); ex$elapsed <- 0; ex$skip <- FALSE; ex$hkeys <- hkeys
     ex$prev_snap <- isolate(pv$prev_snap)
     ex$active <- TRUE
-    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "ex_skip", label = "Skip exact, use the algorithm"))
-    for (i in seq_along(u)) fairy_run_cell(u[i], "Exact volume", if (as.character(i) %in% names(procs)) "run" else
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "ex_skip", label = "Cancel all"))
+    for (i in seq_along(u)) fairy_run_cell(u[i], "Exact volume", if (as.character(i) %in% names(procs)) "run" else if (as.character(i) %in% queue) "wait" else
       switch(if (is.na(cached_state[[u[i]]])) "none" else cached_state[[u[i]]], ok = "cached", timeout = "stop", skipped = "skip", "na"))
     session$sendCustomMessage("fairy_run_limit", list(seconds = if (isTRUE(isolate(ex_nolimit()))) 0 else EXACT_VOLUME_LIMIT, nolimit = isTRUE(isolate(ex_nolimit()))))
   }
@@ -16681,8 +16672,18 @@ server <- shinyServer(function(input, output, session) {
         procs[[k]] <- NULL
       }
     }
-    if (length(procs) > 0 && ((!isTRUE(isolate(ex_nolimit())) && el > EXACT_VOLUME_LIMIT) || isTRUE(isolate(ex$skip)))) {
-      if (isTRUE(isolate(ex$skip))) exact_skipped(union(isolate(exact_skipped()), u[as.integer(names(procs))]))
+    q <- isolate(ex$queue)
+    limit_hit <- !isTRUE(isolate(ex_nolimit())) && el > EXACT_VOLUME_LIMIT
+    # the next model of the queue starts when nothing runs any more
+    if (length(q) > 0 && length(procs) == 0 && !limit_hit && !isTRUE(isolate(ex$skip))) {
+      i <- as.integer(q[1]); q <- q[-1]
+      pr <- ex_spawn(d, u, i)
+      if (!is.null(pr)) { procs[[as.character(i)]] <- pr; fairy_run_cell(u[i], "Exact volume", "run") } else fairy_run_cell(u[i], "Exact volume", "na")
+    }
+    if ((length(procs) > 0 || length(q) > 0) && (limit_hit || isTRUE(isolate(ex$skip)))) {
+      if (isTRUE(isolate(ex$skip))) exact_skipped(union(isolate(exact_skipped()), u[as.integer(c(names(procs), q))]))
+      for (k in q) { res[[u[as.integer(k)]]] <- NaN; fairy_run_cell(u[as.integer(k)], "Exact volume", if (isTRUE(isolate(ex$skip))) "skip" else "stop") }
+      q <- character(0)
       for (k in names(procs)) {
         try(procs[[k]]$kill_tree(), silent = TRUE); res[[u[as.integer(k)]]] <- NaN
         fairy_run_cell(u[as.integer(k)], "Exact volume", "stop")
@@ -16692,8 +16693,8 @@ server <- shinyServer(function(input, output, session) {
       }
       procs <- list()
     }
-    ex$procs <- procs; ex$res <- res; ex$elapsed <- el
-    if (length(procs) == 0) {
+    ex$procs <- procs; ex$res <- res; ex$elapsed <- el; ex$queue <- q
+    if (length(procs) == 0 && length(q) == 0) {
       ex$active <- FALSE
       session$sendCustomMessage("fairy_run_cancelable", list(on = FALSE))
       session$sendCustomMessage("fairy_run_limit", list(seconds = 0))
@@ -16704,33 +16705,16 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   observeEvent(input$ex_skip, { if (isTRUE(isolate(ex$active))) ex$skip <- TRUE })
-  # undo of such a skip while the window is open: the exact calculation of this model starts again
-  observeEvent(input$ex_retry_model, {
+  # the same Skip current model as in the other windows: the model that is running now is stopped, the next one starts
+  observeEvent(input$ex_skip_current, {
     if (!isTRUE(isolate(ex$active))) return()
-    m <- input$ex_retry_model; u <- isolate(ex$names); i <- match(m, u)
-    if (is.na(i)) return()
-    d <- isolate(ex$dir); h <- isolate(h_reactive[[m]])
-    if (is.null(h) || is.null(d) || !dir.exists(d)) return()
-    saveRDS(h, file.path(d, paste0("h", i, ".rds")))
-    pr <- tryCatch(processx::process$new(file.path(R.home("bin"), "Rscript"),
-      c(file.path(d, "job.R"), file.path(d, paste0("h", i, ".rds")), file.path(d, paste0("v", i, ".rds"))), cleanup_tree = TRUE),
-      error = function(e) NULL)
-    if (is.null(pr)) return()
-    procs <- isolate(ex$procs); procs[[as.character(i)]] <- pr
-    res <- isolate(ex$res); res[[m]] <- NA_real_
-    exact_skipped(setdiff(isolate(exact_skipped()), m))
-    fairy_run_cell(m, "Exact volume", "run")
-    ex$procs <- procs; ex$res <- res; ex$skip <- FALSE
-  })
-  # one model: its exact calculation is stopped, the others go on
-  observeEvent(input$ex_skip_model, {
-    if (!isTRUE(isolate(ex$active))) return()
-    m <- input$ex_skip_model; u <- isolate(ex$names); procs <- isolate(ex$procs); res <- isolate(ex$res)
-    k <- names(procs)[vapply(names(procs), function(k) identical(u[as.integer(k)], m), logical(1))]
-    if (length(k) == 0) return()
-    try(procs[[k[1]]]$kill_tree(), silent = TRUE); procs[[k[1]]] <- NULL; res[[m]] <- NaN
-    fairy_run_cell(m, "Exact volume", "skip")
-    exact_skipped(union(isolate(exact_skipped()), m))
+    u <- isolate(ex$names); procs <- isolate(ex$procs); res <- isolate(ex$res)
+    for (k in names(procs)) {
+      try(procs[[k]]$kill_tree(), silent = TRUE); procs[[k]] <- NULL
+      res[[u[as.integer(k)]]] <- NaN
+      fairy_run_cell(u[as.integer(k)], "Exact volume", "skip")
+      exact_skipped(union(isolate(exact_skipped()), u[as.integer(k)]))
+    }
     ex$procs <- procs; ex$res <- res
   })
   # fairy dust (five quick clicks on the title or the time of the run window): no time limit for the exact calculation
@@ -16754,7 +16738,7 @@ server <- shinyServer(function(input, output, session) {
       sel_b <- c(CB = isTRUE(isolate(input$CB)), CG = isTRUE(isolate(input$CG)), SoB = isTRUE(isolate(input$SoB)))
       if (!isTRUE(isolate(input$ALG))) sel_b[] <- FALSE   # the backup algorithm gets its column only if it is needed
       run_cols(c(if (!identical(isolate(input$EX), FALSE)) "Exact volume", unname(algo_names_all[names(sel_b)[sel_b]])))
-      fairy_run_begin("Calculating the volumes", isolate(run_cols()))
+      fairy_run_begin("Calculating the volumes", isolate(run_cols()), skippable = TRUE)
       parsim_state$exact <- NULL; parsim_state$exact_done <- FALSE
       parsim_state$results <- NULL
       pv$prev_snap <- isolate(last_parsimony_snapshot())
