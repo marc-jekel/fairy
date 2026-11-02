@@ -18558,20 +18558,21 @@ server <- shinyServer(function(input, output, session) {
       u <- cur[[g$key]]
       # an unpacked model can use the numbers of the models with the same number of probabilities instead of its own
       can_share <- startsWith(g$key, "m:") && any(vapply(groups, function(x) identical(x$key, paste0("k:", g$k)), logical(1)))
-      tbl <- tags$table(class = "table table-condensed", style = "width:auto;",
+      tbl <- tags$table(class = "mn-tbl",
           tags$thead(tags$tr(tags$th("probability"), tags$th("n"), tags$th("frequency"))),
           tags$tbody(lapply(seq_len(g$k), function(i) {
             v <- u[[g$labels[i]]]
             tags$tr(
-              tags$td(style = "vertical-align:middle; font-size:15px;", HTML(mn_lab_html(g$labels[i]))),
-              tags$td(numericInput(paste0("mn_n_", gi, "_", i), NULL, value = if (!is.null(v)) v$n else 25, min = 1, step = 1, width = "90px")),
-              tags$td(numericInput(paste0("mn_f_", gi, "_", i), NULL, value = if (!is.null(v)) v$f else ex[i], min = 0, step = 1, width = "90px")))
+              tags$td(style = "font-size:15px; padding-right:18px;", HTML(mn_lab_html(g$labels[i]))),
+              tags$td(numericInput(paste0("mn_n_", gi, "_", i), NULL, value = if (!is.null(v)) v$n else 25, min = 1, step = 1, width = "88px")),
+              tags$td(numericInput(paste0("mn_f_", gi, "_", i), NULL, value = if (!is.null(v)) v$f else ex[i], min = 0, step = 1, width = "88px")))
           })))
       # one n for every probability of the table in one step (the single n fields stay editable)
-      nall <- numericInput(paste0("mn_nall_", gi), "Same n for all probabilities (optional, fills the n column)", value = NA, min = 1, step = 1, width = "260px")
-      tbl <- tags$div(nall, tbl)
+      nall <- tags$div(class = "mn-nall", tags$label(`for` = paste0("mn_nall_", gi), "Same n for every row (optional)"),
+                       numericInput(paste0("mn_nall_", gi), NULL, value = NA, min = 1, step = 1, width = "88px"))
+      tbl <- tags$div(tbl, nall)
       tags$div(
-        if (length(g$models)) tags$p(class = "fairy-eq-tol-help", paste0("For: ", paste(g$models, collapse = ", "))),
+        if (length(g$models)) tags$div(style = "margin:2px 0 4px 0;", tags$span(class = "mn-for", paste0("For: ", paste(g$models, collapse = ", ")))),
         if (can_share) checkboxInput(paste0("mn_share_", gi), paste0("Use the same numbers as the other models with ", g$k, " probabilities (row by row)"),
                                      value = isTRUE(isolate(mn_share())[[g$key]])),
         if (can_share) conditionalPanel(sprintf("!input.mn_share_%d", gi), tbl) else tbl)
@@ -18604,16 +18605,30 @@ server <- shinyServer(function(input, output, session) {
       }
     }
     showModal(modalDialog(
-      title = "Your data and settings for the multinomineq analysis", size = "l", easyClose = TRUE,
-      tags$style(HTML(".mn-foot .btn { margin: 0 !important; }")),
-      tags$p(class = "fairy-eq-tol-help", tags$b("n"), ": number of observations. ", tags$b("frequency"),
-        ": how often the outcome happened, out of n. Save keeps your numbers and settings: they go into the files and the script of the multinomineq download (the download buttons next to Data) and are used when you press Run."),
+      title = "Your data and settings for the multinomineq analysis", size = "m", easyClose = TRUE,
+      tags$style(HTML(paste(
+        ".mn-foot .btn { margin: 0 !important; }",
+        ".mn-data-modal .form-group { margin-bottom: 0; }",
+        ".mn-data-modal .mn-tbl { border-collapse: separate; border-spacing: 0; margin: 6px 0 0 0; }",
+        ".mn-data-modal .mn-tbl th { font-size: 11px; font-weight: 600; color: var(--fairy-text-muted, #667085); text-transform: uppercase; letter-spacing: .05em; padding: 0 12px 6px 0; border: 0; }",
+        ".mn-data-modal .mn-tbl td { padding: 5px 12px 5px 0; border: 0; border-top: 1px solid var(--fairy-border, #e5e7eb); vertical-align: middle; }",
+        ".mn-data-modal .mn-tbl input.form-control { height: 32px; padding: 4px 8px; }",
+        ".mn-data-modal .mn-nall { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 13px; color: var(--fairy-text-muted, #667085); }",
+        ".mn-data-modal .mn-nall label { margin: 0; font-weight: 500; }",
+        ".mn-data-modal .mn-nall input.form-control { height: 30px; padding: 3px 8px; }",
+        ".mn-data-modal .mn-for { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; color: var(--fairy-primary); background: color-mix(in srgb, var(--fairy-primary) 10%, transparent); }",
+        ".mn-data-modal .mn-lead { font-size: 13px; color: var(--fairy-text-muted, #667085); margin: 0 0 10px 0; }",
+        ".mn-data-modal hr { margin: 14px 0 12px 0; }",
+        ".mn-data-modal label.control-label { font-size: 13px; font-weight: 600; margin-bottom: 4px; }",
+        sep = " "))),
+      tags$div(class = "mn-data-modal",
+      tags$p(class = "mn-lead", tags$b("n"), " = number of observations, ", tags$b("frequency"),
+        " = how often the outcome happened (out of n). Save keeps the numbers and settings for the downloads and for Run."),
       if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Each unpacked model has its own tab, because items can be unpacked in different ways (for example by joke type, operationalisation or sample), so that a different part of your data enters each model and its probabilities need their own numbers. If a model uses the same part of the data as the other models, tick the box 'Use the same numbers as the other models' in the tab: the model then takes the numbers of the other models, row by row. If you change the order of the probabilities, each number stays with its probability."),
       tags$div(style = "max-height:46vh; overflow-y:auto;", body),
-      tags$hr(style = "margin:14px 0 10px 0;"),
+      tags$hr(),
       tags$h5("Analysis settings", style = "margin:0 0 2px 0; font-size:15px; font-weight:650;"),
-      tags$p(class = "fairy-eq-tol-help", style = "margin-bottom:8px;",
-        "How the analysis is run, not part of your data. These settings are written into the script of the multinomineq download and used when you press Run."),
+      tags$p(class = "mn-lead", style = "margin-bottom:10px;", "How the analysis runs, independent of your data."),
       selectInput("mn_samples", "Number of samples", width = "100%", selected = (function(x) if (is.null(x)) "std" else x)(isolate(mn_settings())$samples), choices = c(
         "Standard: 10,000 samples for the Bayes factors, 5,000 for the posterior" = "std",
         "More: 100,000 and 20,000 (smaller Monte-Carlo error, slower)" = "more",
@@ -18633,7 +18648,7 @@ server <- shinyServer(function(input, output, session) {
           "Samples: the number of draws for the Bayes factors and for the posterior; the choice above sets them to a ready-made pair, and a number of your own switches the choice to Custom. More samples give a smaller Monte-Carlo error but take longer (the package default is 10,000 and 5,000). ",
           "Burn-in: draws discarded at the start of each run (the package default is 10 for the posterior and 5 per step for the Bayes factors). ",
           "Prior: Beta(a, b) on every probability; Beta(1, 1) is uniform and the Bayes factors depend on it. ",
-          "The seed makes a run repeatable.")),
+          "The seed makes a run repeatable."))),
       footer = tags$div(class = "mn-foot", style = "display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; align-items:center; width:100%;",
         tags$div(style = "display:flex; gap:8px;",
           order_button,
