@@ -4536,6 +4536,12 @@ ui <- shinyUI(fluidPage(
             })();
           }
         });
+        // the main button of the window gets another text for a moment (and gets it back with an empty text)
+        Shiny.addCustomMessageHandler('fairy_run_cancel_label', function(msg) {
+          var b = $id('fairy-run-cancel');
+          if (msg && msg.text) { if (!b.getAttribute('data-orig')) b.setAttribute('data-orig', b.textContent); b.textContent = msg.text; }
+          else if (b.getAttribute('data-orig')) { b.textContent = b.getAttribute('data-orig'); b.removeAttribute('data-orig'); }
+        });
         // a later phase of the same run (e.g. building the results page): the title says what happens now
         Shiny.addCustomMessageHandler('fairy_run_phase', function(msg) {
           if (msg && msg.text) $id('fairy-run-title').textContent = msg.text;
@@ -7886,7 +7892,7 @@ server <- shinyServer(function(input, output, session) {
   grace_wait <- function(rv, skipped) {
     if (length(skipped) == 0) return(FALSE)
     g <- isolate(rv())
-    if (is.null(g)) { rv(Sys.time() + 5); session$sendCustomMessage("fairy_run_phase", list(text = "Skipped: going on in a moment")); return(TRUE) }
+    if (is.null(g)) { rv(Sys.time() + 5); session$sendCustomMessage("fairy_run_phase", list(text = "Skipped: going on in a moment")); session$sendCustomMessage("fairy_run_cancel_label", list(text = "Continue now")); return(TRUE) }
     if (Sys.time() < g) return(TRUE)
     rv(NULL); FALSE
   }
@@ -7968,9 +7974,10 @@ server <- shinyServer(function(input, output, session) {
     v_state$skipped <- setdiff(isolate(v_state$skipped), m)
     v_state$queue <- c(isolate(v_state$queue), m)
     fairy_run_row(m, v = "wait")
-    v_grace(NULL); session$sendCustomMessage("fairy_run_phase", list(text = "Calculating"))
+    v_grace(NULL); session$sendCustomMessage("fairy_run_phase", list(text = "Calculating")); session$sendCustomMessage("fairy_run_cancel_label", list(text = ""))
   })
   observeEvent(input$v_cancel, {
+    if (!is.null(isolate(v_grace()))) { v_grace(Sys.time() - 1); return() }
     if (!isTRUE(isolate(v_state$active))) return()
     left <- c(names(isolate(v_state$procs)), isolate(v_state$queue))
     v_kill_all()
@@ -16794,7 +16801,10 @@ server <- shinyServer(function(input, output, session) {
       parsim_state$resume <- isolate(parsim_state$resume) + 1   # runs the Go handler again, now with the exact volumes
     }
   })
-  observeEvent(input$ex_skip, { if (isTRUE(isolate(ex$active))) ex$skip <- TRUE })
+  observeEvent(input$ex_skip, {
+    if (!is.null(isolate(ex_grace()))) { ex_grace(Sys.time() - 1); return() }
+    if (isTRUE(isolate(ex$active))) ex$skip <- TRUE
+  })
   # the same Skip current model as in the other windows: the model that is running now is stopped, the next one starts
   observeEvent(input$ex_skip_model, {
     if (!isTRUE(isolate(ex$active))) return()
@@ -16818,7 +16828,7 @@ server <- shinyServer(function(input, output, session) {
     exact_skipped(setdiff(isolate(exact_skipped()), m))
     res <- isolate(ex$res); res[[m]] <- NA_real_
     ex$res <- res; ex$queue <- c(isolate(ex$queue), as.character(i))
-    ex$skipped_run <- setdiff(isolate(ex$skipped_run), m); ex_grace(NULL)
+    ex$skipped_run <- setdiff(isolate(ex$skipped_run), m); ex_grace(NULL); session$sendCustomMessage("fairy_run_cancel_label", list(text = ""))
     session$sendCustomMessage("fairy_run_phase", list(text = "Calculating the volumes"))
     fairy_run_cell(m, "Exact volume", "wait")
   })
@@ -19054,7 +19064,7 @@ server <- shinyServer(function(input, output, session) {
       mn_proc$skipped <- setdiff(isolate(mn_proc$skipped), m)
       mn_proc$queue <- c(isolate(mn_proc$queue), m)
       fairy_run_cell(row_of[[m]], "Posterior", "wait"); fairy_run_cell(row_of[[m]], "Bayes factors", "wait")
-      mn_grace(NULL); session$sendCustomMessage("fairy_run_phase", list(text = "Running the analysis"))
+      mn_grace(NULL); session$sendCustomMessage("fairy_run_phase", list(text = "Running the analysis")); session$sendCustomMessage("fairy_run_cancel_label", list(text = ""))
     }
   })
   # fairy dust (five quick clicks on the window title, see the script above): no time limit for the analysis here
@@ -19069,6 +19079,7 @@ server <- shinyServer(function(input, output, session) {
                      type = "message", duration = 6)
   })
   observeEvent(input$mn_cancel, {
+    if (!is.null(isolate(mn_grace()))) { mn_grace(Sys.time() - 1); return() }
     if (!isTRUE(isolate(mn_proc$active))) return()
     mn_kill_all()
     mn_proc$active <- FALSE
