@@ -18630,7 +18630,7 @@ server <- shinyServer(function(input, output, session) {
       title = "Run the multinomineq analysis here", size = "m", easyClose = TRUE,
       tags$style(HTML(".mn-foot .btn { margin: 0 !important; }")),
       tags$p(class = "fairy-eq-tol-help",
-        HTML(paste0("The analysis is done by the R package <a href='https://www.dwheck.de/software/multinomineq/' target='_blank' rel='noopener'>multinomineq</a> (Heck &amp; Davis-Stober, 2019), not by this app. It uses the numbers and settings saved under <b>Data</b>: ",
+        HTML(paste0("The analysis is run here in the app, with the R package <a href='https://www.dwheck.de/software/multinomineq/' target='_blank' rel='noopener'>multinomineq</a> (Heck &amp; Davis-Stober, 2019). It uses the numbers and settings saved under <b>Data</b>: ",
           if (own) "your own numbers" else "the example numbers (you have not saved your own yet)",
           "; ", format(mb, big.mark = ","), " samples for the Bayes factors and ", format(mp, big.mark = ","), " for the posterior. ")),
         actionLink("mn_run_to_data", "Change the data or settings")),
