@@ -11014,7 +11014,7 @@ server <- shinyServer(function(input, output, session) {
     )
   }
 
-  observeEvent(input$go_v_h, { message(sprintf("[fairy-t] go-arrived %.2f", as.numeric(Sys.time()))) }, priority = 1000)
+  observeEvent(input$go_v_h, { message(sprintf("[fairy-t] go-arrived %.2f", as.numeric(Sys.time()))); Rprof("/tmp/fairy_prof.out", interval = 0.02, line.profiling = FALSE) }, priority = 1000)
   observeEvent(input$go_v_h, {
     last_computed_snapshot(make_snapshot())
     message(sprintf("[fairy-t] snap-done %.2f", as.numeric(Sys.time())))
@@ -15322,6 +15322,7 @@ server <- shinyServer(function(input, output, session) {
   observe_guarded(input$go_v_h, {
     # the repeated run after the mixtures were calculated (same window, nothing is asked again)
     message(sprintf("[fairy-t] %s %.2f", "go-start", as.numeric(Sys.time())))
+    Rprof(NULL); try(message("[fairy-t] PROF\n", paste(capture.output(print(head(summaryRprof("/tmp/fairy_prof.out")$by.total, 25))), collapse = "\n")))
     resume_go <- isTRUE(isolate(mix_job$resume)); mix_job$resume <- FALSE
     # Skip if inputs are identical to the last recomputation.
     current_snap <- make_snapshot()
