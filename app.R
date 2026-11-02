@@ -7132,6 +7132,7 @@ ui <- shinyUI(fluidPage(
         )),
         tags$script(
           '
+         $(document).on("length.dt", function(e, settings, len) { if ($(settings.nTable).closest("#v_rep").length) window.fairyVLen = len; });
          $(document).on("click", "#v_unique_btn", function() {
            var on = !$(this).hasClass("active");
            $(this).toggleClass("active", on).attr("aria-pressed", on ? "true" : "false");
@@ -16742,12 +16743,12 @@ server <- shinyServer(function(input, output, session) {
                 # line under the title: size of the model; with the sharing marks on, how many vertices are shared with
                 # another model and how many are unique to this one
                 output[[paste0("v_meta_", my_i)]] <- renderUI({
-                  txt <- sprintf("%d vertices \u00b7 %d probabilities", nrow(num_v), ncol(num_v))
+                  txt <- sprintf("%d probabilities \u00b7 %d vertices", ncol(num_v), nrow(num_v))
                   if ((isTRUE(input$v_shared) || isTRUE(input$v_unique)) && !is.null(vkey_tab[[my_i]])) {
                     comp <- comp_for(my_i)
                     if (length(comp) > 0) {
                       uniq <- !(vkey_tab[[my_i]]$keys %in% unlist(lapply(comp, function(o) vkey_tab[[o]]$keys)))
-                      txt <- paste0(txt, sprintf(" \u00b7 %d shared, %d unique", sum(!uniq), sum(uniq)))
+                      txt <- paste0(txt, sprintf(" (%d shared, %d unique)", sum(!uniq), sum(uniq)))
                       # a mixture is not compared with its own components (its vertices are theirs): say so, the reader should not have to know it
                       if (isTRUE(vkey_tab[[my_i]]$derived) && !isTRUE(vkey_tab[[my_i]]$inter)) {
                         srcs <- get0(vkey_tab[[my_i]]$name, envir = mix_components, inherits = FALSE)
@@ -16819,6 +16820,8 @@ server <- shinyServer(function(input, output, session) {
                     rowCallback = DT::JS(sprintf("function(row, data, index) { var u = %s; if (u[index]) $(row).addClass('fairy-v-unique'); }", jsonlite::toJSON(as.logical(uniq_flags & isTRUE(input$v_shared))))),
                     dom = if (many_rows) "lfrtip" else "t",
                     paging = many_rows,
+                    # the number of entries chosen once stays when the table is drawn again (words, compare, unique ...)
+                    initComplete = DT::JS("function(settings) { var n = window.fairyVLen; if (n && settings._iDisplayLength !== n) this.api().page.len(n).draw(false); }"),
                     drawCallback = DT::JS(
                       "function() { if (window.MathJax && MathJax.Hub) {",
                       "setTimeout(function() { MathJax.Hub.Queue(['Typeset', MathJax.Hub]); }, 30); } }"
