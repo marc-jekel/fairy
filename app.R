@@ -1709,6 +1709,7 @@ ui <- shinyUI(fluidPage(
       .fairy-run-rowbtn:hover { border-color: var(--fairy-primary); color: var(--fairy-primary); background: color-mix(in srgb, var(--fairy-primary) 8%, transparent); }
       #fairy-run-card.fairy-run-skippable tr.fairy-run-active:not(.fairy-run-skipped) .fairy-run-rowbtn:not(.fairy-run-rowundo) { display: inline-block; }
       #fairy-run-card.fairy-run-skippable tr.fairy-run-skipped .fairy-run-rowundo { display: inline-block; }
+      #fairy-run-card.fairy-run-doneundo tr.fairy-run-skipped .fairy-run-rowundo { display: inline-block; }
       .fairy-run-rowundo { border-color: var(--fairy-primary) !important; color: var(--fairy-primary) !important; background: color-mix(in srgb, var(--fairy-primary) 10%, transparent) !important; }
       .fairy-run-rowundo:hover { background: color-mix(in srgb, var(--fairy-primary) 20%, transparent) !important; }
       /* while Cancel is shown it is the only button and sits in the middle; Close takes its place afterwards */
@@ -4435,6 +4436,8 @@ ui <- shinyUI(fluidPage(
           // the Skip button below the table: only while a model is being calculated
           var anyRunning = Object.keys(rows).some(function(n) { return rows[n].cells.some(function(c) { var st = c.getAttribute('data-state'); return st === 'run' || st === 'step'; }); });
           $id('fairy-run-card').classList.toggle('fairy-run-skippable', skippable && running && cancelable);
+          // after the exact volume has finished, a skipped model can still be taken back (the run is repeated, the rest comes from the cache)
+          $id('fairy-run-card').classList.toggle('fairy-run-doneundo', !running && cancelInput === 'ex_skip');
           Object.keys(rows).forEach(function(n) {
             var sts = rows[n].cells.map(function(c) { return c.getAttribute('data-state'); });
             var act = sts.some(function(st) { return st === 'run' || st === 'step' || st === 'wait'; });
@@ -16827,7 +16830,13 @@ server <- shinyServer(function(input, output, session) {
   })
   # the skip is taken back: the model waits for its turn again
   observeEvent(input$ex_unskip_model, {
-    if (!isTRUE(isolate(ex$active))) return()
+    if (!isTRUE(isolate(ex$active))) {
+      # the run is over: forget the skip and calculate again (the other models come from the cache)
+      exact_skipped(setdiff(isolate(exact_skipped()), input$ex_unskip_model))
+      parsim_state$exact_done <- FALSE
+      parsim_state$resume <- isolate(parsim_state$resume) + 1
+      return()
+    }
     m <- input$ex_unskip_model; u <- isolate(ex$names); i <- match(m, u)
     if (is.na(i) || !(m %in% isolate(exact_skipped()))) return()
     exact_skipped(setdiff(isolate(exact_skipped()), m))
