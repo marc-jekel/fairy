@@ -16652,6 +16652,11 @@ server <- shinyServer(function(input, output, session) {
                     if (length(comp) > 0) {
                       uniq <- !(vkey_tab[[my_i]]$keys %in% unlist(lapply(comp, function(o) vkey_tab[[o]]$keys)))
                       txt <- paste0(txt, sprintf(" \u00b7 %d shared, %d unique", sum(!uniq), sum(uniq)))
+                      # a mixture is not compared with its own components (its vertices are theirs): say so, the reader should not have to know it
+                      if (isTRUE(vkey_tab[[my_i]]$derived) && !isTRUE(vkey_tab[[my_i]]$inter)) {
+                        srcs <- get0(vkey_tab[[my_i]]$name, envir = mix_components, inherits = FALSE)
+                        if (length(srcs) > 0) txt <- paste0(txt, " (compared with the other models, not with its own components ", paste(vapply(srcs, short_model_name, character(1)), collapse = ", "), ")")
+                      }
                     }
                   }
                   div(class = "fairy-v-meta", txt)
