@@ -10711,8 +10711,11 @@ server <- shinyServer(function(input, output, session) {
   # simply ignored rather than treated as 0, so a currently-referenced
   # higher p doesn't get silently clamped away while the user is still
   # typing.
-  observeEvent(input$set_prob_count, {
-    val <- suppressWarnings(as.integer(input$set_prob_count))
+  # typed digit by digit ("1", then "16"): only the number that stays for a moment counts, so the boxes of the probabilities do not
+  # build up and tear down for every digit
+  set_prob_count_typed <- shiny::debounce(reactive(input$set_prob_count), 700)
+  observeEvent(set_prob_count_typed(), {
+    val <- suppressWarnings(as.integer(set_prob_count_typed()))
     if (is.na(val)) return()
     val <- max(1L, min(30L, val))
     manual_p_floor(val)
