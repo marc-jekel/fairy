@@ -2035,6 +2035,8 @@ ui <- shinyUI(fluidPage(
       #banner * { box-shadow: none; }
 
       a { color: var(--fairy-primary); }
+      input[type=checkbox], input[type=radio], input[type=range], progress { accent-color: var(--fairy-primary-contrast-bg); }
+      .form-check-input:checked, .checkbox input:checked, .shiny-input-container input[type=checkbox]:checked { background-color: var(--fairy-primary-contrast-bg); border-color: var(--fairy-primary-contrast-bg); }
       a:hover { color: var(--fairy-primary-dark); }
       "
     )),
