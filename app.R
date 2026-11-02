@@ -1,3 +1,6 @@
+# R compiles a long function the second time it is called; for the Go handler (thousands of lines) that took about 3 seconds
+# in the middle of a run (the repeated run after the mixtures), so the compiler is switched off
+if (requireNamespace("compiler", quietly = TRUE)) compiler::enableJIT(0)
 if (!require("dplyr")) install.packages("dplyr")
 library("dplyr")
 if (!require("geometry")) install.packages("geometry")
@@ -7938,7 +7941,6 @@ server <- shinyServer(function(input, output, session) {
     if (length(queue) == 0 && length(procs) == 0) {
       mix_job$active <- FALSE
       unlink(d, recursive = TRUE)
-      message(sprintf("[fairy-t] resume-click %.2f", as.numeric(Sys.time())))
       mix_job$resume <- TRUE   # the Go run is repeated: the results are taken from mixture_results
       shinyjs::runjs("var g = document.getElementById('go_v_h'); if (g) g.click();")
     }
@@ -11014,10 +11016,8 @@ server <- shinyServer(function(input, output, session) {
     )
   }
 
-  observeEvent(input$go_v_h, { message(sprintf("[fairy-t] go-arrived %.2f", as.numeric(Sys.time()))); Rprof("/tmp/fairy_prof.out", interval = 0.02, line.profiling = FALSE) }, priority = 1000)
   observeEvent(input$go_v_h, {
     last_computed_snapshot(make_snapshot())
-    message(sprintf("[fairy-t] snap-done %.2f", as.numeric(Sys.time())))
   }, priority = 10)
 
   # Same staleness pattern as make_snapshot()/last_computed_snapshot above,
@@ -15321,8 +15321,6 @@ server <- shinyServer(function(input, output, session) {
   #   9. Build the H-representation formula/LaTeX display and V-rep tables
   observe_guarded(input$go_v_h, {
     # the repeated run after the mixtures were calculated (same window, nothing is asked again)
-    message(sprintf("[fairy-t] %s %.2f", "go-start", as.numeric(Sys.time())))
-    Rprof(NULL); try(message("[fairy-t] PROF\n", paste(capture.output(print(head(summaryRprof("/tmp/fairy_prof.out")$by.self, 14))), collapse = "\n")))
     resume_go <- isTRUE(isolate(mix_job$resume)); mix_job$resume <- FALSE
     # Skip if inputs are identical to the last recomputation.
     current_snap <- make_snapshot()
@@ -15371,7 +15369,6 @@ server <- shinyServer(function(input, output, session) {
       return()
     }
 
-    message(sprintf("[fairy-t] %s %.2f", "after-precheck", as.numeric(Sys.time())))
     last_recomputed_snapshot(current_snap)
 
     n_input_models <- counter_input$n
@@ -15460,7 +15457,6 @@ server <- shinyServer(function(input, output, session) {
           v = if (mytable_input[i_run, 1] %in% v_included_run) "wait" else NULL)
       }
 
-    message(sprintf("[fairy-t] %s %.2f", "before-loop", as.numeric(Sys.time())))
       for (loop_numb_models in 1:numb_models_to_convert) {
         name_m <- mytable_input[loop_numb_models, 1]
         # A mixture row gets its real H and V together in the mixture step further down; its trivial
@@ -15981,7 +15977,6 @@ server <- shinyServer(function(input, output, session) {
         }
       }
 
-    message(sprintf("[fairy-t] %s %.2f", "after-mixtures", as.numeric(Sys.time())))
       mixtures_reactive$names <- mixture_names
 
       ####* Multiple-items models ####
