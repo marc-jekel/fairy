@@ -6376,7 +6376,7 @@ ui <- shinyUI(fluidPage(
   tags$button(id = "dm-toggle", `data-tip` = "Switch between light and dark mode", `aria-label` = "Toggle dark mode", "\U0001F319"),
   tags$button(id = "tips-toggle", `data-tip` = "Tooltips and hover hints: click to hide them", `aria-label` = "Show or hide tooltips", "?"),
   # only shown when the tutorial page has enlarged the app to its whole window ("Fill window"); the click is passed to the page
-  tags$button(id = "fill-exit", `data-tip` = "Leave the full window (Esc)", `aria-label` = "Leave the full window", "\u2715"),
+  tags$button(id = "fill-exit", `data-tip` = "Leave Fill window (Esc)", `aria-label` = "Leave Fill window", "\u2715"),
   # Quiet loading screen: the page shell arrives long before the server has
   # rendered the model rows (cold start, or a busy R process), which left a
   # half-empty Input tab. Shown from the first paint, removed on the first
