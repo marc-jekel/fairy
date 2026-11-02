@@ -4503,6 +4503,10 @@ ui <- shinyUI(fluidPage(
             })();
           }
         });
+        // a later phase of the same run (e.g. building the results page): the title says what happens now
+        Shiny.addCustomMessageHandler('fairy_run_phase', function(msg) {
+          if (msg && msg.text) $id('fairy-run-title').textContent = msg.text;
+        });
         Shiny.addCustomMessageHandler('fairy_run_hide', function(msg) {
           running = false; cancelable = false; $id('fairy-run-cancel').classList.remove('visible');
           if (tick) { clearInterval(tick); tick = null; }
@@ -18850,6 +18854,7 @@ server <- shinyServer(function(input, output, session) {
         }
         writeLines(isolate(mn_proc$skipped), file.path(d, "skipped.txt"))
         mn_proc$phase <- "report"
+        session$sendCustomMessage("fairy_run_phase", list(text = "Building the results page"))
         mn_proc$report_p <- mn_rscript(d, "report", "out_report.txt")
         if (is.null(isolate(mn_proc$report_p))) {
           mn_proc$active <- FALSE
@@ -18863,8 +18868,8 @@ server <- shinyServer(function(input, output, session) {
         if (file.exists(file.path(d, "results.html"))) {
           mn_result$dir <- d
           mn_result$time <- Sys.time()
-          fairy_run_hide()
-          show_mn_results()
+          session$sendCustomMessage("fairy_run_phase", list(text = "Opening the results"))
+          show_mn_results()   # the run window closes by itself once the results are shown (mn_results_shown)
           fe <- isolate(mn_proc$failed)
           if (length(fe)) showNotification(paste("Not every model could be analysed:", paste(fe, collapse = " | ")), type = "warning", duration = 12)
         } else {
@@ -18906,6 +18911,7 @@ server <- shinyServer(function(input, output, session) {
   })
   session$onSessionEnded(function() { mn_kill_all() })
   # the last results stay available: a "Results" button next to "Data" opens them again
+  observeEvent(input$mn_results_shown, fairy_run_hide(), ignoreInit = TRUE)
   show_mn_results <- function() {
     d <- isolate(mn_result$dir)
     if (is.null(d) || !file.exists(file.path(d, "results.html"))) {
@@ -18923,7 +18929,9 @@ server <- shinyServer(function(input, output, session) {
         (function() {
           var src = document.getElementById('mn_results_src');
           var host = document.getElementById('mn_results_host');
-          if (!src || !host) return;
+          function shown() { if (window.Shiny) Shiny.setInputValue('mn_results_shown', Date.now(), { priority: 'event' }); }
+          if (!src || !host) { shown(); return; }
+          try {
           var doc = new DOMParser().parseFromString(src.value, 'text/html');
           var css = [].map.call(doc.querySelectorAll('style'), function(s) { return s.textContent; }).join('\\n');
           css = css.replace(/html,body\\{/g, '.page{').replace(/(^|[}\\s])body\\{/g, '$1.page{').replace(/:root/g, ':host');
@@ -18940,6 +18948,7 @@ server <- shinyServer(function(input, output, session) {
             var b = new Blob([src.value], { type: 'text/html' });
             window.open(URL.createObjectURL(b), '_blank');
           });
+          } finally { setTimeout(shown, 50); }
         })();
       ")),
       footer = tagList(tags$button(id = "mn_results_newtab", type = "button", class = "btn btn-default", "Open in new tab"),
