@@ -7640,7 +7640,6 @@ ui <- shinyUI(fluidPage(
             `data-tooltip` = paste0("Calculates the volume from the corner points of the model (up to ", EXACT_VOLUME_LIMIT_TXT, " in total; you can skip it); where it works, no algorithm is needed"),
             materialSwitch("EX", "Exact volume", value = TRUE, status = "primary", right = TRUE)
           ),
-          uiOutput("ex_avoid_ui"),
           tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
             `data-tooltip` = "Estimate the volume with algorithms for every model. Off: Cooling Bodies only runs for models without an exact volume",
             materialSwitch("ALG", "Algorithms", value = FALSE, status = "primary", right = TRUE)
@@ -7681,6 +7680,7 @@ ui <- shinyUI(fluidPage(
             uiOutput("parsimony_placeholder_ui"),
             div(id = "parsim_out",
               uiOutput("parsimony_stale_note"),
+              uiOutput("ex_skipped_note"),
               uiOutput("parsimony_results_header_ui"),
               uiOutput("parsimony_plot_ui"),
               uiOutput("parsimony_spinner_table")
@@ -16693,13 +16693,15 @@ server <- shinyServer(function(input, output, session) {
   exact_cache <- new.env()
   # models for which the exact volume was skipped by hand: optionally not tried again (the checkbox appears once there are some)
   exact_skipped <- reactiveVal(character(0))
-  output$ex_avoid_ui <- renderUI({
+  # what the app remembers: shown above the results, with a link to forget it (same wording and place as in the analysis window)
+  output$ex_skipped_note <- renderUI({
     sk <- exact_skipped()
     if (length(sk) == 0 || identical(input$EX, FALSE)) return(NULL)
-    tags$div(style = "margin:-2px 0 6px 0; max-width:230px;", class = "fairy-tooltip fairy-tooltip-left",
-      `data-tooltip` = "You skipped the exact volume of these models. Ticked: they go straight to the algorithm in the next runs. Untick to try exact again (or use Undo skip in the window while it runs).",
-      checkboxInput("ex_avoid", paste0("Don't try exact again for: ", paste(sk, collapse = ", ")), value = if (is.null(isolate(input$ex_avoid))) TRUE else isTRUE(isolate(input$ex_avoid))))
+    tags$div(class = "fairy-eq-tol-help", style = "margin:6px 0 10px 0;",
+      icon("circle-info"), " Skipped earlier: ", tags$b(paste(sk, collapse = ", ")),
+      " (no exact volume, the algorithm is used). ", actionLink("ex_forget", "Try exact again"))
   })
+  observeEvent(input$ex_forget, { exact_skipped(character(0)) })
   ex_spawn <- function(d, u, i) {
     saveRDS(isolate(h_reactive[[u[i]]]), file.path(d, paste0("h", i, ".rds")))
     tryCatch(processx::process$new(file.path(R.home("bin"), "Rscript"),
@@ -16730,7 +16732,7 @@ server <- shinyServer(function(input, output, session) {
     if (requireNamespace("geometry", quietly = TRUE)) for (i in seq_along(u)) {
       h <- isolate(h_reactive[[u[i]]])
       if (is.null(h)) next
-      if (isTRUE(isolate(input$ex_avoid)) && u[i] %in% isolate(exact_skipped())) {
+      if (u[i] %in% isolate(exact_skipped())) {
         res[[u[i]]] <- NaN; cached_state[[u[i]]] <- "skipped"; next
       }
       ch <- get0(hkeys[[i]], envir = exact_cache, inherits = FALSE)
@@ -18830,6 +18832,17 @@ server <- shinyServer(function(input, output, session) {
   }
 
   # The window of the Run button: only the analysis (the numbers and settings come from Data)
+  output$mn_skipped_note <- renderUI({
+    sk <- mn_skipped_mem()
+    if (length(sk) == 0) return(NULL)
+    ch <- mn_model_choices()
+    nm <- names(ch)[match(sk, unname(ch))]
+    nm <- ifelse(is.na(nm), sk, nm)
+    tags$div(class = "fairy-eq-tol-help", style = "margin-bottom:8px;",
+      icon("circle-info"), " Skipped earlier: ", tags$b(paste(nm, collapse = ", ")),
+      " (not analysed). ", actionLink("mn_forget", "Analyse them again"))
+  })
+  observeEvent(input$mn_forget, { mn_skipped_mem(character(0)) })
   show_mn_run <- function() {
     groups <- mn_np_labels()
     if (length(groups) == 0) {
@@ -18841,6 +18854,7 @@ server <- shinyServer(function(input, output, session) {
     showModal(modalDialog(
       title = "Run the multinomineq analysis here", size = "m", easyClose = TRUE,
       tags$style(HTML(".mn-foot .btn { margin: 0 !important; }")),
+      uiOutput("mn_skipped_note"),
       tags$p(class = "fairy-eq-tol-help",
         HTML(paste0("The analysis is run here in the app, with the R package <a href='https://www.dwheck.de/software/multinomineq/' target='_blank' rel='noopener'>multinomineq</a> (Heck &amp; Davis-Stober, 2019). It uses the numbers and settings saved under <b>Data</b>: ",
           if (own) "your own numbers" else "the example numbers (you have not saved your own yet)",
