@@ -11017,6 +11017,7 @@ server <- shinyServer(function(input, output, session) {
   observeEvent(input$go_v_h, { message(sprintf("[fairy-t] go-arrived %.2f", as.numeric(Sys.time()))) }, priority = 1000)
   observeEvent(input$go_v_h, {
     last_computed_snapshot(make_snapshot())
+    message(sprintf("[fairy-t] snap-done %.2f", as.numeric(Sys.time())))
   }, priority = 10)
 
   # Same staleness pattern as make_snapshot()/last_computed_snapshot above,
