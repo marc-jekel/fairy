@@ -7936,7 +7936,7 @@ server <- shinyServer(function(input, output, session) {
     if (!is.null(procs[[m]]) || m %in% queue) {
       if (!is.null(procs[[m]])) { try(procs[[m]]$kill_tree(), silent = TRUE); procs[[m]] <- NULL; mix_job$procs <- procs }
       mix_job$queue <- setdiff(queue, m)
-      mix_job$skipped <- unique(c(isolate(mix_job$skipped), m))
+      mix_job$skipped <- unique(c(isolate(mix_job$skipped), m)); mix_job$stale <- TRUE
       fairy_run_row(m, h = "skip", v = "skip")
     } else {
       set_v_included(m, FALSE); fairy_run_row(m, v = "skip")
@@ -15267,11 +15267,12 @@ server <- shinyServer(function(input, output, session) {
     resume_go <- isTRUE(isolate(mix_job$resume)); mix_job$resume <- FALSE
     # Skip if inputs are identical to the last recomputation.
     current_snap <- make_snapshot()
-    if (!resume_go && !is.null(isolate(last_recomputed_snapshot())) &&
+    # (not after a mixture was skipped: the next Go has to try it again although nothing in the input changed)
+    if (!resume_go && !isTRUE(isolate(mix_job$stale)) && !is.null(isolate(last_recomputed_snapshot())) &&
         identical(isolate(last_recomputed_snapshot()), current_snap)) {
       return()
     }
-    if (!resume_go) mix_job$skipped <- character(0)
+    if (!resume_go) { mix_job$skipped <- character(0); mix_job$stale <- FALSE }
     # Check the input before computing anything and say precisely what is wrong.
     precheck_msgs <- character()
     for (i_chk in seq_len(counter_input$n)) {
