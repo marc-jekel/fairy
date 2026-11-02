@@ -20801,10 +20801,15 @@ server <- shinyServer(function(input, output, session) {
           type = "scatter", mode = "markers", marker = list(size = 10, color = "#7a4fc4")
         ) %>%
           animation_opts(transition = 0) %>%
-          animation_slider(currentvalue = list(prefix = "Vertex "),
-            # with many vertices the step labels (1, 2, 3, ...) run into each other and into the axis title
-            font = list(color = if (n_frames > 12) "rgba(0,0,0,0)" else "#444444"),
-            ticklen = if (n_frames > 12) 0 else 7)
+          animation_slider(currentvalue = list(prefix = "Vertex "), font = list(color = "#444444"), ticklen = 7)
+        # with many vertices only some step labels are written (every 2nd, 3rd, 5th), the others stay empty: no overlap, ticks keep their numbers
+        p <- plotly::plotly_build(p)
+        k <- if (n_frames <= 12) 1L else if (n_frames <= 20) 2L else if (n_frames <= 30) 3L else 5L
+        if (k > 1L && length(p$x$layout$sliders) > 0) {
+          st <- p$x$layout$sliders[[1]]$steps
+          for (i in seq_along(st)) if ((i - 1L) %% k != 0L && !(i == length(st) && (i - 1L) %% k >= 3L)) st[[i]]$label <- ""
+          p$x$layout$sliders[[1]]$steps <- st
+        }
       } else {
         p <- plot_ly(v_pl,
           x = ~parameter_names, y = ~parameters,
