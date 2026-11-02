@@ -467,10 +467,10 @@ ui <- shinyUI(fluidPage(
       #mn_data_open.fairy-order-btn, #mn_data_open_v.fairy-order-btn, #mn_run_open.fairy-order-btn, #mn_run_open_v.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: var(--ct-default) !important; border-color: var(--fairy-border) !important; box-shadow: none !important; }
       #mn_data_open .fa, #mn_data_open_v .fa, #mn_data_open svg, #mn_data_open_v svg, #mn_run_open .fa, #mn_run_open_v .fa, #mn_run_open svg, #mn_run_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
       #mn_data_open:hover, #mn_data_open_v:hover, #mn_run_open:hover, #mn_run_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
-      #mn_run_open::after, #mn_run_open_v::after { content: 'Run'; }
+      #mn_run_open::after, #mn_run_open_v::after { content: 'Run analysis'; }
       /* Results: same small grey row, reopens the last analysis */
       #mn_results_open, #mn_results_open_v { position: relative !important; margin-bottom: 14px !important; }
-      #mn_results_open::after, #mn_results_open_v::after { content: 'Results'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
+      #mn_results_open::after, #mn_results_open_v::after { content: 'Last results'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
         border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 12px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
       /* Order is a setting for the two downloads below it, not a third program: plain grey, a thin row, a divider under it */
       #mn_results_open.fairy-order-btn, #mn_results_open_v.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: var(--ct-default) !important; border-color: var(--fairy-border) !important; box-shadow: none !important; }
