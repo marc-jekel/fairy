@@ -7853,6 +7853,104 @@ server <- shinyServer(function(input, output, session) {
   }
   # last mixture results by name, with a signature of the component models they were built from
   mixture_cache <- new.env()
+  # The mixtures are calculated in separate R processes (like the vertices): the window stays alive, a mixture can be skipped.
+  # The Go run stops after it has started them and is repeated (without a new window) when they are done; the results wait in
+  # mixture_results, keyed by the signature of the mixture (components and their H-representations).
+  mixture_results <- new.env()
+  mix_job <- reactiveValues(active = FALSE, dir = NULL, names = character(0), sigs = list(), queue = character(0), procs = list(),
+                            skipped = character(0), resume = FALSE, parallel = FALSE)
+  mix_kill_all <- function() {
+    for (p in isolate(mix_job$procs)) try(p$kill_tree(), silent = TRUE)
+    mix_job$procs <- list()
+  }
+  mix_job_script <- c(
+    "suppressMessages(library(rcdd))",
+    "a <- commandArgs(TRUE); inp <- readRDS(a[1])",
+    "res <- tryCatch({",
+    "  V_sel <- lapply(inp$sel, function(m) {",
+    "    h_comp <- inp$h[[m]]",
+    "    if (ncol(h_comp) != ncol(inp$cube)) return(NULL)",
+    "    h_full <- rbind(h_comp, inp$cube); attr(h_full, 'representation') <- 'H'",
+    "    v_out <- tryCatch(scdd(h_full)$output, error = function(e) NULL)",
+    "    if (is.null(v_out)) return(NULL)",
+    "    v_out[v_out[, 2] == '1', , drop = FALSE]",
+    "  })",
+    "  V_sel <- c(V_sel, inp$extra); V_sel <- Filter(function(v) !is.null(v) && nrow(v) > 0, V_sel)",
+    "  if (length(V_sel) == 0) list(error = 'its component models have no extreme cases to combine') else {",
+    "    V_comb <- do.call(rbind, V_sel); attr(V_comb, 'representation') <- 'V'",
+    "    hh <- scdd(V_comb)$output",
+    "    if (nrow(hh) > 1) { hh <- redundant(hh)$output; attr(hh, 'representation') <- 'H' }",
+    "    colnames(hh) <- inp$h1_cols",
+    "    vv <- scdd(hh)",
+    "    if (!is.null(inp$v1cols) && length(inp$v1cols) == ncol(vv$output)) colnames(vv$output) <- inp$v1cols else colnames(vv$output) <- inp$h1_cols",
+    "    list(h = hh, v = vv)",
+    "  }",
+    "}, error = function(e) list(error = conditionMessage(e)))",
+    "saveRDS(res, a[2])"
+  )
+  mix_start_jobs <- function(pending) {
+    mix_kill_all()
+    d <- tempfile("mixrun_"); dir.create(d)
+    writeLines(mix_job_script, file.path(d, "job.R"))
+    nms <- names(pending)
+    for (i in seq_along(nms)) saveRDS(pending[[i]]$input, file.path(d, paste0("in", i, ".rds")))
+    mix_job$dir <- d; mix_job$names <- nms; mix_job$sigs <- lapply(pending, function(x) x$sig); mix_job$queue <- nms; mix_job$procs <- list()
+    mix_job$parallel <- isTRUE(isolate(input$use_parallel))
+    mix_job$active <- TRUE
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "v_cancel", label = if (length(nms) > 1) "Cancel all" else "Cancel"))
+    for (m in nms) fairy_run_row(m, "mixture", h = "wait", v = "wait")
+  }
+  observe({
+    if (!isTRUE(mix_job$active)) return()
+    invalidateLater(400)
+    d <- isolate(mix_job$dir); nms <- isolate(mix_job$names); procs <- isolate(mix_job$procs); queue <- isolate(mix_job$queue)
+    for (m in names(procs)) {
+      if (!procs[[m]]$is_alive()) {
+        idx <- match(m, nms)
+        res <- tryCatch(readRDS(file.path(d, paste0("out", idx, ".rds"))), error = function(e) list(error = "the calculation did not finish"))
+        assign(isolate(mix_job$sigs)[[m]], res, envir = mixture_results)
+        fairy_run_row(m, h = if (is.null(res$error)) "done" else "fail", v = if (is.null(res$error)) "done" else "fail")
+        procs[[m]] <- NULL
+      }
+    }
+    max_run <- if (isolate(mix_job$parallel)) length(nms) else 1L
+    while (length(queue) > 0 && length(procs) < max_run) {
+      m <- queue[1]; queue <- queue[-1]; idx <- match(m, nms)
+      pr <- tryCatch(processx::process$new(file.path(R.home("bin"), "Rscript"),
+        c(file.path(d, "job.R"), file.path(d, paste0("in", idx, ".rds")), file.path(d, paste0("out", idx, ".rds"))), cleanup_tree = TRUE),
+        error = function(e) NULL)
+      if (is.null(pr)) { assign(isolate(mix_job$sigs)[[m]], list(error = "the calculation could not be started"), envir = mixture_results); fairy_run_row(m, h = "fail", v = "fail") }
+      else { procs[[m]] <- pr; fairy_run_row(m, h = "run", v = "run") }
+    }
+    mix_job$procs <- procs; mix_job$queue <- queue
+    if (length(queue) == 0 && length(procs) == 0) {
+      mix_job$active <- FALSE
+      unlink(d, recursive = TRUE)
+      mix_job$resume <- TRUE   # the Go run is repeated: the results are taken from mixture_results
+      shinyjs::runjs("var g = document.getElementById('go_v_h'); if (g) g.click();")
+    }
+  })
+  # a mixture is skipped (this run only); any other model in the list: its V-representation is switched off (as everywhere else)
+  mix_skip <- function(m) {
+    procs <- isolate(mix_job$procs); queue <- isolate(mix_job$queue)
+    if (!is.null(procs[[m]]) || m %in% queue) {
+      if (!is.null(procs[[m]])) { try(procs[[m]]$kill_tree(), silent = TRUE); procs[[m]] <- NULL; mix_job$procs <- procs }
+      mix_job$queue <- setdiff(queue, m)
+      mix_job$skipped <- unique(c(isolate(mix_job$skipped), m))
+      fairy_run_row(m, h = "skip", v = "skip")
+    } else {
+      set_v_included(m, FALSE); fairy_run_row(m, v = "skip")
+    }
+  }
+  mix_unskip <- function(m) {
+    if (m %in% isolate(mix_job$skipped)) {
+      mix_job$skipped <- setdiff(isolate(mix_job$skipped), m)
+      mix_job$queue <- c(isolate(mix_job$queue), m)
+      fairy_run_row(m, h = "wait", v = "wait")
+    } else {
+      set_v_included(m, TRUE); fairy_run_row(m, v = "wait")
+    }
+  }
   hint_cache <- new.env()   # results of rows built from H-representations of their sources (intersections with mixtures, unpacked models)
 
   # An unexpected R error inside a big computation block used to end the session (greyed-out
@@ -8067,6 +8165,7 @@ server <- shinyServer(function(input, output, session) {
   })
   # one model is skipped: its process is stopped (or it leaves the queue), the others go on
   observeEvent(input$v_skip_model, {
+    if (isTRUE(isolate(mix_job$active))) { mix_skip(input$v_skip_model); return() }   # the mixtures are being calculated
     if (!isTRUE(isolate(v_state$active))) return()
     m <- input$v_skip_model; procs <- isolate(v_state$procs); queue <- isolate(v_state$queue)
     if (is.null(procs[[m]]) && !(m %in% queue)) return()
@@ -8080,6 +8179,7 @@ server <- shinyServer(function(input, output, session) {
   })
   # the skip is taken back: the model waits for its turn again
   observeEvent(input$v_unskip_model, {
+    if (isTRUE(isolate(mix_job$active))) { mix_unskip(input$v_unskip_model); return() }
     if (!isTRUE(isolate(v_state$active))) return()
     m <- input$v_unskip_model
     if (!(m %in% isolate(v_state$skipped))) return()
@@ -8090,6 +8190,15 @@ server <- shinyServer(function(input, output, session) {
     v_grace(NULL); session$sendCustomMessage("fairy_run_phase", list(text = "Calculating")); session$sendCustomMessage("fairy_run_cancel_label", list(text = ""))
   })
   observeEvent(input$v_cancel, {
+    if (isTRUE(isolate(mix_job$active))) {
+      # the mixtures are being calculated: everything stops, the input stays as it is
+      left <- c(names(isolate(mix_job$procs)), isolate(mix_job$queue))
+      mix_kill_all(); mix_job$queue <- character(0); mix_job$active <- FALSE
+      for (m in left) fairy_run_row(m, h = "cancel", v = "cancel")
+      session$sendCustomMessage("fairy_run_cancelable", list(on = FALSE))
+      fairy_run_end("<b>Cancelled:</b> the mixtures were not calculated. Press Go to try again.")
+      return()
+    }
     if (!is.null(isolate(v_grace()))) { v_grace(Sys.time() - 1); return() }
     if (!isTRUE(isolate(v_state$active))) return()
     left <- c(names(isolate(v_state$procs)), isolate(v_state$queue))
@@ -15154,12 +15263,15 @@ server <- shinyServer(function(input, output, session) {
   #   8. Compute V-representations for everything selected (####* V-representation)
   #   9. Build the H-representation formula/LaTeX display and V-rep tables
   observe_guarded(input$go_v_h, {
+    # the repeated run after the mixtures were calculated (same window, nothing is asked again)
+    resume_go <- isTRUE(isolate(mix_job$resume)); mix_job$resume <- FALSE
     # Skip if inputs are identical to the last recomputation.
     current_snap <- make_snapshot()
-    if (!is.null(isolate(last_recomputed_snapshot())) &&
+    if (!resume_go && !is.null(isolate(last_recomputed_snapshot())) &&
         identical(isolate(last_recomputed_snapshot()), current_snap)) {
       return()
     }
+    if (!resume_go) mix_job$skipped <- character(0)
     # Check the input before computing anything and say precisely what is wrong.
     precheck_msgs <- character()
     for (i_chk in seq_len(counter_input$n)) {
@@ -15266,7 +15378,7 @@ server <- shinyServer(function(input, output, session) {
 
       cache <- isolate(model_snap_cache())
       recomputed_models <- character()
-      fairy_run_begin(skippable = TRUE)
+      if (!resume_go) fairy_run_begin(skippable = TRUE)
       # kind label in the run window: intersection / mixture rows come from the
       # Input tab buttons (see derived_model_sources), everything else is a model
       dms_run <- isolate(derived_model_sources$value)
@@ -15661,6 +15773,7 @@ server <- shinyServer(function(input, output, session) {
 
       mixture_names <- character()
       mix_fail_notes <- character()
+      mix_pending <- list()   # mixtures that have to be calculated in their own processes
       # Rows that have to wait for the unpacked models: those built from H-representations of rows that are computed later
       # (unpacked models, and intersections that involve a mixture), and mixtures of such rows.
       dms_all <- isolate(derived_model_sources$value)
@@ -15739,42 +15852,13 @@ server <- shinyServer(function(input, output, session) {
             next
           }
 
-          fairy_run_row(mix_name, "mixture", h = "run", v = "run")   # a mixture always gets H and V in this one step
-
-          # The model H-reps do not include simplex constraints, so their raw
-          # V-reps contain only rays/lines (no finite vertices).  To compute a
-          # geometrically meaningful mixture we must add simplex constraints
-          # (p_i >= 0, sum = 1) to each component before extracting vertices.
-          h_base_mix <- isolate(h_reactive[[selected_mix[1]]])
-          n_p_mix    <- ncol(h_base_mix) - 2L
-          cube_h_mix <- d2q(rbind(
-            makeH(a1 = -diag(n_p_mix), b1 = rep(0, n_p_mix)),
-            makeH(a1 =  diag(n_p_mix), b1 = rep(1, n_p_mix))
-          ))
-
-          h_mix_snapshot <- setNames(
-            lapply(selected_mix, function(m) isolate(h_reactive[[m]])),
-            selected_mix
-          )
-
-          V_sel <- par_lapply(selected_mix, function(m) {
-            h_comp <- h_mix_snapshot[[m]]
-            if (ncol(h_comp) != ncol(cube_h_mix)) return(NULL)
-            h_full <- rbind(h_comp, cube_h_mix)
-            attr(h_full, "representation") <- "H"
-            v_out  <- tryCatch(scdd(h_full)$output, error = function(e) NULL)
-            if (is.null(v_out)) return(NULL)
-            v_out[v_out[, 2] == "1", , drop = FALSE]
-          })
-          V_sel <- c(V_sel, extra_mix)
-          V_sel <- Filter(function(v) !is.null(v) && nrow(v) > 0, V_sel)
-          if (length(V_sel) == 0) {
-            mix_fail_notes <- c(mix_fail_notes, paste0(mix_name, ": its component models have no extreme cases to combine"))
-            fairy_run_row(mix_name, h = "fail", v = "fail")
+          # A mixture that was skipped in this run is left out (the next Go calculates it again)
+          mix_res <- get0(mix_sig, envir = mixture_results, inherits = FALSE)
+          if (is.null(mix_res) && mix_name %in% isolate(mix_job$skipped)) {
+            fairy_run_row(mix_name, "mixture", h = "skip", v = "skip")
             next
           }
 
-          h1_cols <- colnames(isolate(h_reactive[[selected_mix[1]]]))
           mix_ncols <- vapply(selected_mix, function(m) {
             h <- isolate(h_reactive[[m]]); if (is.null(h)) NA_integer_ else ncol(h)
           }, integer(1))
@@ -15790,26 +15874,29 @@ server <- shinyServer(function(input, output, session) {
               ), type = "warning")
             next
           }
-          mix_result <- tryCatch({
-            V_comb <- do.call(rbind, V_sel)
-            # rbind() drops the representation attribute; restore it so scdd
-            # treats V_comb as a V-rep (not an H-rep) and returns the H-rep
-            # of the convex hull.
-            attr(V_comb, "representation") <- "V"
-            hh <- scdd(V_comb)$output
-            if (nrow(hh) > 1) {
-              hh <- redundant(hh)$output
-              attr(hh, "representation") <- "H"
-            }
-            colnames(hh) <- h1_cols
-            vv <- scdd(hh)
-            v1 <- isolate(v_reactive[[selected_mix[1]]])
-            # only take over the names of an earlier V-representation if it has the same number of
-            # columns (it can be stale after the number of probabilities changed)
-            if (!is.null(v1) && ncol(v1$output) == ncol(vv$output)) colnames(vv$output) <- colnames(v1$output)
-            else colnames(vv$output) <- h1_cols
-            list(h = hh, v = vv)
-          }, error = function(e) { mix_fail_notes <<- c(mix_fail_notes, paste0(mix_name, ": ", conditionMessage(e))); NULL })
+
+          if (is.null(mix_res)) {
+            # The model H-reps do not include simplex constraints, so their raw V-reps contain only rays/lines (no finite
+            # vertices). To compute a geometrically meaningful mixture the simplex constraints (p_i >= 0, sum = 1) are added
+            # to each component before extracting vertices. The calculation itself runs in its own process (see mix_start_jobs).
+            h_base_mix <- isolate(h_reactive[[selected_mix[1]]])
+            n_p_mix    <- ncol(h_base_mix) - 2L
+            cube_h_mix <- d2q(rbind(
+              makeH(a1 = -diag(n_p_mix), b1 = rep(0, n_p_mix)),
+              makeH(a1 =  diag(n_p_mix), b1 = rep(1, n_p_mix))
+            ))
+            v1_first <- isolate(v_reactive[[selected_mix[1]]])
+            mix_pending[[mix_name]] <- list(sig = mix_sig, input = list(
+              sel = selected_mix,
+              h = setNames(lapply(selected_mix, function(m) isolate(h_reactive[[m]])), selected_mix),
+              cube = cube_h_mix, extra = extra_mix,
+              h1_cols = colnames(isolate(h_reactive[[selected_mix[1]]])),
+              v1cols = if (!is.null(v1_first) && is.list(v1_first) && !is.null(v1_first$output)) colnames(v1_first$output) else NULL))
+            next
+          }
+          mix_result <- if (!is.null(mix_res$error)) {
+            mix_fail_notes <- c(mix_fail_notes, paste0(mix_name, ": ", mix_res$error)); NULL
+          } else list(h = mix_res$h, v = mix_res$v)
 
           if (!is.null(mix_result)) {
             h_reactive[[mix_name]] <- mix_result$h
@@ -15819,6 +15906,12 @@ server <- shinyServer(function(input, output, session) {
           }
           mix_feedback <- c(mix_feedback, mix_name)
           fairy_run_row(mix_name, h = if (!is.null(mix_result)) "done" else "fail", v = if (!is.null(mix_result)) "done" else "fail")
+        }
+        # mixtures that still have to be calculated: start their processes and stop here; the run is repeated when they are done
+        if (length(mix_pending) > 0) {
+          mix_start_jobs(mix_pending)
+          last_recomputed_snapshot(NULL)
+          return(invisible())
         }
       }
 
