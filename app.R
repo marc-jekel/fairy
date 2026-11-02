@@ -1650,7 +1650,9 @@ ui <- shinyUI(fluidPage(
         border: 1px solid var(--fairy-border, #e5e5e5);
         border-radius: 10px;
       }
-      .fairy-run-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      /* fixed columns: the table keeps its shape while the states change */
+      .fairy-run-table { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
+      .fairy-run-table th:first-child { width: 40%; }
       .fairy-run-table th {
         position: sticky;
         top: 0;
