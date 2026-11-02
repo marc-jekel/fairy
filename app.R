@@ -18602,8 +18602,9 @@ server <- shinyServer(function(input, output, session) {
       footer = tags$div(class = "mn-foot", style = "display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; align-items:center; width:100%;",
         tags$div(style = "display:flex; gap:8px;",
           order_button,
-          actionButton("mn_data_reset", "Back to example numbers", title = "Your saved numbers are discarded; the models and the settings are not touched"),
-          tags$span(class = "fairy-eq-tol-help", style = "margin:0; align-self:center; max-width:260px;", "Your numbers become the example numbers again; the settings stay.")),
+          actionButton("mn_data_reset", "Reset to example numbers", icon = icon("rotate-left"), class = "btn-link",
+                       style = "color:var(--fairy-text-muted, #667085); font-size:13px; text-decoration:none;",
+                       title = "Your numbers become the example numbers again. The models and the settings stay as they are.")),
         tags$div(style = "display:flex; gap:8px;",
           modalButton("Cancel"), actionButton("mn_data_save", "Save", class = "btn-primary", title = "Keeps your numbers and settings for the next download and for Run")))))
   }
