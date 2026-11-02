@@ -1531,6 +1531,9 @@ ui <- shinyUI(fluidPage(
         box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); transition: opacity 0.4s ease;
       }
       .fairy-toast-out { opacity: 0; }
+      /* a click that makes the vertex tables redraw (compare, words) can take seconds with many vertices: the button turns and a note says what happens */
+      .fairy-toolbar-iconbtn.fairy-btn-busy svg, .fairy-toolbar-iconbtn.fairy-btn-busy .fa { animation: fairy-spin 0.9s linear infinite; }
+      #fairy-v-busy { position: fixed; left: 50%; bottom: 64px; transform: translateX(-50%); z-index: 100000; }
       #fairy-kbd-help {
         position: fixed; inset: 0; z-index: 3100; display: flex; align-items: center; justify-content: center;
         background: rgba(15, 20, 34, 0.45);
@@ -7135,6 +7138,24 @@ ui <- shinyUI(fluidPage(
         )),
         tags$script(
           '
+         // feedback while the tables are redrawn (many vertices: several seconds)
+         (function() {
+           var timer = null;
+           function busy(on, text, btn) {
+             var old = document.getElementById("fairy-v-busy"); if (old) old.remove();
+             $(".fairy-toolbar-iconbtn").removeClass("fairy-btn-busy");
+             if (timer) { clearTimeout(timer); timer = null; }
+             if (!on) return;
+             if (btn) $(btn).addClass("fairy-btn-busy");
+             var t = document.createElement("div"); t.id = "fairy-v-busy"; t.className = "fairy-toast"; t.setAttribute("role", "status"); t.textContent = text;
+             document.body.appendChild(t);
+             timer = setTimeout(function() { busy(false); }, 90000);
+           }
+           $(document).on("click", "#v_shared_btn", function() { busy(true, "Comparing the vertices of the models ...", this); });
+           $(document).on("click", "#v_unique_btn", function() { busy(true, "Looking for the vertices that only one model has ...", this); });
+           $(document).on("click", "#v_rep_words", function() { busy(true, "Writing the vertices in words ..."); });
+           $(document).on("shiny:idle", function() { busy(false); });
+         })();
          $(document).on("length.dt", function(e, settings, len) { if ($(settings.nTable).closest("#v_rep").length) window.fairyVLen = len; });
          $(document).on("click", "#v_unique_btn", function() {
            var on = !$(this).hasClass("active");
