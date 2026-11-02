@@ -11906,7 +11906,10 @@ server <- shinyServer(function(input, output, session) {
   # ... and two models whose vertices live in the same space (same number of probabilities): otherwise there is nothing to compare
   observe({
     vs <- shiny::reactiveValuesToList(v_reactive)
-    vs <- vs[vapply(vs, function(x) is.matrix(x) && nrow(x) > 0, logical(1))]
+    # the stored V-representation is the result of scdd(): a list whose $output is the matrix of the vertices
+    vmat <- function(x) if (is.list(x) && is.matrix(x$output)) x$output else if (is.matrix(x)) x else NULL
+    vs <- lapply(vs, vmat)
+    vs <- vs[vapply(vs, function(x) !is.null(x) && nrow(x) > 0, logical(1))]
     widths <- vapply(vs, ncol, integer(1))
     several <- isTRUE(counter_input$n > 1) && length(widths) > 1 && any(table(widths) > 1)
     shinyjs::toggle("v_compare_cap", condition = several)
