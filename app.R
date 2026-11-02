@@ -12969,7 +12969,7 @@ server <- shinyServer(function(input, output, session) {
       if (!is.null(pm0) && !is.null(h0) && length(pm0) == ncol(h0) - 2L && setequal(pm0, seq_len(length(pm0))) && !identical(as.integer(pm0), seq_along(pm0))) qo[[nm0]] <- as.integer(pm0)
     }
     qo_lines <- if (length(qo)) c(
-      cm("Order of the probabilities in the QTEST and multinomineq files, as chosen in the app: the first number is the probability of the model that becomes p1 in the files, and so on."),
+      cm("Order of the probabilities in the QTEST files, as chosen in the app: the first number is the probability of the model that becomes p1 in the files, and so on."),
       "qtest_order <- list(", paste0("  ", q(names(qo)), " = c(", vapply(qo, function(p) paste(p, collapse = ", "), character(1)), ")", c(rep(",", length(qo) - 1), "")), ")") else character(0)
     out <- c(out, "", "# all models of the session",
       "models <- list(", paste0("  ", q(row_name[ok]), " = ", obj[ok], c(rep(",", length(ok) - 1), "")), ")", "",
@@ -13013,12 +13013,10 @@ server <- shinyServer(function(input, output, session) {
         "  cat(\"\\nV-description of\", nm, \"\\n\")",
         "  print(v_tables[[nm]])",
         "}", ""),
-      cm("Input files for other software, written to the working directory (one .tar archive each)."),
+      cm("Input file for other software, written to the working directory (a .tar archive)."),
       cm("QTEST: one .txt file per model with the H-representation (A and b, integer-scaled). QTEST cannot express equalities: for a model with equalities the file lists them in an extra block and its name ends with _needs_editing_for_qtest (nothing is substituted)."),
       qo_lines,
-      paste0("fairy_write_qtest(models, file = \"QTEST_H-representation.tar\"", if (length(qo)) ", order = qtest_order" else "", ")"),
-      cm("multinomineq: A_<model>.csv and b_<model>.csv with A %*% p <= b (an equality is written in both directions)."),
-      paste0("fairy_write_multinomineq(models, file = \"multinomineq_H-representation.tar\"", if (length(qo)) ", order = qtest_order" else "", ")"))
+      paste0("fairy_write_qtest(models, file = \"QTEST_H-representation.tar\"", if (length(qo)) ", order = qtest_order" else "", ")"))
     out
   }
   # the "Volume by model" chart as a PDF (vector graphic), drawn with base graphics: same bars, colours and axis as on the screen
