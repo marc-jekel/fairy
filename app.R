@@ -1,7 +1,7 @@
 if (!require("dplyr")) install.packages("dplyr")
 library("dplyr")
-if (!require("geometry")) install.packages("geometry")
-library("geometry")
+# geometry (convex hull) is used as geometry::convhulln, so it is loaded when the first volume or plot needs it, not at start
+if (!requireNamespace("geometry", quietly = TRUE)) install.packages("geometry")
 if (!require("jsonlite")) install.packages("jsonlite")
 library("jsonlite")
 if (!require("DT")) install.packages("DT")
