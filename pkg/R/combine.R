@@ -200,3 +200,58 @@ print.fairy_compare <- function(x, digits = 2, ...) {
   print(noquote(out), ...)
   invisible(x)
 }
+
+#' Which vertices do the models share?
+#'
+#' For every vertex (extreme case) of every model: which of the other models have the very same vertex, and which
+#' vertices only this model has ("unique"). It is the comparison that the app shows with the Compare buttons in the
+#' V-representation tab. Models with a different number of probabilities cannot share vertices.
+#'
+#' Intersections and mixtures are compared like in the app: the ordinary models are compared only with each other. A
+#' model named in `derived` (an intersection or a mixture) is compared with all ordinary models, except, for a mixture,
+#' its own components (its vertices are theirs by construction): give those in `components`.
+#'
+#' @param models A named list (or named character vector) of models: strings or H-representations.
+#' @param n_p Number of probabilities for model strings.
+#' @param derived Names of the models that are intersections or mixtures.
+#' @param components Named list: for a mixture (by name) the names of its component models.
+#'
+#' @return An object of class `"fairy_compare_vertices"`: a list with `vertices` (data frame with one row per vertex:
+#'   `model`, `vertex`, `shared_with`, `n_shared`, `unique`) and `summary` (one row per model: number of vertices,
+#'   shared, unique, and the models it was compared with).
+#' @examples
+#' fairy_compare_vertices(c(A = "p1 > p2 > p3", B = "p1 > p2", C = "p3 > p1"), n_p = 3)
+#' @export
+fairy_compare_vertices <- function(models, n_p = NULL, derived = NULL, components = NULL) {
+  if (is.null(names(models))) names(models) <- paste0("M", seq_along(models))
+  nms <- names(models)
+  keys <- lapply(models, function(m) {
+    v <- fairy_vertices(resolve_h(m, n_p = n_p))
+    if (nrow(v) == 0) return(character(0))
+    apply(round(v, 6), 1, function(r) paste(r, collapse = ","))
+  })
+  ordinary <- setdiff(nms, derived)
+  rows <- list(); summ <- list()
+  for (nm in nms) {
+    comp <- if (nm %in% derived) setdiff(ordinary, c(nm, components[[nm]])) else setdiff(ordinary, nm)
+    k <- keys[[nm]]
+    others <- lapply(comp, function(o) keys[[o]])
+    sw <- vapply(k, function(key) paste(comp[vapply(others, function(ok) key %in% ok, logical(1))], collapse = ", "), character(1))
+    uniq <- if (length(comp) > 0) !nzchar(sw) else rep(NA, length(k))
+    rows[[nm]] <- data.frame(model = rep(nm, length(k)), vertex = seq_along(k), shared_with = unname(sw),
+                             n_shared = lengths(strsplit(unname(sw), ", ", fixed = TRUE)) * (nzchar(sw)),
+                             unique = uniq, stringsAsFactors = FALSE)
+    summ[[nm]] <- data.frame(model = nm, vertices = length(k), shared = if (length(comp) > 0) sum(!uniq) else NA_integer_,
+                             unique = if (length(comp) > 0) sum(uniq) else NA_integer_,
+                             compared_with = paste(comp, collapse = ", "), stringsAsFactors = FALSE)
+  }
+  structure(list(vertices = do.call(rbind, rows), summary = do.call(rbind, summ)), class = "fairy_compare_vertices")
+}
+
+#' @export
+print.fairy_compare_vertices <- function(x, ...) {
+  cat("Vertices shared between models\n")
+  s <- x$summary; rownames(s) <- NULL
+  print(s, row.names = FALSE)
+  invisible(x)
+}

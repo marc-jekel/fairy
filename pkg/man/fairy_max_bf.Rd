@@ -17,7 +17,9 @@ in \code{...} are passed on to \code{volesti::volume()} (e.g. \code{settings = l
 so any non-default volesti option is up to the user. \code{"exact"}: convex hull
 of the vertices, exact up to floating-point error, but can be very slow
 or run out of memory in high dimensions. \code{"mc"}: uniform Monte Carlo
-draws from the hypercube. The method is never switched automatically.}
+draws from the hypercube. \code{"auto"}: what the app does, the exact volume first, stopped after \code{time_limit}
+seconds (needs the package \pkg{callr}; without it there is no limit) and then the volesti estimate; \verb{$method}
+says which one was used. The other methods are never switched automatically.}
 
 \item{n_samples}{Monte Carlo draws for \code{method = "mc"}.}
 

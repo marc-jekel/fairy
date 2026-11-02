@@ -10,7 +10,10 @@ fairy_write_multinomineq(
   file = NULL,
   approx_tol = 0,
   reduce = TRUE,
-  order = NULL
+  order = NULL,
+  data = NULL,
+  settings = list(),
+  analysis = TRUE
 )
 }
 \arguments{
@@ -31,6 +34,20 @@ string, as accepted by \code{\link[=fairy]{fairy()}}, or an H-representation (fo
 file. \code{order[["m1"]] = c(3, 1, 2)} makes the third probability of the model the first one in
 the QTEST file, the first one the second, and so on. Models that are not listed keep their own
 order. Useful when QTEST expects the probabilities in a different order than they have here.}
+
+\item{data}{Your data for the analysis: \code{NULL} (example numbers that you overwrite), one data frame with the columns
+\code{probability}, \code{n} (number of observations) and \code{frequency} (how often the outcome was observed, out of \code{n}) with one row
+per probability, or a list of such data frames. A list named by model gives that model its own file
+(\verb{data_model_<name>.csv}; for unpacked models, whose probabilities mean something of their own); unnamed data frames are
+matched to the models by their number of rows. The numbers belong to the probability name, so they stay with it when
+\code{order} changes.}
+
+\item{settings}{A list of the arguments of \code{\link[=fairy_multinomineq_script]{fairy_multinomineq_script()}} (\code{posterior_samples}, \code{bf_samples}, \code{burnin_post},
+\code{burnin_bf}, \code{prior}, \code{seed}) that are written into the analysis script.}
+
+\item{analysis}{\code{TRUE} (default) adds the data files and \code{analysis_multinomineq.R} to the archive, as the app does: run the
+script in the folder with the files and you get \code{results.csv}, \code{posterior.csv} and \code{results.html}. \code{FALSE} writes only the
+model files (A, b, map).}
 }
 \value{
 Invisibly returns the path to the \code{.tar} file.

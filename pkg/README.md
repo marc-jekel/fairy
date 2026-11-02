@@ -26,7 +26,8 @@ A verbal hypothesis about proportions, "category A is more common than B, which 
 3. **measures parsimony**: the volume of the model, and its inverse, the largest Bayes factor the model can reach against the unconstrained model,
 4. **combines models**: intersections, mixtures, nesting, and a comparison table,
 5. **builds replication models** for several labs (identical, joint, substitutable parameters),
-6. **exports** input files for QTEST and multinomineq.
+6. **exports** input files for QTEST and multinomineq, with your data and an analysis script, and can run the multinomineq analysis;
+7. **compares** which extreme cases models share.
 
 ## Documentation
 
@@ -48,7 +49,7 @@ A verbal hypothesis about proportions, "category A is more common than B, which 
 | `fairy_h_table()`, `fairy_v_table()` | H- and V-description as tables; `fairy_table_write()` writes Markdown, LaTeX or CSV |
 | `fairy_h_latex()`, `fairy_write_latex()` | H-description as LaTeX (`align*`, readable form); a compilable `.tex` for several models |
 | `fairy_dim()` | dimension of a model |
-| `fairy_volume()` | parsimony: volume in the unit cube (exact, volesti, or Monte Carlo) |
+| `fairy_volume()` | parsimony: volume in the unit cube (exact, volesti, Monte Carlo, or `"auto"`: exact first with a time limit, as in the app) |
 | `fairy_max_bf()` | largest possible Bayes factor against the unconstrained model (1 / volume) |
 | `fairy_info()` | dimension, vertices, constraints, volume, max. Bayes factor in one row |
 | `fairy_parsimony()` | older interface to the volume |
@@ -56,9 +57,11 @@ A verbal hypothesis about proportions, "category A is more common than B, which 
 | `fairy_mixture()` | mixture model (convex hull of the components) |
 | `fairy_nested()` | is one model nested in another? |
 | `fairy_compare()` | comparison table of a set of models |
+| `fairy_compare_vertices()` | which extreme cases do models share, which are unique to a model |
 | `fairy_replicate()` | replication across labs: identical, joint, substitutable |
 | `fairy_unpack()` | unpacking across items: lists, joint / substitutable / identical (with tolerance) / average |
-| `fairy_write_qtest()`, `fairy_write_multinomineq()` | write input files for QTEST and multinomineq |
+| `fairy_write_qtest()`, `fairy_write_multinomineq()` | write input files for QTEST and multinomineq (the latter with your data, the settings and the analysis script) |
+| `fairy_multinomineq_script()`, `fairy_analyze_multinomineq()` | the analysis script of the multinomineq archive; run the analysis from R: Bayes factors and posterior estimates |
 
 ## Quick start
 

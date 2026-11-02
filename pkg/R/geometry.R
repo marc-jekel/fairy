@@ -108,6 +108,23 @@ volume_from_vertices <- function(v) {
   geometry::convhulln(v, options = "FA")$vol
 }
 
+# Exact volume in a separate R process that is stopped after `time_limit` seconds: the volume, or NULL when it did not finish
+# in time (or failed). Needs the package callr; without it the calculation runs in this process and cannot be interrupted.
+exact_volume_limited <- function(v, time_limit) {
+  if (requireNamespace("callr", quietly = TRUE)) {
+    return(tryCatch(
+      callr::r(function(v) {
+        n <- ncol(v)
+        if (nrow(v) <= n) return(0)
+        if (qr(sweep(v, 2, v[1, ]), tol = 1e-9)$rank < n) return(0)
+        if (n == 1L) return(diff(range(v)))
+        geometry::convhulln(v, options = "FA")$vol
+      }, args = list(v = v), timeout = time_limit),
+      error = function(e) NULL))
+  }
+  tryCatch(volume_from_vertices(v), error = function(e) NULL)
+}
+
 #' Volume (parsimony) of an order-constrained model
 #'
 #' The volume of the model polytope inside the unit hypercube of all
@@ -124,7 +141,10 @@ volume_from_vertices <- function(v) {
 #'   so any non-default volesti option is up to the user. `"exact"`: convex hull
 #'   of the vertices, exact up to floating-point error, but can be very slow
 #'   or run out of memory in high dimensions. `"mc"`: uniform Monte Carlo
-#'   draws from the hypercube. The method is never switched automatically.
+#'   draws from the hypercube. `"auto"`: what the app does, the exact volume first, stopped after `time_limit`
+#'   seconds (needs the package \pkg{callr}; without it there is no limit) and then the volesti estimate; `$method`
+#'   says which one was used. The other methods are never switched automatically.
+#' @param time_limit Seconds for the exact calculation when `method = "auto"`. Default `300` (five minutes, as in the app).
 #' @param ... Passed on to `volesti::volume()` when `method = "volesti"`.
 #' @param n_samples Monte Carlo draws for `method = "mc"`.
 #'
@@ -136,13 +156,13 @@ volume_from_vertices <- function(v) {
 #' fairy_volume("p1 = p2; p2 > p3")$max_bf      # Inf, a lower-dimensional model
 #' @importFrom stats runif
 #' @export
-fairy_volume <- function(h, n_p = NULL, method = c("volesti", "exact", "mc"),
-                         n_samples = 1e6, ...) {
+fairy_volume <- function(h, n_p = NULL, method = c("volesti", "exact", "mc", "auto"),
+                         n_samples = 1e6, time_limit = 300, ...) {
   method <- match.arg(method)
   h <- resolve_h(h, n_p = n_p)
   jt <- attr(h, "fairy_joint")
   if (!is.null(jt)) {
-    v1 <- fairy_volume(jt$h, method = method, n_samples = n_samples, ...)
+    v1 <- fairy_volume(jt$h, method = method, n_samples = n_samples, time_limit = time_limit, ...)
     return(list(volume = v1$volume^jt$r, se = NA_real_, method = paste0("product of ", v1$method),
                 dim = if (v1$dim < 0) -1L else v1$dim * jt$r,
                 max_bf = if (v1$volume > 0) v1$volume^(-jt$r) else Inf))
@@ -157,13 +177,21 @@ fairy_volume <- function(h, n_p = NULL, method = c("volesti", "exact", "mc"),
   if (method == "exact") {
     return(out(volume_from_vertices(v), NA_real_, "exact"))
   }
+  stopped <- FALSE
+  if (method == "auto") {
+    # what the app does: the exact volume first; when it takes longer than `time_limit` seconds (or fails), the estimate
+    ex <- exact_volume_limited(v, time_limit)
+    if (!is.null(ex)) return(out(ex, NA_real_, "exact"))
+    stopped <- TRUE
+    method <- "volesti"
+  }
   if (method == "volesti") {
     if (!requireNamespace("volesti", quietly = TRUE)) stop("Package 'volesti' is not installed.")
     hn <- q2d(h)
     A <- -hn[, -(1:2), drop = FALSE]; b <- hn[, 2]
     P <- volesti::Hpolytope(A = A, b = b)
     vol <- volesti::volume(P, ...)
-    return(out(as.numeric(vol), NA_real_, "volesti"))
+    return(out(as.numeric(vol), NA_real_, if (stopped) "volesti (the exact volume took too long)" else "volesti"))
   }
   # Monte Carlo in the unit hypercube
   hn <- q2d(h); b <- hn[, 2]; A <- hn[, -(1:2), drop = FALSE]

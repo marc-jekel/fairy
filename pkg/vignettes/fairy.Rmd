@@ -118,7 +118,23 @@ fairy_max_bf("p1 > p2 > p3")                 # 6
 fairy_info("p1 > p2 > p3")                   # dimension, vertices, constraints, volume, max. BF in one row
 ```
 
-Outside this vignette, `fairy_volume()` by default estimates the volume with the volesti package and its own default settings; any non-default volesti option can be passed via `...` (e.g. `settings = list(error = 0.01)`). `method = "exact"` (convex hull of the vertices) and `method = "mc"` (Monte Carlo) are available on request. The method is never switched automatically. `fairy_parsimony()` is the older name of the same computation.
+Outside this vignette, `fairy_volume()` by default estimates the volume with the volesti package and its own default settings; any non-default volesti option can be passed via `...` (e.g. `settings = list(error = 0.01)`). `method = "exact"` (convex hull of the vertices) and `method = "mc"` (Monte Carlo) are available on request. `fairy_parsimony()` is the older name of the same computation.
+
+## The same as in the app: exact first, estimate after a time limit
+
+The **Shiny app** calculates the exact volume first (it is a number such as 1/6, not an estimate) and uses an algorithm only for the models that
+have no exact volume or whose exact volume takes more than five minutes. In the package this is `method = "auto"`:
+
+```{r auto}
+v <- fairy::fairy_volume("p1 > p2 > p3", n_p = 3, method = "auto", time_limit = 300)   # the original function (this vignette fixes the default of fairy_volume() to "exact")
+v$volume                                     # 1/6, exact
+v$method                                     # "exact": it finished within the time limit
+```
+
+When the exact calculation takes longer than `time_limit` seconds (it runs in a separate R process that is stopped, which needs the package
+callr), `method = "auto"` returns the volesti estimate, and `$method` says so (`"volesti (the exact volume took too long)"`). Nothing else
+switches the method on its own: the default stays `"volesti"`, because the exact volume can take very long in high dimensions
+(up to about 10 dimensions it is usually quick, with 12 and more it can take minutes or longer).
 
 # Several models at once
 
@@ -142,6 +158,20 @@ fairy_compare(list(A = a, B = b, C = "p3 > p1"), n_p = 3)        # volumes, over
 `fairy_compare()` returns the table layout of the paper: volumes on the diagonal, overlap volumes above it,
 below it "subset" / "superset" (printed as the set symbols) or the dimension of the overlap, and the largest
 Bayes factors in the last row.
+
+## Which extreme cases do models share?
+
+`fairy_compare_vertices()` lists, for every extreme case of every model, in which other models it is also an extreme case, and which
+ones only this model has (the Compare buttons of the app):
+
+```{r vertices}
+r <- fairy_compare_vertices(list(A = a, B = b, C = "p3 > p1"), n_p = 3)
+r                                            # per model: vertices, shared, unique
+head(r$vertices, 4)                          # per vertex: the models that share it
+```
+
+An intersection or a mixture is compared like in the app: ordinary models only with each other, and a model named in `derived` with all
+ordinary models except, for a mixture, its own components (its extreme cases are theirs by construction; name them in `components`).
 
 # Replication across labs
 
@@ -184,7 +214,50 @@ fairy_info(fairy_intersect(avg, subs), volume = FALSE)
 # Export
 
 `fairy_write_qtest()` and `fairy_write_multinomineq()` write the models as input files for QTEST and for the R package
-multinomineq (one `.tar` archive with one file per model).
+multinomineq (one `.tar` archive with one file per model). The files are the same as the downloads of the app.
+
+```{r export, eval = FALSE}
+mods <- c(H1 = "p1 > p2 > p3", H2 = "p1 > p2; p2 = p3")
+fairy_write_qtest(mods, n_p = 3, file = "qtest.tar")
+fairy_write_multinomineq(mods, n_p = 3, file = "multinomineq.tar")
+```
+
+* **Order of the probabilities:** `order = list(H1 = c(3, 1, 2))` makes the third probability the first column of the files of `H1`
+  (QTEST and multinomineq may expect another order than you wrote the model in). Models that are not listed keep their own order.
+* **Equalities:** an equality between two probabilities (`p2 = p3`) is merged into one column for multinomineq and listed in
+  `map_<model>.csv` (the `map` argument of multinomineq); QTEST cannot express equalities, so the file lists them in an extra block with a
+  note. Any other equality gives volume zero.
+* **Numbers:** constants stay exact fractions (`1/3`, `0.0001`) up to the files; nothing goes through a floating-point step.
+
+## Analysing data with multinomineq
+
+The multinomineq archive also contains your data, the settings of the analysis and a script, `analysis_multinomineq.R`, that analyses
+every model in its folder and writes `results.csv` (Bayes factors against the unconstrained model and against the model's complement),
+`posterior.csv` (estimates of the probabilities) and `results.html` (the main results as a web page):
+
+```{r analysis, eval = FALSE}
+dat <- data.frame(probability = c("p1", "p2", "p3"), n = c(30, 30, 45), frequency = c(21, 12, 9))
+fairy_write_multinomineq(mods, n_p = 3, file = "multinomineq.tar", data = dat,
+                         settings = list(posterior_samples = 5000, bf_samples = 10000,
+                                         burnin_post = 10, burnin_bf = 5, prior = c(1, 1), seed = 1234))
+```
+
+`data` has one row per probability (`n` observations, `frequency` how often the outcome was observed); the numbers belong to the
+probability's name, so they stay with it when `order` changes. A list named by model gives that model its own file
+(`data_model_<name>.csv`, for unpacked models whose probabilities mean something of their own); without `data` the archive contains example
+numbers that you replace. `fairy_multinomineq_script()` returns the text of the script alone.
+
+To run the analysis directly from R (needs the packages multinomineq and coda), use `fairy_analyze_multinomineq()`:
+
+```{r run, eval = FALSE}
+res <- fairy_analyze_multinomineq(mods, n_p = 3, data = dat, settings = list(seed = 1))
+res$results      # Bayes factors
+res$posterior    # estimates of the probabilities
+res$report       # path of results.html
+```
+
+The Bayes factors depend on the prior (`prior = c(1, 1)` is the uniform prior on every probability), and the estimates have a Monte Carlo
+error: for the final numbers use more samples (`bf_samples`) and report the seed.
 
 # All functions
 
@@ -199,7 +272,7 @@ multinomineq (one `.tar` archive with one file per model).
 | `fairy_words()` | extreme cases in words ("all" / "none" / fractions) |
 | `fairy_h_table()`, `fairy_v_table()` | H- and V-description as tables (`fairy_table_write()`: Markdown, LaTeX, CSV) |
 | `fairy_dim()` | dimension of a model |
-| `fairy_volume()` | parsimony: volume in the unit cube (exact, volesti, or Monte Carlo) |
+| `fairy_volume()` | parsimony: volume in the unit cube (exact, volesti, Monte Carlo, or `"auto"`: exact first as in the app) |
 | `fairy_max_bf()` | largest possible Bayes factor against the unconstrained model (1 / volume) |
 | `fairy_info()` | dimension, vertices, constraints, volume, max. Bayes factor in one row |
 | `fairy_parsimony()` | older interface to the volume |
@@ -209,7 +282,10 @@ multinomineq (one `.tar` archive with one file per model).
 | `fairy_compare()` | comparison table of a set of models (Table 3 of the paper) |
 | `fairy_replicate()` | replication across labs: identical, joint, substitutable |
 | `fairy_unpack()` | unpacking across items: lists, joint / substitutable / identical (with tolerance) / average |
+| `fairy_compare_vertices()` | which extreme cases do models share, which are unique to a model |
 | `fairy_write_qtest()` | write input files for QTEST |
-| `fairy_write_multinomineq()` | write input files for multinomineq |
+| `fairy_write_multinomineq()` | write input files for multinomineq: models, data, settings and the analysis script |
+| `fairy_multinomineq_script()` | text of the analysis script of the multinomineq archive |
+| `fairy_analyze_multinomineq()` | run the multinomineq analysis from R: Bayes factors and posterior estimates |
 
 Help for any function: `?fairy_volume`; all of them: `help(package = "fairy")`.

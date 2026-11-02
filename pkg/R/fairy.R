@@ -142,6 +142,7 @@ fairy_v <- function(h) {
 #' @param n_samples Integer. Monte Carlo draws, used only when the volume
 #'   cannot be computed exactly and volesti is not installed.
 #' @param method See [fairy_volume()].
+#' @param ... Further arguments for [fairy_volume()].
 #'
 #' @return A named list with `parsimony` (the volume), `se` (`NA` when exact),
 #'   `n_samples`, `method` and `max_bf`.
@@ -198,7 +199,7 @@ fairy_parsimony <- function(h, n_p = NULL, n_samples = 1e5, method = "volesti", 
 #'   H1 = "p1 > p2 > p3",
 #'   H2 = "p1 > p2; p3 > p4",
 #'   H3 = "p1 = p2 = p3"
-#' ), n_p = 3)
+#' ), n_p = 4)
 #'
 #' @seealso [fairy_h()], [fairy_v()], [fairy_parsimony()]
 #' @export

@@ -16,6 +16,8 @@ when not supplied.}
 cannot be computed exactly and volesti is not installed.}
 
 \item{method}{See \code{\link[=fairy_volume]{fairy_volume()}}.}
+
+\item{...}{Further arguments for \code{\link[=fairy_volume]{fairy_volume()}}.}
 }
 \value{
 A named list with \code{parsimony} (the volume), \code{se} (\code{NA} when exact),

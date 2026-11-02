@@ -62,7 +62,7 @@ fairy(c(
   H1 = "p1 > p2 > p3",
   H2 = "p1 > p2; p3 > p4",
   H3 = "p1 = p2 = p3"
-), n_p = 3)
+), n_p = 4)
 
 }
 \seealso{

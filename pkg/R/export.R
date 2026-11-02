@@ -263,6 +263,17 @@ reduce_equal_probs <- function(h_num) {
 #' @inheritParams fairy_write_qtest
 #' @param file Path for the output `.tar` file. Defaults to
 #'   `"multinomineq_H-representation_YYYY-MM-DD.tar"` in the current directory.
+#' @param data Your data for the analysis: `NULL` (example numbers that you overwrite), one data frame with the columns
+#'   `probability`, `n` (number of observations) and `frequency` (how often the outcome was observed, out of `n`) with one row
+#'   per probability, or a list of such data frames. A list named by model gives that model its own file
+#'   (`data_model_<name>.csv`; for unpacked models, whose probabilities mean something of their own); unnamed data frames are
+#'   matched to the models by their number of rows. The numbers belong to the probability name, so they stay with it when
+#'   `order` changes.
+#' @param settings A list of the arguments of [fairy_multinomineq_script()] (`posterior_samples`, `bf_samples`, `burnin_post`,
+#'   `burnin_bf`, `prior`, `seed`) that are written into the analysis script.
+#' @param analysis `TRUE` (default) adds the data files and `analysis_multinomineq.R` to the archive, as the app does: run the
+#'   script in the folder with the files and you get `results.csv`, `posterior.csv` and `results.html`. `FALSE` writes only the
+#'   model files (A, b, map).
 #'
 #' @return Invisibly returns the path to the `.tar` file.
 #'
@@ -278,25 +289,37 @@ reduce_equal_probs <- function(h_num) {
 #' @importFrom rcdd q2d d2q
 #' @importFrom utils tar write.table
 #' @export
-fairy_write_multinomineq <- function(models, n_p = NULL, file = NULL, approx_tol = 0, reduce = TRUE, order = NULL) {
+fairy_write_multinomineq <- function(models, n_p = NULL, file = NULL, approx_tol = 0, reduce = TRUE, order = NULL,
+                                     data = NULL, settings = list(), analysis = TRUE) {
   if (is.null(file)) file <- paste0("multinomineq_H-representation_", Sys.Date(), ".tar")
   if (!grepl("^/|^~", file)) file <- file.path(getwd(), file)
   file <- path.expand(file)
-  if (is.null(names(models))) names(models) <- paste0("M", seq_along(models))
+  d <- tempfile("fairy_mn_"); dir.create(d)
+  on.exit(unlink(d, recursive = TRUE), add = TRUE)
+  files <- mn_write_files(models, n_p, d, approx_tol, reduce, order, data, settings, analysis)
+  owd <- setwd(d); on.exit(setwd(owd), add = TRUE)
+  tar(file, files)
+  invisible(file)
+}
 
-  owd <- setwd(tempdir())
+# writes the files of the multinomineq archive into the folder `dir`; returns the file names
+mn_write_files <- function(models, n_p, dir, approx_tol, reduce, order, data, settings, analysis) {
+  if (is.null(names(models))) names(models) <- paste0("M", seq_along(models))
+  owd <- setwd(dir)
   on.exit(setwd(owd))
   files <- character()
+  info <- list()
 
   for (nm in names(models)) {
     h <- export_h_of(models[[nm]], n_p, approx_tol, reduce)
     h <- reorder_h_columns(h, order[[nm]])
     safe_nm <- safe_file_name(nm)
+    lab_full <- colnames(h)[-(1:2)]
+    info[[nm]] <- list(labels = lab_full, stem = safe_nm)
 
     # equalities p_i = p_j: one free parameter for the equal probabilities (map file), as in the app
     red <- reduce_equal_probs(q2d(h))
     if (!is.null(red)) {
-      lab_full <- colnames(h)[-(1:2)]
       coefs <- h[red$keep, -(1:2), drop = FALSE]
       newc <- do.call(cbind, lapply(seq_along(red$groups), function(g) Reduce(qpq, lapply(which(red$map == g), function(j) coefs[, j]))))
       grp_lab <- vapply(seq_along(red$groups), function(g) paste(lab_full[red$map == g], collapse = " = "), character(1))
@@ -330,6 +353,10 @@ fairy_write_multinomineq <- function(models, n_p = NULL, file = NULL, approx_tol
     files <- c(files, file_b)
   }
 
-  tar(file, files)
-  invisible(file)
+  if (isTRUE(analysis)) {
+    files <- c(files, mn_write_data(info, data))
+    writeLines(do.call(fairy_multinomineq_script, settings), "analysis_multinomineq.R")
+    files <- c(files, "analysis_multinomineq.R")
+  }
+  files
 }
