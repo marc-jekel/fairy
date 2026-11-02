@@ -16695,8 +16695,8 @@ server <- shinyServer(function(input, output, session) {
     sk <- exact_skipped()
     if (length(sk) == 0 || identical(input$EX, FALSE)) return(NULL)
     tags$div(style = "margin:-2px 0 6px 0; max-width:230px;", class = "fairy-tooltip fairy-tooltip-left",
-      `data-tooltip` = "Optional. The exact volume of these models took too long and you skipped it. Tick to use the algorithm for them right away next time.",
-      checkboxInput("ex_avoid", paste0("Don't try exact again for: ", paste(sk, collapse = ", ")), value = isTRUE(isolate(input$ex_avoid))))
+      `data-tooltip` = "You skipped the exact volume of these models. Ticked: they go straight to the algorithm in the next runs. Untick to try exact again (or use Undo skip in the window while it runs).",
+      checkboxInput("ex_avoid", paste0("Don't try exact again for: ", paste(sk, collapse = ", ")), value = if (is.null(isolate(input$ex_avoid))) TRUE else isTRUE(isolate(input$ex_avoid))))
   })
   ex_spawn <- function(d, u, i) {
     saveRDS(isolate(h_reactive[[u[i]]]), file.path(d, paste0("h", i, ".rds")))
