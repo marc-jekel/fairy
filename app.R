@@ -7881,6 +7881,15 @@ server <- shinyServer(function(input, output, session) {
 
   # V-representations (vertex enumeration with scdd) run in separate R processes, so the window stays alive: it shows what is
   # computed and can be cancelled. State of the running job; `after` is what the Go run does when all vertices are there.
+  # After the last running model was skipped the window does not close at once: a few seconds remain to take the skip back (Undo skip)
+  ex_grace <- reactiveVal(NULL); v_grace <- reactiveVal(NULL); mn_grace <- reactiveVal(NULL)
+  grace_wait <- function(rv, skipped) {
+    if (length(skipped) == 0) return(FALSE)
+    g <- isolate(rv())
+    if (is.null(g)) { rv(Sys.time() + 5); session$sendCustomMessage("fairy_run_phase", list(text = "Skipped: going on in a moment")); return(TRUE) }
+    if (Sys.time() < g) return(TRUE)
+    rv(NULL); FALSE
+  }
   v_state <- reactiveValues(active = FALSE, dir = NULL, models = character(0), queue = character(0), procs = list(),
                             parallel = FALSE, after = NULL, skipped = character(0))
   v_kill_all <- function() {
@@ -7895,6 +7904,7 @@ server <- shinyServer(function(input, output, session) {
     for (i in seq_along(models)) saveRDS(isolate(h_reactive[[models[i]]]), file.path(d, paste0("h", i, ".rds")))
     v_state$dir <- d; v_state$models <- models; v_state$queue <- models; v_state$procs <- list(); v_state$after <- NULL; v_state$skipped <- character(0)
     v_state$parallel <- isTRUE(isolate(input$use_parallel))
+    v_grace(NULL)
     v_state$active <- TRUE
     session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "v_cancel", label = if (length(models) > 1) "Cancel all" else "Cancel"))
   }
@@ -7934,7 +7944,7 @@ server <- shinyServer(function(input, output, session) {
       if (is.null(p)) { fairy_run_row(m, v = "fail") } else { procs[[m]] <- p; fairy_run_row(m, v = "run") }
     }
     v_state$procs <- procs; v_state$queue <- queue
-    if (length(queue) == 0 && length(procs) == 0) {
+    if (length(queue) == 0 && length(procs) == 0 && !grace_wait(v_grace, isolate(v_state$skipped))) {
       v_state$active <- FALSE
       af <- isolate(v_state$after)
       if (is.function(af)) isolate(af(character(0), isolate(v_state$skipped)))
@@ -7958,6 +7968,7 @@ server <- shinyServer(function(input, output, session) {
     v_state$skipped <- setdiff(isolate(v_state$skipped), m)
     v_state$queue <- c(isolate(v_state$queue), m)
     fairy_run_row(m, v = "wait")
+    v_grace(NULL); session$sendCustomMessage("fairy_run_phase", list(text = "Calculating"))
   })
   observeEvent(input$v_cancel, {
     if (!isTRUE(isolate(v_state$active))) return()
@@ -16663,7 +16674,7 @@ server <- shinyServer(function(input, output, session) {
   # computed, "skip" stops it and the algorithm takes over, and EXACT_VOLUME_LIMIT is the longest it may take in total.
   # Result per model: a number, NaN = stopped (time limit or skipped), NA = no exact volume exists / can be computed.
   ex <- reactiveValues(active = FALSE, dir = NULL, names = character(0), procs = list(), res = NULL, start = NULL,
-                       elapsed = 0, skip = FALSE, prev_snap = NULL, hkeys = NULL, queue = character(0), parallel = FALSE)
+                       elapsed = 0, skip = FALSE, prev_snap = NULL, hkeys = NULL, queue = character(0), parallel = FALSE, skipped_run = character(0))
   exact_kill_all <- function() {
     for (p in isolate(ex$procs)) try(p$kill_tree(), silent = TRUE)
     ex$procs <- list()
@@ -16727,6 +16738,7 @@ server <- shinyServer(function(input, output, session) {
     for (i in first) { pr <- ex_spawn(d, u, i); if (!is.null(pr)) procs[[as.character(i)]] <- pr }
     queue <- as.character(setdiff(todo, first))
     ex$queue <- queue; ex$parallel <- par
+    ex$skipped_run <- character(0); ex_grace(NULL)
     ex$dir <- d; ex$names <- u; ex$procs <- procs; ex$res <- res; ex$start <- Sys.time(); ex$elapsed <- 0; ex$skip <- FALSE; ex$hkeys <- hkeys
     ex$prev_snap <- isolate(pv$prev_snap)
     ex$active <- TRUE
@@ -16772,7 +16784,7 @@ server <- shinyServer(function(input, output, session) {
       procs <- list()
     }
     ex$procs <- procs; ex$res <- res; ex$elapsed <- el; ex$queue <- q
-    if (length(procs) == 0 && length(q) == 0) {
+    if (length(procs) == 0 && length(q) == 0 && (isTRUE(isolate(ex$skip)) || !grace_wait(ex_grace, isolate(ex$skipped_run)))) {
       ex$active <- FALSE
       session$sendCustomMessage("fairy_run_cancelable", list(on = FALSE))
       session$sendCustomMessage("fairy_run_limit", list(seconds = 0))
@@ -16795,6 +16807,7 @@ server <- shinyServer(function(input, output, session) {
     res[[m]] <- NaN
     fairy_run_cell(m, "Exact volume", "skip")
     exact_skipped(union(isolate(exact_skipped()), m))
+    ex$skipped_run <- union(isolate(ex$skipped_run), m)
     ex$procs <- procs; ex$res <- res; ex$queue <- q
   })
   # the skip is taken back: the model waits for its turn again
@@ -16805,6 +16818,8 @@ server <- shinyServer(function(input, output, session) {
     exact_skipped(setdiff(isolate(exact_skipped()), m))
     res <- isolate(ex$res); res[[m]] <- NA_real_
     ex$res <- res; ex$queue <- c(isolate(ex$queue), as.character(i))
+    ex$skipped_run <- setdiff(isolate(ex$skipped_run), m); ex_grace(NULL)
+    session$sendCustomMessage("fairy_run_phase", list(text = "Calculating the volumes"))
     fairy_run_cell(m, "Exact volume", "wait")
   })
   # fairy dust (five quick clicks on the title or the time of the run window): no time limit for the exact calculation
@@ -18896,6 +18911,7 @@ server <- shinyServer(function(input, output, session) {
     mn_proc$dir <- d; mn_proc$stems <- sel; mn_proc$row_of <- stats::setNames(vapply(sel, short_row, character(1)), sel)
     mn_proc$queue <- sel; mn_proc$procs <- list(); mn_proc$phase <- "models"; mn_proc$report_p <- NULL
     mn_proc$skipped <- character(0); mn_proc$failed <- character(0); mn_proc$last <- list()
+    mn_grace(NULL)
     mn_proc$start <- Sys.time(); mn_proc$elapsed <- 0; mn_proc$limit <- if (isTRUE(mn_nolimit())) Inf else 900
     mn_proc$parallel <- isTRUE(isolate(input$use_parallel))
     mn_proc$active <- TRUE
@@ -18982,7 +18998,7 @@ server <- shinyServer(function(input, output, session) {
         mn_proc$procs <- list(); mn_proc$queue <- character(0)
         procs <- list(); queue <- character(0)
       }
-      if (length(procs) == 0 && length(queue) == 0) {
+      if (length(procs) == 0 && length(queue) == 0 && !grace_wait(mn_grace, isolate(mn_proc$skipped))) {
         mn_end_ui()
         have <- file.exists(file.path(d, paste0("res_", isolate(mn_proc$stems), ".rds")))
         if (!any(have)) {
@@ -19038,6 +19054,7 @@ server <- shinyServer(function(input, output, session) {
       mn_proc$skipped <- setdiff(isolate(mn_proc$skipped), m)
       mn_proc$queue <- c(isolate(mn_proc$queue), m)
       fairy_run_cell(row_of[[m]], "Posterior", "wait"); fairy_run_cell(row_of[[m]], "Bayes factors", "wait")
+      mn_grace(NULL); session$sendCustomMessage("fairy_run_phase", list(text = "Running the analysis"))
     }
   })
   # fairy dust (five quick clicks on the window title, see the script above): no time limit for the analysis here
