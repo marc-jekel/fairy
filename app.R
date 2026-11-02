@@ -1707,7 +1707,7 @@ ui <- shinyUI(fluidPage(
       .fairy-run-rowbtn { display: none; margin-left: 12px; padding: 2px 11px; font-size: 12px; font-weight: 600; line-height: 1.5; vertical-align: middle;
         border: 1.5px solid var(--fairy-border, #c8cdd8); border-radius: 8px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
       .fairy-run-rowbtn:hover { border-color: var(--fairy-primary); color: var(--fairy-primary); background: color-mix(in srgb, var(--fairy-primary) 8%, transparent); }
-      #fairy-run-card.fairy-run-skippable tr.fairy-run-active .fairy-run-rowbtn:not(.fairy-run-rowundo) { display: inline-block; }
+      #fairy-run-card.fairy-run-skippable tr.fairy-run-active:not(.fairy-run-skipped) .fairy-run-rowbtn:not(.fairy-run-rowundo) { display: inline-block; }
       #fairy-run-card.fairy-run-skippable tr.fairy-run-skipped .fairy-run-rowundo { display: inline-block; }
       /* while Cancel is shown it is the only button and sits in the middle; Close takes its place afterwards */
       #fairy-run-actions:has(#fairy-run-cancel.visible) #fairy-run-close { display: none; }
@@ -4437,7 +4437,7 @@ ui <- shinyUI(fluidPage(
             var sts = rows[n].cells.map(function(c) { return c.getAttribute('data-state'); });
             var act = sts.some(function(st) { return st === 'run' || st === 'step' || st === 'wait'; });
             rows[n].tr.classList.toggle('fairy-run-active', act);
-            rows[n].tr.classList.toggle('fairy-run-skipped', !act && sts.indexOf('skip') >= 0);
+            rows[n].tr.classList.toggle('fairy-run-skipped', sts.indexOf('skip') >= 0);
           });
           Object.keys(rows).forEach(function(n) {
             rows[n].cells.forEach(function(cell) {
