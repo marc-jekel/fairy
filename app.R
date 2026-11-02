@@ -1726,7 +1726,7 @@ ui <- shinyUI(fluidPage(
       @keyframes fairy-run-nudge { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--fairy-primary, #3a6df0) 55%, transparent); } 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--fairy-primary, #3a6df0) 0%, transparent); } }
       #fairy-run-cancel.fairy-run-nudge { border-color: var(--fairy-primary, #3a6df0); color: var(--fairy-primary, #3a6df0); animation: fairy-run-nudge 1.6s ease-in-out infinite; }
       /* when Stop appears for a model (after three seconds of calculation) it blinks three times, in every run window */
-      #fairy-run-card tr.fairy-run-stopready .fairy-run-rowbtn:not(.fairy-run-rowundo) { border-color: var(--fairy-primary, #3a6df0); color: var(--fairy-primary, #3a6df0); animation: fairy-run-nudge .9s ease-in-out 3; }
+      #fairy-run-card tr.fairy-run-stopready .fairy-run-rowbtn:not(.fairy-run-rowundo) { animation: fairy-run-nudge .9s ease-in-out 3; }
       @media (prefers-reduced-motion: reduce) { #fairy-run-cancel.fairy-run-nudge { animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--fairy-primary, #3a6df0) 35%, transparent); } }
       .fairy-run-cell.st-cancel { color: #b05000; }
       .fairy-run-cell.st-na, .fairy-run-cell.st-skip { color: var(--fairy-text-muted, #667085); }
