@@ -2572,6 +2572,7 @@ ui <- shinyUI(fluidPage(
         text-align: left;
       }
       .fairy-ineq-wrap textarea {
+        overflow-x: hidden !important;   /* the text wraps (pre-wrap): no horizontal scroll bar, which Safari shows permanently when the Mac is set to always show scroll bars */
         color: transparent !important;
         caret-color: #333;
         position: relative;
