@@ -20036,7 +20036,7 @@ server <- shinyServer(function(input, output, session) {
 
   mn_h_content <- function(file, quiet = FALSE) {
       
-      if (!quiet) showNotification(HTML("Your download has started. It contains your models as csv files, <b>data_choices.csv</b> with example data and <b>analysis_multinomineq.R</b>. The script runs the whole analysis with the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package: it reads the models, computes the Bayes factors and the posterior and writes the results (tables, web page and PDF). Replace the numbers in data_choices.csv by your own, then run the script."), type = "message", duration = 14)
+      if (!quiet) showNotification(HTML(paste0("Your download has started. It contains your models as csv files, <b>data_choices.csv</b> with ", if (length(isolate(mn_user_data())) > 0) "your numbers" else "example numbers", " and <b>analysis_multinomineq.R</b>. The script runs the whole analysis with the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package: it reads the models, computes the Bayes factors and the posterior and writes the results (tables, web page and PDF). ", if (length(isolate(mn_user_data())) > 0) "Run the script." else "Replace the numbers in data_choices.csv by your own (or enter them under Data), then run the script.")), type = "message", duration = 14)
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
       files <- NULL
@@ -20257,7 +20257,7 @@ server <- shinyServer(function(input, output, session) {
 
   mn_v_content <- function(file, quiet = FALSE) {
       
-      if (!quiet) showNotification(HTML("Your download has started. It contains your models as csv files, <b>data_choices.csv</b> with example data and <b>analysis_multinomineq.R</b>. The script runs the whole analysis with the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package: it reads the models, computes the Bayes factors and the posterior and writes the results (tables, web page and PDF). Replace the numbers in data_choices.csv by your own, then run the script."), type = "message", duration = 14)
+      if (!quiet) showNotification(HTML(paste0("Your download has started. It contains your models as csv files, <b>data_choices.csv</b> with ", if (length(isolate(mn_user_data())) > 0) "your numbers" else "example numbers", " and <b>analysis_multinomineq.R</b>. The script runs the whole analysis with the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package: it reads the models, computes the Bayes factors and the posterior and writes the results (tables, web page and PDF). ", if (length(isolate(mn_user_data())) > 0) "Run the script." else "Replace the numbers in data_choices.csv by your own (or enter them under Data), then run the script.")), type = "message", duration = 14)
   
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
