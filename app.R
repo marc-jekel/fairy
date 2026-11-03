@@ -9206,6 +9206,7 @@ server <- shinyServer(function(input, output, session) {
     }
     flip <- c("<" = ">", ">" = "<", "<=" = ">=", ">=" = "<=", "=" = "=")
     is_sum <- function(x) grepl("^p[0-9]+(\\+p[0-9]+)+$", x)
+    is_comb <- function(x) grepl("^[+-]?p[0-9]+([+-]p[0-9]+)+$", x)   # sums and differences of probabilities
     has_comb <- function(x) grepl("p[0-9]+.*[+-]|[+-].*p[0-9]+", gsub("^[-+]", "", x))
     sums <- list(); others <- character(0)
     for (cl in strsplit(spec, "[;,\n]")[[1]]) {
@@ -9217,11 +9218,14 @@ server <- shinyServer(function(input, output, session) {
       pretty <- function(op) switch(op, "<=" = "\u2264", ">=" = "\u2265", op)
       if (length(ops) == 1 && length(opd) == 2) {
         a <- opd[1]; b <- opd[2]; op <- ops[1]
-        if (!is_sum(a) && is_sum(b) && !is.na(num_of(a))) { tmp <- a; a <- b; b <- tmp; op <- unname(flip[op]) }
-        if (is_sum(a) && !is.na(num_of(b))) {
-          parts <- as.integer(sub("^p", "", strsplit(a, "+", fixed = TRUE)[[1]])) - 1L
-          sums[[length(sums) + 1L]] <- list(parts = parts, op = op, val = as.character(round(num_of(b), 4)),
-                                            text = paste0(gsub("+", " + ", a, fixed = TRUE), " ", pretty(op), " ", as.character(round(num_of(b), 4))))
+        if (!is_comb(a) && is_comb(b) && !is.na(num_of(a))) { tmp <- a; a <- b; b <- tmp; op <- unname(flip[op]) }
+        if (is_comb(a) && !is.na(num_of(b))) {
+          terms <- regmatches(a, gregexpr("[+-]?p[0-9]+", a))[[1]]
+          parts <- as.integer(sub("^[+-]?p", "", terms)) - 1L
+          wts <- ifelse(startsWith(terms, "-"), "-1", "1")
+          txt_a <- gsub("-", " - ", gsub("+", " + ", a, fixed = TRUE), fixed = TRUE)
+          sums[[length(sums) + 1L]] <- list(parts = parts, w = wts, op = op, val = as.character(round(num_of(b), 4)),
+                                            text = paste0(trimws(txt_a), " ", pretty(op), " ", as.character(round(num_of(b), 4))))
           next
         }
         # a sum or a single probability on the other side: the comparisons of the picture draw it
@@ -9967,18 +9971,18 @@ server <- shinyServer(function(input, output, session) {
               // a sum compared with a number (p1 + p5 > .2): a row of its own, the parts join into it, the comparison stands in its label
               var symOp = function(o) { return (o === '<=' || o === '<') ? String.fromCharCode(8804) : ((o === '>=' || o === '>') ? String.fromCharCode(8805) : o); };
               (window.fairyItemsSums || []).forEach(function(sc) {
-                var sd = (sc.parts || []).map(Number);
+                var sd = [].concat(sc.parts || []).map(Number), MINUS = String.fromCharCode(8722);
                 if (sd.length < 2 || !sd.every(function(v) { return v < nProb; })) return;
-                var w = sd.map(function() { return '1'; }), key = sd.join('+') + '|' + w.join(',') + '|', vi = vK.indexOf(key);
+                var w = sd.map(function(v, kk) { var wk = [].concat(sc.w || [])[kk]; return wk === '-1' ? '-1' : '1'; }), key = sd.join('+') + '|' + w.join(',') + '|', vi = vK.indexOf(key);
                 if (vi < 0) {
                   vK.push(key); vS.push(sd[0]); vM.push(sd); vW.push(w);
-                  vN.push(sd.map(function(v) { return chipRowName(v); }).join('+'));
+                  vN.push(sd.map(function(v, kk) { return (kk ? (w[kk] === '-1' ? ' ' + MINUS + ' ' : ' + ') : (w[kk] === '-1' ? MINUS : '')) + chipRowName(v); }).join(''));
                   vi = vK.length - 1;
                 }
                 (sumConstOf[vi] = sumConstOf[vi] || []).push(symOp(sc.op) + ' ' + sc.val);
               });
               pairs0 = tmpP;
-              vM.forEach(function(ms, vi) { ms.forEach(function(mm, kk) { var wk = vW[vi][kk]; mlinks.push([mm, nProb + vi, '', (wk && wk !== '1') ? wk + String.fromCharCode(215) : '+']); }); });
+              vM.forEach(function(ms, vi) { ms.forEach(function(mm, kk) { var wk = vW[vi][kk]; mlinks.push([mm, nProb + vi, '', wk === '-1' ? String.fromCharCode(8722) : ((wk && wk !== '1') ? wk + String.fromCharCode(215) : '+')]); }); });
             }
             var ordP = pairs0 ? pairs0.concat(mlinks) : [];
             var realPairs = !!(pairs0 && pairs0.length), idxs, pdisp;
@@ -10055,10 +10059,10 @@ server <- shinyServer(function(input, output, session) {
               var nmTxt = rt.length === 1 ? rt[0] + X2 + ' ' + r.name : (rt.length > 1 ? r.name + ' (' + rt.join(X2 + ', ') + X2 + ')' : r.name);
               var po = partOf[idxs[i]];
               if (!po || po.amb) return nmTxt + constTxt(idxs[i]);
-              var wtxt = (po.w && po.w !== '1') ? po.w + String.fromCharCode(215) + ' ' : '';
+              var negW = po.w === '-1', wtxt = negW ? String.fromCharCode(8722) + ' ' : ((po.w && po.w !== '1') ? po.w + String.fromCharCode(215) + ' ' : '');
               var first = true;
               for (var t = 0; t < i; t++) { var pj = partOf[idxs[t]]; if (pj && !pj.amb && pj.v === po.v) { first = false; break; } }
-              return (first ? '' : '+ ') + wtxt + nmTxt + constTxt(idxs[i]);
+              return (first || negW ? '' : '+ ') + wtxt + nmTxt + constTxt(idxs[i]);
             });
             var MAXC = 3, dx = 58, x0 = Math.max(96, Math.round(18 + 7 * Math.max.apply(null, labs.map(function(l) { return l.length; })))) + (R.some(function(r) { return r.type === 'average'; }) ? 12 : 0), rowGap = R.length > 6 ? Math.max(30, Math.round(300 / R.length)) : 46, ys = R.map(function(r, i) { return 46 + i * rowGap; }), H = ys[ys.length - 1] + 34;
             var cnt = R.map(function(r) { return Math.min(r.n, MAXC); });
