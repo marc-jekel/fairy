@@ -1691,7 +1691,9 @@ ui <- shinyUI(fluidPage(
       .fairy-run-cell.st-fail { color: #c62828; font-weight: 600; }
       #fairy-run-note { font-size: 13px; color: #b05000; margin-top: 10px; }
       #fairy-run-note:empty { display: none; }
-      #fairy-run-actions { display: flex; justify-content: center; margin-top: 14px; }
+      #fairy-run-actions { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
+      #fairy-run-retryall { display: none; padding: 8px 22px; font-size: 14px; font-weight: 600; border: 1.5px solid var(--fairy-primary, #3a6df0); border-radius: 8px; background: transparent; color: var(--fairy-primary, #3a6df0); cursor: pointer; }
+      #fairy-run-retryall.visible { display: inline-block; }
       #fairy-run-close {
         visibility: hidden;
         padding: 8px 26px;
@@ -4440,6 +4442,7 @@ ui <- shinyUI(fluidPage(
         tags$div(id = "fairy-run-note"),
         tags$div(id = "fairy-run-actions",
           tags$button(id = "fairy-run-cancel", type = "button", "Cancel"),
+          tags$button(id = "fairy-run-retryall", type = "button", "Retry all"),
           tags$button(id = "fairy-run-close", type = "button", "Close"))
       )
     ),
@@ -4546,6 +4549,9 @@ ui <- shinyUI(fluidPage(
             rows[n].tr.classList.toggle('fairy-run-stopready', !!(calcNow && rows[n].since && Date.now() - rows[n].since >= 3000));
             rows[n].tr.classList.toggle('fairy-run-skipped', sts.indexOf('skip') >= 0);
           });
+          // after the run, with two or more skipped models: one button takes them all back (the V and the exact-volume windows)
+          var nSkipped = Object.keys(rows).filter(function(n) { return rows[n].tr.classList.contains('fairy-run-skipped'); }).length;
+          $id('fairy-run-retryall').classList.toggle('visible', !running && nSkipped >= 2 && (cancelInput === 'v_cancel' || cancelInput === 'ex_skip'));
           Object.keys(rows).forEach(function(n) {
             rows[n].cells.forEach(function(cell) {
               var st = cell.getAttribute('data-state');
@@ -4676,6 +4682,10 @@ ui <- shinyUI(fluidPage(
         });
         document.addEventListener('DOMContentLoaded', function() {
           $id('fairy-run-close').addEventListener('click', dismiss);
+          $id('fairy-run-retryall').addEventListener('click', function() {
+            var names = Object.keys(rows).filter(function(n) { return rows[n].tr.classList.contains('fairy-run-skipped'); });
+            if (window.Shiny && names.length) Shiny.setInputValue(cancelInput === 'ex_skip' ? 'ex_retry_all' : 'v_retry_all', names, { priority: 'event' });
+          });
           $id('fairy-run-cancel').addEventListener('click', function() {
             this.disabled = true; this.textContent = 'Cancelling ...';
             Shiny.setInputValue(cancelInput, Date.now(), { priority: 'event' });
@@ -8246,6 +8256,14 @@ server <- shinyServer(function(input, output, session) {
     v_state$queue <- c(isolate(v_state$queue), m)
     fairy_run_row(m, v = "wait")
     v_grace(NULL); session$sendCustomMessage("fairy_run_phase", list(text = "Calculating")); session$sendCustomMessage("fairy_run_cancel_label", list(text = ""))
+  })
+  # Retry all: every skipped model gets its V switch back and Go is repeated once
+  observeEvent(input$v_retry_all, {
+    for (m0 in as.character(input$v_retry_all)) {
+      if (is.null(get0(m0, envir = mix_components, inherits = FALSE))) set_v_included(m0, TRUE)
+    }
+    v_skipped_mem(setdiff(isolate(v_skipped_mem()), as.character(input$v_retry_all)))
+    shinyjs::runjs("var g = document.getElementById('go_v_h'); if (g) g.click();")
   })
   observeEvent(input$v_cancel, {
     if (isTRUE(isolate(mix_job$active))) {
@@ -17206,6 +17224,11 @@ server <- shinyServer(function(input, output, session) {
     ex$procs <- procs; ex$res <- res; ex$queue <- q
   })
   # the skip is taken back: the model waits for its turn again
+  observeEvent(input$ex_retry_all, {
+    exact_skipped(setdiff(isolate(exact_skipped()), as.character(input$ex_retry_all)))
+    fairy_run_hide()
+    shinyjs::runjs("var g = document.getElementById('go'); if (g) g.click();")
+  })
   observeEvent(input$ex_unskip_model, {
     if (!isTRUE(isolate(ex$active))) {
       # the run is over: forget the skip and calculate again (the other models come from the cache)
