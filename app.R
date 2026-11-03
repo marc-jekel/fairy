@@ -5327,20 +5327,20 @@ ui <- shinyUI(fluidPage(
           var pw = Math.round(sz.w * 0.25 * 100) / 100, ph = Math.round(sz.h * 0.25 * 100) / 100;
           var enc = new TextEncoder(), parts = [], off = 0, offs = [];
           function add(x) { var b = typeof x === 'string' ? enc.encode(x) : x; parts.push(b); off += b.length; }
-          function obj(n, body) { offs[n] = off; add(n + ' 0 obj\n' + body + '\nendobj\n'); }
-          add('%PDF-1.4\n');
+          function obj(n, body) { offs[n] = off; add(n + ' 0 obj\\n' + body + '\\nendobj\\n'); }
+          add('%PDF-1.4\\n');
           obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
           obj(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
           obj(3, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + pw + ' ' + ph + '] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>');
           offs[4] = off;
-          add('4 0 obj\n<< /Type /XObject /Subtype /Image /Width ' + sz.w + ' /Height ' + sz.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + jpg.length + ' >>\nstream\n');
-          add(jpg); add('\nendstream\nendobj\n');
+          add('4 0 obj\\n<< /Type /XObject /Subtype /Image /Width ' + sz.w + ' /Height ' + sz.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + jpg.length + ' >>\\nstream\\n');
+          add(jpg); add('\\nendstream\\nendobj\\n');
           var cs = 'q ' + pw + ' 0 0 ' + ph + ' 0 0 cm /Im0 Do Q';
-          obj(5, '<< /Length ' + cs.length + ' >>\nstream\n' + cs + '\nendstream');
+          obj(5, '<< /Length ' + cs.length + ' >>\\nstream\\n' + cs + '\\nendstream');
           var xref = off;
-          add('xref\n0 6\n0000000000 65535 f \n');
-          for (var n = 1; n <= 5; n++) add(('0000000000' + offs[n]).slice(-10) + ' 00000 n \n');
-          add('trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF');
+          add('xref\\n0 6\\n0000000000 65535 f \\n');
+          for (var n = 1; n <= 5; n++) add(('0000000000' + offs[n]).slice(-10) + ' 00000 n \\n');
+          add('trailer\\n<< /Size 6 /Root 1 0 R >>\\nstartxref\\n' + xref + '\\n%%EOF');
           return new Blob(parts, { type: 'application/pdf' });
         }
         document.addEventListener('click', function(e) {
