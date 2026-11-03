@@ -7223,6 +7223,7 @@ ui <- shinyUI(fluidPage(
         # icons just because both happened to be "V-representation
         # controls" — moving it here keeps the icon column genuinely
         # icon-width and gives the checkbox as much room as it wants.
+        uiOutput("v_skipped_note"),
         uiOutput("h_stale_note_vrep"),
         checkboxInput("v_rep_words", "Show vertices in words", value = FALSE),
         fluidRow(column(
@@ -8207,6 +8208,19 @@ server <- shinyServer(function(input, output, session) {
   }
   # models whose V-representation was skipped by hand (their V switch is off): they stay in the run window as skipped, with Retry
   v_skipped_mem <- reactiveVal(character(0))
+  # the banner above the V-representation: which models were skipped by hand (same look as in the other calculations)
+  output$v_skipped_note <- renderUI({
+    sk <- v_skipped_mem()
+    if (length(sk) == 0) return(NULL)
+    tags$div(class = "fairy-skipnote",
+      icon("circle-info"), tags$span(" Skipped earlier: ", tags$b(paste(sk, collapse = ", ")), " (no V-representation)."),
+      actionLink("v_retry_mem", if (length(sk) > 1) "Retry all" else "Retry"))
+  })
+  observeEvent(input$v_retry_mem, {
+    for (m0 in isolate(v_skipped_mem())) if (is.null(get0(m0, envir = mix_components, inherits = FALSE))) set_v_included(m0, TRUE)
+    v_skipped_mem(character(0))
+    shinyjs::runjs("var g = document.getElementById('go_v_h'); if (g) g.click();")
+  })
   v_state <- reactiveValues(active = FALSE, dir = NULL, models = character(0), queue = character(0), procs = list(),
                             parallel = FALSE, after = NULL, skipped = character(0))
   v_kill_all <- function() {
