@@ -10077,10 +10077,9 @@ server <- shinyServer(function(input, output, session) {
               var nmTxt = rt.length === 1 ? rt[0] + X2 + ' ' + r.name : (rt.length > 1 ? r.name + ' (' + rt.join(X2 + ', ') + X2 + ')' : r.name);
               var po = partOf[idxs[i]];
               if (!po || po.amb) return nmTxt + constTxt(idxs[i]);
-              var negW = po.w === '-1', wtxt = negW ? String.fromCharCode(8722) + ' ' : ((po.w && po.w !== '1') ? po.w + String.fromCharCode(215) + ' ' : '');
-              var first = true;
-              for (var t = 0; t < i; t++) { var pj = partOf[idxs[t]]; if (pj && !pj.amb && pj.v === po.v) { first = false; break; } }
-              return (first || negW ? '' : '+ ') + wtxt + nmTxt + constTxt(idxs[i]);
+              // the single probabilities carry no plus or minus sign (the sum row says it, and the dashed line marks a subtracted part)
+              var wtxt = (po.w && po.w !== '1' && po.w !== '-1') ? po.w + String.fromCharCode(215) + ' ' : '';
+              return wtxt + nmTxt + constTxt(idxs[i]);
             });
             var MAXC = 3, dx = 58, x0 = Math.max(96, Math.round(18 + 7 * Math.max.apply(null, labs.map(function(l) { return l.length; })))) + (R.some(function(r) { return r.type === 'average'; }) ? 12 : 0), rowGap = R.length > 6 ? Math.max(30, Math.round(300 / R.length)) : 46, ys = R.map(function(r, i) { return 46 + i * rowGap; }), H = ys[ys.length - 1] + 34;
             var cnt = R.map(function(r) { return r.hub ? 1 : Math.min(r.n, MAXC); });   // a sum of parts from different lists is one node: every item of one part with every item of the others
