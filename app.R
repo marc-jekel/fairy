@@ -464,22 +464,22 @@ ui <- shinyUI(fluidPage(
       #qtest_order_open .fa, #qtest_order_open_v .fa, #qtest_order_open svg, #qtest_order_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
       #qtest_order_open:hover, #qtest_order_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       /* Data: same small grey row as Order, for the multinomineq data file */
-      #mn_data_open, #mn_data_open_v, #mn_run_open, #mn_run_open_v { position: relative !important; margin-bottom: 14px !important; }
-      #mn_data_open::after, #mn_data_open_v::after, #mn_run_open::after, #mn_run_open_v::after { content: 'Data'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
+      #mn_data_open, #mn_run_open { position: relative !important; margin-bottom: 14px !important; }
+      #mn_data_open::after, #mn_run_open::after { content: 'Data'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
         border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 12px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
       /* Order is a setting for the two downloads below it, not a third program: plain grey, a thin row, a divider under it */
-      #mn_data_open.fairy-order-btn, #mn_data_open_v.fairy-order-btn, #mn_run_open.fairy-order-btn, #mn_run_open_v.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: var(--ct-default) !important; border-color: var(--fairy-border) !important; box-shadow: none !important; }
-      #mn_data_open .fa, #mn_data_open_v .fa, #mn_data_open svg, #mn_data_open_v svg, #mn_run_open .fa, #mn_run_open_v .fa, #mn_run_open svg, #mn_run_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
-      #mn_data_open:hover, #mn_data_open_v:hover, #mn_run_open:hover, #mn_run_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
-      #mn_run_open::after, #mn_run_open_v::after { content: 'Run analysis'; }
+      #mn_data_open.fairy-order-btn, #mn_run_open.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: var(--ct-default) !important; border-color: var(--fairy-border) !important; box-shadow: none !important; }
+      #mn_data_open .fa, #mn_data_open svg, #mn_run_open .fa, #mn_run_open svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
+      #mn_data_open:hover, #mn_run_open:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
+      #mn_run_open::after { content: 'Run analysis'; }
       /* Results: same small grey row, reopens the last analysis */
-      #mn_results_open, #mn_results_open_v { position: relative !important; margin-bottom: 14px !important; }
-      #mn_results_open::after, #mn_results_open_v::after { content: 'Last results'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
+      #mn_results_open { position: relative !important; margin-bottom: 14px !important; }
+      #mn_results_open::after { content: 'Last results'; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); height: 14px; padding: 0 5px;
         border-radius: 7px; background: transparent; color: var(--fairy-text-muted, #667085); font-size: 12px; font-weight: 600; letter-spacing: 0; line-height: 14px; text-align: center; white-space: nowrap; }
       /* Order is a setting for the two downloads below it, not a third program: plain grey, a thin row, a divider under it */
-      #mn_results_open.fairy-order-btn, #mn_results_open_v.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: var(--ct-default) !important; border-color: var(--fairy-border) !important; box-shadow: none !important; }
-      #mn_results_open .fa, #mn_results_open_v .fa, #mn_results_open svg, #mn_results_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
-      #mn_results_open:hover, #mn_results_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
+      #mn_results_open.fairy-order-btn { flex-direction: row !important; min-width: 66px !important; width: auto !important; padding: 3px 4px !important; height: 24px !important; margin-bottom: 2px !important; gap: 4px !important; background: var(--ct-default) !important; border-color: var(--fairy-border) !important; box-shadow: none !important; }
+      #mn_results_open .fa, #mn_results_open svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
+      #mn_results_open:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       .fairy-order-btn.fairy-order-new::before { content: ''; position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: #e5484d; border: 1.5px solid var(--fairy-panel, #fff); z-index: 2; }
       #fairy-running-note, #fairy-working-note { position: fixed; right: 22px; bottom: 92px; z-index: 100000; display: flex; align-items: center; gap: 9px;
         padding: 9px 16px; border-radius: 999px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1d2433); font-size: 13.5px; font-weight: 600;
@@ -1472,7 +1472,7 @@ ui <- shinyUI(fluidPage(
         .tab-pane:has(.fairy-input-toolbar), .tab-pane:has(.fairy-input-toolbar) > div:has(> .fairy-input-toolbar) { flex-direction: column !important; }
         .fairy-input-toolbar { flex-direction: row !important; flex-wrap: wrap; width: auto !important; align-items: center; gap: 8px; padding-bottom: 8px; }
         .fairy-input-toolbar > hr { display: none; }
-        .fairy-input-toolbar #d_h, .fairy-input-toolbar #d_v, .fairy-input-toolbar #d_h_multinomineq, .fairy-input-toolbar #d_v_multinomineq { margin-right: 22px; }
+        .fairy-input-toolbar #d_h, .fairy-input-toolbar #d_v, .fairy-input-toolbar #d_h_multinomineq { margin-right: 22px; }
         .navbar-fixed-top, .navbar-fixed-top .container-fluid { max-width: 100vw; overflow-x: hidden; }
         .navbar-fixed-top .navbar-nav { max-width: 100vw; }
         html, body { overflow-x: hidden; }
@@ -2720,11 +2720,11 @@ ui <- shinyUI(fluidPage(
          format named only in the hover tooltip — easy to grab the wrong
          one without hovering first. A small corner label badge (QTEST / multinom)
          makes the format visible at a glance instead. */
-      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex {
+      #d_h, #d_v, #d_h_multinomineq, #d_latex, #d_v_latex {
         position: relative !important;
       }
       #d_h::after, #d_v::after,
-      #d_h_multinomineq::after, #d_v_multinomineq::after,
+      #d_h_multinomineq::after, 
       #d_latex::after, #d_v_latex::after {
         content: 'QTEST';
         position: absolute;
@@ -2745,12 +2745,12 @@ ui <- shinyUI(fluidPage(
         box-shadow: 0 0 0 2px var(--fairy-panel, #fff);
       }
       /* icon above, label below, both centred inside one equally wide button */
-      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex, #qtest_order_open, #qtest_order_open_v, #mn_data_open, #mn_data_open_v, #mn_run_open, #mn_run_open_v, #mn_results_open, #mn_results_open_v {
+      #d_h, #d_v, #d_h_multinomineq, #d_latex, #d_v_latex, #qtest_order_open, #qtest_order_open_v, #mn_data_open, #mn_run_open, #mn_results_open {
         margin-bottom: 0 !important; width: 66px !important; height: auto !important; padding: 7px 4px 6px !important;
         display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
-      #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_v_multinomineq::after, #d_latex::after, #d_v_latex::after,
-      #qtest_order_open::after, #qtest_order_open_v::after, #mn_data_open::after, #mn_data_open_v::after, #mn_run_open::after, #mn_run_open_v::after, #mn_results_open::after, #mn_results_open_v::after { position: static !important; transform: none !important; box-shadow: none !important; margin: 0 auto; }
-      #d_h_multinomineq::after, #d_v_multinomineq::after {
+      #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_latex::after, #d_v_latex::after,
+      #qtest_order_open::after, #qtest_order_open_v::after, #mn_data_open::after, #mn_run_open::after, #mn_results_open::after { position: static !important; transform: none !important; box-shadow: none !important; margin: 0 auto; }
+      #d_h_multinomineq::after {
         content: 'multinom';
         background: #8a5cf6;
       }
@@ -2759,36 +2759,36 @@ ui <- shinyUI(fluidPage(
         background: #0f766e;
       }
       /* every export frame has its caption (QTEST, multinomineq, LaTeX); the buttons carry the action, like Data and Run */
-      #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_v_multinomineq::after, #d_latex::after, #d_v_latex::after {
+      #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_latex::after, #d_v_latex::after {
         content: 'Download' !important; background: transparent !important; color: var(--fairy-text-muted, #667085) !important;
       }
       /* the Download buttons look like the other actions of the frames (Data, Run, Results): icon and label in one plain row */
-      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex {
+      #d_h, #d_v, #d_h_multinomineq, #d_latex, #d_v_latex {
         flex-direction: row !important; min-width: 66px !important; width: auto !important; height: 24px !important; padding: 3px 4px !important;
         margin: 0 0 2px !important; gap: 4px !important; background: var(--ct-default) !important; border-color: var(--fairy-border) !important; box-shadow: none !important; }
-      #d_h:hover, #d_v:hover, #d_h_multinomineq:hover, #d_v_multinomineq:hover, #d_latex:hover, #d_v_latex:hover {
+      #d_h:hover, #d_v:hover, #d_h_multinomineq:hover, #d_latex:hover, #d_v_latex:hover {
         background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
-      #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_v_multinomineq::after, #d_latex::after, #d_v_latex::after {
+      #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_latex::after, #d_v_latex::after {
         font-size: 12px !important; font-weight: 600 !important; border-radius: 7px; }
       /* the export buttons: one size, icon in a fixed column, equal spacing, same corner radius as the upper buttons */
-      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex, #mn_data_open, #mn_data_open_v, #mn_run_open, #mn_run_open_v, #mn_results_open, #mn_results_open_v, #qtest_order_open, #qtest_order_open_v {
+      #d_h, #d_v, #d_h_multinomineq, #d_latex, #d_v_latex, #mn_data_open, #mn_run_open, #mn_results_open, #qtest_order_open, #qtest_order_open_v {
         box-sizing: border-box !important; width: 152px !important; min-width: 0 !important; height: 32px !important; margin: 0 !important;
         padding: 0 12px !important; gap: 10px !important; justify-content: center !important; border-radius: 10px !important; }
-      #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_v_multinomineq::after, #d_latex::after, #d_v_latex::after, #mn_data_open::after, #mn_data_open_v::after, #mn_run_open::after, #mn_run_open_v::after, #mn_results_open::after, #mn_results_open_v::after, #qtest_order_open::after, #qtest_order_open_v::after { font-size: 13px !important; margin: 0 !important; padding: 0 !important; }
-      #d_h svg, #d_h .fa, #d_v svg, #d_v .fa, #d_h_multinomineq svg, #d_h_multinomineq .fa, #d_v_multinomineq svg, #d_v_multinomineq .fa, #d_latex svg, #d_latex .fa, #d_v_latex svg, #d_v_latex .fa, #mn_data_open svg, #mn_data_open .fa, #mn_data_open_v svg, #mn_data_open_v .fa, #mn_run_open svg, #mn_run_open .fa, #mn_run_open_v svg, #mn_run_open_v .fa, #mn_results_open svg, #mn_results_open .fa, #mn_results_open_v svg, #mn_results_open_v .fa, #qtest_order_open svg, #qtest_order_open .fa, #qtest_order_open_v svg, #qtest_order_open_v .fa { width: 14px; font-size: 14px; text-align: center; }
+      #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_latex::after, #d_v_latex::after, #mn_data_open::after, #mn_run_open::after, #mn_results_open::after, #qtest_order_open::after, #qtest_order_open_v::after { font-size: 13px !important; margin: 0 !important; padding: 0 !important; }
+      #d_h svg, #d_h .fa, #d_v svg, #d_v .fa, #d_h_multinomineq svg, #d_h_multinomineq .fa, #d_latex svg, #d_latex .fa, #d_v_latex svg, #d_v_latex .fa, #mn_data_open svg, #mn_data_open .fa, #mn_run_open svg, #mn_run_open .fa, #mn_results_open svg, #mn_results_open .fa, #qtest_order_open svg, #qtest_order_open .fa, #qtest_order_open_v svg, #qtest_order_open_v .fa { width: 14px; font-size: 14px; text-align: center; }
       /* the widest button decides the size of all of them (the order buttons carry a more specific rule, hence the second list) */
-      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex, #mn_data_open, #mn_data_open_v, #mn_run_open, #mn_run_open_v, #mn_results_open, #mn_results_open_v, #qtest_order_open, #qtest_order_open_v, #mn_data_open.fairy-order-btn, #mn_data_open_v.fairy-order-btn, #mn_run_open.fairy-order-btn, #mn_run_open_v.fairy-order-btn, #mn_results_open.fairy-order-btn, #mn_results_open_v.fairy-order-btn, #qtest_order_open.fairy-order-btn, #qtest_order_open_v.fairy-order-btn {
+      #d_h, #d_v, #d_h_multinomineq, #d_latex, #d_v_latex, #mn_data_open, #mn_run_open, #mn_results_open, #qtest_order_open, #qtest_order_open_v, #mn_data_open.fairy-order-btn, #mn_run_open.fairy-order-btn, #mn_results_open.fairy-order-btn, #qtest_order_open.fairy-order-btn, #qtest_order_open_v.fairy-order-btn {
         box-sizing: border-box !important; width: 152px !important; min-width: 152px !important; height: 32px !important; margin: 0 !important;
         padding: 0 6px !important; gap: 8px !important; flex-direction: row !important; justify-content: center !important; border-radius: 10px !important; }
-      #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_v_multinomineq::after, #d_latex::after, #d_v_latex::after, #mn_data_open::after, #mn_data_open_v::after, #mn_run_open::after, #mn_run_open_v::after, #mn_results_open::after, #mn_results_open_v::after, #qtest_order_open::after, #qtest_order_open_v::after { font-size: 13px !important; }
+      #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_latex::after, #d_v_latex::after, #mn_data_open::after, #mn_run_open::after, #mn_results_open::after, #qtest_order_open::after, #qtest_order_open_v::after { font-size: 13px !important; }
       /* Export: no frame around a group, only a small caption; plain buttons, the run button is the one filled action */
       .fairy-dl-group { border: none !important; padding: 0 !important; gap: 6px !important; border-radius: 0 !important; }
       .fairy-dl-group + .fairy-dl-group { margin-top: 12px; }
       .fairy-dl-group[data-cap]::before, .fairy-dl-group[data-cap][data-sub]::before { font-size: 9.5px !important; font-weight: 600 !important; letter-spacing: .05em !important;
         text-transform: uppercase; margin: 0 0 2px !important; color: var(--fairy-text-muted, #667085) !important; }
-      #d_h, #d_v, #d_h_multinomineq, #d_v_multinomineq, #d_latex, #d_v_latex, #mn_data_open, #mn_data_open_v, #mn_run_open, #mn_run_open_v, #mn_results_open, #mn_results_open_v, #qtest_order_open, #qtest_order_open_v, #mn_data_open.fairy-order-btn, #mn_data_open_v.fairy-order-btn, #mn_run_open.fairy-order-btn, #mn_run_open_v.fairy-order-btn, #mn_results_open.fairy-order-btn, #mn_results_open_v.fairy-order-btn, #qtest_order_open.fairy-order-btn, #qtest_order_open_v.fairy-order-btn { justify-content: center !important; padding: 0 12px !important; gap: 10px !important; }
-      #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_v_multinomineq::after, #d_latex::after, #d_v_latex::after, #mn_data_open::after, #mn_data_open_v::after, #mn_run_open::after, #mn_run_open_v::after, #mn_results_open::after, #mn_results_open_v::after, #qtest_order_open::after, #qtest_order_open_v::after { font-weight: 500 !important; font-size: 13px !important; color: var(--fairy-text, #1d2433) !important; }
-      #d_h svg, #d_v svg, #d_h_multinomineq svg, #d_v_multinomineq svg, #d_latex svg, #d_v_latex svg, #mn_data_open svg, #mn_data_open_v svg, #mn_run_open svg, #mn_run_open_v svg, #mn_results_open svg, #mn_results_open_v svg, #qtest_order_open svg, #qtest_order_open_v svg, #mn_data_open.fairy-order-btn svg, #mn_data_open_v.fairy-order-btn svg, #mn_run_open.fairy-order-btn svg, #mn_run_open_v.fairy-order-btn svg, #mn_results_open.fairy-order-btn svg, #mn_results_open_v.fairy-order-btn svg, #qtest_order_open.fairy-order-btn svg, #qtest_order_open_v.fairy-order-btn svg { width: 16px; text-align: center; }
+      #d_h, #d_v, #d_h_multinomineq, #d_latex, #d_v_latex, #mn_data_open, #mn_run_open, #mn_results_open, #qtest_order_open, #qtest_order_open_v, #mn_data_open.fairy-order-btn, #mn_run_open.fairy-order-btn, #mn_results_open.fairy-order-btn, #qtest_order_open.fairy-order-btn, #qtest_order_open_v.fairy-order-btn { justify-content: center !important; padding: 0 12px !important; gap: 10px !important; }
+      #d_h::after, #d_v::after, #d_h_multinomineq::after, #d_latex::after, #d_v_latex::after, #mn_data_open::after, #mn_run_open::after, #mn_results_open::after, #qtest_order_open::after, #qtest_order_open_v::after { font-weight: 500 !important; font-size: 13px !important; color: var(--fairy-text, #1d2433) !important; }
+      #d_h svg, #d_v svg, #d_h_multinomineq svg, #d_latex svg, #d_v_latex svg, #mn_data_open svg, #mn_run_open svg, #mn_results_open svg, #qtest_order_open svg, #qtest_order_open_v svg, #mn_data_open.fairy-order-btn svg, #mn_run_open.fairy-order-btn svg, #mn_results_open.fairy-order-btn svg, #qtest_order_open.fairy-order-btn svg, #qtest_order_open_v.fairy-order-btn svg { width: 16px; text-align: center; }
       /* Stale results: Go/Compute itself blinks instead of a separate
          badge next to it — see the observers toggling this class + the
          button's own data-tooltip together, so hovering the SAME
@@ -5555,7 +5555,7 @@ ui <- shinyUI(fluidPage(
       // ---- Order of the probabilities (unpacked models): the Order button; the order window no longer opens by itself on a download ----
       (function() {
         window.fairyQtestSeen = false;
-        var IDS = ['d_h', 'd_h_multinomineq', 'd_v', 'd_v_multinomineq'];
+        var IDS = ['d_h', 'd_h_multinomineq', 'd_v'];
         function hasUnpacked() { return !!(document.getElementById('qtest_order_open') || document.getElementById('qtest_order_open_v')); }
         function mark() { if (window.fairyQtestSeen) [].forEach.call(document.querySelectorAll('.fairy-order-btn'), function(b) { b.classList.remove('fairy-order-new'); }); }
         if (window.jQuery) jQuery(document).on('shiny:value shiny:idle', mark);
@@ -18275,7 +18275,7 @@ server <- shinyServer(function(input, output, session) {
       '# Put this script in one folder with the files of this download:',
       '#   A_<model>.csv, b_<model>.csv   H-representation',
       '#   map_<model>.csv                only with equal probabilities',
-      '#   V_<model>.csv                  V-representation (optional)',
+      '#   V_<model>.csv                  V-representation (not used; see the commented lines in analyse())',
       '#   data_choices*.csv              your data (see below)',
       '# Then run the whole script. It analyses EVERY model in the',
       '# folder and writes results.csv (Bayes factors),',
@@ -18471,11 +18471,14 @@ server <- shinyServer(function(input, output, session) {
       '                  header = FALSE, stringsAsFactors = FALSE))',
       '    if (!is.numeric(b)) b <- q2d(b)',
       '  }',
-      '  if (file.exists(file_V)) {',
-      '    V_raw <- read.csv(file_V, check.names = FALSE,',
-      '                      stringsAsFactors = FALSE)',
-      '    V <- read_q(V_raw); colnames(V) <- colnames(V_raw)',
-      '  }',
+      '  # Analysis from the V-representation (vertices) is possible but switched off: the app always analyses the',
+      '  # H-representation (A and b). To use it, remove the # here and in the line with one("V", V = V) below, and',
+      '  # put the file V_<model>.csv (one vertex per row) next to the A_ and b_ files.',
+      '  # if (file.exists(file_V)) {',
+      '  #   V_raw <- read.csv(file_V, check.names = FALSE,',
+      '  #                     stringsAsFactors = FALSE)',
+      '  #   V <- read_q(V_raw); colnames(V) <- colnames(V_raw)',
+      '  # }',
       '  # does the model have volume? (the app checked the files)',
       '  info <- if (file.exists("model_info.csv")) {',
       '    read.csv("model_info.csv", stringsAsFactors = FALSE)',
@@ -18566,18 +18569,19 @@ server <- shinyServer(function(input, output, session) {
       '    rows[[rep]] <<- bf_row(model_name, rep, bf,',
       '      if (is.finite(bf["bf_0u", "bf"])) note else no_result)',
       '  }',
-      '  if (!is.null(V)) one("V", V = V)',
+      '  # if (!is.null(V)) one("V", V = V)   # analysis from the vertices, see above',
       '  if (!is.null(A)) one("H", A = A, b = b)',
       '  list(bf = do.call(rbind, rows), posterior = do.call(rbind, post),',
       '       diag = unname(dg))',
       '}',
       '',
       '#### Run all models ####',
-      'models <- unique(sub("^[AbV]_(.*)\\\\.csv$", "\\\\1",',
-      '                     list.files(pattern = "^[AbV]_.*\\\\.csv$")))',
+      '# (to analyse from V_<model>.csv files as well, use [AbV] instead of [Ab] in both places)',
+      'models <- unique(sub("^[Ab]_(.*)\\\\.csv$", "\\\\1",',
+      '                     list.files(pattern = "^[Ab]_.*\\\\.csv$")))',
       'cat("Working directory:", getwd(), "\\n")',
       'if (length(models) == 0)',
-      '  stop("No A_*.csv or V_*.csv files found in ", getwd(), ". Put this",',
+      '  stop("No A_*.csv files found in ", getwd(), ". Put this",',
       '       " script in the folder with the downloaded files (RStudio:",',
       '       " Session > Set Working Directory > To Source File Location).")',
       '# the order of the Input page (model_order.txt of the download), else',
@@ -19357,11 +19361,6 @@ server <- shinyServer(function(input, output, session) {
   }
   # the models that can be analysed from the current tab: display name -> file name part
   mn_model_choices <- function() {
-    if (identical(isolate(mn_source()), "V")) {
-      nms <- intersect(isolate(names_models_reactive$value), names(v_reactive))
-      nms <- nms[!is.na(nms) & nzchar(nms)]
-      return(stats::setNames(safe_file_name(nms), nms))
-    }
     nms <- c(isolate(names_models_reactive$value), isolate(intersections_reactive$names),
              isolate(mixtures_reactive$names), isolate(items_reactive$names))
     nms <- unique(nms[!is.na(nms) & nzchar(nms)])   # an unpacked model is in the model list and in the items list: once
@@ -19517,9 +19516,6 @@ server <- shinyServer(function(input, output, session) {
       if (length(mn_model_choices()) > 1)
         checkboxGroupInput("mn_models", "Models to analyse",
                            choices = mn_model_choices(), selected = unname(mn_model_choices()), inline = TRUE, width = "100%"),
-      if (identical(isolate(mn_source()), "V"))
-        tags$div(style = "background:color-mix(in srgb, var(--fairy-primary) 10%, transparent); border-left:4px solid var(--fairy-primary); border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
-          tags$b("Tip:"), " the analysis from the vertices (V) is much slower than from the inequalities (H) and gives the same result: a few seconds against a fraction of a second for small models, minutes for larger ones. For larger models use Run in the H-representation tab."),
       selectInput("mn_samples", "Samples (also used by the downloads)", width = "100%", selected = (function(x) if (is.null(x)) "std" else x)(isolate(mn_settings())$samples), choices = c(
         "Standard: 10,000 samples for the Bayes factors, 5,000 for the posterior" = "std",
         "More: 100,000 and 20,000 (smaller Monte-Carlo error, slower)" = "more",
@@ -19546,18 +19542,17 @@ server <- shinyServer(function(input, output, session) {
         modalButton("Cancel"),
         actionButton("mn_run", "Run analysis here", class = "btn-primary", title = "Runs on our shared server (best for small analyses). For larger ones, run the script from the download on your own computer."))))
   }
-  for (btn_id in c("mn_run_open", "mn_run_open_v")) local({
+  for (btn_id in c("mn_run_open")) local({
     id <- btn_id
     observeEvent(input[[id]], {
-      if (isTRUE(input[[id]] > 0)) { mn_source(if (identical(id, "mn_run_open_v")) "V" else "H"); show_mn_run() }
+      if (isTRUE(input[[id]] > 0)) { show_mn_run() }
     }, ignoreInit = TRUE)
   })
   observeEvent(input$mn_run_to_data, { show_mn_data() })
-  mn_source <- reactiveVal("H")   # the analysis uses the representation of the tab the window was opened from
-  for (btn_id in c("mn_data_open", "mn_data_open_v")) local({
+  for (btn_id in c("mn_data_open")) local({
     id <- btn_id
     observeEvent(input[[id]], {
-      if (isTRUE(input[[id]] > 0)) { mn_source(if (identical(id, "mn_data_open_v")) "V" else "H"); show_mn_data() }
+      if (isTRUE(input[[id]] > 0)) { show_mn_data() }
     }, ignoreInit = TRUE)
   })
   # the numbers are set back to the examples in the open window (no new window: the tab stays as it is)
@@ -19603,8 +19598,7 @@ server <- shinyServer(function(input, output, session) {
     removeModal()
     d <- tempfile("mn_run_"); dir.create(d)
     prep <- tryCatch({
-      if (identical(isolate(mn_source()), "V")) mn_v_content(file.path(d, "in.tar"), quiet = TRUE)
-      else mn_h_content(file.path(d, "in.tar"), quiet = TRUE)
+      mn_h_content(file.path(d, "in.tar"), quiet = TRUE)
       utils::untar(file.path(d, "in.tar"), exdir = d)
       # only the chosen models: the script analyses every model it finds in the folder
       for (st in setdiff(unname(choices_mn), sel))
@@ -19845,11 +19839,11 @@ server <- shinyServer(function(input, output, session) {
                            tags$li(downloadLink("mn_results_dl", "Everything (.tar): PDF, web page, tables, files and the R script")))),
                        modalButton("Close"))))
   }
-  for (btn_id in c("mn_results_open", "mn_results_open_v")) local({
+  for (btn_id in c("mn_results_open")) local({
     id <- btn_id
     observeEvent(input[[id]], { if (isTRUE(input[[id]] > 0)) show_mn_results() }, ignoreInit = TRUE)
   })
-  for (suffix in c("", "_v")) local({
+  for (suffix in c("")) local({
     sf <- suffix
     output[[paste0("mn_results_btn_ui", sf)]] <- renderUI({
       if (is.null(mn_result$dir)) return(NULL)
@@ -20308,108 +20302,6 @@ server <- shinyServer(function(input, output, session) {
 
   ####* V-representation multinomineq
 
-  mn_v_content <- function(file, quiet = FALSE) {
-      
-      if (!quiet) showNotification(HTML(paste0("Your download has started. It contains your models as csv files, <b>data_choices.csv</b> with ", if (length(isolate(mn_user_data())) > 0) "your numbers" else "example numbers", " and <b>analysis_multinomineq.R</b>. The script runs the whole analysis with the <a href='https://www.dwheck.de/software/multinomineq/' target='_blank'>multinomineq</a> package: it reads the models, computes the Bayes factors and the posterior and writes the results (tables, web page and PDF). ", if (length(isolate(mn_user_data())) > 0) "Run the script." else "Replace the numbers in data_choices.csv by your own (or enter them under Data), then run the script.")), type = "message", duration = 14)
-  
-      owd <- setwd(tempdir())
-      on.exit(setwd(owd))
-      files <- NULL
-
-      download_v_names <- names(v_reactive)
-
-      download_v_names <- download_v_names[download_v_names %in% names_models_reactive$value]
-      download_v_names <- names_models_reactive$value[names_models_reactive$value %in% download_v_names]
-      np_groups <- list()
-      vol_info <- list()
-
-      for (loop_v_qtest in seq_len(length(download_v_names))) {
-        vrep_entry    <- v_reactive[[download_v_names[loop_v_qtest]]]
-        current_model <- if (is.list(vrep_entry) && !is.null(vrep_entry$output))
-          vrep_entry$output else vrep_entry
-        current_model <- current_model[, 3:ncol(current_model), drop = FALSE]
-        pm_vm <- isolate(qtest_perm$map[[download_v_names[loop_v_qtest]]])
-        pm_vm <- if (!is.null(pm_vm) && length(pm_vm) == ncol(current_model) && setequal(pm_vm, seq_len(length(pm_vm)))) pm_vm else seq_len(ncol(current_model))
-        current_model <- current_model[, pm_vm, drop = FALSE]
-
-        # Per-model parameter names, not the shared probs_reactive$value —
-        # that reactive holds whichever single model was last processed
-        # elsewhere in the app, not the model currently being exported here,
-        # so every model after the first got the wrong (or mismatched-length)
-        # column headers. A V-representation's columns 3+ correspond 1:1 with
-        # its own H-representation's columns 3+, so pull the names from there.
-        h_this <- isolate(h_reactive[[download_v_names[loop_v_qtest]]])
-        colnames(current_model) <- if (!is.null(h_this) && ncol(h_this) - 2L == ncol(current_model))
-          colnames(h_this)[-(1:2)][pm_vm] else paste0("V", seq_len(ncol(current_model)))
-
-        gkey <- paste0("k:", ncol(current_model))
-        if (is.null(np_groups[[gkey]])) np_groups[[gkey]] <- list(k = ncol(current_model), labels = colnames(current_model), stem = NULL)
-
-        # columns that are identical at every vertex are equal probabilities: one free parameter (map file)
-        key_cols <- apply(current_model, 2, paste, collapse = "|")
-        map_v <- NULL
-        if (anyDuplicated(key_cols) > 0 && length(unique(key_cols)) >= 1) {
-          uk <- unique(key_cols)
-          map_v <- match(key_cols, uk)
-          lab_g <- vapply(seq_along(uk), function(g) paste(colnames(current_model)[map_v == g], collapse = " = "), character(1))
-          current_model <- current_model[, !duplicated(key_cols), drop = FALSE]
-          colnames(current_model) <- lab_g
-        }
-
-        # volume: the vertices must span all dimensions
-        cm_chk <- tryCatch(q2d(current_model), error = function(e) NULL)
-        rk <- if (is.null(cm_chk) || nrow(cm_chk) < 2) NA else qr(sweep(cm_chk, 2, cm_chk[1, ]))$rank
-        vol_info[[safe_file_name(download_v_names[loop_v_qtest])]] <-
-          if (is.na(rk) || rk >= ncol(current_model)) "" else paste0("its vertices span only ", rk, " of ", ncol(current_model), " dimensions (exact equalities or a flat model)")
-
-        fileName <-
-          paste0("V_", safe_file_name(download_v_names[loop_v_qtest]), ".csv")
-
-        write.table(
-          current_model,
-          fileName,
-          sep = ",",
-          quote = FALSE,
-          col.names = TRUE,
-          row.names = FALSE
-        )
-
-        files <- c(fileName, files)
-        if (!is.null(map_v)) {
-          fileName <- paste0("map_", safe_file_name(download_v_names[loop_v_qtest]), ".csv")
-          write.table(map_v, fileName, quote = FALSE, col.names = FALSE, row.names = FALSE, sep = ",")
-          files <- c(fileName, files)
-        }
-      }
-
-      if (length(vol_info) > 0) {
-        utils::write.csv(data.frame(model = names(vol_info), volume = ifelse(nzchar(unlist(vol_info)), "zero", "positive"),
-                                    reason = unlist(vol_info), row.names = NULL), "model_info.csv", row.names = FALSE)
-        files <- c(files, "model_info.csv")
-      }
-
-      # the matching R script for multinomineq (reads the files next to it)
-      if (length(download_v_names) > 0) {
-        writeLines(safe_file_name(download_v_names), "model_order.txt")   # analysed in the order of the Input page
-        files <- c(files, "model_order.txt")
-        ve1 <- v_reactive[[download_v_names[1]]]
-        vm1 <- if (is.list(ve1) && !is.null(ve1$output)) ve1$output else ve1
-        writeLines(mn_apply_settings(multinomineq_script(safe_file_name(download_v_names[1]), ncol(vm1) - 2L)), "analysis_multinomineq.R")
-        files <- c(files, "analysis_multinomineq.R", write_multinomineq_data(np_groups, isolate(mn_user_data()), isolate(mn_share())))
-      }
-
-      tar(file, files)
-  }
-  output$d_v_multinomineq <- downloadHandler(
-    filename = function() {
-      paste("multinomineq_V-representation_",
-        Sys.Date(),
-        ".tar",
-        sep = ""
-      )
-    },
-    content = function(file) mn_v_content(file)
-  )
 
   ####* LaTeX-file of V-representation (words or fractions, matching the
   # "Show vertices in words" toggle) ####
