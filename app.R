@@ -10055,7 +10055,7 @@ server <- shinyServer(function(input, output, session) {
             };
             var labs = R.map(function(r, i) {
               var rt = ratioTxt(i), X2 = String.fromCharCode(215);
-              if (r.virt) return String.fromCharCode(931) + ' ' + (rt.length === 1 ? rt[0] + X2 + ' (' + r.name + ')' : r.name) + (sumConstOf[idxs[i] - nProb] ? '  ' + sumConstOf[idxs[i] - nProb].join(', ') : '');   // the sum row: a sigma, never read as an equation
+              if (r.virt) return (rt.length === 1 ? rt[0] + X2 + ' (' + r.name + ')' : r.name) + (sumConstOf[idxs[i] - nProb] ? '  ' + sumConstOf[idxs[i] - nProb].join(', ') : '');   // the sum row: a sigma, never read as an equation
               var nmTxt = rt.length === 1 ? rt[0] + X2 + ' ' + r.name : (rt.length > 1 ? r.name + ' (' + rt.join(X2 + ', ') + X2 + ')' : r.name);
               var po = partOf[idxs[i]];
               if (!po || po.amb) return nmTxt + constTxt(idxs[i]);
@@ -10140,7 +10140,13 @@ server <- shinyServer(function(input, output, session) {
               if (pp[3] && anchor[q].grid && anchor[q2].grid) {
                 // parts of a sum: one straight line down from each part to the square, in every column (dots sit on the line)
                 for (k = 0; k < Math.min(c0, c1); k++) {
-                  el('line', { x1: X(k), y1: y0 + 8, x2: X(k), y2: y1 - 8, stroke: 'currentColor', opacity: '0.35', 'stroke-width': '1.6' }, g);
+                  if (q2 - q > 1) {
+                    // a part that is not right above the sum: its line goes around the rows in between (not through their dots, which would read as a chain)
+                    var bw = 13 + 3 * (q2 - q - 1);
+                    el('path', { d: 'M' + X(k) + ' ' + (y0 + 8) + ' C ' + (X(k) - bw) + ' ' + (y0 + 40) + ' ' + (X(k) - bw) + ' ' + (y1 - 40) + ' ' + X(k) + ' ' + (y1 - 8), stroke: 'currentColor', opacity: '0.35', 'stroke-width': '1.6' }, g);
+                  } else {
+                    el('line', { x1: X(k), y1: y0 + 8, x2: X(k), y2: y1 - 8, stroke: 'currentColor', opacity: '0.35', 'stroke-width': '1.6' }, g);
+                  }
                 }
                 return;
               }
