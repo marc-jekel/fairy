@@ -19778,7 +19778,7 @@ server <- shinyServer(function(input, output, session) {
       # an unpacked model can use the numbers of the models with the same number of probabilities instead of its own
       can_share <- startsWith(g$key, "m:") && any(vapply(groups, function(x) identical(x$key, paste0("k:", g$k)), logical(1)))
       tbl <- tags$table(class = "mn-tbl",
-          tags$thead(tags$tr(tags$th("probability"), tags$th("n"), tags$th("frequency"))),
+          tags$thead(tags$tr(tags$th("observed for"), tags$th("n (trials)"), tags$th("frequency (count)"))),
           tags$tbody(lapply(seq_len(g$k), function(i) {
             v <- u[[g$labels[i]]]
             tags$tr(
@@ -19789,7 +19789,10 @@ server <- shinyServer(function(input, output, session) {
       # one n for every probability of the table in one step (the single n fields stay editable)
       nall <- tags$div(class = "mn-nall", tags$label(`for` = paste0("mn_nall_", gi), "Same n for every row (optional)"),
                        numericInput(paste0("mn_nall_", gi), NULL, value = NA, min = 1, step = 1, width = "88px"))
-      tbl <- tags$div(tbl, nall)
+      tbl <- tags$div(
+        tags$p(style = "margin:0 0 6px 0; font-size:12.5px; color:var(--fairy-text-muted);",
+               "Enter observed counts, not probabilities: in n trials, the outcome of the probability occurred this many times."),
+        tbl, nall)
       tags$div(
         if (length(g$models)) tags$div(style = "margin:2px 0 4px 0;", tags$span(class = "mn-for", paste0("For: ", paste(g$models, collapse = ", ")))),
         if (can_share) checkboxInput(paste0("mn_share_", gi), paste0("Use the same numbers as the other models with ", g$k, " probabilities (row by row)"),
