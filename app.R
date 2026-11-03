@@ -4563,6 +4563,10 @@ ui <- shinyUI(fluidPage(
             rows[n].tr.classList.toggle('fairy-run-skipped', sts.indexOf('skip') >= 0 || sts.indexOf('cancel') >= 0);
           });
           // after the run, with two or more skipped models: one button takes them all back (the V and the exact-volume windows)
+          // Skip all appears together with the Skip button of a single model (a model that takes longer); the window of the volume
+          // algorithms has no Skip per model and shows its Cancel at once
+          var anySkippable = Object.keys(rows).some(function(n) { return rows[n].tr.classList.contains('fairy-run-stopready'); });
+          if (cancelable && (cancelInput === 'pv_cancel' || anySkippable)) $id('fairy-run-cancel').classList.add('armed');   // once shown it stays until the run is over
           var nSkipped = Object.keys(rows).filter(function(n) { return rows[n].tr.classList.contains('fairy-run-skipped'); }).length;
           $id('fairy-run-retryall').classList.toggle('visible', !running && nSkipped >= 2 && (cancelInput === 'v_cancel' || cancelInput === 'ex_skip'));
           Object.keys(rows).forEach(function(n) {
@@ -4637,9 +4641,7 @@ ui <- shinyUI(fluidPage(
         Shiny.addCustomMessageHandler('fairy_run_cancelable', function(msg) {
           cancelable = !!msg.on;
           var b = $id('fairy-run-cancel');
-          if (armTimer) { clearTimeout(armTimer); armTimer = null; }
           if (!cancelable || !b.classList.contains('visible')) b.classList.remove('armed');
-          if (cancelable && !b.classList.contains('armed')) armTimer = setTimeout(function() { armTimer = null; if (cancelable) b.classList.add('armed'); }, 3000);
           b.classList.toggle('visible', cancelable);
           if (cancelable) { cancelInput = msg.input || 'v_cancel'; b.disabled = false; b.textContent = msg.label || 'Cancel'; if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; } }
         });
