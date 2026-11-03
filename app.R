@@ -481,8 +481,9 @@ ui <- shinyUI(fluidPage(
       #mn_results_open .fa, #mn_results_open svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
       #mn_results_open:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       .fairy-order-btn.fairy-order-new::before { content: ''; position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: #e5484d; border: 1.5px solid var(--fairy-panel, #fff); z-index: 2; }
-      .fairy-plot-pdf { position: absolute; bottom: 8px; right: 44px; z-index: 2100; padding: 3px 12px; border: 1.5px solid var(--fairy-border, #c8cdd8); border-radius: 8px; background: var(--fairy-panel, #fff); color: var(--fairy-text-muted, #667085); font-size: 12px; font-weight: 600; cursor: pointer; }
-      .fairy-plot-pdf:hover { border-color: var(--fairy-primary, #3a6df0); color: var(--fairy-primary, #3a6df0); }
+      .fairy-plot-pdf, .fairy-plot-pdf-dl.btn { position: absolute; bottom: 8px; right: 44px; z-index: 2100; padding: 3px 12px; border: 1.5px solid var(--fairy-border, #c8cdd8); border-radius: 8px; background: var(--fairy-panel, #fff); color: var(--fairy-text-muted, #667085); font-size: 12px; font-weight: 600; cursor: pointer; }
+      .fairy-plot-pdf-dl.btn { height: auto; line-height: 1.5; }
+      .fairy-plot-pdf:hover, .fairy-plot-pdf-dl.btn:hover { border-color: var(--fairy-primary, #3a6df0); color: var(--fairy-primary, #3a6df0); }
       .fairy-plot-pdf.busy { opacity: .5; cursor: progress; }
       #fairy-running-note, #fairy-working-note { position: fixed; right: 22px; bottom: 92px; z-index: 100000; display: flex; align-items: center; gap: 9px;
         padding: 9px 16px; border-radius: 999px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1d2433); font-size: 13.5px; font-weight: 600;
@@ -5316,6 +5317,7 @@ ui <- shinyUI(fluidPage(
         }, true);
       })();
 
+      if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_poly_vec', function(m) { var w = document.getElementById('polytope_plot_wrap'); if (w) w.classList.toggle('fairy-poly-vec', !!(m && m.on)); });
       // ---- PDF of a plot: the plot is taken as a picture (as it looks now, including the view you turned it to) and written into a PDF file ----
       (function() {
         function bytesOf(u) { var b = atob(u.split(',')[1]), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
@@ -7439,13 +7441,16 @@ ui <- shinyUI(fluidPage(
               HTML("<svg class=\'pp-open\' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M9.5 2.5h4v4M13.5 2.5l-4.5 4.5M6.5 13.5h-4v-4M2.5 13.5l4.5-4.5'/></svg><svg class=\'pp-close\' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M13 6.5H9.5V3M9.5 6.5 14 2M3 9.5h3.5V13M6.5 9.5 2 14'/></svg>")
             ),
             tags$button(id = "polytope_plot_pdf", type = "button", class = "fairy-plot-pdf", title = "Save this plot as a PDF", `data-plot` = "plot", `data-name` = "polytope", "PDF"),
+            downloadButton("download_polytope_pdf", "PDF", icon = NULL, class = "fairy-plot-pdf-dl", title = "Save this plot as a PDF (vector graphic: sharp at any size)"),
             plotlyOutput("plot", width = "100%", height = "calc(100vh - 120px)"),   # follows the height of the window (min-height in the style below)
             align = "center"
           )
         )),
         tags$style(HTML("
           #plot { min-height: 480px; }
-          #polytope_plot_wrap.fairy-plot-full .fairy-plot-pdf { bottom:48px; right:44px; }
+          #polytope_plot_wrap.fairy-plot-full .fairy-plot-pdf, #polytope_plot_wrap.fairy-plot-full .fairy-plot-pdf-dl { bottom:48px; right:44px; }
+          #polytope_plot_wrap.fairy-poly-vec #polytope_plot_pdf { display:none; }
+          #polytope_plot_wrap:not(.fairy-poly-vec) .fairy-plot-pdf-dl { display:none; }
           #polytope_plot_expand { position:absolute; bottom:8px; right:8px; z-index:2100; width:28px; height:28px; padding:0; display:flex; align-items:center; justify-content:center;
             border:0; border-radius:6px; background:transparent; color:var(--fairy-text-muted, #667085); cursor:pointer; }
           #polytope_plot_expand .pp-close { display:none; }
@@ -8275,6 +8280,16 @@ server <- shinyServer(function(input, output, session) {
   }
   # models whose V-representation was skipped by hand (their V switch is off): they stay in the run window as skipped, with Retry
   v_skipped_mem <- reactiveVal(character(0))
+  poly_state <- reactiveVal(NULL)   # the last 3D polytope plot (traces, axis names, colours) for its vector PDF
+  output$download_polytope_pdf <- downloadHandler(
+    filename = function() paste0("polytope_", Sys.Date(), ".pdf"),
+    content = function(file) {
+      st <- isolate(poly_state())
+      req(!is.null(st))
+      polytope_pdf(file, st$p, st$dims, isolate(input$plot_camera), st$cols)
+    }
+  )
+  outputOptions(output, "download_polytope_pdf", suspendWhenHidden = FALSE)
   # the banner above the V-representation: which models were skipped by hand (same look as in the other calculations)
   output$v_skipped_note <- renderUI({
     sk <- v_skipped_mem()
@@ -13669,6 +13684,108 @@ server <- shinyServer(function(input, output, session) {
     rgbv <- tryCatch(grDevices::col2rgb(col), error = function(e) matrix(c(80, 80, 80), ncol = 1))
     grDevices::rgb(t(rgbv * f), maxColorValue = 255)
   }
+  # The 3D polytope plot as a vector graphic (PDF): the traces of the plot (faces, edges, vertices) are projected with the camera
+  # the plot is turned to and drawn with base graphics, so the lines and text stay sharp at any size.
+  polytope_pdf <- function(file, p, dim_names, camera = NULL, cols = list()) {
+    tr <- plotly::plotly_build(p)$x$data
+    cam <- camera %||% list(eye = list(x = 1.55, y = 1.55, z = 1.55))
+    vec3 <- function(l, d) if (is.null(l)) d else c(l$x, l$y, l$z)
+    eye <- vec3(cam$eye, c(1.55, 1.55, 1.55)); ctr <- vec3(cam$center, c(0, 0, 0)); upv <- vec3(cam$up, c(0, 0, 1))
+    unit <- function(v) v / sqrt(sum(v^2))
+    cross <- function(a, b) c(a[2] * b[3] - a[3] * b[2], a[3] * b[1] - a[1] * b[3], a[1] * b[2] - a[2] * b[1])
+    fw <- unit(ctr - eye); rt <- unit(cross(fw, upv)); uu <- cross(rt, fw)
+    proj <- function(m) {                                   # data in [0, 1]^3 -> screen x, y and depth
+      d <- sweep(m - 0.5, 2, eye, "-")
+      dep <- as.vector(d %*% fw)
+      cbind(as.vector(d %*% rt) / dep, as.vector(d %*% uu) / dep, dep)
+    }
+    num <- function(x) suppressWarnings(as.numeric(unlist(x)))
+    # the box of the plot
+    corners <- as.matrix(expand.grid(x = 0:1, y = 0:1, z = 0:1))
+    cube_edges <- NULL
+    for (a in 1:7) for (b in (a + 1):8) if (sum(corners[a, ] != corners[b, ]) == 1) cube_edges <- rbind(cube_edges, c(a, b))
+    # faces, edges, vertices of the traces
+    tris <- list(); segs <- list(); pts <- list(); legend_rows <- list()
+    # the colour of a polytope: the model colour (for an overlap the colour of its markers)
+    marker_col <- list()
+    for (t in tr) if (identical(t$type, "scatter3d") && grepl("markers", as.character(t$mode)[1]) && !is.null(t$marker$color) && is.null(marker_col[[as.character(t$name)]]))
+      marker_col[[as.character(t$name)]] <- as.character(t$marker$color)[1]
+    for (t in tr) {
+      xyz <- cbind(num(t$x), num(t$y), num(t$z))
+      if (nrow(xyz) == 0) next
+      if (identical(t$type, "mesh3d") && !is.null(t$i)) {
+        idx <- cbind(num(t$i), num(t$j), num(t$k)) + 1
+        P <- proj(xyz)
+        col <- cols[[as.character(t$name)]] %||% marker_col[[as.character(t$name)]] %||% "#999999"
+        al <- if (!is.null(t$opacity)) num(t$opacity)[1] else 0.3
+        for (r in seq_len(nrow(idx))) {
+          v <- idx[r, ]
+          tris[[length(tris) + 1]] <- list(x = P[v, 1], y = P[v, 2], depth = mean(P[v, 3]), col = col, alpha = al)
+        }
+      } else if (identical(t$type, "scatter3d")) {
+        P <- proj(xyz)
+        mode <- as.character(t$mode)[1]
+        if (grepl("lines", mode)) {
+          segs[[length(segs) + 1]] <- list(P = P, col = if (!is.null(t$line$color)) as.character(t$line$color)[1] else "#444444",
+                                           lwd = if (!is.null(t$line$width)) num(t$line$width)[1] else 3)
+        }
+        if (grepl("markers", mode)) {
+          mc <- if (!is.null(t$marker$color)) as.character(t$marker$color)[1] else "#444444"
+          pts[[length(pts) + 1]] <- list(P = P, col = mc, size = if (!is.null(t$marker$size)) num(t$marker$size)[1] else 5)
+          if (!isFALSE(t$showlegend) && !is.null(t$name)) legend_rows[[as.character(t$name)]] <- cols[[as.character(t$name)]] %||% mc
+        }
+      }
+    }
+    # the drawing area: everything that is drawn, plus room for the axis labels
+    xr <- range(proj(corners)[, 1]); yr <- range(proj(corners)[, 2]); pad <- 0.12 * max(diff(xr), diff(yr))
+    grDevices::pdf(file, width = 8, height = 7.2)
+    on.exit(grDevices::dev.off(), add = TRUE)
+    graphics::par(mar = c(0, 0, 0, 0), family = "sans")
+    graphics::plot.new()
+    cx <- mean(xr); cy <- mean(yr); half <- max(diff(xr), diff(yr)) / 2 + pad
+    graphics::plot.window(xlim = c(cx - half * 1.25, cx + half * 1.25), ylim = c(cy - half, cy + half), asp = 1)
+    # the box: the edges that lie in the back are fainter
+    Pc <- proj(corners); dmid <- mean(Pc[, 3])
+    for (e in seq_len(nrow(cube_edges))) {
+      a <- cube_edges[e, 1]; b <- cube_edges[e, 2]
+      back <- mean(Pc[c(a, b), 3]) > dmid
+      graphics::segments(Pc[a, 1], Pc[a, 2], Pc[b, 1], Pc[b, 2], col = if (back) "#e3e6ee" else "#b8bfcc", lwd = 0.8)
+    }
+    # faces from the back to the front (the colours of overlapping polytopes blend)
+    if (length(tris) > 0) {
+      ord <- order(vapply(tris, function(z) z$depth, numeric(1)), decreasing = TRUE)
+      for (z in tris[ord]) graphics::polygon(z$x, z$y, col = grDevices::adjustcolor(z$col, alpha.f = z$alpha), border = NA)
+    }
+    for (s in segs) {
+      P <- s$P; na <- which(!is.finite(P[, 1]) | !is.finite(P[, 2])); br <- c(0, na, nrow(P) + 1)
+      for (q in seq_len(length(br) - 1)) {
+        ii <- seq.int(br[q] + 1, br[q + 1] - 1)
+        if (length(ii) >= 2) graphics::lines(P[ii, 1], P[ii, 2], col = s$col, lwd = s$lwd * 0.35)
+      }
+    }
+    for (s in pts) {
+      ok <- is.finite(s$P[, 1])
+      graphics::points(s$P[ok, 1], s$P[ok, 2], pch = 21, bg = s$col, col = "white", cex = s$size / 6, lwd = 0.5)
+    }
+    # axes through the corner (0, 0, 0): ticks, numbers and titles
+    lab <- function(x) tryCatch(parse(text = gsub("_[{]([^}]*)[}]", "[\\1]", x))[[1]], error = function(e) x)
+    o <- proj(matrix(c(0, 0, 0), 1)); ctr2 <- proj(matrix(c(0.5, 0.5, 0.5), 1))
+    for (ax in 1:3) {
+      dirv <- c(0, 0, 0); dirv[ax] <- 1
+      for (tv in seq(0, 1, by = 0.2)) {
+        pos <- dirv * tv
+        pp <- proj(matrix(pos, 1))
+        away <- c(pp[1] - ctr2[1], pp[2] - ctr2[2]); away <- away / max(sqrt(sum(away^2)), 1e-9)
+        graphics::text(pp[1] + 0.045 * half * away[1], pp[2] + 0.045 * half * away[2], format(tv), cex = 0.7, col = "#667085")
+      }
+      pe <- proj(matrix(dirv * 1.18, 1)); pe0 <- proj(matrix(dirv * 0.5, 1))
+      graphics::text(pe[1], pe[2], lab(dim_names[ax]), cex = 0.95, col = "#1f2430")
+    }
+    # legend
+    if (length(legend_rows) > 0)
+      graphics::legend("topright", inset = c(0.01, 0.01), legend = names(legend_rows), pch = 21, pt.bg = unlist(legend_rows), col = "white", pt.cex = 1.1, bty = "n", cex = 0.85)
+    invisible(file)
+  }
   add_model_trace <- function(p, matrix_pl, model_col, name_model,
                                mesh_opacity, mesh_opacity_hull) {
     trace1 <- list(
@@ -13894,6 +14011,7 @@ server <- shinyServer(function(input, output, session) {
 
 
     output$plot <- renderPlotly({
+      session$sendCustomMessage("fairy_poly_vec", list(on = FALSE))   # only the 3D plot has the vector PDF
       all_v_rep_in_list <- pl_obj
 
       # name_model_plot is a multi-select picker now (see its own comment
@@ -14007,6 +14125,7 @@ server <- shinyServer(function(input, output, session) {
 
       runjs("$('#dim_pick_heading').show(); $('#dim_1, #dim_2, #dim_3').closest('.form-group').show(); $('#auto_rotate_plot').closest('.row').show();")
       if (length(select_models_to_plot) > 0) {
+        plot_cols <- list()
         for (loop_pl in 1:length(select_models_to_plot)) {
           all_plot_actual <- matrix_pl_all[matrix_pl_all[, 1] == select_models_to_plot[loop_pl], 2:ncol(matrix_pl_all)]
 
@@ -14024,6 +14143,7 @@ server <- shinyServer(function(input, output, session) {
             "#0072B2", "#F0E442", "#000000", "#999999"
           )
           model_col <- model_pal[((loop_pl - 1) %% length(model_pal)) + 1]
+          plot_cols[[name_model]] <- model_col
           # Single convex mesh (cube case) can take a moderate opacity; the
           # hull case below stacks THREE meshes (delaunay x/y/z), so it needs a
           # much lower per-mesh opacity to avoid a muddy near-opaque result.
@@ -14095,7 +14215,7 @@ server <- shinyServer(function(input, output, session) {
         overlap_note <- NULL
         p <- add_overlap_traces(p, select_models_to_plot, select_plot, dim_names)
 
-        p %>% layout(
+        p_out <- p %>% layout(
           annotations = if (!is.null(overlap_note)) {
             list(list(
               text = overlap_note, showarrow = FALSE,
@@ -14122,6 +14242,9 @@ server <- shinyServer(function(input, output, session) {
           legend = list(x = 0.99, y = 0.99, xanchor = "right", yanchor = "top", bgcolor = "rgba(255,255,255,0.6)"),
           margin = list(t = 30, b = 50)
         )
+        poly_state(list(p = p_out, dims = dim_names, cols = plot_cols))   # for the vector PDF
+        session$sendCustomMessage("fairy_poly_vec", list(on = TRUE))
+        p_out
       } else {
         # No models selected (e.g. after clicking "-" to clear the list).
         # A NULL return here would leave the previous plot's stale widget on
