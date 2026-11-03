@@ -9942,7 +9942,7 @@ server <- shinyServer(function(input, output, session) {
             function nm(i) { return i >= nProb ? vN[i - nProb] : chipRowName(i); }
             function spec(i) {
               var si = i >= nProb ? vS[i - nProb] : i, vt = i >= nProb;
-              if (two) { var k = chipState.asg[si], st = chipState.sets[k - 1]; return { name: nm(i), virt: vt, n: st.n, list: k, color: chipColor(k - 1), type: st.over || gType, tag: vt ? '' : ' - ' + listTitle(k - 1) }; }
+              if (two) { var k = chipState.asg[si], st = chipState.sets[k - 1]; return { name: nm(i), virt: vt, n: st.n, list: k, color: chipColor(k - 1), type: st.over || gType, tag: vt ? '' : ' - ' + listTitle(k - 1), hub: vt && (vM[i - nProb] || []).some(function(pm) { return chipState.asg[pm] !== k; }) }; }
               return { name: nm(i), virt: vt, n: n0, list: 1, color: null, type: gType, tag: '' };
             }
             var sumConstOf = {};
@@ -10066,7 +10066,7 @@ server <- shinyServer(function(input, output, session) {
               return (first || negW ? '' : '+ ') + wtxt + nmTxt + constTxt(idxs[i]);
             });
             var MAXC = 3, dx = 58, x0 = Math.max(96, Math.round(18 + 7 * Math.max.apply(null, labs.map(function(l) { return l.length; })))) + (R.some(function(r) { return r.type === 'average'; }) ? 12 : 0), rowGap = R.length > 6 ? Math.max(30, Math.round(300 / R.length)) : 46, ys = R.map(function(r, i) { return 46 + i * rowGap; }), H = ys[ys.length - 1] + 34;
-            var cnt = R.map(function(r) { return Math.min(r.n, MAXC); });
+            var cnt = R.map(function(r) { return r.hub ? 1 : Math.min(r.n, MAXC); });   // a sum of parts from different lists is one node: every item of one part with every item of the others
             var cols = Math.max.apply(null, cnt), more = R.some(function(r) { return r.n > MAXC; });
             var hasAvg = R.some(function(r) { return r.type === 'average'; });
             var nonAdj = pdisp.some(function(pp) { return Math.abs(pp[0] - pp[1]) > 1; });
@@ -10136,6 +10136,16 @@ server <- shinyServer(function(input, output, session) {
               if (pp[3] && !anchor[q].grid && !anchor[q2].grid) {
                 // average mode: the averages of the parts join straight into the average of the sum
                 el('line', { x1: anchor[q].x, y1: y0 + 8, x2: anchor[q2].x, y2: y1 - 8, stroke: 'currentColor', opacity: '0.35', 'stroke-width': '1.6' }, g);
+                return;
+              }
+              if (pp[3] && anchor[q].grid && anchor[q2].grid && (r1.hub || r0.hub)) {
+                // a sum of probabilities from different lists: every item of every part is added to every item of the others, so all
+                // items of the part join the one node of the sum (thin lines, the same holds for each combination)
+                var xc = (X(0) + X(cols - 1)) / 2, partR = r1.virt ? r0 : r1, cP = r1.virt ? c0 : c1, yP = r1.virt ? y0 : y1, yS = r1.virt ? y1 : y0;
+                for (k = 0; k < cP; k++) {
+                  var sgn = yS > yP ? 1 : -1;
+                  el('path', { d: 'M' + X(k) + ' ' + (yP + sgn * 8) + ' C ' + X(k) + ' ' + (yP + sgn * 38) + ' ' + xc + ' ' + (yS - sgn * 38) + ' ' + xc + ' ' + (yS - sgn * 8), stroke: 'currentColor', opacity: '0.35', 'stroke-width': '1.3' }, g);
+                }
                 return;
               }
               if (pp[3] && anchor[q].grid && anchor[q2].grid) {
@@ -10251,6 +10261,7 @@ server <- shinyServer(function(input, output, session) {
             });
             var gd = el('g', {}, svg);
             R.forEach(function(r, i) {
+              if (r.hub) { var hxc = (X(0) + X(cols - 1)) / 2; el('rect', { x: hxc - 6.5, y: ys[i] - 6.5, width: 13, height: 13, rx: 3, fill: 'var(--ct-default, #fff)', stroke: r.color || 'currentColor', 'stroke-width': '2' }, gd); return; }
               if (r.virt && r.type === 'substitutable' && cnt[i] > 0) {
                 el('rect', { x: X(0) - 9, y: ys[i] - 6.5, width: X(cnt[i] - 1) - X(0) + 18, height: 13, rx: 6.5, fill: 'var(--ct-default, #fff)', stroke: r.color || 'currentColor', 'stroke-width': '2' }, gd);
                 return;
@@ -10360,6 +10371,7 @@ server <- shinyServer(function(input, output, session) {
               var SQ = String.fromCharCode(9633), AP = String.fromCharCode(8776);
               var entries = [[C9, 'one item', null], [String.fromCharCode(8594), 'points to the smaller one', BL]];
               if (vN.length) entries.push([SQ, 'sum (grey lines: its parts)', null]);
+              if (R.some(function(r) { return r.hub; })) entries.push([null, 'one square for a sum of parts from different lists: every item of one part is added to every item of the others', null]);
               if (hasAvg) entries.push([String.fromCharCode(9675), 'average over the items', BL]);
               if (hasTol) entries.push(['=', 'items equal (' + AP + ': roughly)', null]);
               if (pdisp.some(function(q) { return q[5] && !q[6]; })) entries.push(['=', 'probabilities equal (line without arrow)', BL]);
