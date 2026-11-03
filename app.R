@@ -10199,7 +10199,7 @@ server <- shinyServer(function(input, output, session) {
                 var bulge = Math.min(12 + 4 * (q2 - q - 1), 24);
                 for (k = 0; k < Math.min(c0, c1); k++) {
                   var bx = X(k) + 6, bxe = X(k) + bulge;
-                  el('path', { d: 'M' + bx + ' ' + y0 + ' C ' + bxe + ' ' + y0 + ' ' + bxe + ' ' + y1 + ' ' + bx + ' ' + y1, 'stroke-dasharray': '4 3' }, g);
+                  el('path', { d: 'M' + bx + ' ' + y0 + ' C ' + bxe + ' ' + y0 + ' ' + bxe + ' ' + y1 + ' ' + bx + ' ' + y1 }, g);   // solid: a dashed line marks a subtracted part only
                   sign(X(k) + bulge - 2, (y0 + y1) / 2, ch);
                 }
               } else if (q2 - q > 1) {
@@ -10210,7 +10210,7 @@ server <- shinyServer(function(input, output, session) {
                 var ym = (y0 + y1) / 2, st0 = [], st1 = [];
                 if (r0.type === 'average') st0.push(avgX + 8); else for (k = 0; k < c0; k++) st0.push(X(k) + 7);
                 if (r1.type === 'average') st1.push(avgX + 8); else for (k = 0; k < c1; k++) st1.push(X(k) + 7);
-                var thin = st0.length * st1.length > 1, ga = { 'stroke-dasharray': '4 3' };
+                var thin = st0.length * st1.length > 1, ga = {};
                 if (thin) { ga.opacity = '0.6'; ga['stroke-width'] = '1.3'; }
                 // the curves of one row leave on their own lane (the left dots rise higher), so they no longer run on top of each other through the other dots
                 st0.forEach(function(sx, ix) { var dy = -(st0.length - 1 - ix) * 22; var a0 = Object.assign({ d: 'M' + sx + ' ' + y0 + ' C ' + (sx + 25) + ' ' + (y0 + dy) + ' ' + xr + ' ' + (y0 + dy * 0.3) + ' ' + xr + ' ' + ym }, ga); if (thin) { a0.opacity = ix === 0 ? '0.9' : '0.32'; a0['stroke-width'] = ix === 0 ? '1.6' : '1'; } el('path', a0, g); });
@@ -10409,7 +10409,7 @@ server <- shinyServer(function(input, output, session) {
               if (hasTol) entries.push(['=', 'items equal (' + AP + ': roughly)', null]);
               if (pdisp.some(function(q) { return q[5] && !q[6]; })) entries.push(['=', 'probabilities equal (line without arrow)', BL]);
               if (pdisp.some(function(q) { return q[5] && q[6]; })) entries.push([AP, 'probabilities roughly equal (line without arrow)', BL]);
-              if (hasDash || hasFade) entries.push([null, 'dashed or faded: the same for the other items', null]);
+              if (hasFade) entries.push([null, 'faded: the same for the other items', null]);
               if (hubDrawn) entries.push([C9, 'lines meet here: every item above is compared with every item below', BL]);
               if (wLab || cLab) entries.push([null, 'labels: ' + (wLab ? 'weight (2' + String.fromCharCode(215) + ' p2)' : '') + (wLab && cLab ? ', ' : '') + (cLab ? 'compared with a number (p5 < 0.1)' : ''), null]);
               if ((window.fairyItemsOthers || []).length) entries.push([null, 'not drawn, but valid for every item: ' + window.fairyItemsOthers.join('; '), null]);
