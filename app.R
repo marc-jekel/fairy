@@ -10074,7 +10074,7 @@ server <- shinyServer(function(input, output, session) {
             var NS = 'http://www.w3.org/2000/svg';
             function el(tag, attrs, parent) {
               var e = document.createElementNS(NS, tag);
-              Object.keys(attrs || {}).forEach(function(k) { e.setAttribute(k, attrs[k]); });
+              Object.keys(attrs || {}).forEach(function(k) { if (attrs[k] !== null) e.setAttribute(k, attrs[k]); });
               if (parent) parent.appendChild(e);
               return e;
             }
@@ -10144,7 +10144,7 @@ server <- shinyServer(function(input, output, session) {
                 var xc = (X(0) + X(cols - 1)) / 2, partR = r1.virt ? r0 : r1, cP = r1.virt ? c0 : c1, yP = r1.virt ? y0 : y1, yS = r1.virt ? y1 : y0;
                 for (k = 0; k < cP; k++) {
                   var sgn = yS > yP ? 1 : -1;
-                  el('path', { d: 'M' + X(k) + ' ' + (yP + sgn * 8) + ' C ' + X(k) + ' ' + (yP + sgn * 38) + ' ' + xc + ' ' + (yS - sgn * 38) + ' ' + xc + ' ' + (yS - sgn * 8), stroke: 'currentColor', opacity: '0.35', 'stroke-width': '1.3' }, g);
+                  el('path', { d: 'M' + X(k) + ' ' + (yP + sgn * 8) + ' C ' + X(k) + ' ' + (yP + sgn * 38) + ' ' + xc + ' ' + (yS - sgn * 38) + ' ' + xc + ' ' + (yS - sgn * 8), stroke: 'currentColor', opacity: '0.35', 'stroke-width': '1.3', 'stroke-dasharray': pp[2] === String.fromCharCode(8722) ? '4 3' : null, 'data-minus': pp[2] === String.fromCharCode(8722) ? '1' : null }, g);
                 }
                 return;
               }
@@ -10155,9 +10155,9 @@ server <- shinyServer(function(input, output, session) {
                     // a part that is not right above the sum: its line goes around the rows in between and joins the sum itself
                     // (a straight line through the dots of other rows would read as a chain p1 -> p4 -> sum)
                     var bw = 13 + 3 * (q2 - q - 1);
-                    el('path', { d: 'M' + X(k) + ' ' + (y0 + 8) + ' C ' + (X(k) - bw) + ' ' + (y0 + 40) + ' ' + (X(k) - bw) + ' ' + (y1 - 40) + ' ' + X(k) + ' ' + (y1 - 8), stroke: 'currentColor', opacity: '0.35', 'stroke-width': '1.6' }, g);
+                    el('path', { d: 'M' + X(k) + ' ' + (y0 + 8) + ' C ' + (X(k) - bw) + ' ' + (y0 + 40) + ' ' + (X(k) - bw) + ' ' + (y1 - 40) + ' ' + X(k) + ' ' + (y1 - 8), stroke: 'currentColor', opacity: '0.35', 'stroke-width': '1.6', 'stroke-dasharray': pp[2] === String.fromCharCode(8722) ? '4 3' : null, 'data-minus': pp[2] === String.fromCharCode(8722) ? '1' : null }, g);
                   } else {
-                    el('line', { x1: X(k), y1: y0 + 8, x2: X(k), y2: y1 - 8, stroke: 'currentColor', opacity: '0.35', 'stroke-width': '1.6' }, g);
+                    el('line', { x1: X(k), y1: y0 + 8, x2: X(k), y2: y1 - 8, stroke: 'currentColor', opacity: '0.35', 'stroke-width': '1.6', 'stroke-dasharray': pp[2] === String.fromCharCode(8722) ? '4 3' : null, 'data-minus': pp[2] === String.fromCharCode(8722) ? '1' : null }, g);
                   }
                 }
                 return;
@@ -10365,12 +10365,13 @@ server <- shinyServer(function(input, output, session) {
             var legEl = document.getElementById('fairy_items_legend');
             if (legEl) {
               var C9 = String.fromCharCode(9679), UP = String.fromCharCode(8593), MD = String.fromCharCode(183), NB = String.fromCharCode(160);
-              var hasDash = !!svg.querySelector('path[stroke-dasharray]'), hasFade = Array.prototype.some.call(svg.querySelectorAll('line, path'), function(nd) { return nd.getAttribute('opacity') === '0.2'; }), hasTol = R.some(function(r) { return r.type === 'identical' && cnt[R.indexOf(r)] > 1; });
+              var hasDash = !!svg.querySelector('path[stroke-dasharray]:not([data-minus])'), hasFade = Array.prototype.some.call(svg.querySelectorAll('line, path'), function(nd) { return nd.getAttribute('opacity') === '0.2'; }), hasTol = R.some(function(r) { return r.type === 'identical' && cnt[R.indexOf(r)] > 1; });
               var wLab = labs.some(function(l) { return l.indexOf(String.fromCharCode(215)) >= 0; });
               var cLab = !!(realPairs && (window.fairyItemsConsts || []).length);
               var SQ = String.fromCharCode(9633), AP = String.fromCharCode(8776);
               var entries = [[C9, 'one item', null], [String.fromCharCode(8594), 'points to the smaller one', BL]];
               if (vN.length) entries.push([SQ, 'sum (grey lines: its parts)', null]);
+              if (svg.querySelector('[data-minus]')) entries.push([null, 'dashed grey line: this part is subtracted', null]);
               if (R.some(function(r) { return r.hub; })) entries.push([null, 'one square for a sum of parts from different lists: every item of one part is added to every item of the others', null]);
               if (hasAvg) entries.push([String.fromCharCode(9675), 'average over the items', BL]);
               if (hasTol) entries.push(['=', 'items equal (' + AP + ': roughly)', null]);
@@ -15788,6 +15789,19 @@ server <- shinyServer(function(input, output, session) {
         precheck_msgs <- c(precheck_msgs, paste0("<b>", htmltools::htmlEscape(label_chk), "</b>: a probability needs a number, write p1, p2, p3, \u2026 instead of just p."))
       }
       # a probability that does not exist (p20 with six probabilities) cannot be calculated: say which one
+      # a model is a set of linear constraints: 1/p1, p1*p2, p1^2 or functions of probabilities cannot be calculated
+      nonlinear_clause <- function(cl) {
+        dens <- regmatches(cl, gregexpr("/\\s*(\\([^)]*\\)|[A-Za-z0-9_.]+)", cl))[[1]]
+        prods <- regmatches(cl, gregexpr("p[0-9]+\\s*[*]\\s*(p[0-9]+|\\()|\\)\\s*[*]\\s*(p[0-9]+|\\()|[*]\\s*\\([^)]*p[0-9]", cl))[[1]]
+        pows <- regmatches(cl, gregexpr("[A-Za-z0-9_.)]+\\s*\\^\\s*[A-Za-z0-9_.(]+", cl))[[1]]
+        funs <- regmatches(cl, gregexpr("(sqrt|log|exp|abs|sin|cos|tan|min|max)\\s*\\([^)]*\\)", cl, ignore.case = TRUE))[[1]]
+        length(c(dens[grepl("p[0-9]+", dens)], prods, pows[grepl("p[0-9]+", pows)], funs[grepl("p[0-9]+", funs)])) > 0
+      }
+      nl_cl <- Filter(nonlinear_clause, trimws(strsplit(spec_chk, "[;\n]")[[1]]))
+      if (length(nl_cl) > 0) {
+        precheck_msgs <- c(precheck_msgs, paste0("<b>", htmltools::htmlEscape(label_chk), "</b>: <code>", htmltools::htmlEscape(nl_cl[1]),
+          "</code> is not linear. A model can only use sums and differences of probabilities, with weights and numbers, for example <code>2*p1 + p2 &ge; .5</code> or <code>p1 &ge; p2 + .1</code>."))
+      }
       pn_chk <- regmatches(spec_chk, gregexpr("(?<![A-Za-z0-9_{\\\\])p[0-9]+(?![0-9A-Za-z_{])", spec_chk, perl = TRUE))[[1]]
       pn_num <- suppressWarnings(as.integer(sub("^p", "", pn_chk)))
       pn_bad <- unique(pn_chk[!is.na(pn_num) & (pn_num < 1L | pn_num > counter$n)])
