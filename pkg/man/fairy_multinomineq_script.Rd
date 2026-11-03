@@ -22,7 +22,7 @@ fairy_multinomineq_script(
 (the defaults of multinomineq: \code{10} and \code{5}).}
 
 \item{prior}{The two numbers \code{a} and \code{b} of the Beta prior of every probability.
-Default \code{c(1, 1)}, the uniform prior; the Bayes factors depend on it.}
+Default \code{c(1, 1)}, the uniform prior.}
 
 \item{seed}{Seed that makes a run repeatable. Default \code{1234}.}
 }
