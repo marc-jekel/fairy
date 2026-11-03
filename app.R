@@ -9215,7 +9215,7 @@ server <- shinyServer(function(input, output, session) {
       ops <- regmatches(cl, gregexpr("<=|>=|<|>|=", cl))[[1]]
       opd <- gsub("\\s+", "", trimws(strsplit(cl, "<=|>=|<|>|=")[[1]]))
       if (!any(vapply(opd, has_comb, logical(1)))) next
-      pretty <- function(op) switch(op, "<=" = "\u2264", ">=" = "\u2265", op)
+      pretty <- function(op) switch(op, "<=" = "\u2264", "<" = "\u2264", ">=" = "\u2265", ">" = "\u2265", op)   # weak inequalities (closed polytopes)
       if (length(ops) == 1 && length(opd) == 2) {
         a <- opd[1]; b <- opd[2]; op <- ops[1]
         if (!is_comb(a) && is_comb(b) && !is.na(num_of(a))) { tmp <- a; a <- b; b <- tmp; op <- unname(flip[op]) }
@@ -9233,7 +9233,8 @@ server <- shinyServer(function(input, output, session) {
       }
       txt <- gsub("\\s+", "", cl)
       for (o in c("<=", ">=")) txt <- gsub(o, paste0(" ", pretty(o), " "), txt, fixed = TRUE)
-      txt <- gsub("(?<![\u2264\u2265 ])([<>=])(?! )", " \\1 ", txt, perl = TRUE)
+      txt <- gsub("<", " \u2264 ", txt, fixed = TRUE); txt <- gsub(">", " \u2265 ", txt, fixed = TRUE)
+      txt <- gsub("(?<![\u2264\u2265 ])(=)(?! )", " \\1 ", txt, perl = TRUE)
       txt <- gsub("\\+", " + ", txt); txt <- gsub("(?<=[0-9p])-", " - ", txt, perl = TRUE)
       others <- c(others, txt)
     }
@@ -9969,7 +9970,7 @@ server <- shinyServer(function(input, output, session) {
                 tmpP.push([ends[0], ends[1], p[2] || '', '', p[7] || '', !!p[8], !!p[9]]);
               });
               // a sum compared with a number (p1 + p5 > .2): a row of its own, the parts join into it, the comparison stands in its label
-              var symOp = function(o) { return o === '<=' ? String.fromCharCode(8804) : (o === '>=' ? String.fromCharCode(8805) : o); };   // strict stays strict: < and > are not turned into the signs with an equals part
+              var symOp = function(o) { return (o === '<=' || o === '<') ? String.fromCharCode(8804) : ((o === '>=' || o === '>') ? String.fromCharCode(8805) : o); };   // weak inequalities: the polytopes are closed, < and > are calculated as <= and >=
               (window.fairyItemsSums || []).forEach(function(sc) {
                 var sd = [].concat(sc.parts || []).map(Number), MINUS = String.fromCharCode(8722);
                 if (sd.length < 2 || !sd.every(function(v) { return v < nProb; })) return;
@@ -10039,7 +10040,7 @@ server <- shinyServer(function(input, output, session) {
             var partOf = {};
             vM.forEach(function(ms, vi) { ms.forEach(function(mm, kk) { if (partOf[mm] === undefined) partOf[mm] = { v: vi, w: vW[vi][kk] }; else partOf[mm].amb = true; }); });
             // a comparison of one probability with a number (p5 < .2) goes into the label of its row, where nothing else is drawn
-            var opSym = function(o) { return o === '<=' ? String.fromCharCode(8804) : (o === '>=' ? String.fromCharCode(8805) : o); };   // strict stays strict: < and > are not turned into the signs with an equals part
+            var opSym = function(o) { return (o === '<=' || o === '<') ? String.fromCharCode(8804) : ((o === '>=' || o === '>') ? String.fromCharCode(8805) : o); };   // weak inequalities: the polytopes are closed, < and > are calculated as <= and >=
             var constTxt = function(pi) {
               var c = realPairs ? (window.fairyItemsConsts || []).filter(function(cc) { return cc[0] === pi; }) : [];
               return c.length ? '  ' + c.map(function(cc) { return opSym(cc[1]) + ' ' + cc[2]; }).join(', ') : '';
