@@ -12867,6 +12867,11 @@ server <- shinyServer(function(input, output, session) {
                 ))
               }
               model_name <- input[[paste0("textin_relations_name", ii)]] %||% paste0("m", ii)
+              # while the name is empty for a moment (being retyped) the button keeps showing the choice of the old name
+              if (!nzchar(trimws(model_name))) {
+                old_nm <- rename_state$names[ii]
+                model_name <- if (length(old_nm) == 1 && !is.na(old_nm) && nzchar(old_nm)) old_nm else model_name
+              }
               vtab <- mytable_v_reactive$value
               active <- !is.null(vtab) && nrow(vtab) > 0 &&
                 model_name %in% vtab[[1]][vtab[[2]] == TRUE]
