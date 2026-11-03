@@ -19444,7 +19444,7 @@ server <- shinyServer(function(input, output, session) {
       tags$div(class = "mn-data-modal",
       tags$p(class = "mn-lead", tags$b("n"), " = number of observations, ", tags$b("frequency"),
         " = how often the outcome happened (out of n). The settings of the sampling are in the Run window."),
-      if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Each unpacked model has its own tab, because its probabilities can rest on different observations (for example different jokes or samples). If a model has exactly the same n and frequency as the other models, tick 'Use the same numbers as the other models' in its tab: they are copied row by row."),
+      if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Each unpacked model has its own tab, because its probabilities can rest on different observations (for example different jokes or samples). If a model has the same number of probabilities and each one rests on the same observations as in the other models, tick 'Use the same numbers as the other models' in its tab: n and frequency are then copied row by row."),
       tags$div(style = "max-height:46vh; overflow-y:auto;", body)),
       footer = tags$div(class = "mn-foot", style = "display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; align-items:center; width:100%;",
         tags$div(style = "display:flex; gap:8px;",
