@@ -1692,6 +1692,11 @@ ui <- shinyUI(fluidPage(
       #fairy-run-note { font-size: 13px; color: #b05000; margin-top: 10px; }
       #fairy-run-note:empty { display: none; }
       #fairy-run-actions { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
+      /* the note about what was skipped earlier: a banner with a Retry button, it pulses three times when the run window closes */
+      .fairy-skipnote { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: rgba(245,158,11,.16); border-left: 4px solid #f59e0b; border-radius: 4px; padding: 8px 12px; font-size: 13px; margin: 6px 0 10px 0; }
+      .fairy-skipnote a.action-button { margin-left: auto; padding: 3px 14px; border: 1.5px solid var(--fairy-primary, #3a6df0); border-radius: 8px; font-weight: 600; text-decoration: none; color: var(--fairy-primary, #3a6df0); }
+      .fairy-skipnote a.action-button:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 12%, transparent); }
+      .fairy-skipnote.blink { animation: fairy-run-nudge .9s ease-in-out 3; }
       #fairy-run-retryall { display: none; padding: 8px 22px; font-size: 14px; font-weight: 600; border: 1.5px solid var(--fairy-primary, #3a6df0); border-radius: 8px; background: transparent; color: var(--fairy-primary, #3a6df0); cursor: pointer; }
       #fairy-run-retryall.visible { display: inline-block; }
       #fairy-run-close {
@@ -4575,6 +4580,8 @@ ui <- shinyUI(fluidPage(
         function hide() {
           if (showTimer) { clearTimeout(showTimer); showTimer = null; }
           shown = false; $id('fairy-run-overlay').classList.remove('active');
+          // the note about skipped models (below the window) pulses, so it is not overlooked
+          [].forEach.call(document.querySelectorAll('.fairy-skipnote'), function(el) { el.classList.remove('blink'); void el.offsetWidth; el.classList.add('blink'); });
         }
         Shiny.addCustomMessageHandler('fairy_run_begin', function(msg) {
           rows = {}; $id('fairy-run-body').innerHTML = '';
@@ -17093,9 +17100,9 @@ server <- shinyServer(function(input, output, session) {
   output$ex_skipped_note <- renderUI({
     sk <- exact_skipped()
     if (length(sk) == 0 || identical(input$EX, FALSE)) return(NULL)
-    tags$div(class = "fairy-eq-tol-help", style = "margin:6px 0 10px 0;",
-      icon("circle-info"), " Skipped earlier: ", tags$b(paste(sk, collapse = ", ")),
-      " (no exact volume, the algorithm is used). ", actionLink("ex_forget", "Retry"))
+    tags$div(class = "fairy-skipnote",
+      icon("circle-info"), tags$span(" Skipped earlier: ", tags$b(paste(sk, collapse = ", ")),
+      " (no exact volume, the algorithm is used)."), actionLink("ex_forget", "Retry"))
   })
   observeEvent(input$ex_forget, {
     exact_skipped(character(0))
@@ -19394,9 +19401,9 @@ server <- shinyServer(function(input, output, session) {
     ch <- mn_model_choices()
     nm <- names(ch)[match(sk, unname(ch))]
     nm <- ifelse(is.na(nm), sk, nm)
-    tags$div(class = "fairy-eq-tol-help", style = "margin-bottom:8px;",
-      icon("circle-info"), " Skipped earlier: ", tags$b(paste(nm, collapse = ", ")),
-      " (not analysed). ", actionLink("mn_forget", "Retry all"))
+    tags$div(class = "fairy-skipnote",
+      icon("circle-info"), tags$span(" Skipped earlier: ", tags$b(paste(nm, collapse = ", ")),
+      " (not analysed)."), actionLink("mn_forget", "Retry all"))
   })
   observeEvent(input$mn_forget, { mn_skipped_mem(character(0)) })
   show_mn_run <- function() {
