@@ -11873,7 +11873,9 @@ server <- shinyServer(function(input, output, session) {
       if (is.null(x) || length(x) != 1 || !nzchar(x)) NA_character_ else as.character(x)
     }, character(1))
     prev <- rename_state$names
-    rename_state$names <- cur
+    # a name that is emptied for a moment (select, delete, type the new one) keeps counting as the old name: the rename is then recognised
+    # at the first letter that is typed, and what belongs to the model (V-representation on/off, ...) follows it
+    rename_state$names <- if (!is.null(prev) && length(prev) == length(cur)) ifelse(is.na(cur), prev, cur) else cur
     if (!is.null(prev) && length(prev) == length(cur)) {
       d <- which(!is.na(prev) & !is.na(cur) & prev != cur)
       if (length(d) == 1 && !(cur[d] %in% prev) && !(prev[d] %in% cur)) isolate(carry_over_rename(prev[d], cur[d]))
