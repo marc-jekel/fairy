@@ -4301,6 +4301,38 @@ ui <- shinyUI(fluidPage(
           }
           return segs;
         }
+        // Redundancy without a Go, for the simple case: comparisons of two single probabilities (p1 >= p2, chains).
+        // A clause is redundant when another route of such comparisons leads from the larger to the smaller probability
+        // (p1 >= p2 >= p3 makes p1 >= p3 redundant); a strict one only when the route contains a strict step. Everything else
+        // (sums, weights, numbers) is ignored here, which can only miss a redundancy, never invent one; those are marked
+        // after the Go, from the H-representation. Of two identical clauses the later one is marked.
+        function liveRedundant(clauses) {
+          var re = /^p(\\d+)(\\u2265|\\u2264|>=|<=|>|<)p(\\d+)$/, es = [];
+          clauses.forEach(function(c, ix) {
+            var m = c.replace(/\\s+/g, '').match(re);
+            if (!m || m[1] === m[3]) return;
+            var up = m[2] === '>' || m[2] === '>=' || m[2] === '\\u2265', strict = m[2] === '>' || m[2] === '<';
+            es.push({ ix: ix, from: +(up ? m[1] : m[3]), to: +(up ? m[3] : m[1]), strict: strict });
+          });
+          var out = clauses.map(function() { return null; });
+          es.forEach(function(e) {
+            var seen = {}, stack = [[e.from, false]], found = false;
+            seen[e.from + ':0'] = true;
+            while (stack.length && !found) {
+              var cur = stack.pop();
+              es.forEach(function(f) {
+                if (found || f === e || f.from !== cur[0]) return;
+                if (f.from === e.from && f.to === e.to && f.strict === e.strict && f.ix > e.ix) return;   // the first of two identical clauses stays
+                var st = cur[1] || f.strict;
+                if (f.to === e.to && (st || !e.strict)) { found = true; return; }
+                var k = f.to + ':' + (st ? 1 : 0);
+                if (!seen[k]) { seen[k] = true; stack.push([f.to, st]); }
+              });
+            }
+            if (found) out[e.ix] = '1';
+          });
+          return out;
+        }
         function escapeHtml(s) {
           return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
@@ -4343,12 +4375,13 @@ ui <- shinyUI(fluidPage(
               var flagsOut = clauses.map(function(_, idx) {
                 return redundantFlags ? redundantFlags[idx] : null;
               });
+              if (!redundantFlags) flagsOut = liveRedundant(clauses);   // no Go yet: the simple cases are found live
               if (redundantFlags && clauses.length !== redundantFlags.length) {
                 // Shouldn't happen (R and JS expand the same way from
                 // the same string) — ignore the (misaligned) flags
                 // rather than risk mis-highlighting; expansion (and the
                 // plain, unhighlighted display) still applies.
-                flagsOut = clauses.map(function() { return null; });
+                flagsOut = liveRedundant(clauses);
               }
               // Plain title attribute here, NOT the .fairy-tooltip::after
               // bubble used everywhere else in the app — this span lives
