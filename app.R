@@ -9990,7 +9990,6 @@ server <- shinyServer(function(input, output, session) {
             var tEl = document.querySelector('.fairy-items-quick-type:checked');
             var nEl = document.getElementById('fairy_items_quick_n');
             if (!host || !tEl) return;
-            if (addBtn) addBtn.disabled = false;   // Add only stores the unpacking; the model is calculated at the next Go anyway
             // with one list only, the choice made for that list is the one that counts
             var oneList = twoKinds() && chipState.sets && chipState.sets.length === 1 ? chipState.sets[0] : null;
             var gType = tEl.value === 'perlist' ? ((oneList && oneList.over) || 'joint') : tEl.value;
