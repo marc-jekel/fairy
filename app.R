@@ -5790,6 +5790,9 @@ ui <- shinyUI(fluidPage(
           });
         }
         // after rows were renumbered (a model was deleted) the boxes can show a text that the server never received: send what the boxes show
+        Shiny.addCustomMessageHandler('fairy_set_inputs', function(m) {
+          (m.ids || []).forEach(function(id, i) { setTimeout(function() { Shiny.setInputValue(id, m.values[i]); }, 600); });
+        });
         Shiny.addCustomMessageHandler('fairy_resync_inputs', function(m) {
           [250, 1200].forEach(function(ms) {
             setTimeout(function() {
@@ -11829,6 +11832,12 @@ server <- shinyServer(function(input, output, session) {
         }
       }
     }
+    # the last box (a copy of the one before it now) is dropped: its old text must not stay in the inputs, or the next model that is added
+    # would come up with the old name and text
+    # (set as input values, not through the box: the box is removed in the same moment, so an update message would find nothing)
+    session$sendCustomMessage("fairy_set_inputs", list(
+      ids = list(paste0("textin_relations_name", n), paste0("textin_relations_", n), paste0("textin_relations_complete_", n)),
+      values = list(paste0("m", n), "", "")))
     counter_input$n <- n - 1
     # the boxes got their new texts from update messages: make sure the server holds exactly what the boxes show (names and texts)
     session$sendCustomMessage("fairy_resync_inputs", list())
