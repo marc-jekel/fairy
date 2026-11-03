@@ -6999,7 +6999,6 @@ ui <- shinyUI(fluidPage(
                 icon("compress"), "Compact"
               )
             ),
-            uiOutput("input_stale_note"),
             useShinyjs(),
             # A plain HTML table for both rows. inline-block (splitLayout),
             # CSS grid, and absolute positioning were all tried before this
@@ -11547,17 +11546,6 @@ server <- shinyServer(function(input, output, session) {
   # is exactly what happened on the H-representation tab specifically —
   # whichever tab's uiOutput happened to come first in the page still
   # worked, the other three never did).
-  # the Input page says it too (the other pages already do): the models changed since the last Go, so the results, the plots and the
-  # unpacking still show the earlier state
-  output$input_stale_note <- renderUI({
-    if (!isTRUE(input_results_stale())) return(NULL)
-    div(class = "fairy-input-stale",
-      style = "margin: 0 0 10px; padding: 7px 12px; font-size: 13px; color: #8a4600; background: rgba(245,158,11,.16); border-left: 4px solid #f59e0b; border-radius: 4px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;",
-      icon("triangle-exclamation"),
-      tags$span("You changed something since the last Go: the results, the plots and the unpacking still show the earlier state."),
-      tags$button(type = "button", class = "btn btn-default btn-sm", style = "margin-left:auto; font-weight:600;",
-                  onclick = "var g = document.getElementById('go_v_h'); if (g) g.click();", "Go now"))
-  })
   render_stale_note <- function() {
     if (!isTRUE(input_results_stale())) return(NULL)
     div(
