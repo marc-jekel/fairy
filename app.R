@@ -2142,6 +2142,8 @@ ui <- shinyUI(fluidPage(
     tags$script(HTML(
       "(function() {
         function fairyStripPulse(el) {
+          // every pulsing button starts in the same phase (one shared clock), so they glow together and not one after the other
+          el.style.animationDelay = '-' + ((performance.now() % 900) / 1000) + 's';
           setTimeout(function() { el.classList.remove('fairy-intro-pulse-wrap'); }, 3000);
         }
         function fairySyncTooltipAria(el) {
@@ -3046,14 +3048,14 @@ ui <- shinyUI(fluidPage(
       .fairy-intro-pulse-wrap {
         display: inline-block;
         border-radius: 999px;
-        animation: fairy-intro-pulse-kf 0.6s ease-in-out 5;
+        animation: fairy-intro-pulse-kf 0.9s ease-in-out 3;
       }
       @keyframes fairy-intro-pulse-kf {
         0%, 100% {
           box-shadow: 0 0 0 0 transparent;
         }
         50% {
-          box-shadow: 0 0 0 4px color-mix(in srgb, var(--fairy-primary, #3a6df0) 35%, transparent);
+          box-shadow: 0 0 0 3px color-mix(in srgb, var(--fairy-primary, #3a6df0) 22%, transparent);
         }
       }
       /* The 'jelly' bttn.css style's own built-in hover state scales the
