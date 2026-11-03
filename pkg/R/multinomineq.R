@@ -40,7 +40,7 @@ mn_script_base <- function() {
     '                 # (takes longer, smaller standard error)',
     'plots <- FALSE   # TRUE: one plot of the posterior per model',
     '# Advanced: the prior. Beta(1, 1) = uniform on every probability',
-    '# (default of multinomineq); the Bayes factors depend on it.',
+    '# (default of multinomineq).',
     'prior <- c(1, 1)',
     '# (for even more samples set M_post and M_bf to larger numbers)',
     'M_post <- if (final) 20000 else 5000     # posterior samples',
@@ -884,7 +884,7 @@ mn_script_base <- function() {
 #' @param burnin_post,burnin_bf Burn-in of the posterior and of the Bayes factors
 #'   (the defaults of multinomineq: `10` and `5`).
 #' @param prior The two numbers `a` and `b` of the Beta prior of every probability.
-#'   Default `c(1, 1)`, the uniform prior; the Bayes factors depend on it.
+#'   Default `c(1, 1)`, the uniform prior.
 #' @param seed Seed that makes a run repeatable. Default `1234`.
 #'
 #' @return One character string with the script.
