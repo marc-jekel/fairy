@@ -9257,6 +9257,8 @@ server <- shinyServer(function(input, output, session) {
     }
     list(sums = sums, others = as.list(unique(others)))
   }
+  # a model that has not been calculated yet (no Go) cannot be unpacked: the window says so instead of showing an example
+  items_need_go <- function(model_name) is.null(isolate(h_reactive[[model_name]]))
   items_pairs_json <- function(model_name) {
     pr <- items_spec_pairs(model_name)
     if (is.null(pr)) pr <- items_pairs_for(model_name)
@@ -9291,6 +9293,7 @@ server <- shinyServer(function(input, output, session) {
       ),
       tags$script(HTML(paste0("window.fairyItemsPairs = ", items_pairs_json(prefill_base %||% model_choices[1]), "; window.fairyItemsConsts = ",
                               as.character(jsonlite::toJSON(items_spec_consts(prefill_base %||% model_choices[1]), auto_unbox = TRUE)),
+                              "; window.fairyItemsNeedGo = ", tolower(as.character(items_need_go(prefill_base %||% model_choices[1]))),
                               "; window.fairyItemsOthers = ", as.character(jsonlite::toJSON(items_spec_sums_others(prefill_base %||% model_choices[1])$others, auto_unbox = TRUE)),
                               "; window.fairyItemsSums = ", as.character(jsonlite::toJSON(items_spec_sums_others(prefill_base %||% model_choices[1])$sums, auto_unbox = TRUE)), ";"))),
       # Each row is its OWN grid container rather than one flat grid for
@@ -9948,6 +9951,19 @@ server <- shinyServer(function(input, output, session) {
             var tEl = document.querySelector('.fairy-items-quick-type:checked');
             var nEl = document.getElementById('fairy_items_quick_n');
             if (!host || !tEl) return;
+            // a model that has not been calculated yet cannot be unpacked: no picture, only the note (and Add stays off)
+            var addBtn = document.getElementById('submit_items_multi');
+            if (window.fairyItemsNeedGo) {
+              host.textContent = '';
+              var info = document.createElement('div');
+              info.style.cssText = 'padding:48px 28px; text-align:center; font-size:14px; line-height:1.55; opacity:.85;';
+              info.textContent = 'Press Go first. The model has to be calculated before it can be unpacked; then this picture shows the constraints of your model.';
+              host.appendChild(info);
+              var legEl0 = document.getElementById('fairy_items_legend'); if (legEl0) legEl0.textContent = '';
+              if (addBtn) addBtn.disabled = true;
+              return;
+            }
+            if (addBtn) addBtn.disabled = false;
             // with one list only, the choice made for that list is the one that counts
             var oneList = twoKinds() && chipState.sets && chipState.sets.length === 1 ? chipState.sets[0] : null;
             var gType = tEl.value === 'perlist' ? ((oneList && oneList.over) || 'joint') : tEl.value;
@@ -10408,7 +10424,7 @@ server <- shinyServer(function(input, output, session) {
               });
             }
           }
-          if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_items_pairs', function(msg) { window.fairyItemsPairs = (msg && msg.pairs) || null; window.fairyItemsConsts = (msg && msg.consts) || []; window.fairyItemsOthers = (msg && msg.others) || []; window.fairyItemsSums = (msg && msg.sums) || []; drawItemsDiagram(); });
+          if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_items_pairs', function(msg) { window.fairyItemsPairs = (msg && msg.pairs) || null; window.fairyItemsConsts = (msg && msg.consts) || []; window.fairyItemsOthers = (msg && msg.others) || []; window.fairyItemsSums = (msg && msg.sums) || []; window.fairyItemsNeedGo = !!(msg && msg.needgo); drawItemsDiagram(); });
           // Quick setup -> fills the per-probability rows (Group / Items / Model holds) under Advanced.
           var itemsApplying = false;
           function markItemsCustom(on) { }
@@ -10528,7 +10544,7 @@ server <- shinyServer(function(input, output, session) {
     nm <- input$items_base_model
     if (is.null(nm) || !nzchar(nm)) return()
     session$sendCustomMessage("fairy_items_pairs", list(pairs = jsonlite::fromJSON(items_pairs_json(nm), simplifyVector = FALSE),
-                                                        consts = items_spec_consts(nm), others = items_spec_sums_others(nm)$others, sums = items_spec_sums_others(nm)$sums))
+                                                        consts = items_spec_consts(nm), others = items_spec_sums_others(nm)$others, sums = items_spec_sums_others(nm)$sums, needgo = items_need_go(nm)))
   }, ignoreInit = TRUE)
 
   observeEvent(input$show_items_modal, {
