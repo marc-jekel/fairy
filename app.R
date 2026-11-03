@@ -1723,6 +1723,9 @@ ui <- shinyUI(fluidPage(
       #fairy-run-card.fairy-run-skippable tr.fairy-run-active.fairy-run-stopready:not(.fairy-run-skipped) .fairy-run-rowbtn:not(.fairy-run-rowundo) { display: inline-block; }
       #fairy-run-card.fairy-run-skippable tr.fairy-run-skipped .fairy-run-rowundo { display: inline-block; }
       #fairy-run-card.fairy-run-doneundo tr.fairy-run-skipped .fairy-run-rowundo { display: inline-block; }
+      /* in the V window Retry stays visible all the time; while the H-representations are still being built it is dimmed and cannot be clicked */
+      #fairy-run-card.fairy-run-vwin tr.fairy-run-skipped .fairy-run-rowundo { display: inline-block; }
+      #fairy-run-card.fairy-run-retrywait .fairy-run-rowundo { opacity: .45; pointer-events: none; }
       #fairy-run-card.fairy-run-vwin:not(.fairy-run-vphase) .fairy-run-rowbtn:not(.fairy-run-rowundo) { display: none !important; }
       .fairy-run-rowundo { border-color: var(--fairy-primary) !important; color: var(--fairy-primary) !important; background: color-mix(in srgb, var(--fairy-primary) 10%, transparent) !important; }
       .fairy-run-rowundo:hover { background: color-mix(in srgb, var(--fairy-primary) 20%, transparent) !important; }
@@ -4512,6 +4515,7 @@ ui <- shinyUI(fluidPage(
           var anyRunning = Object.keys(rows).some(function(n) { return rows[n].cells.some(function(c) { var st = c.getAttribute('data-state'); return st === 'run' || st === 'step'; }); });
           $id('fairy-run-card').classList.toggle('fairy-run-skippable', skippable && running && cancelable);
           $id('fairy-run-card').classList.toggle('fairy-run-vwin', cancelInput === 'v_cancel');
+          $id('fairy-run-card').classList.toggle('fairy-run-retrywait', running && !cancelable);
           // vertex window: Skip makes sense only once the vertices are being computed (a model in the last column is running);
           // before that the H-representations (and the mixtures, inside the main process) are built and cannot be interrupted
           var vPhase = Object.keys(rows).some(function(n) { var c = rows[n].cells[rows[n].cells.length - 1]; return c && c.getAttribute('data-state') === 'run'; });
