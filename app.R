@@ -19439,13 +19439,41 @@ server <- shinyServer(function(input, output, session) {
         ".mn-data-modal .mn-for { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; color: var(--fairy-primary); background: color-mix(in srgb, var(--fairy-primary) 10%, transparent); }",
         ".mn-data-modal .mn-lead { font-size: 13px; color: var(--fairy-text-muted, #667085); margin: 0 0 10px 0; }",
         ".mn-data-modal hr { margin: 14px 0 12px 0; }",
+        ".mn-data-modal input.mn-bad { border-color: #c9353b !important; background: rgba(201,53,59,.08) !important; }",
+        ".mn-data-modal .mn-warn { color: #b42318; font-size: 13px; margin-top: 8px; }",
         ".mn-data-modal label.control-label { font-size: 13px; font-weight: 600; margin-bottom: 4px; }",
         sep = " "))),
       tags$div(class = "mn-data-modal",
       tags$p(class = "mn-lead", tags$b("n"), " = number of observations, ", tags$b("frequency"),
         " = how often the outcome happened (out of n). The settings of the sampling are in the Run window."),
       if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Each unpacked model has its own tab, because its probabilities can rest on different observations (for example different jokes or samples). If a model has the same number of probabilities and each one rests on the same observations as in the other models, tick 'Use the same numbers as the other models' in its tab: n and frequency are then copied row by row."),
-      tags$div(style = "max-height:46vh; overflow-y:auto;", body)),
+      tags$div(style = "max-height:46vh; overflow-y:auto;", body),
+      tags$div(id = "mn_data_warn", class = "mn-warn"),
+      tags$script(HTML("
+        (function() {
+          var root = document.querySelector('.mn-data-modal'), warn = document.getElementById('mn_data_warn');
+          if (!root || !warn) return;
+          function check() {
+            if (!document.body.contains(root)) { clearInterval(iv); return; }
+            var msgs = [];
+            [].forEach.call(root.querySelectorAll('input[id^=mn_f_]'), function(f) {
+              var n = document.getElementById(f.id.replace('mn_f_', 'mn_n_'));
+              var fv = parseFloat(f.value), nv = n ? parseFloat(n.value) : NaN;
+              var bad = (!isNaN(fv) && !isNaN(nv) && fv > nv) || (!isNaN(fv) && fv < 0);
+              var badN = !isNaN(nv) && nv < 1;
+              f.classList.toggle('mn-bad', bad); if (n) n.classList.toggle('mn-bad', badN);
+              if ((bad || badN) && f.offsetParent !== null) {
+                var tr = f.closest('tr'), lab = tr && tr.cells[0] ? tr.cells[0].innerText.replace(/\\s+/g, '') : '';
+                msgs.push(bad ? (lab + ': frequency (' + f.value + ') cannot be larger than n (' + (n ? n.value : '') + ')') : (lab + ': n must be at least 1'));
+              }
+            });
+            warn.textContent = msgs.join('; ');
+          }
+          var iv = setInterval(check, 300);
+          root.addEventListener('input', check); root.addEventListener('change', check);
+          check();
+        })();
+      "))),
       footer = tags$div(class = "mn-foot", style = "display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; align-items:center; width:100%;",
         tags$div(style = "display:flex; gap:8px;",
           order_button,
