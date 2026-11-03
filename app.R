@@ -9217,19 +9217,37 @@ server <- shinyServer(function(input, output, session) {
       if (!any(vapply(opd, has_comb, logical(1)))) next
       pretty <- function(op) switch(op, "<=" = "\u2264", "<" = "\u2264", ">=" = "\u2265", ">" = "\u2265", op)   # weak inequalities (closed polytopes)
       if (length(ops) == 1 && length(opd) == 2) {
-        a <- opd[1]; b <- opd[2]; op <- ops[1]
-        if (!is_comb(a) && is_comb(b) && !is.na(num_of(a))) { tmp <- a; a <- b; b <- tmp; op <- unname(flip[op]) }
-        if (is_comb(a) && !is.na(num_of(b))) {
-          terms <- regmatches(a, gregexpr("[+-]?p[0-9]+", a))[[1]]
-          parts <- as.integer(sub("^[+-]?p", "", terms)) - 1L
-          wts <- ifelse(startsWith(terms, "-"), "-1", "1")
-          txt_a <- gsub("-", " - ", gsub("+", " + ", a, fixed = TRUE), fixed = TRUE)
-          sums[[length(sums) + 1L]] <- list(parts = parts, w = wts, op = op, val = as.character(round(num_of(b), 4)),
-                                            text = paste0(trimws(txt_a), " ", pretty(op), " ", as.character(round(num_of(b), 4))))
-          next
+        # bring everything into the form (sum of probabilities) op (number): p1 >= p2 - .2 becomes p1 - p2 >= -0.2
+        side <- function(x) {   # -> list(terms = named coefficients, k = constant, ok)
+          tm <- regmatches(x, gregexpr("[+-]?[^+-]+", x))[[1]]
+          cf <- numeric(0); k <- 0; ok <- TRUE
+          for (t in tm) {
+            sg <- if (startsWith(t, "-")) -1 else 1; core <- sub("^[+-]", "", t)
+            if (grepl("^p[0-9]+$", core)) cf[core] <- (if (core %in% names(cf)) cf[core] else 0) + sg
+            else if (!is.na(num_of(core))) k <- k + sg * num_of(core)
+            else ok <- FALSE
+          }
+          list(cf = cf, k = k, ok = ok)
         }
-        # a sum or a single probability on the other side: the comparisons of the picture draw it
-        if ((is_sum(a) || grepl("^p[0-9]+$", a)) && (is_sum(b) || grepl("^p[0-9]+$", b))) next
+        L <- side(opd[1]); Rr <- side(opd[2])
+        if (L$ok && Rr$ok) {
+          nm_all <- union(names(L$cf), names(Rr$cf))
+          cfs <- vapply(nm_all, function(n) (if (n %in% names(L$cf)) L$cf[[n]] else 0) - (if (n %in% names(Rr$cf)) Rr$cf[[n]] else 0), numeric(1))
+          cfs <- cfs[cfs != 0]; kk <- Rr$k - L$k
+          if (length(cfs) >= 2 && all(abs(cfs) == 1)) {
+            if (kk == 0 && any(cfs > 0) && any(cfs < 0)) next   # one side against the other (p1 + p2 >= p3): the comparisons of the picture draw it
+            ord_i <- order(as.integer(sub("^p", "", names(cfs))))
+            cfs <- cfs[ord_i]
+            op <- ops[1]
+            if (all(cfs < 0)) { cfs <- -cfs; kk <- -kk; op <- unname(flip[op]) }   # .2 < p2 + p3 reads p2 + p3 > .2
+            val <- as.character(round(kk, 4))
+            txt_a <- paste0(vapply(seq_along(cfs), function(i) paste0(if (i == 1) (if (cfs[i] < 0) "-" else "") else (if (cfs[i] < 0) " - " else " + "), names(cfs)[i]), character(1)), collapse = "")
+            sums[[length(sums) + 1L]] <- list(parts = as.integer(sub("^p", "", names(cfs))) - 1L, w = ifelse(cfs < 0, "-1", "1"), op = op, val = val,
+                                              text = paste0(txt_a, " ", pretty(op), " ", val))
+            next
+          }
+          if (length(cfs) <= 1) next   # one probability against a number: the label of its row; against another probability: an arrow
+        }
       }
       txt <- gsub("\\s+", "", cl)
       for (o in c("<=", ">=")) txt <- gsub(o, paste0(" ", pretty(o), " "), txt, fixed = TRUE)
