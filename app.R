@@ -15369,6 +15369,14 @@ server <- shinyServer(function(input, output, session) {
       if (grepl("(?<![A-Za-z0-9_{\\\\])p(?![0-9A-Za-z_{])", gsub("[^A-Za-z0-9_{}]", " ", spec_chk), perl = TRUE)) {
         precheck_msgs <- c(precheck_msgs, paste0("<b>", htmltools::htmlEscape(label_chk), "</b>: a probability needs a number, write p1, p2, p3, \u2026 instead of just p."))
       }
+      # a probability that does not exist (p20 with six probabilities) cannot be calculated: say which one
+      pn_chk <- regmatches(spec_chk, gregexpr("(?<![A-Za-z0-9_{\\\\])p[0-9]+(?![0-9A-Za-z_{])", spec_chk, perl = TRUE))[[1]]
+      pn_num <- suppressWarnings(as.integer(sub("^p", "", pn_chk)))
+      pn_bad <- unique(pn_chk[!is.na(pn_num) & (pn_num < 1L | pn_num > counter$n)])
+      if (length(pn_bad) > 0) {
+        precheck_msgs <- c(precheck_msgs, paste0("<b>", htmltools::htmlEscape(label_chk), "</b>: ", paste(pn_bad, collapse = ", "),
+          if (length(pn_bad) == 1) " does not exist" else " do not exist", ", you have p1 to p", counter$n, "."))
+      }
     }
     conflict_msgs <- character()
     for (i_chk in seq_len(counter_input$n)) {
