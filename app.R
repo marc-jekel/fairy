@@ -9990,32 +9990,33 @@ server <- shinyServer(function(input, output, session) {
             var tEl = document.querySelector('.fairy-items-quick-type:checked');
             var nEl = document.getElementById('fairy_items_quick_n');
             if (!host || !tEl) return;
-            // a model that has not been calculated yet cannot be unpacked: no picture, only the note (and Add stays off)
+            // the picture is drawn from the model as typed; Add waits for a Go (the model is unpacked as it was calculated), and a note says so
             var addBtn = document.getElementById('submit_items_multi');
+            var goNote = document.getElementById('fairy_items_gonote');
+            if (!goNote) {
+              goNote = document.createElement('div'); goNote.id = 'fairy_items_gonote';
+              goNote.style.cssText = 'margin:0 0 8px; padding:6px 10px; font-size:12.5px; border-left:3px solid #f59e0b; background:rgba(245,158,11,.14); border-radius:4px; display:none; align-items:center; gap:10px; flex-wrap:wrap;';
+              host.parentNode.insertBefore(goNote, host);
+            }
             if (window.fairyItemsNeedGo) {
-              host.textContent = '';
-              var info = document.createElement('div');
-              info.style.cssText = 'padding:44px 28px; text-align:center; font-size:14px; line-height:1.55; opacity:.9;';
-              var infoTxt = document.createElement('div');
-              infoTxt.textContent = window.fairyItemsNeedGo === 'changed'
-                ? 'This model has changed since the last Go. Press Go first, so that the model is unpacked as it is now; then this picture shows its constraints.'
-                : 'Press Go first. The model has to be calculated before it can be unpacked; then this picture shows the constraints of your model.';
-              info.appendChild(infoTxt);
+              goNote.textContent = '';
+              var goTxt = document.createElement('span');
+              goTxt.textContent = window.fairyItemsNeedGo === 'changed'
+                ? 'The model has changed since the last Go. Press Go before adding, so that it is unpacked as it is now.'
+                : 'Press Go before adding: the model has to be calculated first.';
+              goNote.appendChild(goTxt);
               var goNow = document.createElement('button');
-              goNow.type = 'button'; goNow.className = 'btn btn-default'; goNow.style.cssText = 'margin-top:14px; font-weight:600;'; goNow.textContent = 'Close and press Go';
+              goNow.type = 'button'; goNow.className = 'btn btn-default btn-sm'; goNow.style.cssText = 'font-weight:600;'; goNow.textContent = 'Close and press Go';
               goNow.addEventListener('click', function() {
                 var dm = document.querySelector('.modal [data-dismiss=modal]'); if (dm) dm.click();
                 var bmSel = document.getElementById('items_base_model');
                 window.fairyReopenItems = { base: bmSel ? bmSel.value : '', t: Date.now() };
                 setTimeout(function() { var g = document.getElementById('go_v_h'); if (g) g.click(); }, 400);
               });
-              info.appendChild(goNow);
-              host.appendChild(info);
-              var legEl0 = document.getElementById('fairy_items_legend'); if (legEl0) legEl0.textContent = '';
-              if (addBtn) addBtn.disabled = true;
-              return;
-            }
-            if (addBtn) addBtn.disabled = false;
+              goNote.appendChild(goNow);
+              goNote.style.display = 'flex';
+            } else { goNote.style.display = 'none'; }
+            if (addBtn) addBtn.disabled = !!window.fairyItemsNeedGo;
             // with one list only, the choice made for that list is the one that counts
             var oneList = twoKinds() && chipState.sets && chipState.sets.length === 1 ? chipState.sets[0] : null;
             var gType = tEl.value === 'perlist' ? ((oneList && oneList.over) || 'joint') : tEl.value;
