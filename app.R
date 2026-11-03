@@ -19471,8 +19471,8 @@ server <- shinyServer(function(input, output, session) {
       tags$style(HTML(".mn-foot .btn { margin: 0 !important; } .mn-lead { font-size: 13px; color: var(--fairy-text-muted, #667085); margin: 0 0 10px 0; } .modal-body hr { margin: 14px 0 12px 0; } .modal-body label.control-label { font-size: 13px; font-weight: 600; margin-bottom: 4px; }")),
       uiOutput("mn_skipped_note"),
       tags$p(class = "fairy-eq-tol-help",
-        HTML(paste0("Runs here with the R package <a href='https://www.dwheck.de/software/multinomineq/' target='_blank' rel='noopener'>multinomineq</a> (Heck &amp; Davis-Stober, 2019) on the numbers saved under <b>Data</b> (",
-          if (own) "your own" else "example numbers until you save your own", "). ")),
+        HTML(paste0("Runs here with the R package <a href='https://www.dwheck.de/software/multinomineq/' target='_blank' rel='noopener'>multinomineq</a> (Heck &amp; Davis-Stober, 2019) on the numbers saved under <b>Data</b>",
+          if (own) "" else " (example numbers until you save your own)", ". ")),
         actionLink("mn_run_to_data", "Change the data")),
       if (length(mn_model_choices()) > 1)
         checkboxGroupInput("mn_models", "Models to analyse",
