@@ -8122,6 +8122,8 @@ server <- shinyServer(function(input, output, session) {
     if (Sys.time() < g) return(TRUE)
     rv(NULL); FALSE
   }
+  # models whose V-representation was skipped by hand (their V switch is off): they stay in the run window as skipped, with Retry
+  v_skipped_mem <- reactiveVal(character(0))
   v_state <- reactiveValues(active = FALSE, dir = NULL, models = character(0), queue = character(0), procs = list(),
                             parallel = FALSE, after = NULL, skipped = character(0))
   v_kill_all <- function() {
@@ -8190,6 +8192,10 @@ server <- shinyServer(function(input, output, session) {
       v_state$active <- FALSE
       af <- isolate(v_state$after)
       if (is.function(af)) isolate(af(character(0), isolate(v_state$skipped)))
+      if (isTRUE(isolate(v_state$retry_go))) {
+        v_state$retry_go <- FALSE
+        shinyjs::runjs("var g = document.getElementById('go_v_h'); if (g) g.click();")
+      }
     }
   })
   # one model is skipped: its process is stopped (or it leaves the queue), the others go on
@@ -8205,7 +8211,7 @@ server <- shinyServer(function(input, output, session) {
     last_recomputed_snapshot(NULL)
     # the same switch as the V button of the model on the Input tab; a mixture always has its V-representation (its switch stays on):
     # for a mixture the skip holds for this run only, the next Go calculates it again
-    if (is.null(get0(m, envir = mix_components, inherits = FALSE))) set_v_included(m, FALSE)
+    if (is.null(get0(m, envir = mix_components, inherits = FALSE))) { set_v_included(m, FALSE); v_skipped_mem(union(isolate(v_skipped_mem()), m)) }
     fairy_run_row(m, v = "skip")
   })
   # the skip is taken back: the model waits for its turn again
@@ -8215,11 +8221,22 @@ server <- shinyServer(function(input, output, session) {
       # after the run: the V switch of the model is on again and Go is repeated, the rest comes from the cache
       m0 <- input$v_unskip_model
       if (is.null(get0(m0, envir = mix_components, inherits = FALSE))) set_v_included(m0, TRUE)
+      v_skipped_mem(setdiff(isolate(v_skipped_mem()), m0))
       shinyjs::runjs("var g = document.getElementById('go_v_h'); if (g) g.click();")
       return()
     }
     m <- input$v_unskip_model
-    if (!(m %in% isolate(v_state$skipped))) return()
+    if (!(m %in% isolate(v_state$skipped))) {
+      # skipped in an earlier run (not part of this one): the switch goes on and Go is repeated when this run is over
+      if (m %in% isolate(v_skipped_mem())) {
+        if (is.null(get0(m, envir = mix_components, inherits = FALSE))) set_v_included(m, TRUE)
+        v_skipped_mem(setdiff(isolate(v_skipped_mem()), m))
+        v_state$retry_go <- TRUE
+        fairy_run_row(m, v = "wait")
+      }
+      return()
+    }
+    v_skipped_mem(setdiff(isolate(v_skipped_mem()), m))
     v_state$skipped <- setdiff(isolate(v_state$skipped), m)
     if (is.null(get0(m, envir = mix_components, inherits = FALSE))) set_v_included(m, TRUE)
     v_state$queue <- c(isolate(v_state$queue), m)
@@ -15487,9 +15504,13 @@ server <- shinyServer(function(input, output, session) {
       v_sel_run <- isolate(mytable_v_reactive$value)
       v_included_run <- if (!is.null(v_sel_run) && ncol(v_sel_run) >= 2) as.character(v_sel_run[[1]][which(as.logical(v_sel_run[[2]]))]) else character()
       # (not in the repeated run after the mixtures: the rows already show what the first run did)
+      # models whose V-representation was skipped earlier stay in the window as skipped (with Retry); a model whose V switch was
+      # turned on again by hand is no longer remembered
+      if (!resume_go) v_skipped_mem(intersect(isolate(v_skipped_mem()), setdiff(as.character(mytable_input[seq_len(numb_models_to_convert), 1]), v_included_run)))
       for (i_run in if (resume_go) integer(0) else row_order) {
-        fairy_run_row(mytable_input[i_run, 1], kinds_run[i_run], h = "wait",
-          v = if (mytable_input[i_run, 1] %in% v_included_run) "wait" else NULL)
+        nm_run <- mytable_input[i_run, 1]
+        fairy_run_row(nm_run, kinds_run[i_run], h = "wait",
+          v = if (nm_run %in% v_included_run) "wait" else if (nm_run %in% isolate(v_skipped_mem())) "skip" else NULL)
       }
 
       for (loop_numb_models in 1:numb_models_to_convert) {
