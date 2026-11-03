@@ -1726,6 +1726,9 @@ ui <- shinyUI(fluidPage(
         cursor: pointer;
       }
       #fairy-run-cancel.visible { display: inline-block; }
+      /* Skip all appears after a few seconds (the place stays reserved) and pulses three times, like the Skip buttons of the rows */
+      #fairy-run-cancel.visible:not(.armed) { visibility: hidden; }
+      #fairy-run-cancel.armed { animation: fairy-run-nudge .9s ease-in-out 3; }
       /* Skip of a single model: a real small button at the name of the model, the same in every run window */
       .fairy-run-rowbtn { display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); margin-left: 12px; padding: 2px 11px; font-size: 12px; font-weight: 600; line-height: 1.5; vertical-align: middle;
         border: 1.5px solid var(--fairy-border, #c8cdd8); border-radius: 8px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
@@ -4462,7 +4465,7 @@ ui <- shinyUI(fluidPage(
         var LABEL = { wait: 'waiting', run: 'computing', done: 'done', cached: 'unchanged', warn: 'empty set', fail: 'failed', cancel: 'cancelled', na: 'not available', stop: 'stopped', step: 'computing (stepwise)', skip: 'skipped' };
         var ICON  = { wait: '\\u25CB', run: '\\u25D0', done: '\\u2713', cached: '\\u2713', warn: '\\u26A0', fail: '\\u2715', cancel: '\\u2715', na: '\\u2013', stop: '\\u25A0', step: '\\u25D0', skip: '\\u2013' };
         var rows = {}, showTimer = null, idleTimer = null, shown = false, dismissed = false, everRan = false, running = false;
-        var cancelable = false, t0 = 0, tick = null, cancelInput = 'v_cancel', ncols = 2, skippable = false, limitSec = 0, noLimit = false, limitLabel = 'exact volume', dustClicks = [];
+        var cancelable = false, armTimer = null, t0 = 0, tick = null, cancelInput = 'v_cancel', ncols = 2, skippable = false, limitSec = 0, noLimit = false, limitLabel = 'exact volume', dustClicks = [];
         // Safety net: if the run dies without a final message (an R error in
         // the middle of a Go), offer the Close button after 45 s of silence.
         function armIdle() {
@@ -4633,6 +4636,9 @@ ui <- shinyUI(fluidPage(
         Shiny.addCustomMessageHandler('fairy_run_cancelable', function(msg) {
           cancelable = !!msg.on;
           var b = $id('fairy-run-cancel');
+          if (armTimer) { clearTimeout(armTimer); armTimer = null; }
+          if (!cancelable || !b.classList.contains('visible')) b.classList.remove('armed');
+          if (cancelable && !b.classList.contains('armed')) armTimer = setTimeout(function() { armTimer = null; if (cancelable) b.classList.add('armed'); }, 3000);
           b.classList.toggle('visible', cancelable);
           if (cancelable) { cancelInput = msg.input || 'v_cancel'; b.disabled = false; b.textContent = msg.label || 'Cancel'; if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; } }
         });
