@@ -8052,7 +8052,8 @@ server <- shinyServer(function(input, output, session) {
       mix_job$skipped <- unique(c(isolate(mix_job$skipped), m)); mix_job$stale <- TRUE
       fairy_run_row(m, h = "skip", v = "skip")
     } else {
-      set_v_included(m, FALSE); fairy_run_row(m, v = "skip")
+      set_v_included(m, FALSE); v_skipped_mem(union(isolate(v_skipped_mem()), m)); last_recomputed_snapshot(NULL)
+      fairy_run_row(m, v = "skip")
     }
   }
   mix_unskip <- function(m) {
@@ -8061,7 +8062,7 @@ server <- shinyServer(function(input, output, session) {
       mix_job$queue <- c(isolate(mix_job$queue), m)
       fairy_run_row(m, h = "wait", v = "wait")
     } else {
-      set_v_included(m, TRUE); fairy_run_row(m, v = "wait")
+      set_v_included(m, TRUE); v_skipped_mem(setdiff(isolate(v_skipped_mem()), m)); fairy_run_row(m, v = "wait")
     }
   }
   hint_cache <- new.env()   # results of rows built from H-representations of their sources (intersections with mixtures, unpacked models)
