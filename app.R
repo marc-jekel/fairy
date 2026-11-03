@@ -13774,6 +13774,12 @@ server <- shinyServer(function(input, output, session) {
     }
     # axes through the corner (0, 0, 0): ticks, numbers and titles
     lab <- function(x) tryCatch(parse(text = gsub("_[{]([^}]*)[}]", "[\\1]", x))[[1]], error = function(e) x)
+    # text with a white edge: it stays readable where it lies over lines and faces
+    halo_text <- function(x, y, labels, cex, col) {
+      h <- 0.006 * half
+      for (dx in c(-1, 0, 1)) for (dy in c(-1, 0, 1)) if (dx != 0 || dy != 0) graphics::text(x + dx * h, y + dy * h, labels, cex = cex, col = "white")
+      graphics::text(x, y, labels, cex = cex, col = col)
+    }
     o <- proj(matrix(c(0, 0, 0), 1)); ctr2 <- proj(matrix(c(0.5, 0.5, 0.5), 1))
     for (ax in 1:3) {
       dirv <- c(0, 0, 0); dirv[ax] <- 1
@@ -13781,10 +13787,10 @@ server <- shinyServer(function(input, output, session) {
         pos <- dirv * tv
         pp <- proj(matrix(pos, 1))
         away <- c(pp[1] - ctr2[1], pp[2] - ctr2[2]); away <- away / max(sqrt(sum(away^2)), 1e-9)
-        graphics::text(pp[1] + 0.045 * half * away[1], pp[2] + 0.045 * half * away[2], format(tv), cex = 0.7, col = "#667085")
+        halo_text(pp[1] + 0.075 * half * away[1], pp[2] + 0.075 * half * away[2], format(tv), 0.7, "#667085")
       }
       pe <- proj(matrix(dirv * 1.18, 1)); pe0 <- proj(matrix(dirv * 0.5, 1))
-      graphics::text(pe[1], pe[2], lab(dim_names[ax]), cex = 0.95, col = "#1f2430")
+      halo_text(pe[1], pe[2], lab(dim_names[ax]), 0.95, "#1f2430")
     }
     # legend
     if (length(legend_rows) > 0)
