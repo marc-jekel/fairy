@@ -10088,16 +10088,16 @@ server <- shinyServer(function(input, output, session) {
               if (r.virt) return (rt.length === 1 ? rt[0] + X2 + ' (' + r.name + ')' : r.name) + (sumConstOf[idxs[i] - nProb] ? '  ' + sumConstOf[idxs[i] - nProb].join(', ') : '');   // the sum row: a sigma, never read as an equation
               var nmTxt = rt.length === 1 ? rt[0] + X2 + ' ' + r.name : (rt.length > 1 ? r.name + ' (' + rt.join(X2 + ', ') + X2 + ')' : r.name);
               var po = partOf[idxs[i]];
-              if (!po || po.amb) return nmTxt + constTxt(idxs[i]);
+              if (!po || po.amb) return nmTxt + (r.type === 'average' ? '' : constTxt(idxs[i]));
               // a part keeps its plain name (p2 is p2 for the comparison with p3); the weight stands in the sum row
-              return nmTxt + constTxt(idxs[i]);
+              return nmTxt + (r.type === 'average' ? '' : constTxt(idxs[i]));
             });
             var MAXC = 3, dx = 58, x0 = Math.max(96, Math.round(18 + 7 * Math.max.apply(null, labs.map(function(l) { return l.length; })))) + (R.some(function(r) { return r.type === 'average'; }) ? 12 : 0), rowGap = R.length > 6 ? Math.max(30, Math.round(300 / R.length)) : 46, ys = R.map(function(r, i) { return 46 + i * rowGap; }), H = ys[ys.length - 1] + 34;
             var cnt = R.map(function(r) { return r.hub ? 1 : Math.min(r.n, MAXC); });   // a sum of parts from different lists is one node: every item of one part with every item of the others
             var cols = Math.max.apply(null, cnt), more = R.some(function(r) { return r.n > MAXC; });
             var hasAvg = R.some(function(r) { return r.type === 'average'; });
             var nonAdj = pdisp.some(function(pp) { return Math.abs(pp[0] - pp[1]) > 1; });
-            var W = x0 + (cols - 1) * dx + 30 + (more ? 22 : 0) + (hasAvg ? dx + (more ? 24 : 0) : 0) + (nonAdj ? 70 : 0);
+            var W = x0 + (cols - 1) * dx + 30 + (more ? 22 : 0) + (hasAvg ? dx + (more ? 24 : 0) + (R.some(function(r, i) { return r.type === 'average' && constTxt(idxs[i]); }) ? 58 : 0) : 0) + (nonAdj ? 70 : 0);
             var NS = 'http://www.w3.org/2000/svg';
             function el(tag, attrs, parent) {
               var e = document.createElementNS(NS, tag);
@@ -10154,6 +10154,8 @@ server <- shinyServer(function(input, output, session) {
                 dv.textContent = String.fromCharCode(247) + ' ' + r.n;
                 el('circle', { cx: avgX, cy: ys[i], r: 7, fill: 'var(--ct-default, #fff)' }, g);
                 anchor[i] = { x: avgX, y: ys[i], grid: false };
+                var cAvg = constTxt(idxs[i]);   // a comparison with a number holds for the average: it stands next to the average node
+                if (cAvg) { var ct = el('text', { x: avgX + 13, y: ys[i] + 5, fill: 'currentColor', stroke: 'none', 'font-size': '14', 'font-weight': '600' }, g); ct.textContent = cAvg.trim(); }
               }
             });
             // one link per comparison of the model; the larger probability sits on top where possible
