@@ -4658,6 +4658,20 @@ ui <- shinyUI(fluidPage(
           show();
           if (shown) $id('fairy-run-close').focus();
           // all fine and nothing to read: the window closes itself (not while the mouse is over it)
+          var reopen = window.fairyReopenItems; window.fairyReopenItems = null;
+          if (reopen && Date.now() - reopen.t < 600000 && c.bad === 0 && !(msg && msg.note)) {
+            // back to the unpack window after the Go that it asked for
+            setTimeout(function() {
+              dismiss();
+              var ub = document.getElementById('show_items_modal'); if (ub) ub.click();
+              var n = 0, iv = setInterval(function() {
+                var el = document.getElementById('items_base_model');
+                if (el && el.selectize && reopen.base) { el.selectize.setValue(reopen.base); clearInterval(iv); }
+                else if (++n > 20) clearInterval(iv);
+              }, 150);
+            }, 500);
+            return;
+          }
           if (c.bad === 0 && !(msg && msg.note)) {
             var tries = 0;
             (function closeLater() {
@@ -9992,6 +10006,8 @@ server <- shinyServer(function(input, output, session) {
               goNow.type = 'button'; goNow.className = 'btn btn-default'; goNow.style.cssText = 'margin-top:14px; font-weight:600;'; goNow.textContent = 'Close and press Go';
               goNow.addEventListener('click', function() {
                 var dm = document.querySelector('.modal [data-dismiss=modal]'); if (dm) dm.click();
+                var bmSel = document.getElementById('items_base_model');
+                window.fairyReopenItems = { base: bmSel ? bmSel.value : '', t: Date.now() };
                 setTimeout(function() { var g = document.getElementById('go_v_h'); if (g) g.click(); }, 400);
               });
               info.appendChild(goNow);
