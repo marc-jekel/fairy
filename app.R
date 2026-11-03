@@ -10146,9 +10146,8 @@ server <- shinyServer(function(input, output, session) {
               var nmTxt = rt.length === 1 ? rt[0] + X2 + ' ' + r.name : (rt.length > 1 ? r.name + ' (' + rt.join(X2 + ', ') + X2 + ')' : r.name);
               var po = partOf[idxs[i]];
               if (!po || po.amb) return nmTxt + constTxt(idxs[i]);
-              // the single probabilities carry no plus or minus sign (the sum row says it, and the dashed line marks a subtracted part)
-              var wAbsT = String(po.w === undefined ? '' : po.w).replace(/^-/, ''), wtxt = (wAbsT && wAbsT !== '1') ? wAbsT + String.fromCharCode(215) + ' ' : '';
-              return wtxt + nmTxt + constTxt(idxs[i]);
+              // a part keeps its plain name (p2 is p2 for the comparison with p3); the weight stands in the sum row
+              return nmTxt + constTxt(idxs[i]);
             });
             var MAXC = 3, dx = 58, x0 = Math.max(96, Math.round(18 + 7 * Math.max.apply(null, labs.map(function(l) { return l.length; })))) + (R.some(function(r) { return r.type === 'average'; }) ? 12 : 0), rowGap = R.length > 6 ? Math.max(30, Math.round(300 / R.length)) : 46, ys = R.map(function(r, i) { return 46 + i * rowGap; }), H = ys[ys.length - 1] + 34;
             var cnt = R.map(function(r) { return r.hub ? 1 : Math.min(r.n, MAXC); });   // a sum of parts from different lists is one node: every item of one part with every item of the others
