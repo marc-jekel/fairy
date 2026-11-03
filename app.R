@@ -5317,7 +5317,10 @@ ui <- shinyUI(fluidPage(
         }, true);
       })();
 
-      if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_poly_vec', function(m) { var w = document.getElementById('polytope_plot_wrap'); if (w) w.classList.toggle('fairy-poly-vec', !!(m && m.on)); });
+      (function regPolyVec() {
+        if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_poly_vec', function(m) { var w = document.getElementById('polytope_plot_wrap'); if (w) w.classList.toggle('fairy-poly-vec', !!(m && m.on)); });
+        else setTimeout(regPolyVec, 100);
+      })();
       // ---- PDF of a plot: the plot is taken as a picture (as it looks now, including the view you turned it to) and written into a PDF file ----
       (function() {
         function bytesOf(u) { var b = atob(u.split(',')[1]), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
