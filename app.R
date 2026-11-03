@@ -9240,9 +9240,9 @@ server <- shinyServer(function(input, output, session) {
             if (all(cfs < 0)) { cfs <- -cfs; kk <- -kk; op <- unname(flip[op]) }   # .2 < p2 + p3 reads p2 + p3 > .2
             cfs <- cfs[order(cfs < 0, as.integer(sub("^p", "", names(cfs))))]       # the added parts first: p4 - p3, not -p3 + p4
             val <- as.character(round(kk, 4))
-            txt_a <- paste0(vapply(seq_along(cfs), function(i) paste0(if (i == 1) (if (cfs[i] < 0) "-" else "") else (if (cfs[i] < 0) " - " else " + "), names(cfs)[i]), character(1)), collapse = "")
+            txt_a <- paste0(vapply(seq_along(cfs), function(i) paste0(if (i == 1) (if (cfs[i] < 0) "\u2212" else "") else (if (cfs[i] < 0) " \u2212 " else " + "), names(cfs)[i]), character(1)), collapse = "")   # a real minus sign, like in the picture
             sums[[length(sums) + 1L]] <- list(parts = as.integer(sub("^p", "", names(cfs))) - 1L, w = unname(ifelse(cfs < 0, "-1", "1")), op = op, val = val,
-                                              text = paste0(txt_a, " ", pretty(op), " ", val))
+                                              text = paste0(txt_a, " ", pretty(op), " ", sub("^-", "\u2212", val)))
             next
           }
           if (length(cfs) <= 1) next   # one probability against a number: the label of its row; against another probability: an arrow
@@ -9997,7 +9997,7 @@ server <- shinyServer(function(input, output, session) {
                   vN.push(sd.map(function(v, kk) { return (kk ? (w[kk] === '-1' ? ' ' + MINUS + ' ' : ' + ') : (w[kk] === '-1' ? MINUS : '')) + chipRowName(v); }).join(''));
                   vi = vK.length - 1;
                 }
-                (sumConstOf[vi] = sumConstOf[vi] || []).push(symOp(sc.op) + ' ' + sc.val);
+                (sumConstOf[vi] = sumConstOf[vi] || []).push(symOp(sc.op) + ' ' + String(sc.val).replace(/^-/, MINUS));
               });
               pairs0 = tmpP;
               vM.forEach(function(ms, vi) { ms.forEach(function(mm, kk) { var wk = vW[vi][kk]; mlinks.push([mm, nProb + vi, '', wk === '-1' ? String.fromCharCode(8722) : ((wk && wk !== '1') ? wk + String.fromCharCode(215) : '+')]); }); });
