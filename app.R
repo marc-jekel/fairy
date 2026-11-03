@@ -9122,7 +9122,8 @@ server <- shinyServer(function(input, output, session) {
       tags$p(class = "fairy-eq-tol-help",
         HTML("Use this if your study has <b>several items</b> for each probability, e.g. several different jokes, stimuli or trials. The model is then applied to the items.")
       ),
-      tags$script(HTML(paste0("window.fairyItemsPairs = ", items_pairs_json(prefill_base %||% model_choices[1]), ";"))),
+      tags$script(HTML(paste0("window.fairyItemsPairs = ", items_pairs_json(prefill_base %||% model_choices[1]), "; window.fairyItemsConsts = ",
+                              as.character(jsonlite::toJSON(items_spec_consts(prefill_base %||% model_choices[1]), auto_unbox = TRUE)), ";"))),
       # Each row is its OWN grid container rather than one flat grid for
       # header + all rows — conditionalPanel hides the tolerance cell via
       # display:none, and a display:none item drops out of grid flow
