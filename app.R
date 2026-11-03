@@ -13772,7 +13772,7 @@ server <- shinyServer(function(input, output, session) {
       ok <- is.finite(s$P[, 1])
       graphics::points(s$P[ok, 1], s$P[ok, 2], pch = 21, bg = s$col, col = "white", cex = s$size / 6, lwd = 0.5)
     }
-    # axes through the corner (0, 0, 0): ticks, numbers and titles
+    # axes along the outer edges of the box: for every axis the one of its four parallel edges that lies farthest out in the picture
     lab <- function(x) tryCatch(parse(text = gsub("_[{]([^}]*)[}]", "[\\1]", x))[[1]], error = function(e) x)
     # text with a white edge: it stays readable where it lies over lines and faces
     halo_text <- function(x, y, labels, cex, col) {
@@ -13780,17 +13780,25 @@ server <- shinyServer(function(input, output, session) {
       for (dx in c(-1, 0, 1)) for (dy in c(-1, 0, 1)) if (dx != 0 || dy != 0) graphics::text(x + dx * h, y + dy * h, labels, cex = cex, col = "white")
       graphics::text(x, y, labels, cex = cex, col = col)
     }
-    o <- proj(matrix(c(0, 0, 0), 1)); ctr2 <- proj(matrix(c(0.5, 0.5, 0.5), 1))
+    ctr2 <- proj(matrix(c(0.5, 0.5, 0.5), 1))
     for (ax in 1:3) {
-      dirv <- c(0, 0, 0); dirv[ax] <- 1
-      for (tv in seq(0, 1, by = 0.2)) {
-        pos <- dirv * tv
-        pp <- proj(matrix(pos, 1))
-        away <- c(pp[1] - ctr2[1], pp[2] - ctr2[2]); away <- away / max(sqrt(sum(away^2)), 1e-9)
-        halo_text(pp[1] + 0.075 * half * away[1], pp[2] + 0.075 * half * away[2], format(tv), 0.7, "#667085")
+      oth <- setdiff(1:3, ax); best <- NULL; bestd <- -1
+      for (u in 0:1) for (v in 0:1) {
+        base <- c(0, 0, 0); base[oth] <- c(u, v)
+        mid <- base; mid[ax] <- 0.5
+        pm <- proj(matrix(mid, 1)); d <- sqrt((pm[1] - ctr2[1])^2 + (pm[2] - ctr2[2])^2)
+        if (d > bestd) { bestd <- d; best <- base }
       }
-      pe <- proj(matrix(dirv * 1.18, 1)); pe0 <- proj(matrix(dirv * 0.5, 1))
-      halo_text(pe[1], pe[2], lab(dim_names[ax]), 0.95, "#1f2430")
+      pm <- proj(matrix(replace(best, ax, 0.5), 1))
+      away <- c(pm[1] - ctr2[1], pm[2] - ctr2[2]); away <- away / max(sqrt(sum(away^2)), 1e-9)
+      p0 <- proj(matrix(replace(best, ax, 0), 1)); p1 <- proj(matrix(replace(best, ax, 1), 1))
+      graphics::segments(p0[1], p0[2], p1[1], p1[2], col = "#7a8397", lwd = 1.1)
+      for (tv in seq(0, 1, by = 0.2)) {
+        pp <- proj(matrix(replace(best, ax, tv), 1))
+        graphics::segments(pp[1], pp[2], pp[1] + 0.02 * half * away[1], pp[2] + 0.02 * half * away[2], col = "#7a8397", lwd = 0.8)
+        graphics::text(pp[1] + 0.055 * half * away[1], pp[2] + 0.055 * half * away[2], format(tv), cex = 0.7, col = "#667085")
+      }
+      graphics::text(pm[1] + 0.15 * half * away[1], pm[2] + 0.15 * half * away[2], lab(dim_names[ax]), cex = 0.95, col = "#1f2430")
     }
     # legend
     if (length(legend_rows) > 0)
