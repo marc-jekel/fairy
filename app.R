@@ -19416,7 +19416,7 @@ server <- shinyServer(function(input, output, session) {
     order_button <- NULL
     if (has_unpacked) {
       btn <- actionButton("mn_data_to_order", "Order of the probabilities",
-                          title = "Only for unpacked item models: in which order their probabilities (p1, p2, ...) appear in the downloaded files and in this table")
+                          title = "An unpacked model has many probabilities (one per item). Here you choose which of them is called p1, p2, ... in this table and in the downloads.")
       order_button <- if (length(groups) == 1) {
         if (startsWith(groups[[1]]$key, "m:")) btn else NULL
       } else {
@@ -19838,12 +19838,12 @@ server <- shinyServer(function(input, output, session) {
   outputOptions(output, "mn_results_dl", suspendWhenHidden = FALSE)
   output$qtest_order_btn_ui <- renderUI({
     if (length(items_reactive$names) == 0) return(NULL)
-    tags$span(class = "fairy-tooltip", `data-tooltip` = "Order of the probabilities (p1, p2, ...) for unpacked models: used by the QTEST and multinomineq downloads, H and V, and by the R script",
+    tags$span(class = "fairy-tooltip", `data-tooltip` = "Choose which probability of an unpacked model is called p1, p2, ... in the QTEST and multinomineq downloads and in the R script",
       actionButton("qtest_order_open", NULL, icon = icon("sort"), class = "fairy-toolbar-iconbtn fairy-order-btn fairy-order-new"))
   })
   output$qtest_order_btn_ui_v <- renderUI({
     if (length(items_reactive$names) == 0) return(NULL)
-    tags$span(class = "fairy-tooltip", `data-tooltip` = "Order of the probabilities (p1, p2, ...) for unpacked models: used by the QTEST and multinomineq downloads, H and V, and by the R script",
+    tags$span(class = "fairy-tooltip", `data-tooltip` = "Choose which probability of an unpacked model is called p1, p2, ... in the QTEST and multinomineq downloads and in the R script",
       actionButton("qtest_order_open_v", NULL, icon = icon("sort"), class = "fairy-toolbar-iconbtn fairy-order-btn fairy-order-new"))
   })
   show_qtest_order <- function(pending = NULL, back = FALSE) {
