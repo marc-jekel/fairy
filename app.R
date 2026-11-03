@@ -4446,7 +4446,7 @@ ui <- shinyUI(fluidPage(
         ),
         tags$div(id = "fairy-run-note"),
         tags$div(id = "fairy-run-actions",
-          tags$button(id = "fairy-run-cancel", type = "button", "Cancel"),
+          tags$button(id = "fairy-run-cancel", type = "button", "Skip all"),
           tags$button(id = "fairy-run-retryall", type = "button", "Retry all"),
           tags$button(id = "fairy-run-close", type = "button", "Close"))
       )
@@ -4592,7 +4592,7 @@ ui <- shinyUI(fluidPage(
           ['Model'].concat(cols).forEach(function(t) { var th = document.createElement('th'); th.textContent = t; htr.appendChild(th); });
 
           skippable = !!(msg && msg.skippable);
-          cancelInput = 'v_cancel'; limitLabel = 'exact volume'; $id('fairy-run-cancel').textContent = 'Cancel';
+          cancelInput = 'v_cancel'; limitLabel = 'exact volume'; $id('fairy-run-cancel').textContent = 'Skip all';
           $id('fairy-run-title').textContent = (msg && msg.title) ? msg.title : 'Calculating';
           $id('fairy-run-note').innerHTML = '';
           $id('fairy-run-close').classList.remove('visible');
@@ -4695,6 +4695,15 @@ ui <- shinyUI(fluidPage(
             if (window.Shiny && names.length) Shiny.setInputValue(cancelInput === 'ex_skip' ? 'ex_retry_all' : 'v_retry_all', names, { priority: 'event' });
           });
           $id('fairy-run-cancel').addEventListener('click', function() {
+            // in the windows with a Skip button per model the button below skips every model that is still open (what is done stays);
+            // the window of the volume algorithms has no per-model skip and cancels the run
+            if (cancelInput === 'v_cancel' || cancelInput === 'mn_cancel' || cancelInput === 'ex_skip') {
+              var skipInput = cancelInput === 'mn_cancel' ? 'mn_skip_model' : (cancelInput === 'ex_skip' ? 'ex_skip_model' : 'v_skip_model');
+              var open = Object.keys(rows).filter(function(n) { return rows[n].tr.classList.contains('fairy-run-active') && !rows[n].tr.classList.contains('fairy-run-skipped'); });
+              this.disabled = true; this.textContent = 'Skipping ...';
+              open.forEach(function(n) { Shiny.setInputValue(skipInput, n, { priority: 'event' }); });
+              return;
+            }
             this.disabled = true; this.textContent = 'Cancelling ...';
             Shiny.setInputValue(cancelInput, Date.now(), { priority: 'event' });
           });
@@ -8000,7 +8009,7 @@ server <- shinyServer(function(input, output, session) {
     mix_job$dir <- d; mix_job$names <- nms; mix_job$sigs <- lapply(pending, function(x) x$sig); mix_job$queue <- nms; mix_job$procs <- list()
     mix_job$parallel <- isTRUE(isolate(input$use_parallel))
     mix_job$active <- TRUE
-    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "v_cancel", label = "Cancel"))
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "v_cancel", label = "Skip all"))
     for (m in nms) fairy_run_row(m, "mixture", h = "wait", v = "wait")
   }
   observe({
@@ -8224,7 +8233,7 @@ server <- shinyServer(function(input, output, session) {
     v_state$parallel <- isTRUE(isolate(input$use_parallel))
     v_grace(NULL)
     v_state$active <- TRUE
-    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "v_cancel", label = "Cancel"))
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "v_cancel", label = "Skip all"))
   }
   v_finish_models <- function(m, res) {
     h_cn <- colnames(isolate(h_reactive[[m]]))
@@ -17211,7 +17220,7 @@ server <- shinyServer(function(input, output, session) {
     ex$dir <- d; ex$names <- u; ex$procs <- procs; ex$res <- res; ex$start <- Sys.time(); ex$elapsed <- 0; ex$skip <- FALSE; ex$hkeys <- hkeys
     ex$prev_snap <- isolate(pv$prev_snap)
     ex$active <- TRUE
-    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "ex_skip", label = "Cancel"))
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "ex_skip", label = "Skip all"))
     for (i in seq_along(u)) fairy_run_cell(u[i], "Exact volume", if (as.character(i) %in% names(procs)) "run" else if (as.character(i) %in% queue) "wait" else
       switch(if (is.na(cached_state[[u[i]]])) "none" else cached_state[[u[i]]], ok = "cached", timeout = "stop", skipped = "skip", "na"))
     session$sendCustomMessage("fairy_run_limit", list(seconds = if (isTRUE(isolate(ex_nolimit()))) 0 else EXACT_VOLUME_LIMIT, nolimit = isTRUE(isolate(ex_nolimit()))))
@@ -19581,7 +19590,7 @@ server <- shinyServer(function(input, output, session) {
     fairy_run_begin("Running the analysis", c("Posterior", "Bayes factors"), skippable = TRUE)
     for (m in mn_proc$row_of) { fairy_run_cell(m, "Posterior", "wait"); fairy_run_cell(m, "Bayes factors", "wait") }
     for (m in rem) { fairy_run_cell(mn_proc$row_of[[m]], "Posterior", "skip"); fairy_run_cell(mn_proc$row_of[[m]], "Bayes factors", "skip") }
-    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "mn_cancel", label = "Cancel"))
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "mn_cancel", label = "Skip all"))
     session$sendCustomMessage("fairy_run_limit", list(seconds = if (is.finite(mn_proc$limit)) mn_proc$limit else 0, nolimit = !is.finite(mn_proc$limit), label = "analysis"))
   })
   mn_skipped_mem <- reactiveVal(character(0))
