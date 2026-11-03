@@ -481,7 +481,7 @@ ui <- shinyUI(fluidPage(
       #mn_results_open .fa, #mn_results_open_v .fa, #mn_results_open svg, #mn_results_open_v svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
       #mn_results_open:hover, #mn_results_open_v:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       .fairy-order-btn.fairy-order-new::before { content: ''; position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: #e5484d; border: 1.5px solid var(--fairy-panel, #fff); z-index: 2; }
-      #fairy-running-note { position: fixed; right: 22px; bottom: 92px; z-index: 100000; display: flex; align-items: center; gap: 9px;
+      #fairy-running-note, #fairy-working-note { position: fixed; right: 22px; bottom: 92px; z-index: 100000; display: flex; align-items: center; gap: 9px;
         padding: 9px 16px; border-radius: 999px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1d2433); font-size: 13.5px; font-weight: 600;
         border: 1px solid var(--fairy-border, #d5d9e4); box-shadow: 0 8px 24px rgba(20,30,60,.22); }
       .fairy-running-spin { width: 15px; height: 15px; border-radius: 50%; border: 2.5px solid color-mix(in srgb, var(--fairy-primary, #3a6df0) 25%, transparent);
@@ -5583,6 +5583,25 @@ ui <- shinyUI(fluidPage(
             setTimeout(hide, Math.max(0, 700 - age));
           });
         }
+      })();
+
+      // ---- Any click that keeps the server busy for more than a moment: a small Working note (not while the run window or the Go note shows it) ----
+      (function() {
+        if (!window.jQuery) return;
+        var timer = null, note = null;
+        function hide() { if (timer) { clearTimeout(timer); timer = null; } if (note && note.parentNode) note.parentNode.removeChild(note); note = null; }
+        jQuery(document).on('shiny:busy', function() {
+          if (timer || note) return;
+          timer = setTimeout(function() {
+            timer = null;
+            var ov = document.getElementById('fairy-run-overlay');
+            if ((ov && ov.classList.contains('active')) || document.getElementById('fairy-running-note')) return;
+            note = document.createElement('div'); note.id = 'fairy-working-note'; note.setAttribute('role', 'status');
+            note.innerHTML = '<span class=\"fairy-running-spin\"></span><span>Working...</span>';
+            document.body.appendChild(note);
+          }, 900);
+        });
+        jQuery(document).on('shiny:idle', hide);
       })();
 
       // ---- First visit: Go glows until it has been used once ----
