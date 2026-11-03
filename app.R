@@ -8201,6 +8201,8 @@ server <- shinyServer(function(input, output, session) {
     if (!is.null(procs[[m]])) { try(procs[[m]]$kill_tree(), silent = TRUE); procs[[m]] <- NULL; v_state$procs <- procs }
     v_state$queue <- setdiff(queue, m)
     v_state$skipped <- unique(c(isolate(v_state$skipped), m))
+    # what Go found is no longer complete: the next Go must not decide that nothing changed (the V switch can be turned on again)
+    last_recomputed_snapshot(NULL)
     # the same switch as the V button of the model on the Input tab; a mixture always has its V-representation (its switch stays on):
     # for a mixture the skip holds for this run only, the next Go calculates it again
     if (is.null(get0(m, envir = mix_components, inherits = FALSE))) set_v_included(m, FALSE)
@@ -8240,6 +8242,7 @@ server <- shinyServer(function(input, output, session) {
     v_kill_all()
     v_state$queue <- character(0)
     v_state$active <- FALSE
+    if (length(left) > 0) last_recomputed_snapshot(NULL)
     for (m in left) fairy_run_row(m, v = "cancel")
     af <- isolate(v_state$after)
     if (is.function(af)) isolate(af(left, isolate(v_state$skipped)))
