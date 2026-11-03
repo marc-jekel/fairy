@@ -4658,20 +4658,6 @@ ui <- shinyUI(fluidPage(
           show();
           if (shown) $id('fairy-run-close').focus();
           // all fine and nothing to read: the window closes itself (not while the mouse is over it)
-          var reopen = window.fairyReopenItems; window.fairyReopenItems = null;
-          if (reopen && Date.now() - reopen.t < 600000 && c.bad === 0 && !(msg && msg.note)) {
-            // back to the unpack window after the Go that it asked for
-            setTimeout(function() {
-              dismiss();
-              var ub = document.getElementById('show_items_modal'); if (ub) ub.click();
-              var n = 0, iv = setInterval(function() {
-                var el = document.getElementById('items_base_model');
-                if (el && el.selectize && reopen.base) { el.selectize.setValue(reopen.base); clearInterval(iv); }
-                else if (++n > 20) clearInterval(iv);
-              }, 150);
-            }, 500);
-            return;
-          }
           if (c.bad === 0 && !(msg && msg.note)) {
             var tries = 0;
             (function closeLater() {
@@ -9283,21 +9269,6 @@ server <- shinyServer(function(input, output, session) {
     }
     list(sums = sums, others = as.list(unique(others)))
   }
-  # a model that has not been calculated yet (no Go) cannot be unpacked: the window says so instead of showing an example
-  items_need_go <- function(model_name) {
-    if (is.null(isolate(h_reactive[[model_name]]))) return("new")
-    n <- isolate(counter_input$n)
-    nm <- vapply(seq_len(n), function(i) isolate(input[[paste0("textin_relations_name", i)]]) %||% paste0("m", i), character(1))
-    idx <- which(nm == model_name)[1]
-    snap <- isolate(model_snap_cache())[[model_name]]
-    if (is.na(idx) || is.null(snap)) return("new")
-    flat <- function(x) trimws(paste(unlist(x), collapse = " "))
-    n_p <- isolate(counter$n)
-    p_names <- vapply(seq_len(n_p), function(i) isolate(input[[paste0("textin_name_", i)]]) %||% "", character(1))
-    same <- identical(flat(snap$spec), flat(isolate(input[[paste0("textin_relations_complete_", idx)]]))) &&
-      identical(snap$n_p, n_p) && identical(unname(as.character(snap$p_names)), unname(p_names))
-    if (same) "" else "changed"
-  }
   items_pairs_json <- function(model_name) {
     pr <- items_spec_pairs(model_name)
     if (is.null(pr)) pr <- items_pairs_for(model_name)
@@ -9332,7 +9303,6 @@ server <- shinyServer(function(input, output, session) {
       ),
       tags$script(HTML(paste0("window.fairyItemsPairs = ", items_pairs_json(prefill_base %||% model_choices[1]), "; window.fairyItemsConsts = ",
                               as.character(jsonlite::toJSON(items_spec_consts(prefill_base %||% model_choices[1]), auto_unbox = TRUE)),
-                              "; window.fairyItemsNeedGo = ", as.character(jsonlite::toJSON(items_need_go(prefill_base %||% model_choices[1]), auto_unbox = TRUE)),
                               "; window.fairyItemsOthers = ", as.character(jsonlite::toJSON(items_spec_sums_others(prefill_base %||% model_choices[1])$others, auto_unbox = TRUE)),
                               "; window.fairyItemsSums = ", as.character(jsonlite::toJSON(items_spec_sums_others(prefill_base %||% model_choices[1])$sums, auto_unbox = TRUE)), ";"))),
       # Each row is its OWN grid container rather than one flat grid for
@@ -10449,7 +10419,7 @@ server <- shinyServer(function(input, output, session) {
               });
             }
           }
-          if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_items_pairs', function(msg) { window.fairyItemsPairs = (msg && msg.pairs) || null; window.fairyItemsConsts = (msg && msg.consts) || []; window.fairyItemsOthers = (msg && msg.others) || []; window.fairyItemsSums = (msg && msg.sums) || []; window.fairyItemsNeedGo = (msg && msg.needgo) || ''; drawItemsDiagram(); });
+          if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_items_pairs', function(msg) { window.fairyItemsPairs = (msg && msg.pairs) || null; window.fairyItemsConsts = (msg && msg.consts) || []; window.fairyItemsOthers = (msg && msg.others) || []; window.fairyItemsSums = (msg && msg.sums) || []; drawItemsDiagram(); });
           // Quick setup -> fills the per-probability rows (Group / Items / Model holds) under Advanced.
           var itemsApplying = false;
           function markItemsCustom(on) { }
@@ -10569,7 +10539,7 @@ server <- shinyServer(function(input, output, session) {
     nm <- input$items_base_model
     if (is.null(nm) || !nzchar(nm)) return()
     session$sendCustomMessage("fairy_items_pairs", list(pairs = jsonlite::fromJSON(items_pairs_json(nm), simplifyVector = FALSE),
-                                                        consts = items_spec_consts(nm), others = items_spec_sums_others(nm)$others, sums = items_spec_sums_others(nm)$sums, needgo = items_need_go(nm)))
+                                                        consts = items_spec_consts(nm), others = items_spec_sums_others(nm)$others, sums = items_spec_sums_others(nm)$sums))
   }, ignoreInit = TRUE)
 
   observeEvent(input$show_items_modal, {
