@@ -9969,7 +9969,7 @@ server <- shinyServer(function(input, output, session) {
                 tmpP.push([ends[0], ends[1], p[2] || '', '', p[7] || '', !!p[8], !!p[9]]);
               });
               // a sum compared with a number (p1 + p5 > .2): a row of its own, the parts join into it, the comparison stands in its label
-              var symOp = function(o) { return (o === '<=' || o === '<') ? String.fromCharCode(8804) : ((o === '>=' || o === '>') ? String.fromCharCode(8805) : o); };
+              var symOp = function(o) { return o === '<=' ? String.fromCharCode(8804) : (o === '>=' ? String.fromCharCode(8805) : o); };   // strict stays strict: < and > are not turned into the signs with an equals part
               (window.fairyItemsSums || []).forEach(function(sc) {
                 var sd = [].concat(sc.parts || []).map(Number), MINUS = String.fromCharCode(8722);
                 if (sd.length < 2 || !sd.every(function(v) { return v < nProb; })) return;
@@ -10039,7 +10039,7 @@ server <- shinyServer(function(input, output, session) {
             var partOf = {};
             vM.forEach(function(ms, vi) { ms.forEach(function(mm, kk) { if (partOf[mm] === undefined) partOf[mm] = { v: vi, w: vW[vi][kk] }; else partOf[mm].amb = true; }); });
             // a comparison of one probability with a number (p5 < .2) goes into the label of its row, where nothing else is drawn
-            var opSym = function(o) { return (o === '<=' || o === '<') ? String.fromCharCode(8804) : ((o === '>=' || o === '>') ? String.fromCharCode(8805) : o); };
+            var opSym = function(o) { return o === '<=' ? String.fromCharCode(8804) : (o === '>=' ? String.fromCharCode(8805) : o); };   // strict stays strict: < and > are not turned into the signs with an equals part
             var constTxt = function(pi) {
               var c = realPairs ? (window.fairyItemsConsts || []).filter(function(cc) { return cc[0] === pi; }) : [];
               return c.length ? '  ' + c.map(function(cc) { return opSym(cc[1]) + ' ' + cc[2]; }).join(', ') : '';
