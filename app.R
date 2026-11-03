@@ -19791,7 +19791,7 @@ server <- shinyServer(function(input, output, session) {
                        numericInput(paste0("mn_nall_", gi), NULL, value = NA, min = 1, step = 1, width = "88px"))
       tbl <- tags$div(
         tags$p(style = "margin:0 0 6px 0; font-size:12.5px; color:var(--fairy-text-muted);",
-               "Enter observed counts, not probabilities: in n trials, the outcome of the probability occurred this many times."),
+               "Enter your observed counts: in n trials, the outcome occurred this many times (frequency)."),
         tbl, nall)
       tags$div(
         if (length(g$models)) tags$div(style = "margin:2px 0 4px 0;", tags$span(class = "mn-for", paste0("For: ", paste(g$models, collapse = ", ")))),
