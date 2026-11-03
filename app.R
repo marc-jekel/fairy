@@ -7124,7 +7124,7 @@ ui <- shinyUI(fluidPage(
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the H-representation for QTEST",
               downloadButton("d_h", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"))
             ),
-            tags$div(class = "fairy-dl-group", `data-cap` = "multinomineq", `data-sub` = "R package", title = "multinomineq is an R package by Heck and Davis-Stober (2019), not part of this app. The app prepares its files and can run it here.",
+            tags$div(class = "fairy-dl-group", `data-cap` = "multinomineq", title = "multinomineq is an R package by Heck and Davis-Stober (2019), not part of this app. The app prepares its files and can run it here.",
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Your data for multinomineq: n and frequencies. They go into the files and the script of the multinomineq download and are used by Run.",
               actionButton("mn_data_open", NULL, icon = icon("table"), class = "fairy-toolbar-iconbtn fairy-order-btn")),
             tags$span(class = "fairy-tooltip", `data-tooltip` = "Download the H-representation for multinomineq (R package): files, analysis script and data file",
