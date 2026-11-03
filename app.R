@@ -4547,7 +4547,8 @@ ui <- shinyUI(fluidPage(
             var calcNow = sts.some(function(st) { return st === 'run' || st === 'step'; });
             if (calcNow) { if (!rows[n].since) rows[n].since = Date.now(); } else rows[n].since = 0;
             rows[n].tr.classList.toggle('fairy-run-stopready', !!(calcNow && rows[n].since && Date.now() - rows[n].since >= 3000));
-            rows[n].tr.classList.toggle('fairy-run-skipped', sts.indexOf('skip') >= 0);
+            // cancelled rows get Retry as well (the run is repeated, what is done comes from the cache)
+            rows[n].tr.classList.toggle('fairy-run-skipped', sts.indexOf('skip') >= 0 || sts.indexOf('cancel') >= 0);
           });
           // after the run, with two or more skipped models: one button takes them all back (the V and the exact-volume windows)
           var nSkipped = Object.keys(rows).filter(function(n) { return rows[n].tr.classList.contains('fairy-run-skipped'); }).length;
