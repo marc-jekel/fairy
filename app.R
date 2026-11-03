@@ -17628,8 +17628,9 @@ server <- shinyServer(function(input, output, session) {
     go_now <- isolate(input$go)
     if (!identical(go_now, isolate(parsim_state$go_seen))) {
       parsim_state$go_seen <- go_now
-      algo_names_all <- c(CB = "Cooling Bodies", CG = "Cooling Gaussian", SoB = "Sequence of Balls")
-      sel_b <- c(CB = isTRUE(isolate(input$CB)), CG = isTRUE(isolate(input$CG)), SoB = isTRUE(isolate(input$SoB)))
+      # the columns in the order the algorithms are worked on (the same as the jobs are made below)
+      algo_names_all <- c(CB = "Cooling Bodies", SoB = "Sequence of Balls", CG = "Cooling Gaussian")
+      sel_b <- c(CB = isTRUE(isolate(input$CB)), SoB = isTRUE(isolate(input$SoB)), CG = isTRUE(isolate(input$CG)))
       if (!isTRUE(isolate(input$ALG))) sel_b[] <- FALSE   # the backup algorithm gets its column only if it is needed
       run_cols(c(if (!identical(isolate(input$EX), FALSE)) "Exact volume", unname(algo_names_all[names(sel_b)[sel_b]])))
       fairy_run_begin("Calculating the volumes", isolate(run_cols()), skippable = TRUE)
