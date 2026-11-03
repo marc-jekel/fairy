@@ -9241,7 +9241,7 @@ server <- shinyServer(function(input, output, session) {
             cfs <- cfs[order(cfs < 0, as.integer(sub("^p", "", names(cfs))))]       # the added parts first: p4 - p3, not -p3 + p4
             val <- as.character(round(kk, 4))
             txt_a <- paste0(vapply(seq_along(cfs), function(i) paste0(if (i == 1) (if (cfs[i] < 0) "-" else "") else (if (cfs[i] < 0) " - " else " + "), names(cfs)[i]), character(1)), collapse = "")
-            sums[[length(sums) + 1L]] <- list(parts = as.integer(sub("^p", "", names(cfs))) - 1L, w = ifelse(cfs < 0, "-1", "1"), op = op, val = val,
+            sums[[length(sums) + 1L]] <- list(parts = as.integer(sub("^p", "", names(cfs))) - 1L, w = unname(ifelse(cfs < 0, "-1", "1")), op = op, val = val,
                                               text = paste0(txt_a, " ", pretty(op), " ", val))
             next
           }
@@ -10003,7 +10003,7 @@ server <- shinyServer(function(input, output, session) {
               vM.forEach(function(ms, vi) { ms.forEach(function(mm, kk) { var wk = vW[vi][kk]; mlinks.push([mm, nProb + vi, '', wk === '-1' ? String.fromCharCode(8722) : ((wk && wk !== '1') ? wk + String.fromCharCode(215) : '+')]); }); });
             }
             var ordP = pairs0 ? pairs0.concat(mlinks) : [];
-            var realPairs = !!(pairs0 && pairs0.length), idxs, pdisp;
+            var realPairs = !!(pairs0 && (pairs0.length || mlinks.length)), idxs, pdisp;   // sums alone (without a comparison of two probabilities) are also taken from the model
             if (realPairs) {
               var inv = [];
               ordP.forEach(function(p) { [p[0], p[1]].forEach(function(v) { if (inv.indexOf(v) < 0) inv.push(v); }); });
