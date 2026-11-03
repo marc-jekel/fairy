@@ -10140,13 +10140,7 @@ server <- shinyServer(function(input, output, session) {
               if (pp[3] && anchor[q].grid && anchor[q2].grid) {
                 // parts of a sum: one straight line down from each part to the square, in every column (dots sit on the line)
                 for (k = 0; k < Math.min(c0, c1); k++) {
-                  if (q2 - q > 1) {
-                    // a part that is not right above the sum: its line goes around the rows in between (not through their dots, which would read as a chain)
-                    var bw = 13 + 3 * (q2 - q - 1);
-                    el('path', { d: 'M' + X(k) + ' ' + (y0 + 8) + ' C ' + (X(k) - bw) + ' ' + (y0 + 40) + ' ' + (X(k) - bw) + ' ' + (y1 - 40) + ' ' + X(k) + ' ' + (y1 - 8), stroke: 'currentColor', opacity: '0.35', 'stroke-width': '1.6' }, g);
-                  } else {
-                    el('line', { x1: X(k), y1: y0 + 8, x2: X(k), y2: y1 - 8, stroke: 'currentColor', opacity: '0.35', 'stroke-width': '1.6' }, g);
-                  }
+                  el('line', { x1: X(k), y1: y0 + 8, x2: X(k), y2: y1 - 8, stroke: 'currentColor', opacity: '0.35', 'stroke-width': '1.6' }, g);
                 }
                 return;
               }
