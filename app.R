@@ -19848,7 +19848,7 @@ server <- shinyServer(function(input, output, session) {
       footer = tagList(actionButton("mn_results_again", "Analyse again", icon = icon("rotate-right"), class = "btn-primary",
                                     title = "Opens the Run window: change the models, the settings or the numbers and run again; the new results replace these"),
                        tags$div(class = "btn-group dropup", style = "margin-left:6px;",
-                         tags$button(type = "button", class = "btn btn-default dropdown-toggle", `data-toggle` = "dropdown", icon("download"), " Download ", tags$span(class = "caret")),
+                         tags$button(type = "button", class = "btn btn-default dropdown-toggle", `data-toggle` = "dropdown", style = "display:inline-flex; align-items:center; gap:8px;", icon("download"), tags$span("Download"), tags$span(class = "caret", style = "margin:0;")),
                          tags$ul(class = "dropdown-menu dropdown-menu-right",
                            if (file.exists(file.path(d, "results.pdf"))) tags$li(downloadLink("mn_results_pdf", "PDF report")),
                            tags$li(downloadLink("mn_results_dl", "Everything (.tar): PDF, web page, tables, files and the R script")))),
