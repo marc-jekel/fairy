@@ -5298,6 +5298,39 @@ ui <- shinyUI(fluidPage(
         }, true);
       })();
 
+      // ---- Downloads: show that something is happening between the click and the start of the download ----
+      // (the file is made on the server first, which can take a few seconds). The link is fetched here, the button spins and a note
+      // stays until the file is there; then the browser saves it. If fetching fails, the normal download of the browser takes over.
+      (function() {
+        var direct = false;
+        document.addEventListener('click', function(e) {
+          var a = e.target.closest && e.target.closest('a.shiny-download-link');
+          if (!a || direct || !window.fetch) return;
+          var href = a.getAttribute('href');
+          if (!href || href === '#' || a.classList.contains('fairy-dl-busy')) return;
+          e.preventDefault(); e.stopImmediatePropagation();
+          a.classList.add('fairy-dl-busy', 'fairy-btn-busy');
+          var t = document.createElement('div'); t.className = 'fairy-toast'; t.setAttribute('role', 'status'); t.textContent = 'Preparing the download ...';
+          document.body.appendChild(t);
+          function done() { a.classList.remove('fairy-dl-busy', 'fairy-btn-busy'); if (t.parentNode) t.parentNode.removeChild(t); }
+          fetch(href, { credentials: 'same-origin' }).then(function(r) {
+            if (!r.ok) throw new Error('status ' + r.status);
+            var cd = r.headers.get('Content-Disposition') || '';
+            var m = /filename\\*?=(?:UTF-8'')?\\x22?([^\\x22;]+)\\x22?/i.exec(cd);
+            var name = m ? decodeURIComponent(m[1]) : 'download';
+            return r.blob().then(function(b) { return { blob: b, name: name }; });
+          }).then(function(x) {
+            var u = URL.createObjectURL(x.blob), l = document.createElement('a');
+            l.href = u; l.download = x.name; document.body.appendChild(l); l.click();
+            setTimeout(function() { URL.revokeObjectURL(u); if (l.parentNode) l.parentNode.removeChild(l); }, 3000);
+            done();
+          }).catch(function() {
+            done(); direct = true;
+            try { a.click(); } finally { direct = false; }
+          });
+        }, true);
+      })();
+
       // ---- Parsimony panel: the two rarely used algorithms behind a link ----
       document.addEventListener('click', function(e) {
         var a = e.target.closest ? e.target.closest('#fairy_more_algos_toggle') : null;
