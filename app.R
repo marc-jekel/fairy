@@ -19529,8 +19529,20 @@ server <- shinyServer(function(input, output, session) {
       if (isTRUE(input[[id]] > 0)) { mn_source(if (identical(id, "mn_data_open_v")) "V" else "H"); show_mn_data() }
     }, ignoreInit = TRUE)
   })
-  # the numbers are set back to the examples and the window stays open (it is drawn again with them)
-  observeEvent(input$mn_data_reset, { mn_user_data(list()); show_mn_data() })
+  # the numbers are set back to the examples in the open window (no new window: the tab stays as it is)
+  observeEvent(input$mn_data_reset, {
+    mn_user_data(list())
+    groups <- isolate(mn_np_labels())
+    for (gi in seq_along(groups)) {
+      k <- groups[[gi]]$k
+      ex <- round(25 * seq(0.8, 0.2, length.out = k))
+      for (i in seq_len(k)) {
+        updateNumericInput(session, paste0("mn_n_", gi, "_", i), value = 25)
+        updateNumericInput(session, paste0("mn_f_", gi, "_", i), value = ex[i])
+      }
+      updateNumericInput(session, paste0("mn_nall_", gi), value = NA)
+    }
+  })
   observeEvent(input$mn_data_save, {
     if (!mn_collect(mn_np_labels(), strict = TRUE)) {
       showNotification("n and frequency must be whole numbers, n at least 1, and frequency between 0 and n.", type = "error"); return()
