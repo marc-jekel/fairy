@@ -15779,8 +15779,8 @@ server <- shinyServer(function(input, output, session) {
         if (this_tol != 0) {
           keep_as_equal[loop_tune] <- FALSE
 
-          add_ineq_eq_left <- rbind(add_ineq_eq_left, (ineq_eq_left[loop_tune, ]))
-          add_ineq_eq_left <- rbind(add_ineq_eq_left, qneg(ineq_eq_left[loop_tune, ]))
+          add_ineq_eq_left <- rbind(add_ineq_eq_left, (ineq_eq_left[loop_tune, , drop = FALSE]))
+          add_ineq_eq_left <- rbind(add_ineq_eq_left, qneg(ineq_eq_left[loop_tune, , drop = FALSE]))
 
           add_ineq_eq_right <- c(
             add_ineq_eq_right,
@@ -15794,7 +15794,7 @@ server <- shinyServer(function(input, output, session) {
     }
 
     if (length(add_all_operators) > 0) {
-      ineq_eq_left <- ineq_eq_left[keep_as_equal, ]
+      ineq_eq_left <- ineq_eq_left[keep_as_equal, , drop = FALSE]
       ineq_eq_right <- ineq_eq_right[keep_as_equal]
       all_operators <- all_operators[keep_as_equal]
 
@@ -16116,10 +16116,11 @@ server <- shinyServer(function(input, output, session) {
 
         if (sum(all_operators != "equal") > 0 &
           sum(all_operators == "equal") > 0) {
+          # drop = FALSE: with a single probability the selected rows would collapse to a plain vector (ncol(a1) != ncol(a2))
           h_representation <- makeH(
-            ineq_eq_left[all_operators != "equal", ],
+            ineq_eq_left[all_operators != "equal", , drop = FALSE],
             ineq_eq_right[all_operators != "equal"],
-            ineq_eq_left[all_operators == "equal", ],
+            ineq_eq_left[all_operators == "equal", , drop = FALSE],
             ineq_eq_right[all_operators == "equal"]
           )
         }
@@ -16127,7 +16128,7 @@ server <- shinyServer(function(input, output, session) {
         if (sum(all_operators != "equal") == 0 &
           sum(all_operators == "equal") > 0) {
           h_representation <- makeH(
-            a2 = ineq_eq_left,
+            a2 = as.matrix(ineq_eq_left),
             b2 = ineq_eq_right
           )
         }
