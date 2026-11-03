@@ -19415,7 +19415,7 @@ server <- shinyServer(function(input, output, session) {
       }
     }
     showModal(modalDialog(
-      title = "Your data and settings for the multinomineq analysis", size = "m", easyClose = TRUE,
+      title = "Your data for the multinomineq analysis", size = "m", easyClose = TRUE,
       tags$style(HTML(paste(
         ".mn-foot .btn { margin: 0 !important; }",
         ".mn-data-modal .form-group { margin-bottom: 0; }",
