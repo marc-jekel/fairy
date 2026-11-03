@@ -481,6 +481,9 @@ ui <- shinyUI(fluidPage(
       #mn_results_open .fa, #mn_results_open svg { font-size: 11px; width: 11px; height: 11px; color: var(--fairy-text-muted, #667085); }
       #mn_results_open:hover { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 10%, transparent) !important; }
       .fairy-order-btn.fairy-order-new::before { content: ''; position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: #e5484d; border: 1.5px solid var(--fairy-panel, #fff); z-index: 2; }
+      .fairy-plot-pdf { position: absolute; bottom: 8px; right: 44px; z-index: 2100; padding: 3px 12px; border: 1.5px solid var(--fairy-border, #c8cdd8); border-radius: 8px; background: var(--fairy-panel, #fff); color: var(--fairy-text-muted, #667085); font-size: 12px; font-weight: 600; cursor: pointer; }
+      .fairy-plot-pdf:hover { border-color: var(--fairy-primary, #3a6df0); color: var(--fairy-primary, #3a6df0); }
+      .fairy-plot-pdf.busy { opacity: .5; cursor: progress; }
       #fairy-running-note, #fairy-working-note { position: fixed; right: 22px; bottom: 92px; z-index: 100000; display: flex; align-items: center; gap: 9px;
         padding: 9px 16px; border-radius: 999px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1d2433); font-size: 13.5px; font-weight: 600;
         border: 1px solid var(--fairy-border, #d5d9e4); box-shadow: 0 8px 24px rgba(20,30,60,.22); }
@@ -5307,6 +5310,59 @@ ui <- shinyUI(fluidPage(
         }, true);
       })();
 
+      // ---- PDF of a plot: the plot is taken as a picture (as it looks now, including the view you turned it to) and written into a PDF file ----
+      (function() {
+        function bytesOf(u) { var b = atob(u.split(',')[1]), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
+        function jpegSize(a) {
+          for (var i = 2; i + 9 < a.length;) {
+            if (a[i] !== 0xFF) { i++; continue; }
+            var m = a[i + 1];
+            if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) return { h: a[i + 5] * 256 + a[i + 6], w: a[i + 7] * 256 + a[i + 8] };
+            i += 2 + a[i + 2] * 256 + a[i + 3];
+          }
+          return null;
+        }
+        function pdfBlob(jpg) {
+          var sz = jpegSize(jpg); if (!sz) return null;
+          var pw = Math.round(sz.w * 0.25 * 100) / 100, ph = Math.round(sz.h * 0.25 * 100) / 100;
+          var enc = new TextEncoder(), parts = [], off = 0, offs = [];
+          function add(x) { var b = typeof x === 'string' ? enc.encode(x) : x; parts.push(b); off += b.length; }
+          function obj(n, body) { offs[n] = off; add(n + ' 0 obj\n' + body + '\nendobj\n'); }
+          add('%PDF-1.4\n');
+          obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+          obj(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+          obj(3, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + pw + ' ' + ph + '] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>');
+          offs[4] = off;
+          add('4 0 obj\n<< /Type /XObject /Subtype /Image /Width ' + sz.w + ' /Height ' + sz.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + jpg.length + ' >>\nstream\n');
+          add(jpg); add('\nendstream\nendobj\n');
+          var cs = 'q ' + pw + ' 0 0 ' + ph + ' 0 0 cm /Im0 Do Q';
+          obj(5, '<< /Length ' + cs.length + ' >>\nstream\n' + cs + '\nendstream');
+          var xref = off;
+          add('xref\n0 6\n0000000000 65535 f \n');
+          for (var n = 1; n <= 5; n++) add(('0000000000' + offs[n]).slice(-10) + ' 00000 n \n');
+          add('trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF');
+          return new Blob(parts, { type: 'application/pdf' });
+        }
+        document.addEventListener('click', function(e) {
+          var btn = e.target.closest && e.target.closest('.fairy-plot-pdf');
+          if (!btn || btn.classList.contains('busy')) return;
+          var host = document.getElementById(btn.getAttribute('data-plot')), gd = host && (host.classList.contains('js-plotly-plot') ? host : host.querySelector('.js-plotly-plot'));
+          if (!gd || !window.Plotly) return;
+          btn.classList.add('busy');
+          var t = document.createElement('div'); t.className = 'fairy-toast'; t.setAttribute('role', 'status'); t.textContent = 'Preparing the PDF ...';
+          document.body.appendChild(t);
+          function done() { btn.classList.remove('busy'); if (t.parentNode) t.parentNode.removeChild(t); }
+          Plotly.toImage(gd, { format: 'jpeg', width: gd.offsetWidth, height: gd.offsetHeight, scale: 3 }).then(function(u) {
+            var blob = pdfBlob(bytesOf(u)); if (!blob) throw new Error('no image');
+            var l = document.createElement('a'); l.href = URL.createObjectURL(blob);
+            l.download = btn.getAttribute('data-name') + '_' + new Date().toISOString().slice(0, 10) + '.pdf';
+            document.body.appendChild(l); l.click();
+            setTimeout(function() { URL.revokeObjectURL(l.href); if (l.parentNode) l.parentNode.removeChild(l); }, 3000);
+            done();
+          }).catch(function() { done(); if (window.Shiny) Shiny.notifications && Shiny.notifications.show && Shiny.notifications.show({ html: 'The PDF could not be made. Use the camera button of the plot for a picture instead.', type: 'warning' }); });
+        }, true);
+      })();
+
       // ---- Downloads: show that something is happening between the click and the start of the download ----
       // (the file is made on the server first, which can take a few seconds). The link is fetched here, the button spins and a note
       // stays until the file is there; then the browser saves it. If fetching fails, the normal download of the browser takes over.
@@ -7311,7 +7367,9 @@ ui <- shinyUI(fluidPage(
         column(12, uiOutput("edge_extra_ui")),
         column(
           id = "example_out",
-          12, div(plotlyOutput("plot_example", width = "100%", height = "80vh"), align = "center")
+          12, div(style = "position:relative;",
+                  tags$button(id = "plot_example_pdf", type = "button", class = "fairy-plot-pdf", title = "Save this plot as a PDF", `data-plot` = "plot_example", `data-name` = "edge_cases", "PDF"),
+                  plotlyOutput("plot_example", width = "100%", height = "80vh"), align = "center")
         )
       ))
     ),
@@ -7374,12 +7432,14 @@ ui <- shinyUI(fluidPage(
               id = "polytope_plot_expand", type = "button", title = "Expand the plot (Esc to close)", `aria-label` = "Expand the plot",
               HTML("<svg class=\'pp-open\' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M9.5 2.5h4v4M13.5 2.5l-4.5 4.5M6.5 13.5h-4v-4M2.5 13.5l4.5-4.5'/></svg><svg class=\'pp-close\' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M13 6.5H9.5V3M9.5 6.5 14 2M3 9.5h3.5V13M6.5 9.5 2 14'/></svg>")
             ),
+            tags$button(id = "polytope_plot_pdf", type = "button", class = "fairy-plot-pdf", title = "Save this plot as a PDF", `data-plot` = "plot", `data-name` = "polytope", "PDF"),
             plotlyOutput("plot", width = "100%", height = "calc(100vh - 120px)"),   # follows the height of the window (min-height in the style below)
             align = "center"
           )
         )),
         tags$style(HTML("
           #plot { min-height: 480px; }
+          #polytope_plot_wrap.fairy-plot-full .fairy-plot-pdf { bottom:48px; right:44px; }
           #polytope_plot_expand { position:absolute; bottom:8px; right:8px; z-index:2100; width:28px; height:28px; padding:0; display:flex; align-items:center; justify-content:center;
             border:0; border-radius:6px; background:transparent; color:var(--fairy-text-muted, #667085); cursor:pointer; }
           #polytope_plot_expand .pp-close { display:none; }
