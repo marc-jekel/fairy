@@ -9990,33 +9990,7 @@ server <- shinyServer(function(input, output, session) {
             var tEl = document.querySelector('.fairy-items-quick-type:checked');
             var nEl = document.getElementById('fairy_items_quick_n');
             if (!host || !tEl) return;
-            // the picture is drawn from the model as typed; Add waits for a Go (the model is unpacked as it was calculated), and a note says so
-            var addBtn = document.getElementById('submit_items_multi');
-            var goNote = document.getElementById('fairy_items_gonote');
-            if (!goNote) {
-              goNote = document.createElement('div'); goNote.id = 'fairy_items_gonote';
-              goNote.style.cssText = 'margin:0 0 8px; padding:6px 10px; font-size:12.5px; border-left:3px solid #f59e0b; background:rgba(245,158,11,.14); border-radius:4px; display:none; align-items:center; gap:10px; flex-wrap:wrap;';
-              host.parentNode.insertBefore(goNote, host);
-            }
-            if (window.fairyItemsNeedGo) {
-              goNote.textContent = '';
-              var goTxt = document.createElement('span');
-              goTxt.textContent = window.fairyItemsNeedGo === 'changed'
-                ? 'The model has changed since the last Go. Press Go before adding, so that it is unpacked as it is now.'
-                : 'Press Go before adding: the model has to be calculated first.';
-              goNote.appendChild(goTxt);
-              var goNow = document.createElement('button');
-              goNow.type = 'button'; goNow.className = 'btn btn-default btn-sm'; goNow.style.cssText = 'font-weight:600;'; goNow.textContent = 'Close and press Go';
-              goNow.addEventListener('click', function() {
-                var dm = document.querySelector('.modal [data-dismiss=modal]'); if (dm) dm.click();
-                var bmSel = document.getElementById('items_base_model');
-                window.fairyReopenItems = { base: bmSel ? bmSel.value : '', t: Date.now() };
-                setTimeout(function() { var g = document.getElementById('go_v_h'); if (g) g.click(); }, 400);
-              });
-              goNote.appendChild(goNow);
-              goNote.style.display = 'flex';
-            } else { goNote.style.display = 'none'; }
-            if (addBtn) addBtn.disabled = !!window.fairyItemsNeedGo;
+            if (addBtn) addBtn.disabled = false;   // Add only stores the unpacking; the model is calculated at the next Go anyway
             // with one list only, the choice made for that list is the one that counts
             var oneList = twoKinds() && chipState.sets && chipState.sets.length === 1 ? chipState.sets[0] : null;
             var gType = tEl.value === 'perlist' ? ((oneList && oneList.over) || 'joint') : tEl.value;
