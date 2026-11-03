@@ -1,3 +1,14 @@
+# fairy 0.6.1
+
+* The analysis script of `fairy_write_multinomineq()` / `fairy_multinomineq_script()` and `fairy_analyze_multinomineq()` now also writes
+  `results.pdf`: the settings, the Bayes factors of all models (coloured by the strength of evidence, after Jeffreys, 1961) and, for every
+  model, the posterior (mean, SD, 95% interval, effective sample size, Geweke z) with trace and density plots.
+* `results.html`: the legend of the evidence categories is one coloured scale (from "< 1/100" to "> 100"); the column "Representation" is
+  left out when only the H-representation was analysed, which is what the app and the package do.
+* The analysis from the V-representation (`V_<model>.csv`) is still prepared in the script, but switched off (commented out, with a note on how
+  to switch it on); the files of the package contain the H-representation (`A_`, `b_`) only.
+* Help of the `prior` argument shortened.
+
 # fairy 0.6.0
 
 * `fairy_volume(method = "auto")`: the exact volume first, as in the app, and the volesti estimate if the exact volume cannot be calculated.
