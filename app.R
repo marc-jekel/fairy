@@ -6985,6 +6985,7 @@ ui <- shinyUI(fluidPage(
                 icon("compress"), "Compact"
               )
             ),
+            uiOutput("input_stale_note"),
             useShinyjs(),
             # A plain HTML table for both rows. inline-block (splitLayout),
             # CSS grid, and absolute positioning were all tried before this
@@ -9216,38 +9217,50 @@ server <- shinyServer(function(input, output, session) {
       opd <- gsub("\\s+", "", trimws(strsplit(cl, "<=|>=|<|>|=")[[1]]))
       if (!any(vapply(opd, has_comb, logical(1)))) next
       pretty <- function(op) switch(op, "<=" = "\u2264", "<" = "\u2264", ">=" = "\u2265", ">" = "\u2265", op)   # weak inequalities (closed polytopes)
-      if (length(ops) == 1 && length(opd) == 2) {
-        # bring everything into the form (sum of probabilities) op (number): p1 >= p2 - .2 becomes p1 - p2 >= -0.2
-        side <- function(x) {   # -> list(terms = named coefficients, k = constant, ok)
-          tm <- regmatches(x, gregexpr("[+-]?[^+-]+", x))[[1]]
-          cf <- numeric(0); k <- 0; ok <- TRUE
-          for (t in tm) {
-            sg <- if (startsWith(t, "-")) -1 else 1; core <- sub("^[+-]", "", t)
-            if (grepl("^p[0-9]+$", core)) cf[core] <- (if (core %in% names(cf)) cf[core] else 0) + sg
-            else if (!is.na(num_of(core))) k <- k + sg * num_of(core)
-            else ok <- FALSE
-          }
-          list(cf = cf, k = k, ok = ok)
+      # a term as typed: p1, 2*p1, p1*2, p1/2 or a number
+      nump <- "[0-9]*\\.?[0-9]+(?:/[0-9]*\\.?[0-9]+)?"
+      grab <- function(core, pat) regmatches(core, regexec(pat, core, perl = TRUE))[[1]]
+      # bring everything into the form (weighted sum of probabilities) op (number): p1 >= p2 - .2 becomes p1 - p2 >= -0.2
+      side <- function(x) {   # -> list(cf = named coefficients, k = constant, ok)
+        tm <- regmatches(x, gregexpr("[+-]?[^+-]+", x))[[1]]
+        cf <- numeric(0); k <- 0; ok <- TRUE
+        for (t in tm) {
+          sg <- if (startsWith(t, "-")) -1 else 1; core <- sub("^[+-]", "", t)
+          nmv <- NA_character_; cv <- NA_real_
+          if (grepl("^p[0-9]+$", core)) { nmv <- core; cv <- 1 }
+          else if (length(m <- grab(core, paste0("^(", nump, ")\\*(p[0-9]+)$")))) { nmv <- m[3]; cv <- num_of(m[2]) }
+          else if (length(m <- grab(core, paste0("^(p[0-9]+)\\*(", nump, ")$")))) { nmv <- m[2]; cv <- num_of(m[3]) }
+          else if (length(m <- grab(core, paste0("^(p[0-9]+)/(", nump, ")$")))) { nmv <- m[2]; cv <- 1 / num_of(m[3]) }
+          if (!is.na(nmv) && is.finite(cv)) cf[nmv] <- (if (nmv %in% names(cf)) cf[[nmv]] else 0) + sg * cv
+          else if (!is.na(num_of(core))) k <- k + sg * num_of(core)
+          else ok <- FALSE
         }
-        L <- side(opd[1]); Rr <- side(opd[2])
-        if (L$ok && Rr$ok) {
-          nm_all <- union(names(L$cf), names(Rr$cf))
-          cfs <- vapply(nm_all, function(n) (if (n %in% names(L$cf)) L$cf[[n]] else 0) - (if (n %in% names(Rr$cf)) Rr$cf[[n]] else 0), numeric(1))
-          cfs <- cfs[cfs != 0]; kk <- Rr$k - L$k
-          if (length(cfs) >= 2 && all(abs(cfs) == 1)) {
-            if (kk == 0 && any(cfs > 0) && any(cfs < 0)) next   # one side against the other (p1 + p2 >= p3): the comparisons of the picture draw it
-            op <- ops[1]
-            if (all(cfs < 0)) { cfs <- -cfs; kk <- -kk; op <- unname(flip[op]) }   # .2 < p2 + p3 reads p2 + p3 > .2
-            cfs <- cfs[order(cfs < 0, as.integer(sub("^p", "", names(cfs))))]       # the added parts first: p4 - p3, not -p3 + p4
-            val <- as.character(round(kk, 4))
-            txt_a <- paste0(vapply(seq_along(cfs), function(i) paste0(if (i == 1) (if (cfs[i] < 0) "\u2212" else "") else (if (cfs[i] < 0) " \u2212 " else " + "), names(cfs)[i]), character(1)), collapse = "")   # a real minus sign, like in the picture
-            sums[[length(sums) + 1L]] <- list(parts = as.integer(sub("^p", "", names(cfs))) - 1L, w = unname(ifelse(cfs < 0, "-1", "1")), op = op, val = val,
-                                              text = paste0(txt_a, " ", pretty(op), " ", sub("^-", "\u2212", val)))
-            next
-          }
-          if (length(cfs) <= 1) next   # one probability against a number: the label of its row; against another probability: an arrow
-        }
+        list(cf = cf, k = k, ok = ok)
       }
+      handled <- logical(length(ops))
+      for (i in seq_along(ops)) {   # chains (a <= b <= c) are read pair by pair
+        if (!has_comb(opd[i]) && !has_comb(opd[i + 1])) { handled[i] <- TRUE; next }
+        L <- side(opd[i]); Rr <- side(opd[i + 1])
+        if (!(L$ok && Rr$ok)) next
+        nm_all <- union(names(L$cf), names(Rr$cf))
+        cfs <- vapply(nm_all, function(n) (if (n %in% names(L$cf)) L$cf[[n]] else 0) - (if (n %in% names(Rr$cf)) Rr$cf[[n]] else 0), numeric(1))
+        cfs <- cfs[cfs != 0]; kk <- Rr$k - L$k
+        if (length(cfs) == 0) next
+        if (length(cfs) == 1) { handled[i] <- TRUE; next }   # one probability against a number: the label of its row; against another probability: an arrow
+        if (kk == 0 && any(cfs > 0) && any(cfs < 0) && !grepl("-", cl, fixed = TRUE)) { handled[i] <- TRUE; next }   # one side against the other (p1 + p2 >= p3): the comparisons of the picture draw it
+        op <- ops[i]
+        if (ops[i] == "=") op <- "="
+        if (all(cfs < 0)) { cfs <- -cfs; kk <- -kk; op <- unname(flip[op]) }   # .2 < p2 + p3 reads p2 + p3 > .2
+        cfs <- cfs[order(cfs < 0, as.integer(sub("^p", "", names(cfs))))]       # the added parts first: p4 - p3, not -p3 + p4
+        val <- as.character(round(kk, 4))
+        fmt <- function(v) format(round(v, 4), trim = TRUE)
+        txt_a <- paste0(vapply(seq_along(cfs), function(j) paste0(if (j == 1) (if (cfs[j] < 0) "\u2212" else "") else (if (cfs[j] < 0) " \u2212 " else " + "),
+                                                                      if (abs(cfs[j]) != 1) paste0(fmt(abs(cfs[j])), "\u00b7") else "", names(cfs)[j]), character(1)), collapse = "")   # a real minus sign, like in the picture
+        sums[[length(sums) + 1L]] <- list(parts = as.integer(sub("^p", "", names(cfs))) - 1L, w = unname(vapply(cfs, fmt, character(1))), op = op, val = val,
+                                          text = paste0(txt_a, " ", pretty(op), " ", sub("^-", "\u2212", val)))
+        handled[i] <- TRUE
+      }
+      if (all(handled)) next
       txt <- gsub("\\s+", "", cl)
       for (o in c("<=", ">=")) txt <- gsub(o, paste0(" ", pretty(o), " "), txt, fixed = TRUE)
       txt <- gsub("<", " \u2264 ", txt, fixed = TRUE); txt <- gsub(">", " \u2265 ", txt, fixed = TRUE)
@@ -9258,7 +9271,20 @@ server <- shinyServer(function(input, output, session) {
     list(sums = sums, others = as.list(unique(others)))
   }
   # a model that has not been calculated yet (no Go) cannot be unpacked: the window says so instead of showing an example
-  items_need_go <- function(model_name) is.null(isolate(h_reactive[[model_name]]))
+  items_need_go <- function(model_name) {
+    if (is.null(isolate(h_reactive[[model_name]]))) return("new")
+    n <- isolate(counter_input$n)
+    nm <- vapply(seq_len(n), function(i) isolate(input[[paste0("textin_relations_name", i)]]) %||% paste0("m", i), character(1))
+    idx <- which(nm == model_name)[1]
+    snap <- isolate(model_snap_cache())[[model_name]]
+    if (is.na(idx) || is.null(snap)) return("new")
+    flat <- function(x) trimws(paste(unlist(x), collapse = " "))
+    n_p <- isolate(counter$n)
+    p_names <- vapply(seq_len(n_p), function(i) isolate(input[[paste0("textin_name_", i)]]) %||% "", character(1))
+    same <- identical(flat(snap$spec), flat(isolate(input[[paste0("textin_relations_complete_", idx)]]))) &&
+      identical(snap$n_p, n_p) && identical(unname(as.character(snap$p_names)), unname(p_names))
+    if (same) "" else "changed"
+  }
   items_pairs_json <- function(model_name) {
     pr <- items_spec_pairs(model_name)
     if (is.null(pr)) pr <- items_pairs_for(model_name)
@@ -9293,7 +9319,7 @@ server <- shinyServer(function(input, output, session) {
       ),
       tags$script(HTML(paste0("window.fairyItemsPairs = ", items_pairs_json(prefill_base %||% model_choices[1]), "; window.fairyItemsConsts = ",
                               as.character(jsonlite::toJSON(items_spec_consts(prefill_base %||% model_choices[1]), auto_unbox = TRUE)),
-                              "; window.fairyItemsNeedGo = ", tolower(as.character(items_need_go(prefill_base %||% model_choices[1]))),
+                              "; window.fairyItemsNeedGo = ", as.character(jsonlite::toJSON(items_need_go(prefill_base %||% model_choices[1]), auto_unbox = TRUE)),
                               "; window.fairyItemsOthers = ", as.character(jsonlite::toJSON(items_spec_sums_others(prefill_base %||% model_choices[1])$others, auto_unbox = TRUE)),
                               "; window.fairyItemsSums = ", as.character(jsonlite::toJSON(items_spec_sums_others(prefill_base %||% model_choices[1])$sums, auto_unbox = TRUE)), ";"))),
       # Each row is its OWN grid container rather than one flat grid for
@@ -9956,8 +9982,19 @@ server <- shinyServer(function(input, output, session) {
             if (window.fairyItemsNeedGo) {
               host.textContent = '';
               var info = document.createElement('div');
-              info.style.cssText = 'padding:48px 28px; text-align:center; font-size:14px; line-height:1.55; opacity:.85;';
-              info.textContent = 'Press Go first. The model has to be calculated before it can be unpacked; then this picture shows the constraints of your model.';
+              info.style.cssText = 'padding:44px 28px; text-align:center; font-size:14px; line-height:1.55; opacity:.9;';
+              var infoTxt = document.createElement('div');
+              infoTxt.textContent = window.fairyItemsNeedGo === 'changed'
+                ? 'This model has changed since the last Go. Press Go first, so that the model is unpacked as it is now; then this picture shows its constraints.'
+                : 'Press Go first. The model has to be calculated before it can be unpacked; then this picture shows the constraints of your model.';
+              info.appendChild(infoTxt);
+              var goNow = document.createElement('button');
+              goNow.type = 'button'; goNow.className = 'btn btn-default'; goNow.style.cssText = 'margin-top:14px; font-weight:600;'; goNow.textContent = 'Close and press Go';
+              goNow.addEventListener('click', function() {
+                var dm = document.querySelector('.modal [data-dismiss=modal]'); if (dm) dm.click();
+                setTimeout(function() { var g = document.getElementById('go_v_h'); if (g) g.click(); }, 400);
+              });
+              info.appendChild(goNow);
               host.appendChild(info);
               var legEl0 = document.getElementById('fairy_items_legend'); if (legEl0) legEl0.textContent = '';
               if (addBtn) addBtn.disabled = true;
@@ -10007,16 +10044,16 @@ server <- shinyServer(function(input, output, session) {
               (window.fairyItemsSums || []).forEach(function(sc) {
                 var sd = [].concat(sc.parts || []).map(Number), MINUS = String.fromCharCode(8722);
                 if (sd.length < 2 || !sd.every(function(v) { return v < nProb; })) return;
-                var w = sd.map(function(v, kk) { var wk = [].concat(sc.w || [])[kk]; return wk === '-1' ? '-1' : '1'; }), key = sd.join('+') + '|' + w.join(',') + '|', vi = vK.indexOf(key);
+                var w = sd.map(function(v, kk) { var wk = [].concat(sc.w || [])[kk]; return (wk === undefined || wk === null || wk === '') ? '1' : String(wk); }), key = sd.join('+') + '|' + w.join(',') + '|', vi = vK.indexOf(key);
                 if (vi < 0) {
                   vK.push(key); vS.push(sd[0]); vM.push(sd); vW.push(w);
-                  vN.push(sd.map(function(v, kk) { return (kk ? (w[kk] === '-1' ? ' ' + MINUS + ' ' : ' + ') : (w[kk] === '-1' ? MINUS : '')) + chipRowName(v); }).join(''));
+                  vN.push(sd.map(function(v, kk) { var ng = String(w[kk]).charAt(0) === '-', ab = String(w[kk]).replace(/^-/, ''); return (kk ? (ng ? ' ' + MINUS + ' ' : ' + ') : (ng ? MINUS : '')) + (ab && ab !== '1' ? ab + String.fromCharCode(183) : '') + chipRowName(v); }).join(''));
                   vi = vK.length - 1;
                 }
                 (sumConstOf[vi] = sumConstOf[vi] || []).push(symOp(sc.op) + ' ' + String(sc.val).replace(/^-/, MINUS));
               });
               pairs0 = tmpP;
-              vM.forEach(function(ms, vi) { ms.forEach(function(mm, kk) { var wk = vW[vi][kk]; mlinks.push([mm, nProb + vi, '', wk === '-1' ? String.fromCharCode(8722) : ((wk && wk !== '1') ? wk + String.fromCharCode(215) : '+')]); }); });
+              vM.forEach(function(ms, vi) { ms.forEach(function(mm, kk) { var wk = vW[vi][kk]; mlinks.push([mm, nProb + vi, '', String(wk).charAt(0) === '-' ? String.fromCharCode(8722) : ((wk && wk !== '1') ? wk + String.fromCharCode(215) : '+')]); }); });
             }
             var ordP = pairs0 ? pairs0.concat(mlinks) : [];
             var realPairs = !!(pairs0 && (pairs0.length || mlinks.length)), idxs, pdisp;   // sums alone (without a comparison of two probabilities) are also taken from the model
@@ -10094,7 +10131,7 @@ server <- shinyServer(function(input, output, session) {
               var po = partOf[idxs[i]];
               if (!po || po.amb) return nmTxt + constTxt(idxs[i]);
               // the single probabilities carry no plus or minus sign (the sum row says it, and the dashed line marks a subtracted part)
-              var wtxt = (po.w && po.w !== '1' && po.w !== '-1') ? po.w + String.fromCharCode(215) + ' ' : '';
+              var wAbsT = String(po.w === undefined ? '' : po.w).replace(/^-/, ''), wtxt = (wAbsT && wAbsT !== '1') ? wAbsT + String.fromCharCode(215) + ' ' : '';
               return wtxt + nmTxt + constTxt(idxs[i]);
             });
             var MAXC = 3, dx = 58, x0 = Math.max(96, Math.round(18 + 7 * Math.max.apply(null, labs.map(function(l) { return l.length; })))) + (R.some(function(r) { return r.type === 'average'; }) ? 12 : 0), rowGap = R.length > 6 ? Math.max(30, Math.round(300 / R.length)) : 46, ys = R.map(function(r, i) { return 46 + i * rowGap; }), H = ys[ys.length - 1] + 34;
@@ -10424,7 +10461,7 @@ server <- shinyServer(function(input, output, session) {
               });
             }
           }
-          if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_items_pairs', function(msg) { window.fairyItemsPairs = (msg && msg.pairs) || null; window.fairyItemsConsts = (msg && msg.consts) || []; window.fairyItemsOthers = (msg && msg.others) || []; window.fairyItemsSums = (msg && msg.sums) || []; window.fairyItemsNeedGo = !!(msg && msg.needgo); drawItemsDiagram(); });
+          if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_items_pairs', function(msg) { window.fairyItemsPairs = (msg && msg.pairs) || null; window.fairyItemsConsts = (msg && msg.consts) || []; window.fairyItemsOthers = (msg && msg.others) || []; window.fairyItemsSums = (msg && msg.sums) || []; window.fairyItemsNeedGo = (msg && msg.needgo) || ''; drawItemsDiagram(); });
           // Quick setup -> fills the per-probability rows (Group / Items / Model holds) under Advanced.
           var itemsApplying = false;
           function markItemsCustom(on) { }
@@ -11495,6 +11532,17 @@ server <- shinyServer(function(input, output, session) {
   # is exactly what happened on the H-representation tab specifically —
   # whichever tab's uiOutput happened to come first in the page still
   # worked, the other three never did).
+  # the Input page says it too (the other pages already do): the models changed since the last Go, so the results, the plots and the
+  # unpacking still show the earlier state
+  output$input_stale_note <- renderUI({
+    if (!isTRUE(input_results_stale())) return(NULL)
+    div(class = "fairy-input-stale",
+      style = "margin: 0 0 10px; padding: 7px 12px; font-size: 13px; color: #8a4600; background: rgba(245,158,11,.16); border-left: 4px solid #f59e0b; border-radius: 4px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;",
+      icon("triangle-exclamation"),
+      tags$span("You changed something since the last Go: the results, the plots and the unpacking still show the earlier state."),
+      tags$button(type = "button", class = "btn btn-default btn-sm", style = "margin-left:auto; font-weight:600;",
+                  onclick = "var g = document.getElementById('go_v_h'); if (g) g.click();", "Go now"))
+  })
   render_stale_note <- function() {
     if (!isTRUE(input_results_stale())) return(NULL)
     div(
