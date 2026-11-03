@@ -9191,6 +9191,29 @@ server <- shinyServer(function(input, output, session) {
     }
     unique(out)
   }
+  # constraints that involve several probabilities at once (a sum such as p1 + p5 <= .4): they hold for every item, but the picture
+  # (arrows between two probabilities) cannot draw them, so they are listed as text
+  items_spec_others <- function(model_name) {
+    n <- isolate(counter_input$n)
+    nm <- vapply(seq_len(n), function(i) isolate(input[[paste0("textin_relations_name", i)]]) %||% paste0("m", i), character(1))
+    idx <- which(nm == model_name)[1]
+    if (is.na(idx)) return(list())
+    spec <- paste(isolate(input[["add_for_all_models"]]) %||% "", isolate(input[[paste0("textin_relations_", idx)]]) %||% "", sep = ";")
+    spec <- gsub("\u2265", ">=", gsub("\u2264", "<=", spec, fixed = TRUE), fixed = TRUE)
+    out <- character(0)
+    for (cl in strsplit(spec, "[;,\n]")[[1]]) {
+      cl <- trimws(cl)
+      if (!nzchar(cl) || !grepl("p[0-9]+", cl)) next
+      opd <- trimws(strsplit(cl, "<=|>=|<|>|=")[[1]])
+      if (!any(grepl("p[0-9]+.*[+-]|[+-].*p[0-9]+", gsub("^[-+]", "", opd)))) next   # a sum or difference of probabilities
+      txt <- gsub("\\s+", "", cl)
+      txt <- gsub("<=", " \u2264 ", txt, fixed = TRUE); txt <- gsub(">=", " \u2265 ", txt, fixed = TRUE)
+      txt <- gsub("(?<![\u2264\u2265 ])([<>=])(?! )", " \\1 ", txt, perl = TRUE)
+      txt <- gsub("\\+", " + ", txt); txt <- gsub("(?<=[0-9p])-", " - ", txt, perl = TRUE)
+      out <- c(out, txt)
+    }
+    as.list(unique(out))
+  }
   items_pairs_json <- function(model_name) {
     pr <- items_spec_pairs(model_name)
     if (is.null(pr)) pr <- items_pairs_for(model_name)
@@ -9224,7 +9247,8 @@ server <- shinyServer(function(input, output, session) {
         HTML("Use this if your study has <b>several items</b> for each probability, e.g. several different jokes, stimuli or trials. The model is then applied to the items.")
       ),
       tags$script(HTML(paste0("window.fairyItemsPairs = ", items_pairs_json(prefill_base %||% model_choices[1]), "; window.fairyItemsConsts = ",
-                              as.character(jsonlite::toJSON(items_spec_consts(prefill_base %||% model_choices[1]), auto_unbox = TRUE)), ";"))),
+                              as.character(jsonlite::toJSON(items_spec_consts(prefill_base %||% model_choices[1]), auto_unbox = TRUE)),
+                              "; window.fairyItemsOthers = ", as.character(jsonlite::toJSON(items_spec_others(prefill_base %||% model_choices[1]), auto_unbox = TRUE)), ";"))),
       # Each row is its OWN grid container rather than one flat grid for
       # header + all rows — conditionalPanel hides the tolerance cell via
       # display:none, and a display:none item drops out of grid flow
@@ -10200,7 +10224,7 @@ server <- shinyServer(function(input, output, session) {
               : (Array.isArray(P0) ? 'Your model has no direct comparison between two probabilities, so the picture is only an example.'
                 : 'Example only. Run your model once with Go first, then the question and the picture show the comparisons of your own model.');
             var q3t = document.getElementById('fairy_items_q3_text');
-            var cmpAll = cmpTxt ? cmpTxt.concat((window.fairyItemsConsts || []).map(function(cc) { return chipRowName(cc[0]) + ' ' + opSym(cc[1]) + ' ' + cc[2]; })) : null;
+            var cmpAll = cmpTxt ? cmpTxt.concat((window.fairyItemsConsts || []).map(function(cc) { return chipRowName(cc[0]) + ' ' + opSym(cc[1]) + ' ' + cc[2]; })).concat(window.fairyItemsOthers || []) : null;
             if (q3t) q3t.textContent = cmpAll ? ('Your model (' + cmpAll.slice(0, 5).join(', ') + (cmpAll.length > 5 ? ', ...' : '') + ') holds ' + String.fromCharCode(8230)) : ('Your model holds ' + String.fromCharCode(8230));
             var pair = realPairs ? (cmpTxt.length === 1 ? ('the two probabilities in ' + cmpTxt[0]) : ('two of its probabilities (here ' + cmpTxt.slice(0, 2).join(' and ') + ')')) : 'two probabilities (for example ' + a + ' > ' + b + ')';
             var allType = R.every(function(r) { return r.type === R[0].type; }), t0 = R[0].type, txt;
@@ -10295,6 +10319,7 @@ server <- shinyServer(function(input, output, session) {
               if (hasDash || hasFade) entries.push([null, 'dashed or faded: the same for the other items', null]);
               if (hubDrawn) entries.push([C9, 'lines meet here: every item above is compared with every item below', BL]);
               if (wLab || cLab) entries.push([null, 'labels: ' + (wLab ? 'weight (2' + String.fromCharCode(215) + ' p2)' : '') + (wLab && cLab ? ', ' : '') + (cLab ? 'compared with a number (p5 < 0.1)' : ''), null]);
+              if ((window.fairyItemsOthers || []).length) entries.push([null, 'not drawn, but valid for every item: ' + window.fairyItemsOthers.join('; '), null]);
               if (more) entries.push([String.fromCharCode(8230), 'more items', null]);
               legEl.textContent = '';
               entries.forEach(function(en, ei) {
@@ -10306,7 +10331,7 @@ server <- shinyServer(function(input, output, session) {
               });
             }
           }
-          if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_items_pairs', function(msg) { window.fairyItemsPairs = (msg && msg.pairs) || null; window.fairyItemsConsts = (msg && msg.consts) || []; drawItemsDiagram(); });
+          if (window.Shiny && Shiny.addCustomMessageHandler) Shiny.addCustomMessageHandler('fairy_items_pairs', function(msg) { window.fairyItemsPairs = (msg && msg.pairs) || null; window.fairyItemsConsts = (msg && msg.consts) || []; window.fairyItemsOthers = (msg && msg.others) || []; drawItemsDiagram(); });
           // Quick setup -> fills the per-probability rows (Group / Items / Model holds) under Advanced.
           var itemsApplying = false;
           function markItemsCustom(on) { }
@@ -10426,7 +10451,7 @@ server <- shinyServer(function(input, output, session) {
     nm <- input$items_base_model
     if (is.null(nm) || !nzchar(nm)) return()
     session$sendCustomMessage("fairy_items_pairs", list(pairs = jsonlite::fromJSON(items_pairs_json(nm), simplifyVector = FALSE),
-                                                        consts = items_spec_consts(nm)))
+                                                        consts = items_spec_consts(nm), others = items_spec_others(nm)))
   }, ignoreInit = TRUE)
 
   observeEvent(input$show_items_modal, {
