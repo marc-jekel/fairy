@@ -15348,6 +15348,7 @@ server <- shinyServer(function(input, output, session) {
     # (not after a mixture was skipped: the next Go has to try it again although nothing in the input changed)
     if (!resume_go && !isTRUE(isolate(mix_job$stale)) && !is.null(isolate(last_recomputed_snapshot())) &&
         identical(isolate(last_recomputed_snapshot()), current_snap)) {
+      showNotification("Everything is already calculated: nothing has changed since the last Go.", type = "message", duration = 5)
       return()
     }
     if (!resume_go) { mix_job$skipped <- character(0); mix_job$stale <- FALSE }
