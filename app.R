@@ -18886,8 +18886,11 @@ server <- shinyServer(function(input, output, session) {
       for (hop in 1:4) { if (!is.null(src) && startsWith(src, "m:") && !is.null(src_of(src))) src <- src_of(src) else break }
       if (!is.null(src) && !is.null(all_groups[[src]]) && all_groups[[src]]$k == g$k) {
         sg <- all_groups[[src]]; su <- user[[src]]
-        nn <- vapply(seq_len(g$k), function(i) { v <- su[[sg$labels[i]]]; if (is.null(v)) 25L else as.integer(v$n) }, integer(1))
-        ff <- vapply(seq_len(g$k), function(i) { v <- su[[sg$labels[i]]]; if (is.null(v)) as.integer(ex[i]) else as.integer(v$f) }, integer(1))
+        # the same probabilities in a different order (each unpacked model has its own order): the numbers follow the probability,
+        # otherwise they follow the position
+        pos <- if (setequal(sg$labels, g$labels)) match(g$labels, sg$labels) else seq_len(g$k)
+        nn <- vapply(seq_len(g$k), function(i) { v <- su[[sg$labels[pos[i]]]]; if (is.null(v)) 25L else as.integer(v$n) }, integer(1))
+        ff <- vapply(seq_len(g$k), function(i) { v <- su[[sg$labels[pos[i]]]]; if (is.null(v)) as.integer(ex[pos[i]]) else as.integer(v$f) }, integer(1))
       } else {
         nn <- vapply(seq_len(g$k), function(i) { v <- u[[g$labels[i]]]; if (is.null(v)) 25L else as.integer(v$n) }, integer(1))
         ff <- vapply(seq_len(g$k), function(i) { v <- u[[g$labels[i]]]; if (is.null(v)) as.integer(ex[i]) else as.integer(v$f) }, integer(1))
@@ -19998,6 +20001,7 @@ server <- shinyServer(function(input, output, session) {
       if (!unpacked) out[[key]]$models <- c(out[[key]]$models, nm)
     }
     # base groups first (by size), then the unpacked models
+    if (length(out) == 0) return(list())
     ord <- order(!startsWith(names(out), "k:"), vapply(out, function(g) g$k, numeric(1)))
     unname(out[ord])
   }
@@ -20090,6 +20094,9 @@ server <- shinyServer(function(input, output, session) {
         tags$div(class = "mn-usedby", `data-key` = g$key, style = paste0("margin:2px 0 6px 0;", if (length(users)) "" else " display:none;"),
           tags$span(class = "mn-for", paste0("Also used by: ", paste(users, collapse = ", ")))),
         if (can_share) selectInput(paste0("mn_share_", gi), "Numbers", width = "100%", selected = sel_share, choices = src_choices),
+        if (can_share) tags$a(href = "#", class = "mn-own-link", `data-sel` = paste0("mn_share_", gi),
+                              style = paste0("display:", if (identical(sel_share, "own")) "none" else "inline-block", "; font-size:13px; margin:4px 0 6px 0;"),
+                              "Type its own numbers instead"),
         if (can_share) conditionalPanel(sprintf("input.mn_share_%d == 'own'", gi), tbl) else tbl)
     }
     for (gi in seq_along(groups)) local({
@@ -20153,6 +20160,8 @@ server <- shinyServer(function(input, output, session) {
             [].forEach.call(document.querySelectorAll('select[id^=mn_share_]'), function(sel) {
               var v = sel.value, k = own[sel.id];
               if (v && v !== 'own' && k) { (used[v] = used[v] || []).push(titles[k]); }
+              var lk = document.querySelector('.mn-own-link[data-sel=' + sel.id + ']');
+              if (lk) lk.style.display = (v && v !== 'own') ? 'inline-block' : 'none';
             });
             [].forEach.call(document.querySelectorAll('.mn-usedby'), function(d) {
               var l = used[d.getAttribute('data-key')] || [];
@@ -20161,6 +20170,13 @@ server <- shinyServer(function(input, output, session) {
             });
           }
           if (window.jQuery) jQuery(document).on('change', 'select[id^=mn_share_]', function() { setTimeout(refresh, 50); });
+          if (window.jQuery) jQuery(document).on('click', '.mn-own-link', function(e) {
+            e.preventDefault();
+            var el = document.getElementById(this.getAttribute('data-sel'));
+            if (!el) return;
+            if (el.selectize) { el.selectize.setValue('own'); } else { el.value = 'own'; jQuery(el).trigger('change'); }
+            setTimeout(refresh, 50);
+          });
           setTimeout(refresh, 300);
         })();
       "))),
