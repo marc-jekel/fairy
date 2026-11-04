@@ -20187,7 +20187,7 @@ server <- shinyServer(function(input, output, session) {
       tags$div(class = "mn-data-modal",
       tags$p(class = "mn-lead", tags$b("n"), " = number of observations, ", tags$b("frequency"), " = how often the outcome happened (out of n)."),
       if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Each unpacked model has its own tab: its probabilities can rest on different observations. To use the same numbers as another model (same number of probabilities), choose it under Numbers in the tab."),
-      tags$div(style = "max-height:46vh; overflow-y:auto;", body),
+      tags$div(style = "max-height:max(46vh, calc(100vh - 380px)); overflow-y:auto;", body),
       tags$div(id = "mn_data_warn", class = "mn-warn"),
       tags$script(HTML(paste0("
         (function() {
