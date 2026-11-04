@@ -880,6 +880,8 @@ ui <- shinyUI(fluidPage(
          one shows, so switching is instant either toggle is used. */
       /* Items: the terms of one item of an unpacked model get a coloured bar below them (switched on with the Items buttons): a separate channel from the colour of the text */
       .fairy-hidden-group { display: none !important; }
+      /* colour by parameter: a switch on the card area, nothing else changes */
+      #outP[data-h-color='on'] .fairy-pt, #fairy-card-overlay-content[data-h-color='on'] .fairy-pt { color: var(--pc); }
       body.fairy-items-focus .fairy-iw { cursor: pointer; }
       body.fairy-items-focus[data-gray~='1'] .fairy-iw[data-item='1'] { opacity: .28; filter: grayscale(1); }
       body.fairy-items-focus[data-gray~='2'] .fairy-iw[data-item='2'] { opacity: .28; filter: grayscale(1); }
@@ -6582,6 +6584,7 @@ ui <- shinyUI(fluidPage(
              // regardless of the current toggles.
              var curView = outP.getAttribute('data-h-view');
              if (curView) overlayContent.attr('data-h-view', curView);
+             if (outP.getAttribute('data-h-color')) overlayContent.attr('data-h-color', 'on'); else overlayContent.removeAttr('data-h-color');
              if (outP.getAttribute('data-h-aligned-chosen')) overlayContent.attr('data-h-aligned-chosen', '1'); else overlayContent.removeAttr('data-h-aligned-chosen');
            }
            $('#fairy-card-overlay').addClass('active');
@@ -7531,9 +7534,7 @@ ui <- shinyUI(fluidPage(
           var el = $("#outP");
           var layout = $("#h_layout_toggle_group button.active").data("state") || "aligned";
           var color  = $("#h_color_toggle_group button.active").data("state") || "off";
-          var view = layout === "compact"
-            ? (color === "on" ? "compact-color" : "compact")
-            : (color === "on" ? "aligned-color" : "");
+          var view = layout === "compact" ? "compact" : "";
           if (view) el.attr("data-h-view", view); else el.removeAttr("data-h-view");
           // The card itself does not auto-shrink/grow just because CSS
           // swapped which (differently-sized) table is display:none --
@@ -7592,17 +7593,17 @@ ui <- shinyUI(fluidPage(
           document.body.classList.toggle("fairy-items-on", st === "on" || st === "focus");
           document.body.classList.toggle("fairy-items-focus", st === "focus");
           if (st !== "focus") document.body.removeAttribute("data-gray"); else fairyItemChips();
-          // the rows get a little taller (bar below): the cards measure their tables again, as after a change of layout
-          document.querySelectorAll(".fairy-h-table-scroll").forEach(function(scrollWrap) {
-            scrollWrap.style.height = "";
-            scrollWrap.querySelectorAll("table").forEach(function(t) { t.style.transform = "none"; });
-          });
-          if (window.fitHTablesToWidth) window.fitHTablesToWidth();
         });
         $("#h_layout_toggle_group button, #h_color_toggle_group button").click(function(){
           var group = $(this).parent();
           group.find("button").removeClass("active");
           $(this).addClass("active");
+          // the colour is only a switch in the CSS: nothing is measured or placed again
+          if (group.attr("id") === "h_color_toggle_group") {
+            var on = $(this).data("state") === "on";
+            $("#outP, #fairy-card-overlay-content").each(function() { if (on) this.setAttribute("data-h-color", "on"); else this.removeAttribute("data-h-color"); });
+            return;
+          }
           // an explicit click on Aligned switches the automatic compact layout of models with many probabilities off
           if (group.attr("id") === "h_layout_toggle_group") {
             if ($(this).data("state") === "aligned") $("#outP").attr("data-h-aligned-chosen", "1"); else $("#outP").removeAttr("data-h-aligned-chosen");
@@ -17420,7 +17421,10 @@ server <- shinyServer(function(input, output, session) {
             if (length(m) != 2) return(inner)
             paste0('<span class="fairy-iw" data-item="', ((as.integer(m[2]) - 1L) %% 8L) + 1L, '">', inner, '</span>')
           }
-          term_html <- function(co, j, lead = FALSE) item_wrap(j, paste0('\\(', math_of(co, j, lead), '\\)'))
+          # the colour of the parameter only travels with the term (--pc); whether it shows is a switch in the CSS, so switching the
+          # colour on or off changes nothing in the size or the place of anything
+          term_html <- function(co, j, lead = FALSE)
+            item_wrap(j, paste0('<span class="fairy-pt" style="--pc:', col_color[j], ';">\\(', math_of(co, j, lead), '\\)</span>'))
           # Colored (Compact layout only): color by column (see
           # col_color/param_color_map), set before the \\(...\\) so
           # MathJax's rendered output inherits it (renders in
@@ -17505,7 +17509,6 @@ server <- shinyServer(function(input, output, session) {
             }, character(1))
           }
           row_htmls_aligned_plain   <- build_aligned_rows(term_html)
-          row_htmls_aligned_colored <- build_aligned_rows(term_html_colored)
 
           # ---- Compact layout: every row packs only its OWN terms into
           # one cell per side, so a row is exactly as wide as its own
@@ -17542,7 +17545,6 @@ server <- shinyServer(function(input, output, session) {
             }, character(1))
           }
           row_htmls_packed_plain   <- build_packed_rows(term_html)
-          row_htmls_packed_colored <- build_packed_rows(term_html_colored)
 
           tbl_html <- paste0(
             '<div class="fairy-h-table-scroll">',
@@ -17559,14 +17561,9 @@ server <- shinyServer(function(input, output, session) {
             '<table class="fairy-h-aligned-plain-table" style="display:inline-table;border-collapse:collapse;font-size:0.85em;margin-top:6px;white-space:nowrap;">',
             paste(row_htmls_aligned_plain, collapse = ""),
             '</table>',
-            '<table class="fairy-h-aligned-color-table" style="display:none;border-collapse:collapse;font-size:0.85em;margin-top:6px;white-space:nowrap;">',
-            paste(row_htmls_aligned_colored, collapse = ""),
-            '</table>',
             '<table class="fairy-h-packed-plain-table" style="display:none;border-collapse:collapse;font-size:0.85em;margin-top:6px;white-space:nowrap;">',
             paste(row_htmls_packed_plain, collapse = ""),
             '</table>',
-            '<table class="fairy-h-packed-color-table" style="display:none;border-collapse:collapse;font-size:0.85em;margin-top:6px;white-space:nowrap;">',
-            paste(row_htmls_packed_colored, collapse = ""),
             '</table></div>')
           count_badge <- paste0(
             '<div class="fairy-h-count-badge fairy-tooltip" data-tooltip="Excludes the automatic 0-1 bounds">',
