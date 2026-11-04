@@ -7641,10 +7641,10 @@ ui <- shinyUI(fluidPage(
           if (fairyHideMode()) fairyRefit();
         }
         function fairyHideBtn() {
-          var wrap = document.createElement("div"); wrap.className = "fairy-hidegrp"; wrap.setAttribute("data-cap", "Hide rows");
+          var wrap = document.createElement("div"); wrap.className = "fairy-hidegrp"; wrap.setAttribute("data-cap", "Show rows with");
           var cur = fairyHideMode();
-          [["any", "partly grey", "Hide every row that contains a greyed-out item or parameter, also when other items or parameters in it are not greyed out"],
-           ["all", "fully grey", "Hide only the rows in which everything is greyed out: a row stays as long as at least one item or parameter in it is not greyed out"]].forEach(function(d) {
+          [["any", "all on", "Show only the rows in which every item and parameter is switched on (none of them greyed out)"],
+           ["all", "some on", "Show only the rows in which at least one item or parameter is switched on (the rows in which everything is greyed out disappear)"]].forEach(function(d) {
             var b = document.createElement("button"); b.type = "button";
             b.className = cur === d[0] ? "fairy-hidebtn on" : "fairy-hidebtn";
             b.textContent = d[1]; b.title = d[2];
