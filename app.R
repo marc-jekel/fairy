@@ -1233,6 +1233,17 @@ ui <- shinyUI(fluidPage(
       @media (pointer: coarse) {
         .fairy-del-model-btn, [id^='copy_model_btn_'], [id^='vrep_toggle_btn_'], #rm_prob, #add_prob, #rm_ie, #add_ie,
         .fairy-compact-toggle-btn, #dm-toggle, .fairy-plot-expand-btn, .fairy-expand-btn, #show_items_modal { min-width: 40px; min-height: 40px; }
+        /* the round buttons of the header: all 40 px on touch screens, the positions spaced to match (a bigger moon used to cover its neighbours) */
+        #dm-toggle, #tips-toggle, #fill-exit, #fill-unload, #fill-switch, #fill-restart { width: 40px; height: 40px; top: 9px; }
+        #dm-toggle { right: 66px; }
+        #tips-toggle { right: 112px; }
+        #fill-switch { right: 158px; }
+        #fill-exit { right: 204px; }
+        #fill-unload { right: 250px; }
+        #fill-restart { right: 296px; }
+        body.fairy-mode-full #fill-switch { right: 204px; }
+        body.fairy-mode-full #fill-exit { right: 158px; }
+        body.fairy-hide-dm #tips-toggle { right: 66px; }
       }
       #rm_prob, #rm_ie { background-color: #9aa0ab !important; color: #222 !important; border-color: #8a919e !important; }
       body.dark-mode #rm_prob, body.dark-mode #rm_ie { background-color: #454b56 !important; color: #f0f0f0 !important; border-color: #333844 !important; }
