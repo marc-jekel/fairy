@@ -1828,7 +1828,7 @@ ui <- shinyUI(fluidPage(
       .fairy-run-cell.st-fail { color: #c62828; font-weight: 600; }
       #fairy-run-note { font-size: 13px; color: #b05000; margin-top: 10px; }
       #fairy-run-note:empty { display: none; }
-      #fairy-run-optional { display: none; font-size: 13px; color: var(--fairy-text-muted, #667085); margin-top: 10px; text-align: center; }
+      #fairy-run-optional { display: none; font-size: 13px; color: var(--fairy-text-muted, #667085); margin: 10px auto 0; max-width: 34em; text-align: center; text-wrap: balance; }
       /* the note only while a Skip button is really there (Skip all appears after a few seconds, the Skip of a model when it takes longer) */
       #fairy-run-card.fairy-run-skippable:has(#fairy-run-cancel.visible.armed) #fairy-run-optional,
       #fairy-run-card.fairy-run-skippable:not(.fairy-run-vwin:not(.fairy-run-vphase)):has(tr.fairy-run-active.fairy-run-stopready:not(.fairy-run-skipped)) #fairy-run-optional { display: block; }
@@ -4782,7 +4782,7 @@ ui <- shinyUI(fluidPage(
           )
         ),
         tags$div(id = "fairy-run-note"),
-        tags$div(id = "fairy-run-optional", "Skipping is optional. If you do not skip, the calculation simply keeps going until it is finished or the time limit is reached."),
+        tags$div(id = "fairy-run-optional", "Skipping is optional. Without it, the calculation keeps going until it is finished or the time limit is reached."),
         tags$div(id = "fairy-run-actions",
           tags$button(id = "fairy-run-cancel", type = "button", "Skip all"),
           tags$button(id = "fairy-run-retryall", type = "button", "Retry all"),
@@ -4961,7 +4961,7 @@ ui <- shinyUI(fluidPage(
           limitSec = msg.seconds || 0; noLimit = !!msg.nolimit; limitLabel = msg.label || 'exact volume';
           // the note under the table: without a time limit it does not mention one
           var nt = $id('fairy-run-optional');
-          if (nt) nt.textContent = 'Skipping is optional. If you do not skip, the calculation simply keeps going until it is finished' + (noLimit ? '.' : ' or the time limit is reached.');
+          if (nt) nt.textContent = 'Skipping is optional. Without it, the calculation keeps going until it is finished' + (noLimit ? '.' : ' or the time limit is reached.');
           refresh();
         });
         Shiny.addCustomMessageHandler('fairy_run_addcol', function(msg) {
