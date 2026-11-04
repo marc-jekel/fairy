@@ -4910,8 +4910,16 @@ ui <- shinyUI(fluidPage(
             });
           });
           var el = running ? Math.round((Date.now() - t0) / 1000) : 0;
+          // the clock shows the model that is being calculated now (the time limits are per model): it starts with its calculation, not with
+          // the run; the analysis window has one limit for the whole analysis and shows the whole time
+          var elShown = el;
+          if (running && limitLabel !== 'analysis') {
+            var mx = 0;
+            Object.keys(rows).forEach(function(n) { if (rows[n].since) mx = Math.max(mx, Math.round((Date.now() - rows[n].since) / 1000)); });
+            if (mx > 0) elShown = mx;
+          }
           var mmss = function(x) { return Math.floor(x / 60) + ':' + ('0' + (x % 60)).slice(-2); };
-          var elTxt = running ? ' \\u00b7 ' + mmss(el) + ' elapsed' + (noLimit ? ' (no time limit \\u2728)' : (limitSec > 0 ? ' (' + limitLabel + ': at most ' + mmss(limitSec) + ')' : '')) : '';
+          var elTxt = running ? ' \\u00b7 ' + mmss(elShown) + ' elapsed' + (noLimit ? ' (no time limit \\u2728)' : (limitSec > 0 ? ' (' + limitLabel + ': at most ' + mmss(limitSec) + ')' : '')) : '';
           $id('fairy-run-sub').textContent = total ? (done + ' of ' + total + ' steps done' + elTxt) : '';
           $id('fairy-run-bar-fill').style.width = (total ? Math.round(100 * done / total) : 0) + '%';
           // after three minutes of the exact calculation the Skip button glows
@@ -4949,7 +4957,13 @@ ui <- shinyUI(fluidPage(
         });
         // a column that is only needed once it is used (e.g. the backup algorithm when an exact volume could not be calculated)
         // longest time of the phase that is running now (0: none); shown next to the elapsed time
-        Shiny.addCustomMessageHandler('fairy_run_limit', function(msg) { limitSec = msg.seconds || 0; noLimit = !!msg.nolimit; limitLabel = msg.label || 'exact volume'; refresh(); });
+        Shiny.addCustomMessageHandler('fairy_run_limit', function(msg) {
+          limitSec = msg.seconds || 0; noLimit = !!msg.nolimit; limitLabel = msg.label || 'exact volume';
+          // the note under the table: without a time limit it does not mention one
+          var nt = $id('fairy-run-optional');
+          if (nt) nt.textContent = 'Skipping is optional. If you do not skip, the calculation simply keeps going until it is finished' + (noLimit ? '.' : ' or the time limit is reached.');
+          refresh();
+        });
         Shiny.addCustomMessageHandler('fairy_run_addcol', function(msg) {
           var htr = document.querySelector('.fairy-run-table thead tr');
           var th = document.createElement('th'); th.textContent = msg.name;
