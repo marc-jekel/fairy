@@ -9008,6 +9008,24 @@ server <- shinyServer(function(input, output, session) {
     snap <- isolate(last_computed_snapshot())
     if (!is.null(snap)) { snap$v_selection <- vtab; last_computed_snapshot(snap) }
   }
+  # switching a V-representation OFF does not make anything outdated (the results that are there stay valid, the card is only hidden):
+  # the comparison for "results may be outdated" and for "nothing has changed since the last Go" follows the V switch
+  sync_v_selection <- function(vtab, models) {
+    on_of <- function(d) if (is.null(d) || ncol(d) < 2) character(0) else as.character(d[[1]][which(as.logical(d[[2]]))])
+    now_on <- on_of(vtab)
+    for (rv in list(last_computed_snapshot, last_recomputed_snapshot, last_parsimony_snapshot)) {
+      snap <- isolate(rv())
+      if (is.null(snap)) next
+      sv <- snap$v_selection
+      if (setequal(setdiff(on_of(sv), models), now_on)) {
+        snap$v_selection <- vtab                    # nothing else is pending: the same as now
+      } else if (!is.null(sv) && ncol(sv) >= 2) {
+        sv[[2]][sv[[1]] %in% models] <- FALSE       # only these models are switched off, other pending changes stay visible
+        snap$v_selection <- sv
+      }
+      rv(snap)
+    }
+  }
   v_start_jobs <- function(models) {
     v_kill_all()
     d <- tempfile("vrun_"); dir.create(d)
@@ -20496,6 +20514,22 @@ server <- shinyServer(function(input, output, session) {
     TRUE
   }
   # a label like p_{1}^{(2)} with a real subscript and superscript (stacked), instead of the raw code
+  # the list a probability of an unpacked model belongs to (as set in the unpack window), with the colour of that list there; only when
+  # there are at least two lists
+  mn_list_info <- function(desc) {
+    if (is.null(desc) || length(desc) == 0) return(NULL)
+    lst <- vapply(desc, function(d) {
+      m <- regmatches(d, regexec("<span class='text-muted'>\\(([^<)]*)\\)</span>", d))[[1]]
+      if (length(m) == 2 && !grepl("^not repeated$", m[2])) m[2] else NA_character_
+    }, character(1))
+    nm <- unique(lst[!is.na(lst)])
+    if (length(nm) < 2) return(NULL)
+    pal <- c("#3a6df0", "#e07b00", "#2a9d6f", "#b04fd0", "#c2385a", "#7a7f8c")
+    idx <- vapply(nm, function(x) if (grepl("^list [A-Z]$", x)) utf8ToInt(substr(x, 6, 6)) - 64L else NA_integer_, integer(1))
+    idx[is.na(idx)] <- 26L + seq_len(sum(is.na(idx)))
+    col <- stats::setNames(pal[((idx - 1L) %% length(pal)) + 1L], nm)
+    list(name = lst, col = col[lst])
+  }
   mn_lab_html <- function(x) {
     x <- htmltools::htmlEscape(x)
     st <- "display:block; font-size:.7em; line-height:1.15;"
@@ -20526,12 +20560,14 @@ server <- shinyServer(function(input, output, session) {
       # an unpacked model can use the numbers of the models with the same number of probabilities instead of its own
       srcs <- if (startsWith(g$key, "m:")) Filter(function(x) x$k == g$k && !identical(x$key, g$key), groups) else list()
       can_share <- length(srcs) > 0
+      li <- mn_list_info(g$desc)
       tbl <- tags$table(class = "mn-tbl",
           tags$thead(tags$tr(tags$th("Observed for"), tags$th("n"), tags$th("Frequency"))),
           tags$tbody(lapply(seq_len(g$k), function(i) {
             v <- u[[g$labels[i]]]
             tags$tr(
-              tags$td(style = "font-size:14px; padding-right:22px;", HTML(mn_lab_html(g$labels[i]))),
+              tags$td(style = "font-size:14px; padding-right:22px;", HTML(mn_lab_html(g$labels[i])),
+                if (!is.null(li) && !is.na(li$name[i])) tags$span(class = "mn-list", style = paste0("--lc:", li$col[[i]], ";"), li$name[i])),
               tags$td(numericInput(paste0("mn_n_", gi, "_", i), NULL, value = if (!is.null(v)) v$n else 25, min = 1, step = 1, width = "96px")),
               tags$td(numericInput(paste0("mn_f_", gi, "_", i), NULL, value = if (!is.null(v)) v$f else ex[i], min = 0, step = 1, width = "96px")))
           })))
@@ -20603,6 +20639,7 @@ server <- shinyServer(function(input, output, session) {
         ".mn-data-modal .mn-nall label { margin: 0; font-weight: 500; }",
         ".mn-data-modal .mn-nall input.form-control { height: 30px; padding: 3px 8px; }",
         ".mn-data-modal .mn-for { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; color: var(--fairy-primary); background: color-mix(in srgb, var(--fairy-primary) 10%, transparent); }",
+        ".mn-data-modal .mn-list { display: inline-block; margin-left: 10px; font-size: 11px; font-weight: 600; padding: 1px 9px; border-radius: 999px; border: 1.5px solid var(--lc); color: var(--lc); vertical-align: middle; }",
         ".mn-data-modal .mn-lead { font-size: 13px; color: var(--fairy-text-muted, #667085); margin: 0 0 10px 0; }",
         ".mn-data-modal hr { margin: 14px 0 12px 0; }",
         ".mn-data-modal input.mn-bad { border-color: #c9353b !important; background: rgba(201,53,59,.08) !important; }",
@@ -21879,6 +21916,7 @@ server <- shinyServer(function(input, output, session) {
             vtab[row_idx[1], 2] <- now_included
           }
           mytable_v_reactive$value <- vtab
+          if (!now_included) sync_v_selection(vtab, model_name)
 
           n_total_v <- sum(vtab[[2]] == TRUE)
           updateActionButton(session, "show_v_rep",
@@ -22084,6 +22122,7 @@ server <- shinyServer(function(input, output, session) {
       }
     }
     mytable_v_reactive$value <- vtab
+    if (!target) sync_v_selection(vtab, model_names)
 
     n_total_v <- sum(vtab[[2]] == TRUE)
     updateActionButton(session, "show_v_rep",
