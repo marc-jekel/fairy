@@ -494,11 +494,12 @@ ui <- shinyUI(fluidPage(
       .fairy-plot-pdf-dl.btn { height: auto; line-height: 1.5; }
       .fairy-plot-pdf:hover, .fairy-plot-pdf-dl.btn:hover { border-color: var(--fairy-primary, #3a6df0); color: var(--fairy-primary, #3a6df0); }
       .fairy-plot-pdf.busy { opacity: .5; cursor: progress; }
-      #fairy-running-note, #fairy-working-note { position: fixed; right: 22px; bottom: 92px; z-index: 100000; display: flex; align-items: center; gap: 9px;
-        padding: 9px 16px; border-radius: 999px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1d2433); font-size: 13.5px; font-weight: 600;
-        border: 1px solid var(--fairy-border, #d5d9e4); box-shadow: 0 8px 24px rgba(20,30,60,.22); }
-      .fairy-running-spin { width: 15px; height: 15px; border-radius: 50%; border: 2.5px solid color-mix(in srgb, var(--fairy-primary, #3a6df0) 25%, transparent);
-        border-top-color: var(--fairy-primary, #3a6df0); animation: fairy-running-rot .8s linear infinite; }
+      /* the note that something is running: large, at the top of the window where the eyes are (below the navigation bar) */
+      #fairy-running-note, #fairy-working-note { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); z-index: 100000; display: flex; align-items: center; gap: 14px;
+        padding: 14px 32px; border-radius: 999px; background: var(--fairy-primary, #3a6df0); color: #fff; font-size: 19px; font-weight: 700; letter-spacing: .2px;
+        border: 0; box-shadow: 0 10px 30px rgba(20,30,60,.30); }
+      .fairy-running-spin { width: 22px; height: 22px; border-radius: 50%; border: 3.5px solid rgba(255,255,255,.35);
+        border-top-color: #fff; animation: fairy-running-rot .8s linear infinite; }
       @keyframes fairy-running-rot { to { transform: rotate(360deg); } }
       #go_v_h.fairy-go-busy { filter: saturate(.7) brightness(.95); }
       @keyframes fairy-go-attn-kf {
@@ -3028,6 +3029,25 @@ ui <- shinyUI(fluidPage(
       .fairy-vrep-toggle-all-btn {
         font-size: 15px !important;
       }
+      /* Algorithm settings: a calm two-column form with pill tabs and controls of one size */
+      .fairy-algo-modal .modal-title { font-size: 18px; font-weight: 700; }
+      .fairy-algo-modal .modal-body { padding-top: 6px; }
+      .fairy-algo-modal .nav-tabs { border-bottom: 0; display: flex; gap: 6px; margin-bottom: 4px; }
+      .fairy-algo-modal .nav-tabs > li { float: none; margin: 0; }
+      .fairy-algo-modal .nav-tabs > li > a { border: 1px solid var(--fairy-border, #e3e6ee); border-radius: 999px; padding: 5px 14px; font-size: 13px; color: var(--fairy-text-muted, #667085); background: transparent; margin: 0; }
+      .fairy-algo-modal .nav-tabs > li.active > a, .fairy-algo-modal .nav-tabs > li.active > a:hover, .fairy-algo-modal .nav-tabs > li.active > a:focus {
+        background: var(--fairy-primary, #3a6df0); color: #fff; border-color: transparent; }
+      .fairy-algo-modal .tab-content > .tab-pane > div { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; padding: 14px 2px 0 2px !important; min-height: 250px; align-content: start; }
+      .fairy-algo-modal .tab-content > .tab-pane > div > div { margin-bottom: 8px !important; }
+      .fairy-algo-modal .tab-content label { font-size: 12px !important; font-weight: 600; color: var(--fairy-text-muted, #667085) !important; margin-bottom: 4px !important; }
+      .fairy-algo-modal .form-group { margin-bottom: 0; }
+      .fairy-algo-modal .form-control, .fairy-algo-modal .bootstrap-select > .dropdown-toggle { height: 36px; font-size: 14px; border-radius: 8px; padding: 6px 12px; }
+      .fairy-algo-modal .modal-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+      .fairy-algo-modal .modal-footer p { margin: 0 !important; flex: 1; }
+      .fairy-algo-modal .bootstrap-select { width: 100% !important; margin: 0 !important; }
+      .fairy-algo-modal .shiny-input-container { width: 100% !important; max-width: none; margin: 0; }
+      .fairy-algo-modal .bootstrap-select > .dropdown-toggle { width: 100%; }
+      @media (max-width: 620px) { .fairy-algo-modal .tab-content > .tab-pane > div { grid-template-columns: 1fr; } }
       /* the big Go under the models (Input page) */
       /* when the page is scrolled down, the Go stays in view below the navigation bar (the place at the top stays reserved) */
       .fairy-go-inline { display: flex; justify-content: center; margin: 22px 0 10px; min-height: 48px; }
@@ -3059,6 +3079,12 @@ ui <- shinyUI(fluidPage(
       .fairy-go-inline .fairy-primary-controls #alg_sub > div { display: flex; flex-wrap: wrap; gap: 4px 22px; margin-left: 0 !important; }
       .fairy-go-inline .fairy-primary-controls #alg_sub > div > span.fairy-tooltip { display: inline-block !important; }
       .fairy-go-inline .fairy-primary-controls #alg_sub { display: inline-block; }
+      /* the three algorithms are chips (filled = used), not switches */
+      #alg_sub .material-switch > label.switch { display: none; }
+      #alg_sub .material-switch > label:not(.switch) { padding: 4px 14px !important; border: 1px solid var(--fairy-border, #d5d9e4); border-radius: 999px; cursor: pointer;
+        background: transparent; color: var(--fairy-text-muted, #667085); font-size: 13px; font-weight: 600; margin: 0; transition: background .15s, color .15s; }
+      #alg_sub .material-switch > input:checked ~ label:not(.switch) { background: var(--fairy-primary, #3a6df0); border-color: transparent; color: #fff; }
+      #alg_sub .material-switch { padding: 0; }
       .fairy-go-inline-btn {
         display: inline-flex; align-items: baseline; gap: 10px; padding: 12px 38px; border-radius: 14px; border: 0;
         font-size: 22px; font-weight: 700; line-height: 1.1;
@@ -21560,6 +21586,7 @@ server <- shinyServer(function(input, output, session) {
     }
     showModal(modalDialog(
       title = "Algorithm settings",
+      class = "fairy-algo-modal",
       tabsetPanel(
         tabPanel("Cooling Bodies",
           div(style = "padding:16px 4px 0 4px;",
