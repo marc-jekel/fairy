@@ -1276,12 +1276,26 @@ ui <- shinyUI(fluidPage(
          can't accidentally reveal it. */
       body.fairy-compact-models textarea[id^='textin_relations_name'],
       body.fairy-compact-models textarea[id^='textin_relations_']:not([id^='textin_relations_name']):not([id^='textin_relations_complete_']) {
-        height: 60px !important;
+        height: 34px !important;
       }
       body.fairy-compact-models .fairy-model-spec-outer,
       body.fairy-compact-models pre[id^='model_spec_display_'] {
-        height: 60px !important;
+        height: 34px !important;
       }
+      /* one line per model: smaller type and padding in the three boxes */
+      body.fairy-compact-models textarea[id^='textin_relations_']:not([id^='textin_relations_complete_']),
+      body.fairy-compact-models pre[id^='model_spec_display_'] {
+        padding: 6px 10px !important; font-size: 13px !important; line-height: 1.35 !important; resize: none !important;
+      }
+      body.fairy-compact-models .fairy-model-row { margin-bottom: 4px !important; }
+      body.fairy-compact-models #textbox_ui_name_rel { min-width: 240px; }
+      body.fairy-compact-models td:has(> #textbox_ui_name_rel) { width: 260px !important; min-width: 260px; }
+      body.fairy-compact-models td:has(> #textbox_ui_rel) { width: 100% !important; }
+      body.fairy-compact-models table:has(#textbox_ui_name_rel) { table-layout: auto !important; width: 100% !important; }
+      /* radical: the read-only third column (the parsed text) goes away; every model is one line */
+      body.fairy-compact-models td:has(> #textbox_ui_rel_complete), body.fairy-compact-models #textbox_ui_rel_complete { display: none !important; }
+      body.fairy-compact-models #textbox_ui_rel { width: 100%; }
+      body.fairy-compact-models textarea[id^='textin_relations_name'] { padding-top: 7px !important; }
       /* Disabled/derived spec boxes (intersection & mixture rows) hold
          longer, non-editable text — at the compacted 46px height that
          wraps to two lines and clips mid-word (e.g. p1 >=p), which reads
@@ -1305,19 +1319,15 @@ ui <- shinyUI(fluidPage(
          rather than tall and cramped. */
       body.fairy-compact-models .fairy-model-icon-col {
         display: flex !important;
-        flex-flow: row wrap !important;
-        align-content: center !important;
+        flex-flow: row nowrap !important;
+        align-items: center !important;
+        align-self: center !important;
         justify-content: flex-start !important;
-        align-self: stretch !important;
-        width: 46px !important;
+        width: auto !important;
+        min-width: 0 !important;
         height: auto !important;
-        gap: 2px !important;
-        /* Row 1's icon column normally gets extra top padding (in the
-           inline style) to line up with the column headers above it —
-           fine at full row height, but in compact mode that offset just
-           pushes the icons down away from the row's own vertical center,
-           leaving a big dead gap. Center on the row's height instead. */
-        padding-top: 0 !important;
+        gap: 4px !important;
+        padding: 0 !important;
       }
       body.fairy-compact-models .fairy-del-model-btn,
       body.fairy-compact-models .fairy-eq-tol-btn,
@@ -3054,6 +3064,31 @@ ui <- shinyUI(fluidPage(
       .fairy-algo-modal .shiny-input-container { width: 100% !important; max-width: none; margin: 0; }
       .fairy-algo-modal .bootstrap-select > .dropdown-toggle { width: 100%; }
       @media (max-width: 620px) { .fairy-algo-modal .tab-content > .tab-pane > div { grid-template-columns: 1fr; } }
+      /* forms in dialogs (multinomineq run window): one calm scale of type and controls */
+      .fairy-form-modal .modal-title { font-size: 18px; font-weight: 700; }
+      .fairy-form-modal .modal-body { padding: 14px 24px 6px; }
+      .fairy-form-modal .fairy-eq-tol-help { font-size: 13.5px; line-height: 1.55; color: var(--fairy-text-muted, #667085); margin: 0 0 16px 0; }
+      .fairy-form-modal label.control-label, .fairy-form-modal .modal-body label { font-size: 12px; font-weight: 600; color: var(--fairy-text-muted, #667085); margin-bottom: 4px; }
+      .fairy-form-modal .form-group { margin-bottom: 14px; }
+      .fairy-form-modal .form-control, .fairy-form-modal .selectize-input, .fairy-form-modal select { min-height: 38px; font-size: 14px; border-radius: 8px; }
+      .fairy-form-modal .selectize-input { padding: 8px 12px; }
+      .fairy-form-modal details > summary { font-size: 12.5px !important; }
+      .fairy-form-modal .fairy-mn-note { display: flex; gap: 10px; align-items: flex-start; margin: 6px 0 12px; padding: 10px 14px; font-size: 12.5px; line-height: 1.5;
+        color: var(--fairy-text, #1d2433); background: rgba(245, 158, 11, .10); border: 1px solid rgba(245, 158, 11, .30); border-radius: 10px; }
+      .fairy-form-modal .fairy-mn-note > .fa, .fairy-form-modal .fairy-mn-note > svg { color: #d97706; margin-top: 3px; flex: 0 0 auto; }
+      .fairy-form-modal .fairy-mn-note code { font-size: 12px; }
+      .fairy-form-modal .modal-footer { padding: 12px 24px 18px; border-top: 0; }
+      .fairy-form-modal .modal-footer .btn > .fa, .fairy-form-modal .modal-footer .btn > svg { margin-right: 7px; }
+      .fairy-form-modal .modal-footer .btn { height: 38px; padding: 0 20px; font-size: 14px; font-weight: 600; border-radius: 8px; }
+      .fairy-form-modal .mn-data-modal .mn-tbl th { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--fairy-text-muted, #667085); }
+      .fairy-form-modal .mn-data-modal .mn-tbl td { padding: 4px 16px 4px 0; }
+      .fairy-form-modal .mn-data-modal .mn-tbl input.form-control { min-height: 0; height: 34px; padding: 4px 10px; }
+      .fairy-form-modal .mn-data-modal .mn-nall { margin-top: 12px; }
+      .fairy-form-modal .mn-data-modal .mn-nall label { font-size: 12.5px; font-weight: 500; }
+      .fairy-form-modal .mn-data-modal .mn-nall input.form-control { min-height: 0; height: 32px; }
+      .fairy-form-modal .mn-foot #mn_data_reset { background: transparent !important; border-color: transparent !important; box-shadow: none !important; color: var(--fairy-text-muted, #667085) !important; font-weight: 500; padding: 0 12px; }
+      .fairy-form-modal .mn-foot #mn_data_reset .fa, .fairy-form-modal .mn-foot #mn_data_reset svg { margin-right: 7px; }
+      .fairy-form-modal .mn-foot #mn_data_reset:hover { color: var(--fairy-primary, #3a6df0); background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 8%, transparent); }
       /* the big Go under the models (Input page) */
       /* when the page is scrolled down, the Go stays in view below the navigation bar (the place at the top stays reserved) */
       .fairy-go-inline { display: flex; justify-content: center; margin: 22px 0 10px; min-height: 48px; }
@@ -5564,7 +5599,7 @@ ui <- shinyUI(fluidPage(
         function setH(el, h) { if (el) el.style.setProperty('height', h + 'px', 'important'); }
         function sync() {
           var compact = document.body.classList.contains('fairy-compact-models');
-          var base = compact ? 60 : 80;
+          var base = compact ? 34 : 80;
           var names = document.querySelectorAll('#textbox_ui_name_rel textarea');
           var uniq = [].filter.call(document.querySelectorAll('#textbox_ui_rel textarea'), function(t) { return /^textin_relations_[0-9]+$/.test(t.id); });
           var specs = document.querySelectorAll('#textbox_ui_rel_complete .fairy-model-spec-outer');
@@ -19928,20 +19963,18 @@ server <- shinyServer(function(input, output, session) {
       # an unpacked model can use the numbers of the models with the same number of probabilities instead of its own
       can_share <- startsWith(g$key, "m:") && any(vapply(groups, function(x) identical(x$key, paste0("k:", g$k)), logical(1)))
       tbl <- tags$table(class = "mn-tbl",
-          tags$thead(tags$tr(tags$th("observed for"), tags$th("n (trials)"), tags$th("frequency (count)"))),
+          tags$thead(tags$tr(tags$th("Observed for"), tags$th("n"), tags$th("Frequency"))),
           tags$tbody(lapply(seq_len(g$k), function(i) {
             v <- u[[g$labels[i]]]
             tags$tr(
-              tags$td(style = "font-size:15px; padding-right:18px;", HTML(mn_lab_html(g$labels[i]))),
-              tags$td(numericInput(paste0("mn_n_", gi, "_", i), NULL, value = if (!is.null(v)) v$n else 25, min = 1, step = 1, width = "88px")),
-              tags$td(numericInput(paste0("mn_f_", gi, "_", i), NULL, value = if (!is.null(v)) v$f else ex[i], min = 0, step = 1, width = "88px")))
+              tags$td(style = "font-size:14px; padding-right:22px;", HTML(mn_lab_html(g$labels[i]))),
+              tags$td(numericInput(paste0("mn_n_", gi, "_", i), NULL, value = if (!is.null(v)) v$n else 25, min = 1, step = 1, width = "96px")),
+              tags$td(numericInput(paste0("mn_f_", gi, "_", i), NULL, value = if (!is.null(v)) v$f else ex[i], min = 0, step = 1, width = "96px")))
           })))
       # one n for every probability of the table in one step (the single n fields stay editable)
       nall <- tags$div(class = "mn-nall", tags$label(`for` = paste0("mn_nall_", gi), "Same n for every row (optional)"),
                        numericInput(paste0("mn_nall_", gi), NULL, value = NA, min = 1, step = 1, width = "88px"))
       tbl <- tags$div(
-        tags$p(style = "margin:0 0 6px 0; font-size:12.5px; color:var(--fairy-text-muted);",
-               "Enter your observed counts: in n trials, the outcome occurred this many times (frequency)."),
         tbl, nall)
       tags$div(
         if (length(g$models)) tags$div(style = "margin:2px 0 4px 0;", tags$span(class = "mn-for", paste0("For: ", paste(g$models, collapse = ", ")))),
@@ -19977,7 +20010,7 @@ server <- shinyServer(function(input, output, session) {
       }
     }
     showModal(modalDialog(
-      title = "Your data for the multinomineq analysis", size = "m", easyClose = TRUE,
+      title = "Your data for the multinomineq analysis", size = "m", easyClose = TRUE, class = "fairy-form-modal",
       tags$style(HTML(paste(
         ".mn-foot .btn { margin: 0 !important; }",
         ".mn-data-modal .form-group { margin-bottom: 0; }",
@@ -19996,7 +20029,7 @@ server <- shinyServer(function(input, output, session) {
         ".mn-data-modal label.control-label { font-size: 13px; font-weight: 600; margin-bottom: 4px; }",
         sep = " "))),
       tags$div(class = "mn-data-modal",
-      tags$p(class = "mn-lead", tags$b("n"), " = number of observations, ", tags$b("frequency"),
+      tags$p(class = "mn-lead", "Enter your observed counts: ", tags$b("n"), " = number of observations (trials), ", tags$b("frequency"),
         " = how often the outcome happened (out of n). The settings of the sampling are in the Run window."),
       if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Each unpacked model has its own tab, because its probabilities can rest on different observations (for example different jokes or samples). If a model has the same number of probabilities and each one rests on the same observations as in the other models, tick 'Use the same numbers as the other models' in its tab: n and frequency are then copied row by row."),
       tags$div(style = "max-height:46vh; overflow-y:auto;", body),
@@ -20056,7 +20089,7 @@ server <- shinyServer(function(input, output, session) {
     mb <- if (is.null(st$mb)) 10000 else st$mb; mp <- if (is.null(st$mp)) 5000 else st$mp
     own <- length(isolate(mn_user_data())) > 0
     showModal(modalDialog(
-      title = "Run the multinomineq analysis here", size = "m", easyClose = TRUE,
+      title = "Run the multinomineq analysis here", size = "m", easyClose = TRUE, class = "fairy-form-modal",
       tags$style(HTML(".mn-foot .btn { margin: 0 !important; } .mn-lead { font-size: 13px; color: var(--fairy-text-muted, #667085); margin: 0 0 10px 0; } .modal-body hr { margin: 14px 0 12px 0; } .modal-body label.control-label { font-size: 13px; font-weight: 600; margin-bottom: 4px; }")),
       uiOutput("mn_skipped_note"),
       tags$p(class = "fairy-eq-tol-help",
@@ -20086,8 +20119,9 @@ server <- shinyServer(function(input, output, session) {
           "Burn-in: draws discarded at the start of each run (the package default is 10 for the posterior and 5 per step for the Bayes factors). ",
           "Prior: Beta(a, b) on every probability; Beta(1, 1) is uniform. ",
           "The seed makes a run repeatable.")),
-      tags$div(style = "background:rgba(245,158,11,.16); border-left:4px solid #f59e0b; border-radius:4px; padding:8px 12px; font-size:13px; margin-top:4px;",
-        tags$b("Runs on our shared server."), " Keep it small. For larger analyses download the files and run ", tags$code("analysis_multinomineq.R"), " on your own computer."),
+      tags$div(class = "fairy-mn-note",
+        icon("triangle-exclamation"),
+        tags$span(tags$b("Runs on our shared server."), " Keep it small. For larger analyses download the files and run ", tags$code("analysis_multinomineq.R"), " on your own computer.")),
       footer = tags$div(class = "mn-foot", style = "display:flex; gap:8px; justify-content:flex-end; width:100%;",
         modalButton("Cancel"),
         actionButton("mn_run", "Run analysis here", class = "btn-primary", title = "Runs on our shared server (best for small analyses). For larger ones, run the script from the download on your own computer."))))
@@ -20348,7 +20382,7 @@ server <- shinyServer(function(input, output, session) {
     }
     page <- paste(readLines(file.path(d, "results.html"), warn = FALSE, encoding = "UTF-8"), collapse = "\n")
     showModal(modalDialog(
-      title = "Results of the multinomineq analysis", size = "l", easyClose = TRUE,
+      title = "Results of the multinomineq analysis", size = "l", easyClose = TRUE, class = "fairy-form-modal",
       tags$p(class = "fairy-eq-tol-help", HTML("The Bayes factors and the posterior were computed by the R package <a href='https://www.dwheck.de/software/multinomineq/' target='_blank' rel='noopener'>multinomineq</a> (Heck &amp; Davis-Stober, 2019). "),
         "This ran on our shared server. For larger or repeated analyses, download the results below: the download contains the files and ", tags$code("analysis_multinomineq.R"), ", which you can run on your own computer."),
       # the page is put into the window itself (in a shadow root, so its styles stay apart from the app's): no frame to scroll in
@@ -20371,6 +20405,10 @@ server <- shinyServer(function(input, output, session) {
           var ds = document.createElement('style');
           ds.textContent = dark ? ':host{--bg:#161b27;--fg:#e6e9f0;--mut:#9aa3b5;--line:#2d3347;--head:#1c2230;--prim:#6089f8}'
                                 : ':host{--bg:#fff;--fg:#1f2430;--mut:#667085;--line:#e2e6ee;--head:#f4f6fa;--prim:#593196}';
+          // the page sits inside the window: no second title (the window has one), the same left edge as the text above, calmer sizes
+          ds.textContent += ' header{padding:0 0 .4em !important;border:0 !important} header h1{display:none} main{max-width:none !important;padding:.2em 0 1.2em !important}'
+            + ' h2{font-size:1.1em !important;margin:1.1em 0 .25em !important} h3{font-size:1em !important} .scale{gap:4px !important} .scale > *{padding:5px 4px !important;font-size:.82em !important}'
+            + ' .legend span{font-size:.85em !important}';
           root.appendChild(ds);
           var nt = document.getElementById('mn_results_newtab');
           if (nt) nt.addEventListener('click', function() {
