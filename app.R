@@ -883,6 +883,8 @@ ui <- shinyUI(fluidPage(
       #h_hide_host, #fairy-ov-hide { display: none; justify-content: center; margin-top: 6px; }
       body.fairy-par-focus #h_hide_host, body.fairy-items-focus #h_hide_host, body.fairy-par-focus #fairy-ov-hide, body.fairy-items-focus #fairy-ov-hide { display: flex; }
       #h_par_chips .fairy-selbtn, #h_items_chips .fairy-selbtn, #fairy-ov-par .fairy-selbtn, #fairy-ov-items .fairy-selbtn { grid-column: span 2; width: auto; height: 22px; font-size: 11px; border-bottom-width: 1px; border-radius: 11px; }
+      #h_par_chips .fairy-selbtn:nth-last-child(2), #h_items_chips .fairy-selbtn:nth-last-child(2), #fairy-ov-par .fairy-selbtn:nth-last-child(2), #fairy-ov-items .fairy-selbtn:nth-last-child(2) { grid-column: 1 / span 2; margin-top: 4px; }
+      #h_par_chips .fairy-selbtn:last-child, #h_items_chips .fairy-selbtn:last-child, #fairy-ov-par .fairy-selbtn:last-child, #fairy-ov-items .fairy-selbtn:last-child { grid-column: 3 / span 2; margin-top: 4px; }
       .fairy-hidegrp { display: flex; gap: 6px; position: relative; margin-top: 14px; }
       .fairy-hidegrp[data-cap]::before { content: attr(data-cap); position: absolute; top: -13px; left: -4px; right: -4px; text-align: center; pointer-events: none; font-size: 9.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--fairy-text-muted, #667085); }
       .fairy-hidebtn { height: 24px; padding: 0 14px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-radius: 12px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
@@ -7690,8 +7692,8 @@ ui <- shinyUI(fluidPage(
         }
         // select all / deselect all (one always stays, so "none" keeps the first)
         function fairySelectBtns(host, kind, ks) {
-          [["all", "Bring all back"], ["none", "Grey out all but the first one (at least one always stays)"]].forEach(function(d) {
-            var b = document.createElement("button"); b.type = "button"; b.className = "fairy-selbtn"; b.textContent = d[0]; b.title = d[1];
+          [["all", "all", "Bring all back"], ["none", "only " + (kind === "par" ? "p" : "") + ks[0], "Grey out everything except the first one (at least one always stays)"]].forEach(function(d) {
+            var b = document.createElement("button"); b.type = "button"; b.className = "fairy-selbtn"; b.textContent = d[1]; b.title = d[2];
             b.addEventListener("click", function() {
               var l = d[0] === "all" ? [] : ks.slice(1);
               var attr = kind === "par" ? "data-pgray" : "data-gray";
