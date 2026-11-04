@@ -3028,6 +3028,14 @@ ui <- shinyUI(fluidPage(
       .fairy-go-inline .fairy-primary-controls .shiny-input-container, .fairy-go-inline .fairy-primary-controls .form-group { margin-bottom: 0; }
       .fairy-go-inline .fairy-primary-controls .fairy-fab-action-row { position: static; display: flex; align-items: center; gap: 6px; }
       .fairy-go-inline .fairy-primary-controls .fairy-toolbar-fileinput { display: inline-block; }
+      /* Parsimony: Go on top, below it one tidy row: the two main switches, the algorithms (side by side) and the settings */
+      .fairy-go-inline-stack { flex-direction: column; gap: 10px; }
+      .fairy-go-inline-stack .fairy-primary-controls { justify-content: center; gap: 6px 26px; }
+      .fairy-go-inline .fairy-primary-controls .shiny-input-container { width: auto !important; min-width: 0 !important; }
+      .fairy-go-inline .fairy-primary-controls > span.fairy-tooltip { display: inline-block !important; }
+      .fairy-go-inline .fairy-primary-controls .shiny-panel-conditional > div { display: flex; flex-wrap: wrap; gap: 4px 22px; margin-left: 0 !important; }
+      .fairy-go-inline .fairy-primary-controls .shiny-panel-conditional > div > span.fairy-tooltip { display: inline-block !important; }
+      .fairy-go-inline .fairy-primary-controls .shiny-panel-conditional { display: inline-block; }
       .fairy-go-inline-btn {
         display: inline-flex; align-items: baseline; gap: 10px; padding: 12px 38px; border-radius: 14px; border: 0;
         font-size: 22px; font-weight: 700; line-height: 1.1;
@@ -8040,7 +8048,7 @@ ui <- shinyUI(fluidPage(
             class = "model-def-panel",
             style = "padding: 18px 22px;",
             # a big Go at the top of this page too (the one in the floating panel is easy to miss)
-            tags$div(class = "fairy-go-inline", style = "margin-top:0;",
+            tags$div(class = "fairy-go-inline fairy-go-inline-stack", style = "margin-top:0;",
               tags$button(id = "go_inline_pars", type = "button", class = "btn fairy-go-inline-btn",
                 onclick = "var g = document.getElementById('go'); if (g && !g.disabled) g.click();",
                 icon("play"), tags$span("Go"),
