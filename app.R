@@ -7627,19 +7627,22 @@ ui <- shinyUI(fluidPage(
         function fairyHideStyle() {
           var st = document.getElementById("fairy-hide-style");
           if (!st) { st = document.createElement("style"); st.id = "fairy-hide-style"; document.head.appendChild(st); }
-          var css = "", q = String.fromCharCode(39), mode = fairyHideMode();
-          function rules(cls, sel, attr, list) {
-            if (!list.length) return;
+          var css = "", q = String.fromCharCode(39), mode = fairyHideMode(), gi = fairyGrayList(), gp = fairyParList();
+          function nots(attr, list) { return list.map(function(k) { return ":not([" + attr + "=" + q + k + q + "])"; }).join(""); }
+          function is(attr, k) { return "[" + attr + "=" + q + k + q + "]"; }
+          // a term is active when neither its item nor its parameter is greyed out; the rows follow the terms
+          if (gi.length || gp.length) {
             if (mode === "any") {
-              list.forEach(function(k) { css += "body." + cls + " tr:has(" + sel + "[" + attr + "=" + q + k + q + "]) { display: none !important; } "; });
+              var bad = [];
+              gi.forEach(function(k) { bad.push(".fairy-iw" + is("data-item", k) + " .fairy-pt"); });
+              gp.forEach(function(k) { bad.push(".fairy-pt" + is("data-par", k)); });
+              css += "tr:has(" + bad.join(", ") + ") { display: none !important; } ";
             }
             if (mode === "all") {
-              var nots = list.map(function(k) { return ":not([" + attr + "=" + q + k + q + "])"; }).join("");
-              css += "body." + cls + " tr:has(" + sel + "):not(:has(" + sel + nots + ")) { display: none !important; } ";
+              var act = ".fairy-iw" + nots("data-item", gi) + " .fairy-pt" + nots("data-par", gp) + ", .fairy-pt-solo" + nots("data-par", gp);
+              css += "tr:has(.fairy-pt):not(:has(" + act + ")) { display: none !important; } ";
             }
           }
-          rules("fairy-items-focus", ".fairy-iw", "data-item", fairyGrayList());
-          rules("fairy-par-focus", ".fairy-pt", "data-par", fairyParList());
           st.textContent = css;
         }
         function fairyAfterGray() {
