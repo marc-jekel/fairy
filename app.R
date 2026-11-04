@@ -878,6 +878,16 @@ ui <- shinyUI(fluidPage(
          .fairy-h-aligned-plain-table/-color-table and .fairy-h-packed-
          plain-table/-color-table below); only this value decides which
          one shows, so switching is instant either toggle is used. */
+      /* Items: the terms of one item of an unpacked model get a soft background of their own colour (switched on with the Items buttons) */
+      .fairy-iw { border-radius: 6px; padding: 1px 3px; }
+      body.fairy-items-on .fairy-iw[data-item='1'] { background: rgba(14,165,233,.22); }
+      body.fairy-items-on .fairy-iw[data-item='2'] { background: rgba(245,158,11,.25); }
+      body.fairy-items-on .fairy-iw[data-item='3'] { background: rgba(16,185,129,.22); }
+      body.fairy-items-on .fairy-iw[data-item='4'] { background: rgba(236,72,153,.20); }
+      body.fairy-items-on .fairy-iw[data-item='5'] { background: rgba(139,92,246,.22); }
+      body.fairy-items-on .fairy-iw[data-item='6'] { background: rgba(100,116,139,.25); }
+      body.fairy-items-on .fairy-iw[data-item='7'] { background: rgba(132,204,22,.28); }
+      body.fairy-items-on .fairy-iw[data-item='8'] { background: rgba(249,115,22,.22); }
       #outP[data-h-view='aligned-color'] .fairy-h-aligned-plain-table,
       #outP[data-h-view='compact'] .fairy-h-aligned-plain-table,
       #outP[data-h-view='compact-color'] .fairy-h-aligned-plain-table { display: none !important; }
@@ -7400,6 +7410,11 @@ ui <- shinyUI(fluidPage(
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "No color", `data-state` = "off", icon("droplet-slash")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Color terms by parameter", `data-state` = "on", icon("droplet"))
           ),
+          # the items of unpacked models: terms of the same item share a background colour (independent of the colour above)
+          tags$div(class = "fairy-segmented", id = "h_items_toggle_group", `data-cap` = "Items",
+            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Items not marked", `data-state` = "off", icon("ban")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Mark the items of unpacked models with a background colour (item 1, item 2, ...)", `data-state` = "on", icon("highlighter"))
+          ),
           tags$div(class = "fairy-segmented fairy-card-layout-group", `data-cap` = "Arrange",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", icon("table-cells-large")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Free layout: drag the cards anywhere", `data-state` = "free", icon("up-down-left-right")),
@@ -7511,6 +7526,11 @@ ui <- shinyUI(fluidPage(
           });
           if (window.fitHTablesToWidth) window.fitHTablesToWidth();
         }
+        $("#h_items_toggle_group button").click(function(){
+          $(this).parent().find("button").removeClass("active");
+          $(this).addClass("active");
+          document.body.classList.toggle("fairy-items-on", $(this).data("state") === "on");
+        });
         $("#h_layout_toggle_group button, #h_color_toggle_group button").click(function(){
           var group = $(this).parent();
           group.find("button").removeClass("active");
@@ -17321,14 +17341,20 @@ server <- shinyServer(function(input, output, session) {
           # Plain (Aligned layout): column position ALREADY is the
           # same-parameter cue there, so an added color would be
           # redundant noise, not a second signal.
-          term_html <- function(co, j, lead = FALSE) paste0('\\(', math_of(co, j, lead), '\\)')
+          # the item of a term (p_{1}^{(2)} is item 2): the wrapper only carries it; the background shows when "Items" is switched on
+          item_wrap <- function(j, inner) {
+            m <- regmatches(p_names_lt[j], regexec("\\^\\{\\((?:.*,)?([0-9]+)\\)\\}$", p_names_lt[j], perl = TRUE))[[1]]
+            if (length(m) != 2) return(inner)
+            paste0('<span class="fairy-iw" data-item="', ((as.integer(m[2]) - 1L) %% 8L) + 1L, '">', inner, '</span>')
+          }
+          term_html <- function(co, j, lead = FALSE) item_wrap(j, paste0('\\(', math_of(co, j, lead), '\\)'))
           # Colored (Compact layout only): color by column (see
           # col_color/param_color_map), set before the \\(...\\) so
           # MathJax's rendered output inherits it (renders in
           # currentColor by default) — the substitute cue once Compact
           # has dropped column alignment.
           term_html_colored <- function(co, j, lead = FALSE)
-            paste0('<span style="color:', col_color[j], ';">\\(', math_of(co, j, lead), '\\)</span>')
+            item_wrap(j, paste0('<span style="color:', col_color[j], ';">\\(', math_of(co, j, lead), '\\)</span>'))
 
           # ---- Aligned layout: one <td> per parameter column, same
           # column top-to-bottom for the same parameter (see
