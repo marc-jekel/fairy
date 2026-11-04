@@ -8616,6 +8616,10 @@ server <- shinyServer(function(input, output, session) {
     if (length(row_idx) == 0) return(invisible())
     vtab[row_idx[1], 2] <- flag
     mytable_v_reactive$value <- vtab
+    # skipping (or taking a skip back) is not a change of the input: the comparison for "results may be outdated" follows the V switch,
+    # everything else in it stays as it was at Go (a real change typed in the meantime still shows)
+    snap <- isolate(last_computed_snapshot())
+    if (!is.null(snap)) { snap$v_selection <- vtab; last_computed_snapshot(snap) }
   }
   v_start_jobs <- function(models) {
     v_kill_all()
