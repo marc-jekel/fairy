@@ -19459,7 +19459,7 @@ server <- shinyServer(function(input, output, session) {
       '  "td>span[class]{display:inline-block;padding:2px 12px;",',
       '  "border-radius:6px;min-width:5.5em}",',
       '  "td{font-size:.94em}",',
-      '  "th:nth-child(n+3),td:nth-child(n+3){text-align:center;",',
+      '  "th:nth-child(n+2),td:nth-child(n+2){text-align:center;",',
       '  "min-width:8em}",',
       '  "tr:last-child td{border-bottom:0}",',
       '  ".b10{--c:#16794a}.b9{--c:#1f9d62}.b8{--c:#4cb883}",',
