@@ -882,7 +882,8 @@ ui <- shinyUI(fluidPage(
       .fairy-hidden-group { display: none !important; }
       #h_hide_host, #fairy-ov-hide { display: none; justify-content: center; margin-top: 6px; }
       body.fairy-par-focus #h_hide_host, body.fairy-items-focus #h_hide_host, body.fairy-par-focus #fairy-ov-hide, body.fairy-items-focus #fairy-ov-hide { display: flex; }
-      .fairy-hidegrp { display: flex; gap: 6px; }
+      .fairy-hidegrp { display: flex; gap: 6px; position: relative; margin-top: 14px; }
+      .fairy-hidegrp[data-cap]::before { content: attr(data-cap); position: absolute; top: -13px; left: -4px; right: -4px; text-align: center; pointer-events: none; font-size: 9.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--fairy-text-muted, #667085); }
       .fairy-hidebtn { height: 24px; padding: 0 14px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-radius: 12px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
       .fairy-hidebtn.on { background: var(--fairy-primary, #5b3494); color: #fff; border-color: var(--fairy-primary, #5b3494); }
       /* expanded card: the display options of the main window are open at the left (the small button folds them away) */
@@ -7640,10 +7641,10 @@ ui <- shinyUI(fluidPage(
           if (fairyHideMode()) fairyRefit();
         }
         function fairyHideBtn() {
-          var wrap = document.createElement("div"); wrap.className = "fairy-hidegrp";
+          var wrap = document.createElement("div"); wrap.className = "fairy-hidegrp"; wrap.setAttribute("data-cap", "Hide rows");
           var cur = fairyHideMode();
-          [["any", "any grey", "Hide every row that contains a greyed-out item or parameter"],
-           ["all", "all grey", "Hide the rows in which everything is greyed out: a row stays as long as at least one item or parameter in it is not greyed out"]].forEach(function(d) {
+          [["any", "partly grey", "Hide every row that contains a greyed-out item or parameter, also when other items or parameters in it are not greyed out"],
+           ["all", "fully grey", "Hide only the rows in which everything is greyed out: a row stays as long as at least one item or parameter in it is not greyed out"]].forEach(function(d) {
             var b = document.createElement("button"); b.type = "button";
             b.className = cur === d[0] ? "fairy-hidebtn on" : "fairy-hidebtn";
             b.textContent = d[1]; b.title = d[2];
