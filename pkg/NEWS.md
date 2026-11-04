@@ -1,3 +1,8 @@
+# fairy 0.6.3
+
+* `results.html` of the multinomineq analysis: every second row of the tables is lightly shaded, so rows are easier to tell apart.
+* The note for a model with an estimate of 0 now says that more samples may give a number.
+
 # fairy 0.6.2
 
 * `results.html` of the multinomineq analysis: the number columns of the tables (from the second column on) are centred; only the model name
