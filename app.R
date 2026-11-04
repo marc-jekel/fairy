@@ -3107,18 +3107,25 @@ ui <- shinyUI(fluidPage(
         color: var(--fairy-text, #1d2433); background: rgba(245, 158, 11, .10); border: 1px solid rgba(245, 158, 11, .30); border-radius: 10px; }
       .fairy-form-modal .fairy-mn-note > .fa, .fairy-form-modal .fairy-mn-note > svg { color: #d97706; margin-top: 3px; flex: 0 0 auto; }
       .fairy-form-modal .fairy-mn-note code { font-size: 12px; }
-      .fairy-form-modal .modal-footer { padding: 12px 24px 18px; border-top: 0; }
-      .fairy-form-modal .modal-footer .btn > .fa, .fairy-form-modal .modal-footer .btn > svg { margin-right: 7px; }
-      .fairy-form-modal .modal-footer .btn { height: 38px; padding: 0 20px; font-size: 14px; font-weight: 600; border-radius: 8px; }
+      .modal:has(.fairy-form-modal) .modal-footer { padding: 12px 24px 18px; border-top: 0; }
+      .modal:has(.fairy-form-modal) .modal-footer .btn > .fa, .modal:has(.fairy-form-modal) .modal-footer .btn > svg { margin-right: 7px; }
+      .modal:has(.fairy-form-modal) .modal-footer .btn { height: 38px; padding: 0 20px; font-size: 14px; font-weight: 600; border-radius: 8px; }
       .fairy-form-modal .mn-data-modal .mn-tbl th { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--fairy-text-muted, #667085); }
       .fairy-form-modal .mn-data-modal .mn-tbl td { padding: 4px 16px 4px 0; }
       .fairy-form-modal .mn-data-modal .mn-tbl input.form-control { min-height: 0; height: 34px; padding: 4px 10px; }
+      /* stripes: the rows are easier to tell apart */
+      .fairy-form-modal .mn-data-modal .mn-tbl { width: 100%; }
+      .fairy-form-modal .mn-data-modal .mn-tbl tbody tr:nth-child(odd) td { background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 6%, transparent); border-top-color: transparent; }
+      .fairy-form-modal .mn-data-modal .mn-tbl tbody tr td { border-top-color: transparent; padding: 6px 16px 6px 12px; }
+      .fairy-form-modal .mn-data-modal .mn-tbl tbody tr td:first-child { border-radius: 10px 0 0 10px; }
+      .fairy-form-modal .mn-data-modal .mn-tbl tbody tr td:last-child { border-radius: 0 10px 10px 0; }
+      .fairy-form-modal .mn-data-modal .mn-tbl th { padding: 0 16px 6px 12px; }
       .fairy-form-modal .mn-data-modal .mn-nall { margin-top: 12px; }
       .fairy-form-modal .mn-data-modal .mn-nall label { font-size: 12.5px; font-weight: 500; }
       .fairy-form-modal .mn-data-modal .mn-nall input.form-control { min-height: 0; height: 32px; }
-      .fairy-form-modal .mn-foot #mn_data_reset { background: transparent !important; border-color: transparent !important; box-shadow: none !important; color: var(--fairy-text-muted, #667085) !important; font-weight: 500; padding: 0 12px; }
-      .fairy-form-modal .mn-foot #mn_data_reset .fa, .fairy-form-modal .mn-foot #mn_data_reset svg { margin-right: 7px; }
-      .fairy-form-modal .mn-foot #mn_data_reset:hover { color: var(--fairy-primary, #3a6df0); background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 8%, transparent); }
+      .mn-foot #mn_data_reset { background: transparent !important; border-color: transparent !important; box-shadow: none !important; color: var(--fairy-text-muted, #667085) !important; font-weight: 500; padding: 0 12px; }
+      .mn-foot #mn_data_reset .fa, .mn-foot #mn_data_reset svg { margin-right: 7px; }
+      .mn-foot #mn_data_reset:hover { color: var(--fairy-primary, #3a6df0); background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 8%, transparent); }
       .fairy-form-modal .nav-tabs { border-bottom: 0; display: flex; gap: 6px; margin-bottom: 8px; }
       .fairy-form-modal .nav-tabs > li { float: none; margin: 0; }
       .fairy-form-modal .nav-tabs > li > a { border: 1px solid var(--fairy-border, #e3e6ee); border-radius: 999px; padding: 4px 14px; font-size: 13px; color: var(--fairy-text-muted, #667085); background: transparent; margin: 0; }
@@ -18977,7 +18984,8 @@ server <- shinyServer(function(input, output, session) {
       '                           na.rm = TRUE))',
       '    note <- paste("The estimate is 0: the data speak strongly",',
       '                  "against the model (no sample fell inside it), so",',
-      '                  "the true value is very small but not 0.")',
+      '                  "the true value is very small but not 0. More",',
+      '                  "samples may give a number.")',
       '  if (!nzchar(note) && is.finite(out$bf_0u) && !is.finite(out$bf_00))',
       '    note <- paste("multinomineq gives no Bayes factor against the",',
       '                  "complement (everything the model forbids) for a",',
@@ -19462,6 +19470,7 @@ server <- shinyServer(function(input, output, session) {
       '  "th:nth-child(n+2),td:nth-child(n+2){text-align:center;",',
       '  "min-width:8em}",',
       '  "tr:last-child td{border-bottom:0}",',
+      '  "tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--head) 55%,transparent)}",',
       '  ".b10{--c:#16794a}.b9{--c:#1f9d62}.b8{--c:#4cb883}",',
       '  ".b7{--c:#8fd0b0}.b6{--c:#b9e0cb}",',
       '  ".b5{--c:#f2b6b8}.b4{--c:#ec8f93}.b3{--c:#e0595f}",',
