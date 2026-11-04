@@ -3074,7 +3074,7 @@ ui <- shinyUI(fluidPage(
       .fairy-go-inline .fairy-toolbar-iconbtn:hover, .fairy-go-inline .fairy-toolbar-fileinput .btn-file:hover { filter: brightness(1.1); }
       /* Parsimony: Go on top, below it one tidy row: the two main switches, the algorithms (side by side) and the settings */
       .fairy-go-inline-stack { flex-direction: column; gap: 10px; }
-      .fairy-pars-hint { flex: 1 1 100%; order: 10; text-align: center; text-wrap: balance; font-size: 12px; line-height: 1.5; color: var(--fairy-text-muted, #667085); max-width: 680px; margin: 2px auto 0; }
+      .fairy-pars-hint { flex: 0 0 100%; order: 10; text-align: center; text-wrap: balance; font-size: 12px; line-height: 1.5; color: var(--fairy-text-muted, #667085); box-sizing: border-box; padding: 0 max(0px, calc((100% - 680px) / 2)); margin: 2px 0 0; }
       body.fairy-no-tips .fairy-pars-hint, body.fairy-no-tips .fairy-pars-placeholder { display: none; }
       .fairy-go-inline-stack .fairy-primary-controls { justify-content: center; gap: 6px 26px; }
       .fairy-go-inline .fairy-primary-controls .shiny-input-container { width: auto !important; min-width: 0 !important; }
