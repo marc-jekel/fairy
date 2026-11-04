@@ -1775,19 +1775,19 @@ ui <- shinyUI(fluidPage(
         padding: 8px 26px;
         font-size: 14px;
         font-weight: 600;
-        border: 1.5px solid var(--fairy-border, #c8cdd8);
+        border: 1.5px solid transparent;
         border-radius: 8px;
         background: transparent;
-        color: var(--fairy-text, #1d2433);
+        color: var(--fairy-text-muted, #667085);
         cursor: pointer;
       }
+      #fairy-run-cancel:hover { border-color: var(--fairy-border, #c8cdd8); color: var(--fairy-text, #1d2433); }
       #fairy-run-cancel.visible { display: inline-block; }
-      /* Skip all appears after a few seconds (the place stays reserved) and pulses three times, like the Skip buttons of the rows */
+      /* Skip all appears after a few seconds (the place stays reserved); quiet on purpose: waiting is the normal case */
       #fairy-run-cancel.visible:not(.armed) { visibility: hidden; }
-      #fairy-run-cancel.armed { animation: fairy-run-nudge .9s ease-in-out 3; }
       /* Skip of a single model: a real small button at the name of the model, the same in every run window */
-      .fairy-run-rowbtn { display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); margin-left: 12px; padding: 2px 11px; font-size: 12px; font-weight: 600; line-height: 1.5; vertical-align: middle;
-        border: 1.5px solid var(--fairy-border, #c8cdd8); border-radius: 8px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
+      .fairy-run-rowbtn { display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); margin-left: 12px; padding: 2px 11px; font-size: 12px; font-weight: 500; line-height: 1.5; vertical-align: middle;
+        border: 1.5px solid transparent; border-radius: 8px; background: transparent; color: var(--fairy-text-muted, #667085); cursor: pointer; }
       .fairy-run-rowbtn:hover { border-color: var(--fairy-primary); color: var(--fairy-primary); background: color-mix(in srgb, var(--fairy-primary) 8%, transparent); }
       #fairy-run-card.fairy-run-skippable tr.fairy-run-active.fairy-run-stopready:not(.fairy-run-skipped) .fairy-run-rowbtn:not(.fairy-run-rowundo) { display: inline-block; }
       #fairy-run-card.fairy-run-skippable tr.fairy-run-skipped .fairy-run-rowundo { display: inline-block; }
@@ -1803,9 +1803,8 @@ ui <- shinyUI(fluidPage(
       #fairy-run-cancel:disabled { opacity: .6; cursor: default; }
       /* after three minutes of the exact calculation the Skip button glows: skipping is possible */
       @keyframes fairy-run-nudge { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--fairy-primary, #3a6df0) 55%, transparent); } 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--fairy-primary, #3a6df0) 0%, transparent); } }
-      #fairy-run-cancel.fairy-run-nudge { border-color: var(--fairy-primary, #3a6df0); color: var(--fairy-primary, #3a6df0); animation: fairy-run-nudge 1.6s ease-in-out infinite; }
+      #fairy-run-cancel.fairy-run-nudge { color: var(--fairy-text, #1d2433); }
       /* when Stop appears for a model (after three seconds of calculation) it blinks three times, in every run window */
-      #fairy-run-card tr.fairy-run-stopready .fairy-run-rowbtn:not(.fairy-run-rowundo) { animation: fairy-run-nudge .9s ease-in-out 3; }
       @media (prefers-reduced-motion: reduce) { #fairy-run-cancel.fairy-run-nudge { animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--fairy-primary, #3a6df0) 35%, transparent); } }
       .fairy-run-cell.st-cancel { color: #b05000; }
       .fairy-run-cell.st-na, .fairy-run-cell.st-skip { color: var(--fairy-text-muted, #667085); }
