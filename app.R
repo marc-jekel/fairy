@@ -882,6 +882,7 @@ ui <- shinyUI(fluidPage(
       .fairy-hidden-group { display: none !important; }
       #h_hide_host, #fairy-ov-hide { display: none; justify-content: center; margin-top: 6px; }
       body.fairy-par-focus #h_hide_host, body.fairy-items-focus #h_hide_host, body.fairy-par-focus #fairy-ov-hide, body.fairy-items-focus #fairy-ov-hide { display: flex; }
+      .fairy-hidegrp { display: flex; gap: 6px; }
       .fairy-hidebtn { height: 24px; padding: 0 14px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-radius: 12px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
       .fairy-hidebtn.on { background: var(--fairy-primary, #5b3494); color: #fff; border-color: var(--fairy-primary, #5b3494); }
       /* expanded card: the display options of the main window are open at the left (the small button folds them away) */
@@ -7613,30 +7614,46 @@ ui <- shinyUI(fluidPage(
           });
           if (window.fitHTablesToWidth) window.fitHTablesToWidth();
         }
-        // "hide": the rows that contain a greyed-out item or parameter are not shown at all
+        // hide rows: "any" hides every row that contains a greyed-out item or parameter, "all" only the rows in which everything is greyed
+        // out (a row stays as long as at least one item or parameter in it is not greyed out)
+        function fairyHideMode() { return document.body.getAttribute("data-hide") || ""; }
         function fairyHideStyle() {
           var st = document.getElementById("fairy-hide-style");
           if (!st) { st = document.createElement("style"); st.id = "fairy-hide-style"; document.head.appendChild(st); }
-          var css = "", q = String.fromCharCode(39);
-          if (document.body.classList.contains("fairy-hide-gray")) {
-            fairyGrayList().forEach(function(k) { css += "body.fairy-items-focus tr:has(.fairy-iw[data-item=" + q + k + q + "]) { display: none !important; } "; });
-            fairyParList().forEach(function(k) { css += "body.fairy-par-focus tr:has(.fairy-pt[data-par=" + q + k + q + "]) { display: none !important; } "; });
+          var css = "", q = String.fromCharCode(39), mode = fairyHideMode();
+          function rules(cls, sel, attr, list) {
+            if (!list.length) return;
+            if (mode === "any") {
+              list.forEach(function(k) { css += "body." + cls + " tr:has(" + sel + "[" + attr + "=" + q + k + q + "]) { display: none !important; } "; });
+            }
+            if (mode === "all") {
+              var nots = list.map(function(k) { return ":not([" + attr + "=" + q + k + q + "])"; }).join("");
+              css += "body." + cls + " tr:has(" + sel + "):not(:has(" + sel + nots + ")) { display: none !important; } ";
+            }
           }
+          rules("fairy-items-focus", ".fairy-iw", "data-item", fairyGrayList());
+          rules("fairy-par-focus", ".fairy-pt", "data-par", fairyParList());
           st.textContent = css;
         }
         function fairyAfterGray() {
           fairyHideStyle();
-          if (document.body.classList.contains("fairy-hide-gray")) fairyRefit();
+          if (fairyHideMode()) fairyRefit();
         }
         function fairyHideBtn() {
-          var b = document.createElement("button"); b.type = "button";
-          b.className = document.body.classList.contains("fairy-hide-gray") ? "fairy-hidebtn on" : "fairy-hidebtn";
-          b.textContent = "hide"; b.title = "Hide the rows that contain a greyed-out item or parameter";
-          b.addEventListener("click", function() {
-            document.body.classList.toggle("fairy-hide-gray");
-            fairyHideStyle(); fairyRefit(); fairyItemChips(); fairyParChips();
+          var wrap = document.createElement("div"); wrap.className = "fairy-hidegrp";
+          var cur = fairyHideMode();
+          [["any", "any grey", "Hide every row that contains a greyed-out item or parameter"],
+           ["all", "all grey", "Hide the rows in which everything is greyed out: a row stays as long as at least one item or parameter in it is not greyed out"]].forEach(function(d) {
+            var b = document.createElement("button"); b.type = "button";
+            b.className = cur === d[0] ? "fairy-hidebtn on" : "fairy-hidebtn";
+            b.textContent = d[1]; b.title = d[2];
+            b.addEventListener("click", function() {
+              if (fairyHideMode() === d[0]) document.body.removeAttribute("data-hide"); else document.body.setAttribute("data-hide", d[0]);
+              fairyHideStyle(); fairyRefit(); fairyItemChips(); fairyParChips();
+            });
+            wrap.appendChild(b);
           });
-          return b;
+          return wrap;
         }
         // one hide button: under the buttons of the main window and at the end of the menu of an expanded card
         function fairyHideBtns() {
