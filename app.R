@@ -3030,12 +3030,13 @@ ui <- shinyUI(fluidPage(
       .fairy-go-inline .fairy-primary-controls .fairy-toolbar-fileinput { display: inline-block; }
       /* Parsimony: Go on top, below it one tidy row: the two main switches, the algorithms (side by side) and the settings */
       .fairy-go-inline-stack { flex-direction: column; gap: 10px; }
+      .fairy-pars-hint { flex: 1 1 100%; order: 10; text-align: center; font-size: 12px; color: var(--fairy-text-muted, #667085); max-width: 760px; margin: 0 auto; }
       .fairy-go-inline-stack .fairy-primary-controls { justify-content: center; gap: 6px 26px; }
       .fairy-go-inline .fairy-primary-controls .shiny-input-container { width: auto !important; min-width: 0 !important; }
       .fairy-go-inline .fairy-primary-controls > span.fairy-tooltip { display: inline-block !important; }
-      .fairy-go-inline .fairy-primary-controls .shiny-panel-conditional > div { display: flex; flex-wrap: wrap; gap: 4px 22px; margin-left: 0 !important; }
-      .fairy-go-inline .fairy-primary-controls .shiny-panel-conditional > div > span.fairy-tooltip { display: inline-block !important; }
-      .fairy-go-inline .fairy-primary-controls .shiny-panel-conditional { display: inline-block; }
+      .fairy-go-inline .fairy-primary-controls #alg_sub > div { display: flex; flex-wrap: wrap; gap: 4px 22px; margin-left: 0 !important; }
+      .fairy-go-inline .fairy-primary-controls #alg_sub > div > span.fairy-tooltip { display: inline-block !important; }
+      .fairy-go-inline .fairy-primary-controls #alg_sub { display: inline-block; }
       .fairy-go-inline-btn {
         display: inline-flex; align-items: baseline; gap: 10px; padding: 12px 38px; border-radius: 14px; border: 0;
         font-size: 22px; font-weight: 700; line-height: 1.1;
@@ -8014,7 +8015,9 @@ ui <- shinyUI(fluidPage(
             `data-tooltip` = "Estimate the volume with algorithms for every model. Off: Cooling Bodies only runs for models without an exact volume",
             materialSwitch("ALG", "Algorithms", value = FALSE, status = "primary", right = TRUE)
           ),
-          conditionalPanel("input.ALG",
+          # the three algorithms only show while Algorithms is on (kept in step by the small script below, not by a conditionalPanel:
+          # this block is moved around in the page and the panel lost its state there)
+          div(id = "alg_sub", style = "display:none;",
             div(style = "margin-left:14px;",
               tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
                 `data-tooltip` = "General-purpose, recommended",
@@ -8030,6 +8033,10 @@ ui <- shinyUI(fluidPage(
               )
             )
           ),
+          tags$script(HTML("(function() { function syncAlg() { var a = document.getElementById('ALG'), d = document.getElementById('alg_sub'); if (a && d) d.style.display = a.checked ? '' : 'none'; } document.addEventListener('change', function(e) { if (e.target && e.target.id === 'ALG') syncAlg(); }); setInterval(syncAlg, 300); })();")),
+          tags$div(class = "fairy-pars-hint",
+            "The exact volume is calculated first. With Algorithms switched on, the chosen algorithms also run for every model; ",
+            "with Algorithms off, an algorithm (Cooling Bodies) only runs for models without an exact volume."),
           div(class = "fairy-fab-action-row",
             tags$span(class = "fairy-tooltip fairy-tooltip-left", `data-tooltip` = "Algorithm settings",
               # Same square fairy-toolbar-iconbtn look Download uses
