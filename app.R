@@ -13746,6 +13746,9 @@ server <- shinyServer(function(input, output, session) {
     content = function(file) { d <- parsim_bar_data(); req(d); parsimony_pdf(d, file) },
     contentType = "application/pdf"
   )
+  # the combined model text of every row is read by the app although the column is hidden in the Compact layout: it must keep
+  # being built then (otherwise a model typed in Compact mode has no text, probabilities are not added and Go says "no specification")
+  outputOptions(output, "textbox_ui_rel_complete", suspendWhenHidden = FALSE)
   outputOptions(output, "download_parsimony_pdf", suspendWhenHidden = FALSE)
   output$download_parsimony_csv <- downloadHandler(
     filename = function() paste0("Parsimony_results_", Sys.Date(), ".csv"),
