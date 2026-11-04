@@ -918,7 +918,7 @@ ui <- shinyUI(fluidPage(
       /* the marker of the active terms: a field of the same size behind every term (a term is active if neither its item nor its parameter is
          greyed out); drawn behind the term, so it changes nothing in the layout */
       body.fairy-items-focus[data-gray] .fairy-pt, body.fairy-par-focus[data-pgray] .fairy-pt { position: relative; z-index: 0; }
-      body.fairy-items-focus[data-gray] .fairy-pt::before, body.fairy-par-focus[data-pgray] .fairy-pt::before { content: ''; position: absolute; z-index: -1; left: 50%; top: 50%; width: 3.7em; height: 2.6em; transform: translate(-50%, -50%); background: rgba(250, 204, 21, .3); border-radius: 7px; pointer-events: none; }
+      body.fairy-items-focus[data-gray] .fairy-pt::before, body.fairy-par-focus[data-pgray] .fairy-pt::before { content: ''; position: absolute; z-index: -1; left: 50%; top: 50%; width: 3.7em; height: 2.2em; transform: translate(-50%, -50%); background: rgba(250, 204, 21, .3); border-radius: 7px; pointer-events: none; }
       body.fairy-items-focus[data-gray~='1'] .fairy-iw[data-item='1'] .fairy-pt::before { display: none; }
       body.fairy-items-focus[data-gray~='2'] .fairy-iw[data-item='2'] .fairy-pt::before { display: none; }
       body.fairy-items-focus[data-gray~='3'] .fairy-iw[data-item='3'] .fairy-pt::before { display: none; }
@@ -2025,6 +2025,9 @@ ui <- shinyUI(fluidPage(
            within its own boundary the way the vertical case already
            did. */
         overflow-x: auto;
+        /* room around the table (cancelled by the negative margin): the marker fields of the active terms are not cut off at the edge */
+        padding: 6px 14px;
+        margin: -6px -14px;
       }
       .model-card.fairy-sized .fairy-h-table-scroll { max-height: none; overflow-y: visible; }
       #fairy-card-overlay-content .fairy-h-table-scroll {
