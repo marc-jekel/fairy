@@ -1,3 +1,8 @@
+# fairy 0.6.5
+
+* `results.html` of the multinomineq analysis: the labels of the probabilities of unpacked models (p with a stacked superscript and subscript) are no
+  longer stretched like the coloured number cells; tables whose first column holds the numbers are centred in every column.
+
 # fairy 0.6.4
 
 * `results.html` of the multinomineq analysis: the tables use the full width (in line with the scale of the evidence categories) and the
