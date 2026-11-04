@@ -881,14 +881,26 @@ ui <- shinyUI(fluidPage(
       /* Items: the terms of one item of an unpacked model get a coloured bar below them (switched on with the Items buttons): a separate channel from the colour of the text */
       .fairy-hidden-group { display: none !important; }
       body.fairy-items-focus .fairy-iw { cursor: pointer; }
-      body.fairy-items-focus[data-focus-item='1'] .fairy-iw:not([data-item='1']) { opacity: .28; filter: grayscale(1); }
-      body.fairy-items-focus[data-focus-item='2'] .fairy-iw:not([data-item='2']) { opacity: .28; filter: grayscale(1); }
-      body.fairy-items-focus[data-focus-item='3'] .fairy-iw:not([data-item='3']) { opacity: .28; filter: grayscale(1); }
-      body.fairy-items-focus[data-focus-item='4'] .fairy-iw:not([data-item='4']) { opacity: .28; filter: grayscale(1); }
-      body.fairy-items-focus[data-focus-item='5'] .fairy-iw:not([data-item='5']) { opacity: .28; filter: grayscale(1); }
-      body.fairy-items-focus[data-focus-item='6'] .fairy-iw:not([data-item='6']) { opacity: .28; filter: grayscale(1); }
-      body.fairy-items-focus[data-focus-item='7'] .fairy-iw:not([data-item='7']) { opacity: .28; filter: grayscale(1); }
-      body.fairy-items-focus[data-focus-item='8'] .fairy-iw:not([data-item='8']) { opacity: .28; filter: grayscale(1); }
+      body.fairy-items-focus[data-gray~='1'] .fairy-iw[data-item='1'] { opacity: .28; filter: grayscale(1); }
+      body.fairy-items-focus[data-gray~='2'] .fairy-iw[data-item='2'] { opacity: .28; filter: grayscale(1); }
+      body.fairy-items-focus[data-gray~='3'] .fairy-iw[data-item='3'] { opacity: .28; filter: grayscale(1); }
+      body.fairy-items-focus[data-gray~='4'] .fairy-iw[data-item='4'] { opacity: .28; filter: grayscale(1); }
+      body.fairy-items-focus[data-gray~='5'] .fairy-iw[data-item='5'] { opacity: .28; filter: grayscale(1); }
+      body.fairy-items-focus[data-gray~='6'] .fairy-iw[data-item='6'] { opacity: .28; filter: grayscale(1); }
+      body.fairy-items-focus[data-gray~='7'] .fairy-iw[data-item='7'] { opacity: .28; filter: grayscale(1); }
+      body.fairy-items-focus[data-gray~='8'] .fairy-iw[data-item='8'] { opacity: .28; filter: grayscale(1); }
+      #h_items_chips { display: none; align-items: center; gap: 5px; margin: 2px 0 0 4px; }
+      body.fairy-items-focus #h_items_chips { display: inline-flex; }
+      #h_items_chips button { min-width: 24px; height: 24px; padding: 0 4px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-bottom-width: 4px; border-radius: 5px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
+      #h_items_chips button.off { opacity: .35; filter: grayscale(1); }
+      #h_items_chips button[data-item='1'] { border-bottom-color: #0ea5e9; }
+      #h_items_chips button[data-item='2'] { border-bottom-color: #f59e0b; }
+      #h_items_chips button[data-item='3'] { border-bottom-color: #10b981; }
+      #h_items_chips button[data-item='4'] { border-bottom-color: #ec4899; }
+      #h_items_chips button[data-item='5'] { border-bottom-color: #8b5cf6; }
+      #h_items_chips button[data-item='6'] { border-bottom-color: #64748b; }
+      #h_items_chips button[data-item='7'] { border-bottom-color: #84cc16; }
+      #h_items_chips button[data-item='8'] { border-bottom-color: #f97316; }
       .fairy-iw { display: inline-block; vertical-align: middle; padding: 2px 4px 1px; line-height: 1.35; border-bottom: 4px solid transparent; border-radius: 2px; }
       body.fairy-items-on .fairy-iw[data-item='1'] { border-bottom-color: #0ea5e9; }
       body.fairy-items-on .fairy-iw[data-item='2'] { border-bottom-color: #f59e0b; }
@@ -7416,15 +7428,15 @@ ui <- shinyUI(fluidPage(
           # though there are only two states — a single button flipping
           # a hidden boolean on click still doesn't SHOW which state is
           # active without reading its own color/tooltip.
-          tags$div(class = "fairy-segmented", id = "h_color_toggle_group", `data-cap` = "Colour",
-            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "No color", `data-state` = "off", icon("droplet-slash")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Color terms by parameter", `data-state` = "on", icon("droplet"))
+          tags$div(class = "fairy-segmented", id = "h_color_toggle_group", `data-cap` = "Parameters",
+            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Parameters not coloured", `data-state` = "off", icon("droplet-slash")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Colour the terms by parameter (p1, p2, ...)", `data-state` = "on", icon("droplet"))
           ),
           # the items of unpacked models: terms of the same item share a background colour (independent of the colour above)
           tags$div(class = "fairy-segmented fairy-hidden-group", id = "h_items_toggle_group", `data-cap` = "Items",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Items not marked", `data-state` = "off", icon("ban")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Mark the items of unpacked models with a coloured bar below each term (item 1, item 2, ...)", `data-state` = "on", icon("highlighter")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Focus on one item: click a term, the terms of all other items are greyed out (click again to clear)", `data-state` = "focus", icon("bullseye"))
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Grey out items: click a term or a number to grey an item out, click again to bring it back", `data-state` = "focus", icon("bullseye"))
           ),
           tags$div(class = "fairy-segmented fairy-card-layout-group", `data-cap` = "Arrange",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", icon("table-cells-large")),
@@ -7537,27 +7549,49 @@ ui <- shinyUI(fluidPage(
           });
           if (window.fitHTablesToWidth) window.fitHTablesToWidth();
         }
-        // Focus: a click on a term chooses its item, the terms of all other items are greyed out; a click on the same item or beside the terms clears it
+        // Grey out items: a click on a term or on a number toggles that item (several items can be greyed out at once)
+        function fairyGrayList() { var g = document.body.getAttribute("data-gray"); return g ? g.split(" ") : []; }
+        function fairyGrayToggle(k) {
+          var l = fairyGrayList(), p = l.indexOf(k);
+          if (p === -1) l.push(k); else l.splice(p, 1);
+          if (l.length) document.body.setAttribute("data-gray", l.join(" ")); else document.body.removeAttribute("data-gray");
+          fairyItemChips();
+        }
+        function fairyItemChips() {
+          var host = document.getElementById("h_items_chips");
+          if (!host) {
+            var grp = document.getElementById("h_items_toggle_group");
+            if (!grp) return;
+            host = document.createElement("div"); host.id = "h_items_chips";
+            grp.parentNode.insertBefore(host, grp.nextSibling);
+          }
+          var seen = {};
+          document.querySelectorAll(".fairy-iw").forEach(function(e) { seen[e.getAttribute("data-item")] = 1; });
+          var ks = Object.keys(seen).sort(function(a, b) { return a - b; }), g = fairyGrayList();
+          host.innerHTML = "";
+          ks.forEach(function(k) {
+            var b = document.createElement("button"); b.type = "button"; b.setAttribute("data-item", k); b.textContent = k;
+            b.title = "Item " + k + ": click to grey out or bring back";
+            if (g.indexOf(k) !== -1) b.className = "off";
+            b.addEventListener("click", function() { fairyGrayToggle(k); });
+            host.appendChild(b);
+          });
+        }
         document.addEventListener("click", function(e) {
           if (!document.body.classList.contains("fairy-items-focus")) return;
           var tg = e.target;
           if (!tg || !tg.closest) return;
           var t = tg.closest(".fairy-iw");
-          if (t) {
-            var k = t.getAttribute("data-item");
-            if (document.body.getAttribute("data-focus-item") === k) document.body.removeAttribute("data-focus-item");
-            else document.body.setAttribute("data-focus-item", k);
-          } else if (tg.closest(".fairy-h-table-scroll")) {
-            document.body.removeAttribute("data-focus-item");
-          }
+          if (t) fairyGrayToggle(t.getAttribute("data-item"));
         });
+        $(document).on("shiny:value", function(ev) { if (ev.name !== "h") return; if (document.body.classList.contains("fairy-items-focus")) setTimeout(fairyItemChips, 600); });
         $("#h_items_toggle_group button").click(function(){
           $(this).parent().find("button").removeClass("active");
           $(this).addClass("active");
           var st = $(this).data("state");
           document.body.classList.toggle("fairy-items-on", st === "on" || st === "focus");
           document.body.classList.toggle("fairy-items-focus", st === "focus");
-          if (st !== "focus") document.body.removeAttribute("data-focus-item");
+          if (st !== "focus") document.body.removeAttribute("data-gray"); else fairyItemChips();
           // the rows get a little taller (bar below): the cards measure their tables again, as after a change of layout
           document.querySelectorAll(".fairy-h-table-scroll").forEach(function(scrollWrap) {
             scrollWrap.style.height = "";
