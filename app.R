@@ -3163,6 +3163,7 @@ ui <- shinyUI(fluidPage(
       .fairy-go-inline-stack { flex-direction: column; gap: 10px; }
       .fairy-pars-hint { flex: 0 0 100%; order: 10; text-align: center; text-wrap: balance; font-size: 12px; line-height: 1.5; color: var(--fairy-text-muted, #667085); box-sizing: border-box; padding: 0 max(0px, calc((100% - 680px) / 2)); margin: 2px 0 0; }
       body.fairy-no-tips .fairy-pars-hint, body.fairy-no-tips .fairy-pars-placeholder, body.fairy-no-tips .fairy-form-modal .fairy-eq-tol-help, body.fairy-no-tips .fairy-form-modal .mn-lead { display: none; }
+      body.fairy-no-tips .fairy-form-modal details .fairy-eq-tol-help { display: block; }   /* what the user opens on purpose stays */
       .fairy-go-inline-stack .fairy-primary-controls { justify-content: center; gap: 6px 26px; }
       .fairy-go-inline .fairy-primary-controls .shiny-input-container { width: auto !important; min-width: 0 !important; }
       .fairy-go-inline .fairy-primary-controls > span.fairy-tooltip { display: inline-block !important; }
