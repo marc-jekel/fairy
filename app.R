@@ -883,10 +883,11 @@ ui <- shinyUI(fluidPage(
       #h_par_chips .fairy-hidebtn, #h_items_chips .fairy-hidebtn, #fairy-ov-par .fairy-hidebtn, #fairy-ov-items .fairy-hidebtn { grid-column: span 2; width: auto; font-size: 11px; border-bottom-width: 1px; }
       #h_par_chips .fairy-hidebtn.on, #h_items_chips .fairy-hidebtn.on, #fairy-ov-par .fairy-hidebtn.on, #fairy-ov-items .fairy-hidebtn.on { background: var(--fairy-primary, #5b3494); color: #fff; border-color: var(--fairy-primary, #5b3494); }
       /* expanded card: the display options of the main window are open at the left (the small button folds them away) */
-      #fairy-ov-tools { position: fixed; top: 14px; left: 16px; z-index: 10001; }
+      /* the expanded card is shown large: the menu is enlarged with it (same look, one size up) */
+      #fairy-ov-tools { position: fixed; top: 14px; left: 16px; z-index: 10001; zoom: 1.5; }
       #fairy-ov-handle { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--fairy-border, #c8cdd8); background: var(--fairy-panel, #fff); color: var(--fairy-text-muted, #667085); font-size: 18px; cursor: pointer; opacity: .75; }
       #fairy-ov-tools:hover #fairy-ov-handle { opacity: 1; color: var(--fairy-primary, #5b3494); }
-      #fairy-ov-panel { display: block; padding: 6px 10px 10px; margin-top: 4px; border: 1px solid var(--fairy-border, #c8cdd8); border-radius: 14px; background: var(--fairy-panel, #fff); box-shadow: 0 8px 28px rgba(0,0,0,.18); }
+      #fairy-ov-panel { display: block; padding: 6px 10px 10px; margin-top: 4px; border: 1px solid var(--fairy-border, #c8cdd8); border-radius: 14px; background: var(--fairy-panel, #fff); box-shadow: 0 8px 28px rgba(0,0,0,.18); max-height: calc((100vh - 100px) / 1.5); overflow-y: auto; }
       #fairy-ov-tools.collapsed #fairy-ov-panel { display: none; }
       #fairy-ov-par, #fairy-ov-items { display: none; grid-template-columns: repeat(4, 28px); gap: 5px; justify-content: center; margin: 6px auto 0; }
       body.fairy-par-focus #fairy-ov-par, body.fairy-items-focus #fairy-ov-items { display: grid; }
