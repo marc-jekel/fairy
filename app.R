@@ -880,10 +880,15 @@ ui <- shinyUI(fluidPage(
          one shows, so switching is instant either toggle is used. */
       /* Items: the terms of one item of an unpacked model get a coloured bar below them (switched on with the Items buttons): a separate channel from the colour of the text */
       .fairy-hidden-group { display: none !important; }
-      #fairy-ov-tools { position: fixed; top: 12px; left: 16px; z-index: 10001; display: flex; flex-direction: column; gap: 8px; }
-      #fairy-ov-par, #fairy-ov-items { display: grid; grid-template-columns: repeat(auto-fill, 30px); gap: 5px; max-width: 280px; }
+      /* expanded card: the display options appear when the pointer is over the small button (like the tools of the plots) */
+      #fairy-ov-tools { position: fixed; top: 14px; left: 16px; z-index: 10001; }
+      #fairy-ov-handle { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--fairy-border, #c8cdd8); background: var(--fairy-panel, #fff); color: var(--fairy-text-muted, #667085); font-size: 18px; cursor: pointer; opacity: .75; }
+      #fairy-ov-tools:hover #fairy-ov-handle, #fairy-ov-tools.open #fairy-ov-handle { opacity: 1; color: var(--fairy-primary, #5b3494); }
+      #fairy-ov-panel { display: none; padding: 6px 10px 10px; margin-top: 4px; border: 1px solid var(--fairy-border, #c8cdd8); border-radius: 14px; background: var(--fairy-panel, #fff); box-shadow: 0 8px 28px rgba(0,0,0,.18); }
+      #fairy-ov-tools:hover #fairy-ov-panel, #fairy-ov-tools:focus-within #fairy-ov-panel, #fairy-ov-tools.open #fairy-ov-panel { display: block; }
+      #fairy-ov-par, #fairy-ov-items { display: grid; grid-template-columns: repeat(4, 28px); gap: 5px; justify-content: center; margin: 6px auto 0; }
       #fairy-ov-par:empty, #fairy-ov-items:empty { display: none; }
-      #fairy-ov-par button, #fairy-ov-items button { width: 30px; height: 26px; padding: 0 4px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-bottom-width: 4px; border-radius: 5px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1d2433); cursor: pointer; }
+      #fairy-ov-par button, #fairy-ov-items button { width: 28px; height: 24px; padding: 0 4px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-bottom-width: 4px; border-radius: 5px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
       #fairy-ov-par button.off, #fairy-ov-items button.off { opacity: .35; filter: grayscale(1); }
       #fairy-ov-items button[data-item='1'] { border-bottom-color: #0ea5e9; }
       #fairy-ov-items button[data-item='2'] { border-bottom-color: #f59e0b; }
@@ -4680,7 +4685,9 @@ ui <- shinyUI(fluidPage(
       tags$div(
         id = "fairy-card-overlay-inner",
         tags$button(id = "fairy-card-overlay-close", title = "Close (Esc)", HTML("&times;")),
-        tags$div(id = "fairy-ov-tools", tags$div(id = "fairy-ov-par"), tags$div(id = "fairy-ov-items")),
+        tags$div(id = "fairy-ov-tools",
+          tags$button(id = "fairy-ov-handle", type = "button", title = "Display options (hover)", icon("sliders")),
+          tags$div(id = "fairy-ov-panel", tags$div(id = "fairy-ov-groups", style = "display:flex; flex-direction:column; align-items:center; gap:6px; padding:4px;"))),
         tags$div(id = "fairy-card-overlay-content")
       )
     ),
@@ -6604,7 +6611,7 @@ ui <- shinyUI(fluidPage(
              var curView = outP.getAttribute('data-h-view');
              if (curView) overlayContent.attr('data-h-view', curView);
              if (outP.getAttribute('data-h-color')) overlayContent.attr('data-h-color', 'on'); else overlayContent.removeAttr('data-h-color');
-             if (window.fairyOverlayChips) window.fairyOverlayChips();
+             if (window.fairyOverlayOpen) window.fairyOverlayOpen();
              if (outP.getAttribute('data-h-aligned-chosen')) overlayContent.attr('data-h-aligned-chosen', '1'); else overlayContent.removeAttr('data-h-aligned-chosen');
            }
            $('#fairy-card-overlay').addClass('active');
@@ -7534,9 +7541,9 @@ ui <- shinyUI(fluidPage(
           var state = $(this).data("state");
           group.find("button").removeClass("active");
           $(this).addClass("active");
-          el.removeClass("trivial-gray trivial-hide");
-          if (state === "gray") el.addClass("trivial-gray");
-          else if (state === "hide") el.addClass("trivial-hide");
+          el.add($("#fairy-card-overlay-content")).removeClass("trivial-gray trivial-hide");
+          if (state === "gray") el.add($("#fairy-card-overlay-content")).addClass("trivial-gray");
+          else if (state === "hide") el.add($("#fairy-card-overlay-content")).addClass("trivial-hide");
           // the LaTeX download follows this setting
           if (typeof Shiny !== "undefined") { Shiny.setInputValue("h_trivial_mode", String(state)); }
         });
@@ -7557,6 +7564,8 @@ ui <- shinyUI(fluidPage(
           var color  = $("#h_color_toggle_group button.active").data("state") || "off";
           var view = layout === "compact" ? "compact" : "";
           if (view) el.attr("data-h-view", view); else el.removeAttr("data-h-view");
+          var ovc = $("#fairy-card-overlay-content");
+          if (view) ovc.attr("data-h-view", view); else ovc.removeAttr("data-h-view");
           // The card itself does not auto-shrink/grow just because CSS
           // swapped which (differently-sized) table is display:none --
           // window.fitHTablesToWidth left a stale transform/height on
@@ -7617,6 +7626,47 @@ ui <- shinyUI(fluidPage(
           fairyFillItemChips(hi, ov);
         }
         window.fairyOverlayChips = fairyOverlayChips;
+        // the options of the toolbar again inside an expanded card: copies of the buttons that press the real ones
+        function fairyOverlaySync() {
+          document.querySelectorAll("#fairy-ov-groups .fairy-segmented button[data-grp]").forEach(function(c) {
+            var g = document.getElementById(c.getAttribute("data-grp"));
+            var m = g ? g.querySelector("button[data-state=" + c.getAttribute("data-state") + "]") : null;
+            c.classList.toggle("active", !!(m ? m.classList.contains("active") : false));
+          });
+        }
+        function fairyOverlayOpen() {
+          var box = document.getElementById("fairy-ov-groups");
+          if (!box) return;
+          box.innerHTML = "";
+          ["h_layout_toggle_group", "trivial_ineq_toggle_group", "h_color_toggle_group", "h_items_toggle_group"].forEach(function(id) {
+            var g = document.getElementById(id);
+            if (!g) return;
+            if (g.classList.contains("fairy-hidden-group")) return;
+            var c = g.cloneNode(true);
+            c.removeAttribute("id");
+            c.querySelectorAll("button").forEach(function(b) {
+              b.setAttribute("data-grp", id);
+              b.addEventListener("click", function() {
+                var tgt = g.querySelector("button[data-state=" + b.getAttribute("data-state") + "]");
+                if (tgt) tgt.click();
+                setTimeout(fairyOverlaySync, 80);
+              });
+            });
+            box.appendChild(c);
+            if (id === "h_color_toggle_group") { var hp = document.createElement("div"); hp.id = "fairy-ov-par"; box.appendChild(hp); }
+            if (id === "h_items_toggle_group") { var hi = document.createElement("div"); hi.id = "fairy-ov-items"; box.appendChild(hi); }
+          });
+          fairyOverlaySync();
+          fairyOverlayChips();
+        }
+        window.fairyOverlayOpen = fairyOverlayOpen;
+        document.addEventListener("click", function(e) {
+          var tg = e.target;
+          if (!tg) return;
+          if (!tg.closest) return;
+          var h = tg.closest("#fairy-ov-handle");
+          if (h) { var t = document.getElementById("fairy-ov-tools"); if (t) t.classList.toggle("open"); }
+        });
         document.addEventListener("click", function(e) {
           if (!document.body.classList.contains("fairy-items-focus")) return;
           var tg = e.target;
@@ -7702,7 +7752,7 @@ ui <- shinyUI(fluidPage(
           }
           // an explicit click on Aligned switches the automatic compact layout of models with many probabilities off
           if (group.attr("id") === "h_layout_toggle_group") {
-            if ($(this).data("state") === "aligned") $("#outP").attr("data-h-aligned-chosen", "1"); else $("#outP").removeAttr("data-h-aligned-chosen");
+            if ($(this).data("state") === "aligned") $("#outP, #fairy-card-overlay-content").attr("data-h-aligned-chosen", "1"); else $("#outP, #fairy-card-overlay-content").removeAttr("data-h-aligned-chosen");
           }
           fairyApplyHView();
         });
