@@ -914,14 +914,16 @@ ui <- shinyUI(fluidPage(
       /* colour by parameter: a switch on the card area, nothing else changes */
       #outP[data-h-color='on'] .fairy-pt, #fairy-card-overlay-content[data-h-color='on'] .fairy-pt { color: var(--pc); }
       body.fairy-items-focus .fairy-iw { cursor: pointer; }
-      body.fairy-items-focus[data-gray~='1'] .fairy-iw[data-item='1'] { transform: scale(.7); }
-      body.fairy-items-focus[data-gray~='2'] .fairy-iw[data-item='2'] { transform: scale(.7); }
-      body.fairy-items-focus[data-gray~='3'] .fairy-iw[data-item='3'] { transform: scale(.7); }
-      body.fairy-items-focus[data-gray~='4'] .fairy-iw[data-item='4'] { transform: scale(.7); }
-      body.fairy-items-focus[data-gray~='5'] .fairy-iw[data-item='5'] { transform: scale(.7); }
-      body.fairy-items-focus[data-gray~='6'] .fairy-iw[data-item='6'] { transform: scale(.7); }
-      body.fairy-items-focus[data-gray~='7'] .fairy-iw[data-item='7'] { transform: scale(.7); }
-      body.fairy-items-focus[data-gray~='8'] .fairy-iw[data-item='8'] { transform: scale(.7); }
+      /* once something is greyed out, the terms that are still active get a soft marker (the greyed-out ones stay plain and fully readable) */
+      body.fairy-items-focus[data-gray] .fairy-iw, body.fairy-par-focus[data-pgray] .fairy-pt { background: rgba(250, 204, 21, .28); border-radius: 4px; }
+      body.fairy-items-focus[data-gray~='1'] .fairy-iw[data-item='1'] { background: none; }
+      body.fairy-items-focus[data-gray~='2'] .fairy-iw[data-item='2'] { background: none; }
+      body.fairy-items-focus[data-gray~='3'] .fairy-iw[data-item='3'] { background: none; }
+      body.fairy-items-focus[data-gray~='4'] .fairy-iw[data-item='4'] { background: none; }
+      body.fairy-items-focus[data-gray~='5'] .fairy-iw[data-item='5'] { background: none; }
+      body.fairy-items-focus[data-gray~='6'] .fairy-iw[data-item='6'] { background: none; }
+      body.fairy-items-focus[data-gray~='7'] .fairy-iw[data-item='7'] { background: none; }
+      body.fairy-items-focus[data-gray~='8'] .fairy-iw[data-item='8'] { background: none; }
       #h_items_chips { display: none; grid-template-columns: repeat(4, 28px); gap: 5px; justify-content: center; margin: 6px auto 0; }
       body.fairy-items-focus #h_items_chips { display: grid; }
       #h_items_chips button { width: 28px; height: 24px; padding: 0 4px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-bottom-width: 4px; border-radius: 5px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
@@ -7792,7 +7794,7 @@ ui <- shinyUI(fluidPage(
           var st = document.getElementById("fairy-par-style");
           if (!st) { st = document.createElement("style"); st.id = "fairy-par-style"; document.head.appendChild(st); }
           var css = "", q = String.fromCharCode(39);
-          fairyParList().forEach(function(k) { css += "body.fairy-par-focus .fairy-pt[data-par=" + q + k + q + "] { display: inline-block; transform: scale(.7); } "; });
+          fairyParList().forEach(function(k) { css += "body.fairy-par-focus[data-pgray] .fairy-pt[data-par=" + q + k + q + "] { background: none; } "; });
           st.textContent = css;
         }
         function fairyParToggle(k) {
