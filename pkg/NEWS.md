@@ -1,3 +1,8 @@
+# fairy 0.6.2
+
+* `results.html` of the multinomineq analysis: the number columns of the tables (from the second column on) are centred; only the model name
+  stays on the left.
+
 # fairy 0.6.1
 
 * The analysis script of `fairy_write_multinomineq()` / `fairy_multinomineq_script()` and `fairy_analyze_multinomineq()` now also writes
