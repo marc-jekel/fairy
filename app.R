@@ -3018,7 +3018,9 @@ ui <- shinyUI(fluidPage(
         font-size: 15px !important;
       }
       /* the big Go under the models (Input page) */
-      .fairy-go-inline { display: flex; justify-content: center; margin: 14px 0 6px; }
+      /* when the page is scrolled down, the Go stays in view below the navigation bar (the place at the top stays reserved) */
+      .fairy-go-inline { display: flex; justify-content: center; margin: 14px 0 6px; min-height: 48px; }
+      .fairy-go-inline.pinned > .fairy-go-inline-btn { position: fixed; top: 52px; left: 50%; transform: translateX(-50%); z-index: 1000; padding: 8px 30px; font-size: 19px; }
       .fairy-go-inline-btn {
         display: inline-flex; align-items: baseline; gap: 10px; padding: 12px 38px; border-radius: 14px; border: 0;
         font-size: 22px; font-weight: 700; line-height: 1.1;
@@ -6965,7 +6967,8 @@ ui <- shinyUI(fluidPage(
             tags$button(id = "go_inline", type = "button", class = "btn fairy-go-inline-btn",
               onclick = "var g = document.getElementById('go_v_h'); if (g) g.click();",
               icon("play"), tags$span("Go"),
-              tags$small("calculate the models"))),
+              tags$small("calculate the models")),
+            tags$script(HTML("(function() { function pin() { [].forEach.call(document.querySelectorAll('.fairy-go-inline'), function(d) { if (d.offsetParent === null) return; d.classList.toggle('pinned', d.getBoundingClientRect().top < 48); }); } window.addEventListener('scroll', pin, true); window.addEventListener('resize', pin); setInterval(pin, 400); })();"))),
           # Probabilities as a horizontal header above the model rows,
           # rather than their own narrow leftmost column — frees up that
           # width for Model Name / Unique Model Specification / Model
