@@ -880,6 +880,19 @@ ui <- shinyUI(fluidPage(
          one shows, so switching is instant either toggle is used. */
       /* Items: the terms of one item of an unpacked model get a coloured bar below them (switched on with the Items buttons): a separate channel from the colour of the text */
       .fairy-hidden-group { display: none !important; }
+      #fairy-ov-tools { position: fixed; top: 12px; left: 16px; z-index: 10001; display: flex; flex-direction: column; gap: 8px; }
+      #fairy-ov-par, #fairy-ov-items { display: grid; grid-template-columns: repeat(auto-fill, 30px); gap: 5px; max-width: 280px; }
+      #fairy-ov-par:empty, #fairy-ov-items:empty { display: none; }
+      #fairy-ov-par button, #fairy-ov-items button { width: 30px; height: 26px; padding: 0 4px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-bottom-width: 4px; border-radius: 5px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1d2433); cursor: pointer; }
+      #fairy-ov-par button.off, #fairy-ov-items button.off { opacity: .35; filter: grayscale(1); }
+      #fairy-ov-items button[data-item='1'] { border-bottom-color: #0ea5e9; }
+      #fairy-ov-items button[data-item='2'] { border-bottom-color: #f59e0b; }
+      #fairy-ov-items button[data-item='3'] { border-bottom-color: #10b981; }
+      #fairy-ov-items button[data-item='4'] { border-bottom-color: #ec4899; }
+      #fairy-ov-items button[data-item='5'] { border-bottom-color: #8b5cf6; }
+      #fairy-ov-items button[data-item='6'] { border-bottom-color: #64748b; }
+      #fairy-ov-items button[data-item='7'] { border-bottom-color: #84cc16; }
+      #fairy-ov-items button[data-item='8'] { border-bottom-color: #f97316; }
       #h_par_chips { display: none; grid-template-columns: repeat(4, 28px); gap: 5px; justify-content: center; margin: 6px auto 0; }
       body.fairy-par-focus #h_par_chips { display: grid; }
       #h_par_chips button { width: 28px; height: 24px; padding: 0 4px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-bottom-width: 4px; border-radius: 5px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
@@ -4667,6 +4680,7 @@ ui <- shinyUI(fluidPage(
       tags$div(
         id = "fairy-card-overlay-inner",
         tags$button(id = "fairy-card-overlay-close", title = "Close (Esc)", HTML("&times;")),
+        tags$div(id = "fairy-ov-tools", tags$div(id = "fairy-ov-par"), tags$div(id = "fairy-ov-items")),
         tags$div(id = "fairy-card-overlay-content")
       )
     ),
@@ -6590,6 +6604,7 @@ ui <- shinyUI(fluidPage(
              var curView = outP.getAttribute('data-h-view');
              if (curView) overlayContent.attr('data-h-view', curView);
              if (outP.getAttribute('data-h-color')) overlayContent.attr('data-h-color', 'on'); else overlayContent.removeAttr('data-h-color');
+             if (window.fairyOverlayChips) window.fairyOverlayChips();
              if (outP.getAttribute('data-h-aligned-chosen')) overlayContent.attr('data-h-aligned-chosen', '1'); else overlayContent.removeAttr('data-h-aligned-chosen');
            }
            $('#fairy-card-overlay').addClass('active');
@@ -7564,6 +7579,23 @@ ui <- shinyUI(fluidPage(
           if (l.length) document.body.setAttribute("data-gray", l.join(" ")); else document.body.removeAttribute("data-gray");
           fairyItemChips();
         }
+        function fairyEnsureMode(kind) {
+          if (kind === "items") { if (!document.body.classList.contains("fairy-items-focus")) $("#h_items_toggle_group button[data-state=focus]").click(); }
+          else { if (!document.body.classList.contains("fairy-par-focus")) $("#h_color_toggle_group button[data-state=focus]").click(); }
+        }
+        function fairyFillItemChips(host, root) {
+          var seen = {};
+          root.querySelectorAll(".fairy-iw").forEach(function(e) { seen[e.getAttribute("data-item")] = 1; });
+          var ks = Object.keys(seen).sort(function(a, b) { return a - b; }), g = fairyGrayList();
+          host.innerHTML = "";
+          ks.forEach(function(k) {
+            var b = document.createElement("button"); b.type = "button"; b.setAttribute("data-item", k); b.textContent = k;
+            b.title = "Item " + k + ": click to grey out or bring back";
+            if (g.indexOf(k) !== -1) b.className = "off";
+            b.addEventListener("click", function() { fairyEnsureMode("items"); fairyGrayToggle(k); });
+            host.appendChild(b);
+          });
+        }
         function fairyItemChips() {
           var host = document.getElementById("h_items_chips");
           if (!host) {
@@ -7572,18 +7604,19 @@ ui <- shinyUI(fluidPage(
             host = document.createElement("div"); host.id = "h_items_chips";
             grp.parentNode.insertBefore(host, grp.nextSibling);
           }
-          var seen = {};
-          document.querySelectorAll(".fairy-iw").forEach(function(e) { seen[e.getAttribute("data-item")] = 1; });
-          var ks = Object.keys(seen).sort(function(a, b) { return a - b; }), g = fairyGrayList();
-          host.innerHTML = "";
-          ks.forEach(function(k) {
-            var b = document.createElement("button"); b.type = "button"; b.setAttribute("data-item", k); b.textContent = k;
-            b.title = "Item " + k + ": click to grey out or bring back";
-            if (g.indexOf(k) !== -1) b.className = "off";
-            b.addEventListener("click", function() { fairyGrayToggle(k); });
-            host.appendChild(b);
-          });
+          fairyFillItemChips(host, document);
+          fairyOverlayChips();
         }
+        // the same buttons inside an expanded card (the toolbar is covered then)
+        function fairyOverlayChips() {
+          var ov = document.getElementById("fairy-card-overlay-content"), hp = document.getElementById("fairy-ov-par"), hi = document.getElementById("fairy-ov-items");
+          if (!ov) return;
+          if (!hp) return;
+          if (!hi) return;
+          fairyFillParChips(hp, ov);
+          fairyFillItemChips(hi, ov);
+        }
+        window.fairyOverlayChips = fairyOverlayChips;
         document.addEventListener("click", function(e) {
           if (!document.body.classList.contains("fairy-items-focus")) return;
           var tg = e.target;
@@ -7606,16 +7639,9 @@ ui <- shinyUI(fluidPage(
           if (l.length) document.body.setAttribute("data-pgray", l.join(" ")); else document.body.removeAttribute("data-pgray");
           fairyParStyle(); fairyParChips();
         }
-        function fairyParChips() {
-          var host = document.getElementById("h_par_chips");
-          if (!host) {
-            var grp = document.getElementById("h_color_toggle_group");
-            if (!grp) return;
-            host = document.createElement("div"); host.id = "h_par_chips";
-            grp.parentNode.insertBefore(host, grp.nextSibling);
-          }
+        function fairyFillParChips(host, root) {
           var seen = {};
-          document.querySelectorAll(".fairy-pt").forEach(function(e) {
+          root.querySelectorAll(".fairy-pt").forEach(function(e) {
             var k = e.getAttribute("data-par");
             if (k !== "0") { if (!seen[k]) seen[k] = e.style.getPropertyValue("--pc"); }
           });
@@ -7626,9 +7652,20 @@ ui <- shinyUI(fluidPage(
             b.style.borderBottomColor = seen[k];
             b.title = "Parameter " + k + ": click to grey out or bring back";
             if (g.indexOf(k) !== -1) b.className = "off";
-            b.addEventListener("click", function() { fairyParToggle(k); });
+            b.addEventListener("click", function() { fairyEnsureMode("par"); fairyParToggle(k); });
             host.appendChild(b);
           });
+        }
+        function fairyParChips() {
+          var host = document.getElementById("h_par_chips");
+          if (!host) {
+            var grp = document.getElementById("h_color_toggle_group");
+            if (!grp) return;
+            host = document.createElement("div"); host.id = "h_par_chips";
+            grp.parentNode.insertBefore(host, grp.nextSibling);
+          }
+          fairyFillParChips(host, document);
+          fairyOverlayChips();
         }
         document.addEventListener("click", function(e) {
           if (!document.body.classList.contains("fairy-par-focus")) return;
