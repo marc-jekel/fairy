@@ -915,18 +915,17 @@ ui <- shinyUI(fluidPage(
       #outP[data-h-color='on'] .fairy-pt, #fairy-card-overlay-content[data-h-color='on'] .fairy-pt { color: var(--pc); }
       body.fairy-items-focus .fairy-iw { cursor: pointer; }
       /* once something is greyed out, the terms that are still active get a soft marker (the greyed-out ones stay plain and fully readable) */
-      /* the marker of the active terms: a field of the same size behind every term (a term is active if neither its item nor its parameter is
-         greyed out); drawn behind the term, so it changes nothing in the layout */
-      body.fairy-items-focus[data-gray] .fairy-pt, body.fairy-par-focus[data-pgray] .fairy-pt { position: relative; z-index: 0; }
-      body.fairy-items-focus[data-gray] .fairy-pt::before, body.fairy-par-focus[data-pgray] .fairy-pt::before { content: ''; position: absolute; z-index: -1; left: 50%; top: 50%; width: 3.7em; height: 2.2em; transform: translate(-50%, -50%); background: rgba(250, 204, 21, .3); border-radius: 7px; pointer-events: none; }
-      body.fairy-items-focus[data-gray~='1'] .fairy-iw[data-item='1'] .fairy-pt::before { display: none; }
-      body.fairy-items-focus[data-gray~='2'] .fairy-iw[data-item='2'] .fairy-pt::before { display: none; }
-      body.fairy-items-focus[data-gray~='3'] .fairy-iw[data-item='3'] .fairy-pt::before { display: none; }
-      body.fairy-items-focus[data-gray~='4'] .fairy-iw[data-item='4'] .fairy-pt::before { display: none; }
-      body.fairy-items-focus[data-gray~='5'] .fairy-iw[data-item='5'] .fairy-pt::before { display: none; }
-      body.fairy-items-focus[data-gray~='6'] .fairy-iw[data-item='6'] .fairy-pt::before { display: none; }
-      body.fairy-items-focus[data-gray~='7'] .fairy-iw[data-item='7'] .fairy-pt::before { display: none; }
-      body.fairy-items-focus[data-gray~='8'] .fairy-iw[data-item='8'] .fairy-pt::before { display: none; }
+      /* the marker of the active terms (a term is active if neither its item nor its parameter is greyed out): a field around the term, as
+         large as the free space of its table cell, so it never reaches into the next column; the negative margin keeps the layout as it is */
+      body.fairy-items-focus[data-gray] .fairy-pt, body.fairy-par-focus[data-pgray] .fairy-pt { display: inline-block; padding: 3px 5px; margin: -3px -5px; background: rgba(250, 204, 21, .3); border-radius: 7px; }
+      body.fairy-items-focus[data-gray~='1'] .fairy-iw[data-item='1'] .fairy-pt { background: none; }
+      body.fairy-items-focus[data-gray~='2'] .fairy-iw[data-item='2'] .fairy-pt { background: none; }
+      body.fairy-items-focus[data-gray~='3'] .fairy-iw[data-item='3'] .fairy-pt { background: none; }
+      body.fairy-items-focus[data-gray~='4'] .fairy-iw[data-item='4'] .fairy-pt { background: none; }
+      body.fairy-items-focus[data-gray~='5'] .fairy-iw[data-item='5'] .fairy-pt { background: none; }
+      body.fairy-items-focus[data-gray~='6'] .fairy-iw[data-item='6'] .fairy-pt { background: none; }
+      body.fairy-items-focus[data-gray~='7'] .fairy-iw[data-item='7'] .fairy-pt { background: none; }
+      body.fairy-items-focus[data-gray~='8'] .fairy-iw[data-item='8'] .fairy-pt { background: none; }
       #h_items_chips { display: none; grid-template-columns: repeat(4, 28px); gap: 5px; justify-content: center; margin: 6px auto 0; }
       body.fairy-items-focus #h_items_chips { display: grid; }
       #h_items_chips button { width: 28px; height: 24px; padding: 0 4px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-bottom-width: 4px; border-radius: 5px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
@@ -2025,10 +2024,6 @@ ui <- shinyUI(fluidPage(
            within its own boundary the way the vertical case already
            did. */
         overflow-x: auto;
-        /* room around the table (cancelled by the negative margin): the marker fields of the active terms are not cut off at the edge */
-        padding: 6px 14px;
-        margin: -6px -14px;
-        box-sizing: content-box;
       }
       .model-card.fairy-sized .fairy-h-table-scroll { max-height: none; overflow-y: visible; }
       #fairy-card-overlay-content .fairy-h-table-scroll {
@@ -7804,7 +7799,7 @@ ui <- shinyUI(fluidPage(
           var st = document.getElementById("fairy-par-style");
           if (!st) { st = document.createElement("style"); st.id = "fairy-par-style"; document.head.appendChild(st); }
           var css = "", q = String.fromCharCode(39);
-          fairyParList().forEach(function(k) { css += "body.fairy-par-focus[data-pgray] .fairy-pt[data-par=" + q + k + q + "]::before { display: none; } "; });
+          fairyParList().forEach(function(k) { css += "body.fairy-par-focus[data-pgray] .fairy-pt[data-par=" + q + k + q + "] { background: none; } "; });
           st.textContent = css;
         }
         function fairyParToggle(k) {
