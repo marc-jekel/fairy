@@ -880,6 +880,15 @@ ui <- shinyUI(fluidPage(
          one shows, so switching is instant either toggle is used. */
       /* Items: the terms of one item of an unpacked model get a coloured bar below them (switched on with the Items buttons): a separate channel from the colour of the text */
       .fairy-hidden-group { display: none !important; }
+      body.fairy-items-focus .fairy-iw { cursor: pointer; }
+      body.fairy-items-focus[data-focus-item='1'] .fairy-iw:not([data-item='1']) { opacity: .28; filter: grayscale(1); }
+      body.fairy-items-focus[data-focus-item='2'] .fairy-iw:not([data-item='2']) { opacity: .28; filter: grayscale(1); }
+      body.fairy-items-focus[data-focus-item='3'] .fairy-iw:not([data-item='3']) { opacity: .28; filter: grayscale(1); }
+      body.fairy-items-focus[data-focus-item='4'] .fairy-iw:not([data-item='4']) { opacity: .28; filter: grayscale(1); }
+      body.fairy-items-focus[data-focus-item='5'] .fairy-iw:not([data-item='5']) { opacity: .28; filter: grayscale(1); }
+      body.fairy-items-focus[data-focus-item='6'] .fairy-iw:not([data-item='6']) { opacity: .28; filter: grayscale(1); }
+      body.fairy-items-focus[data-focus-item='7'] .fairy-iw:not([data-item='7']) { opacity: .28; filter: grayscale(1); }
+      body.fairy-items-focus[data-focus-item='8'] .fairy-iw:not([data-item='8']) { opacity: .28; filter: grayscale(1); }
       .fairy-iw { display: inline-block; vertical-align: middle; padding: 2px 4px 1px; line-height: 1.35; border-bottom: 4px solid transparent; border-radius: 2px; }
       body.fairy-items-on .fairy-iw[data-item='1'] { border-bottom-color: #0ea5e9; }
       body.fairy-items-on .fairy-iw[data-item='2'] { border-bottom-color: #f59e0b; }
@@ -7414,7 +7423,8 @@ ui <- shinyUI(fluidPage(
           # the items of unpacked models: terms of the same item share a background colour (independent of the colour above)
           tags$div(class = "fairy-segmented fairy-hidden-group", id = "h_items_toggle_group", `data-cap` = "Items",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Items not marked", `data-state` = "off", icon("ban")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Mark the items of unpacked models with a background colour (item 1, item 2, ...)", `data-state` = "on", icon("highlighter"))
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Mark the items of unpacked models with a coloured bar below each term (item 1, item 2, ...)", `data-state` = "on", icon("highlighter")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Focus on one item: click a term, the terms of all other items are greyed out (click again to clear)", `data-state` = "focus", icon("bullseye"))
           ),
           tags$div(class = "fairy-segmented fairy-card-layout-group", `data-cap` = "Arrange",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", icon("table-cells-large")),
@@ -7527,10 +7537,27 @@ ui <- shinyUI(fluidPage(
           });
           if (window.fitHTablesToWidth) window.fitHTablesToWidth();
         }
+        // Focus: a click on a term chooses its item, the terms of all other items are greyed out; a click on the same item or beside the terms clears it
+        document.addEventListener("click", function(e) {
+          if (!document.body.classList.contains("fairy-items-focus")) return;
+          var tg = e.target;
+          if (!tg || !tg.closest) return;
+          var t = tg.closest(".fairy-iw");
+          if (t) {
+            var k = t.getAttribute("data-item");
+            if (document.body.getAttribute("data-focus-item") === k) document.body.removeAttribute("data-focus-item");
+            else document.body.setAttribute("data-focus-item", k);
+          } else if (tg.closest(".fairy-h-table-scroll")) {
+            document.body.removeAttribute("data-focus-item");
+          }
+        });
         $("#h_items_toggle_group button").click(function(){
           $(this).parent().find("button").removeClass("active");
           $(this).addClass("active");
-          document.body.classList.toggle("fairy-items-on", $(this).data("state") === "on");
+          var st = $(this).data("state");
+          document.body.classList.toggle("fairy-items-on", st === "on" || st === "focus");
+          document.body.classList.toggle("fairy-items-focus", st === "focus");
+          if (st !== "focus") document.body.removeAttribute("data-focus-item");
           // the rows get a little taller (bar below): the cards measure their tables again, as after a change of layout
           document.querySelectorAll(".fairy-h-table-scroll").forEach(function(scrollWrap) {
             scrollWrap.style.height = "";
