@@ -886,8 +886,9 @@ ui <- shinyUI(fluidPage(
       #fairy-ov-tools:hover #fairy-ov-handle { opacity: 1; color: var(--fairy-primary, #5b3494); }
       #fairy-ov-panel { display: block; padding: 6px 10px 10px; margin-top: 4px; border: 1px solid var(--fairy-border, #c8cdd8); border-radius: 14px; background: var(--fairy-panel, #fff); box-shadow: 0 8px 28px rgba(0,0,0,.18); }
       #fairy-ov-tools.collapsed #fairy-ov-panel { display: none; }
-      #fairy-ov-par, #fairy-ov-items { display: grid; grid-template-columns: repeat(4, 28px); gap: 5px; justify-content: center; margin: 6px auto 0; }
-      #fairy-ov-par:empty, #fairy-ov-items:empty { display: none; }
+      #fairy-ov-par, #fairy-ov-items { display: none; grid-template-columns: repeat(4, 28px); gap: 5px; justify-content: center; margin: 6px auto 0; }
+      body.fairy-par-focus #fairy-ov-par, body.fairy-items-focus #fairy-ov-items { display: grid; }
+      #fairy-ov-par:empty, #fairy-ov-items:empty { display: none !important; }
       #fairy-ov-par button, #fairy-ov-items button { width: 28px; height: 24px; padding: 0 4px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-bottom-width: 4px; border-radius: 5px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
       #fairy-ov-par button.off, #fairy-ov-items button.off { opacity: .35; filter: grayscale(1); }
       #fairy-ov-items button[data-item='1'] { border-bottom-color: #0ea5e9; }
