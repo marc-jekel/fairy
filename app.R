@@ -61,7 +61,7 @@ APP_UPDATED <- tryCatch({
   if (is.na(d)) "" else paste(as.integer(format(d, "%d")), month.abb[as.integer(format(d, "%m"))], format(d, "%Y"))
 }, error = function(e) "")
 EXACT_VOLUME_LIMIT <- 300
-V_REP_LIMIT <- 300   # time limit of one V-representation (seconds); the model is stopped like a skip and can be retried
+V_REP_LIMIT <- 1800  # time limit of one V-representation (seconds, 30 minutes); the model is stopped like a skip and can be retried
 EXACT_VOLUME_LIMIT_TXT <- if (EXACT_VOLUME_LIMIT %% 60 == 0) paste(EXACT_VOLUME_LIMIT %/% 60, if (EXACT_VOLUME_LIMIT == 60) "minute" else "minutes") else paste(EXACT_VOLUME_LIMIT, "seconds")
 
 options(warn = -1)
