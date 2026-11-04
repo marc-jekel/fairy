@@ -880,6 +880,8 @@ ui <- shinyUI(fluidPage(
          one shows, so switching is instant either toggle is used. */
       /* Items: the terms of one item of an unpacked model get a coloured bar below them (switched on with the Items buttons): a separate channel from the colour of the text */
       .fairy-hidden-group { display: none !important; }
+      #h_par_chips .fairy-hidebtn, #h_items_chips .fairy-hidebtn, #fairy-ov-par .fairy-hidebtn, #fairy-ov-items .fairy-hidebtn { grid-column: span 2; width: auto; font-size: 11px; border-bottom-width: 1px; }
+      #h_par_chips .fairy-hidebtn.on, #h_items_chips .fairy-hidebtn.on, #fairy-ov-par .fairy-hidebtn.on, #fairy-ov-items .fairy-hidebtn.on { background: var(--fairy-primary, #5b3494); color: #fff; border-color: var(--fairy-primary, #5b3494); }
       /* expanded card: the display options of the main window are open at the left (the small button folds them away) */
       #fairy-ov-tools { position: fixed; top: 14px; left: 16px; z-index: 10001; }
       #fairy-ov-handle { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--fairy-border, #c8cdd8); background: var(--fairy-panel, #fff); color: var(--fairy-text-muted, #667085); font-size: 18px; cursor: pointer; opacity: .75; }
@@ -7583,11 +7585,54 @@ ui <- shinyUI(fluidPage(
         }
         // Grey out items: a click on a term or on a number toggles that item (several items can be greyed out at once)
         function fairyGrayList() { var g = document.body.getAttribute("data-gray"); return g ? g.split(" ") : []; }
+        function fairyUniq(sel, attr, skip) {
+          var s = {};
+          document.querySelectorAll(sel).forEach(function(e) { var v = e.getAttribute(attr); if (v !== skip) s[v] = 1; });
+          return Object.keys(s);
+        }
+        // at least one item (and one parameter) always stays: the last one cannot be greyed out
         function fairyGrayToggle(k) {
           var l = fairyGrayList(), p = l.indexOf(k);
-          if (p === -1) l.push(k); else l.splice(p, 1);
+          if (p === -1) {
+            if (Math.max(0, fairyUniq(".fairy-iw", "data-item", "-").length - l.length - 1) === 0) return;
+            l.push(k);
+          } else l.splice(p, 1);
           if (l.length) document.body.setAttribute("data-gray", l.join(" ")); else document.body.removeAttribute("data-gray");
+          fairyAfterGray();
           fairyItemChips();
+        }
+        // the cards measure their tables again (rows come and go)
+        function fairyRefit() {
+          document.querySelectorAll(".fairy-h-table-scroll").forEach(function(sw) {
+            sw.style.height = "";
+            sw.querySelectorAll("table").forEach(function(t) { t.style.transform = "none"; });
+          });
+          if (window.fitHTablesToWidth) window.fitHTablesToWidth();
+        }
+        // "hide": the rows that contain a greyed-out item or parameter are not shown at all
+        function fairyHideStyle() {
+          var st = document.getElementById("fairy-hide-style");
+          if (!st) { st = document.createElement("style"); st.id = "fairy-hide-style"; document.head.appendChild(st); }
+          var css = "", q = String.fromCharCode(39);
+          if (document.body.classList.contains("fairy-hide-gray")) {
+            fairyGrayList().forEach(function(k) { css += "body.fairy-items-focus tr:has(.fairy-iw[data-item=" + q + k + q + "]) { display: none !important; } "; });
+            fairyParList().forEach(function(k) { css += "body.fairy-par-focus tr:has(.fairy-pt[data-par=" + q + k + q + "]) { display: none !important; } "; });
+          }
+          st.textContent = css;
+        }
+        function fairyAfterGray() {
+          fairyHideStyle();
+          if (document.body.classList.contains("fairy-hide-gray")) fairyRefit();
+        }
+        function fairyHideBtn() {
+          var b = document.createElement("button"); b.type = "button";
+          b.className = document.body.classList.contains("fairy-hide-gray") ? "fairy-hidebtn on" : "fairy-hidebtn";
+          b.textContent = "hide"; b.title = "Hide the rows that contain a greyed-out item or parameter";
+          b.addEventListener("click", function() {
+            document.body.classList.toggle("fairy-hide-gray");
+            fairyHideStyle(); fairyRefit(); fairyItemChips(); fairyParChips();
+          });
+          return b;
         }
         function fairyEnsureMode(kind) {
           if (kind === "items") { if (!document.body.classList.contains("fairy-items-focus")) $("#h_items_toggle_group button[data-state=focus]").click(); }
@@ -7605,6 +7650,7 @@ ui <- shinyUI(fluidPage(
             b.addEventListener("click", function() { fairyEnsureMode("items"); fairyGrayToggle(k); });
             host.appendChild(b);
           });
+          if (ks.length) host.appendChild(fairyHideBtn());
         }
         function fairyItemChips() {
           var host = document.getElementById("h_items_chips");
@@ -7687,9 +7733,12 @@ ui <- shinyUI(fluidPage(
         }
         function fairyParToggle(k) {
           var l = fairyParList(), p = l.indexOf(k);
-          if (p === -1) l.push(k); else l.splice(p, 1);
+          if (p === -1) {
+            if (Math.max(0, fairyUniq(".fairy-pt", "data-par", "0").length - l.length - 1) === 0) return;
+            l.push(k);
+          } else l.splice(p, 1);
           if (l.length) document.body.setAttribute("data-pgray", l.join(" ")); else document.body.removeAttribute("data-pgray");
-          fairyParStyle(); fairyParChips();
+          fairyParStyle(); fairyAfterGray(); fairyParChips();
         }
         function fairyFillParChips(host, root) {
           var seen = {};
@@ -7707,6 +7756,7 @@ ui <- shinyUI(fluidPage(
             b.addEventListener("click", function() { fairyEnsureMode("par"); fairyParToggle(k); });
             host.appendChild(b);
           });
+          if (ks.length) host.appendChild(fairyHideBtn());
         }
         function fairyParChips() {
           var host = document.getElementById("h_par_chips");
@@ -7737,7 +7787,7 @@ ui <- shinyUI(fluidPage(
           var st = $(this).data("state");
           document.body.classList.toggle("fairy-items-on", st === "on" || st === "focus");
           document.body.classList.toggle("fairy-items-focus", st === "focus");
-          if (st !== "focus") document.body.removeAttribute("data-gray"); else fairyItemChips();
+          if (st !== "focus") { document.body.removeAttribute("data-gray"); fairyAfterGray(); } else fairyItemChips();
         });
         $("#h_layout_toggle_group button, #h_color_toggle_group button").click(function(){
           var group = $(this).parent();
@@ -7748,7 +7798,7 @@ ui <- shinyUI(fluidPage(
             var cst = $(this).data("state");
             var on = cst === "on" || cst === "focus";
             document.body.classList.toggle("fairy-par-focus", cst === "focus");
-            if (cst === "focus") { fairyParChips(); } else { document.body.removeAttribute("data-pgray"); fairyParStyle(); }
+            if (cst === "focus") { fairyParChips(); } else { document.body.removeAttribute("data-pgray"); fairyParStyle(); fairyAfterGray(); }
             $("#outP, #fairy-card-overlay-content").each(function() { if (on) this.setAttribute("data-h-color", "on"); else this.removeAttribute("data-h-color"); });
             return;
           }
