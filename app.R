@@ -880,6 +880,11 @@ ui <- shinyUI(fluidPage(
          one shows, so switching is instant either toggle is used. */
       /* Items: the terms of one item of an unpacked model get a coloured bar below them (switched on with the Items buttons): a separate channel from the colour of the text */
       .fairy-hidden-group { display: none !important; }
+      #h_par_chips { display: none; grid-template-columns: repeat(4, 28px); gap: 5px; justify-content: center; margin: 6px auto 0; }
+      body.fairy-par-focus #h_par_chips { display: grid; }
+      #h_par_chips button { width: 28px; height: 24px; padding: 0 4px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-bottom-width: 4px; border-radius: 5px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
+      #h_par_chips button.off { opacity: .35; filter: grayscale(1); }
+      body.fairy-par-focus .fairy-pt { cursor: pointer; }
       /* colour by parameter: a switch on the card area, nothing else changes */
       #outP[data-h-color='on'] .fairy-pt, #fairy-card-overlay-content[data-h-color='on'] .fairy-pt { color: var(--pc); }
       body.fairy-items-focus .fairy-iw { cursor: pointer; }
@@ -7433,7 +7438,8 @@ ui <- shinyUI(fluidPage(
           # active without reading its own color/tooltip.
           tags$div(class = "fairy-segmented", id = "h_color_toggle_group", `data-cap` = "Parameters",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Parameters not coloured", `data-state` = "off", icon("droplet-slash")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Colour the terms by parameter (p1, p2, ...)", `data-state` = "on", icon("droplet"))
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Colour the terms by parameter (p1, p2, ...)", `data-state` = "on", icon("droplet")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Grey out parameters: click a term or a number to grey a parameter out, click again to bring it back (with colour)", `data-state` = "focus", icon("bullseye"))
           ),
           # the items of unpacked models: terms of the same item share a background colour (independent of the colour above)
           tags$div(class = "fairy-segmented fairy-hidden-group", id = "h_items_toggle_group", `data-cap` = "Items",
@@ -7585,7 +7591,57 @@ ui <- shinyUI(fluidPage(
           var t = tg.closest(".fairy-iw");
           if (t) fairyGrayToggle(t.getAttribute("data-item"));
         });
-        $(document).on("shiny:value", function(ev) { if (ev.name !== "h") return; if (document.body.classList.contains("fairy-items-focus")) setTimeout(fairyItemChips, 600); });
+        // Grey out parameters: the same for the terms of a parameter (p1, p2, ...); the chips carry the colour of the parameter
+        function fairyParList() { var g = document.body.getAttribute("data-pgray"); return g ? g.split(" ") : []; }
+        function fairyParStyle() {
+          var st = document.getElementById("fairy-par-style");
+          if (!st) { st = document.createElement("style"); st.id = "fairy-par-style"; document.head.appendChild(st); }
+          var css = "", q = String.fromCharCode(39);
+          fairyParList().forEach(function(k) { css += "body.fairy-par-focus .fairy-pt[data-par=" + q + k + q + "] { opacity: .28; filter: grayscale(1); } "; });
+          st.textContent = css;
+        }
+        function fairyParToggle(k) {
+          var l = fairyParList(), p = l.indexOf(k);
+          if (p === -1) l.push(k); else l.splice(p, 1);
+          if (l.length) document.body.setAttribute("data-pgray", l.join(" ")); else document.body.removeAttribute("data-pgray");
+          fairyParStyle(); fairyParChips();
+        }
+        function fairyParChips() {
+          var host = document.getElementById("h_par_chips");
+          if (!host) {
+            var grp = document.getElementById("h_color_toggle_group");
+            if (!grp) return;
+            host = document.createElement("div"); host.id = "h_par_chips";
+            grp.parentNode.insertBefore(host, grp.nextSibling);
+          }
+          var seen = {};
+          document.querySelectorAll(".fairy-pt").forEach(function(e) {
+            var k = e.getAttribute("data-par");
+            if (k !== "0") { if (!seen[k]) seen[k] = e.style.getPropertyValue("--pc"); }
+          });
+          var ks = Object.keys(seen).sort(function(a, b) { return a - b; }), g = fairyParList();
+          host.innerHTML = "";
+          ks.forEach(function(k) {
+            var b = document.createElement("button"); b.type = "button"; b.setAttribute("data-par", k); b.textContent = "p" + k;
+            b.style.borderBottomColor = seen[k];
+            b.title = "Parameter " + k + ": click to grey out or bring back";
+            if (g.indexOf(k) !== -1) b.className = "off";
+            b.addEventListener("click", function() { fairyParToggle(k); });
+            host.appendChild(b);
+          });
+        }
+        document.addEventListener("click", function(e) {
+          if (!document.body.classList.contains("fairy-par-focus")) return;
+          var tg = e.target;
+          if (!tg || !tg.closest) return;
+          var t = tg.closest(".fairy-pt");
+          if (t) { var k = t.getAttribute("data-par"); if (k !== "0") fairyParToggle(k); }
+        });
+        $(document).on("shiny:value", function(ev) {
+          if (ev.name !== "h") return;
+          if (document.body.classList.contains("fairy-items-focus")) setTimeout(fairyItemChips, 600);
+          if (document.body.classList.contains("fairy-par-focus")) setTimeout(fairyParChips, 600);
+        });
         $("#h_items_toggle_group button").click(function(){
           $(this).parent().find("button").removeClass("active");
           $(this).addClass("active");
@@ -7600,7 +7656,10 @@ ui <- shinyUI(fluidPage(
           $(this).addClass("active");
           // the colour is only a switch in the CSS: nothing is measured or placed again
           if (group.attr("id") === "h_color_toggle_group") {
-            var on = $(this).data("state") === "on";
+            var cst = $(this).data("state");
+            var on = cst === "on" || cst === "focus";
+            document.body.classList.toggle("fairy-par-focus", cst === "focus");
+            if (cst === "focus") { fairyParChips(); } else { document.body.removeAttribute("data-pgray"); fairyParStyle(); }
             $("#outP, #fairy-card-overlay-content").each(function() { if (on) this.setAttribute("data-h-color", "on"); else this.removeAttribute("data-h-color"); });
             return;
           }
@@ -17423,8 +17482,11 @@ server <- shinyServer(function(input, output, session) {
           }
           # the colour of the parameter only travels with the term (--pc); whether it shows is a switch in the CSS, so switching the
           # colour on or off changes nothing in the size or the place of anything
+          # position of the parameter in the app's list of probabilities (0 = unknown): the buttons that grey a parameter out use it
+          col_par_idx <- match(param_base_name(p_names_lt), global_param_names)
+          col_par_idx[is.na(col_par_idx)] <- 0L
           term_html <- function(co, j, lead = FALSE)
-            item_wrap(j, paste0('<span class="fairy-pt" style="--pc:', col_color[j], ';">\\(', math_of(co, j, lead), '\\)</span>'))
+            item_wrap(j, paste0('<span class="fairy-pt" data-par="', col_par_idx[j], '" style="--pc:', col_color[j], ';">\\(', math_of(co, j, lead), '\\)</span>'))
           # Colored (Compact layout only): color by column (see
           # col_color/param_color_map), set before the \\(...\\) so
           # MathJax's rendered output inherits it (renders in
