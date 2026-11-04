@@ -17818,8 +17818,8 @@ server <- shinyServer(function(input, output, session) {
           )
           # many probabilities: one reserved column per probability makes the aligned table very wide and mostly empty
           # (an unpacked items model easily has 15 or more), so such a card is shown compactly (see the CSS .fairy-auto-pack-flag)
-          pack_flag <- if (n_p_lt > 8) paste0('<span class="fairy-auto-pack-flag"></span>',
-            '<div class="fairy-auto-pack-note">Compact layout: the model has many probabilities.</div>') else ''
+          # (the automatic switch to the compact layout for models with many probabilities is off: the Layout buttons decide)
+          pack_flag <- ''
           equation_all <- paste0(
             count_badge,
             '<div class="model-card-title">', card_title_html(current_name), '</div>', pack_flag, tbl_html)
