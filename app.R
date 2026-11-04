@@ -3017,6 +3017,16 @@ ui <- shinyUI(fluidPage(
       .fairy-vrep-toggle-all-btn {
         font-size: 15px !important;
       }
+      /* the big Go under the models (Input page) */
+      .fairy-go-inline { display: flex; justify-content: center; margin: 14px 0 6px; }
+      .fairy-go-inline-btn {
+        display: inline-flex; align-items: baseline; gap: 10px; padding: 12px 38px; border-radius: 14px; border: 0;
+        font-size: 22px; font-weight: 700; line-height: 1.1;
+        background: var(--fairy-primary, #3a6df0); color: #fff;
+        box-shadow: 0 2px 10px color-mix(in srgb, var(--fairy-primary, #3a6df0) 40%, transparent);
+      }
+      .fairy-go-inline-btn:hover, .fairy-go-inline-btn:focus { filter: brightness(1.08); color: #fff; }
+      .fairy-go-inline-btn small { font-size: 12.5px; font-weight: 500; opacity: .85; }
       /* Generic 'just appeared' attention pulse — shared by every
          button that's hidden below some model-count threshold and
          should draw the eye the moment it actually shows up (the
@@ -7088,7 +7098,13 @@ ui <- shinyUI(fluidPage(
                 tags$td(style = "vertical-align:top; padding:6px;", uiOutput("textbox_ui_rel", class = "def-col")),
                 tags$td(style = "vertical-align:top; padding:6px;", uiOutput("textbox_ui_rel_complete", class = "def-col"))
               )
-            )
+            ),
+            # a big Go right under the models, where the eyes are after typing (the floating one in the lower right corner is easy to miss)
+            tags$div(class = "fairy-go-inline",
+              tags$button(id = "go_inline", type = "button", class = "btn fairy-go-inline-btn",
+                onclick = "var g = document.getElementById('go_v_h'); if (g) g.click();",
+                icon("play"), tags$span("Go"),
+                tags$small("calculate the models")))
           )
         )
       )
@@ -11488,6 +11504,7 @@ server <- shinyServer(function(input, output, session) {
     }
     input_results_stale(is_stale)
     shinyjs::toggleClass(id = "go_v_h", class = "fairy-stale-blink", condition = is_stale)
+    shinyjs::toggleClass(id = "go_inline", class = "fairy-stale-blink", condition = is_stale)
     tooltip_txt <- if (is_stale) {
       "Results outdated — click to recalculate (⌘/Ctrl+Enter)"
     } else {
