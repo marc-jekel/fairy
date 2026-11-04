@@ -627,7 +627,7 @@ mn_script_base <- function() {
     '  ".dot{position:absolute;top:-2px;width:14px;height:14px;",',
     '  "margin-left:-7px;border-radius:50%;background:var(--prim)}",',
     '  ".plots{background:#fff;border-radius:8px;padding:6px;",',
-    '  "max-width:50em}.plots svg{width:100%;height:auto}")',
+    '  "max-width:50em;margin:.6em auto}.plots svg{width:100%;height:auto}")',
     'legend <- c("<p class=small><b>Strength of evidence</b> (Jeffreys, 1961, as given by Lee and Wagenmakers, 2013): ",',
     '  "red speaks against the model, green for it.</p>",',
     '  "<div class=scale>",',
