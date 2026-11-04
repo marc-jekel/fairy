@@ -20129,10 +20129,9 @@ server <- shinyServer(function(input, output, session) {
         if (length(g$models)) tags$div(style = "margin:2px 0 4px 0;", tags$span(class = "mn-for", paste0("For: ", paste(g$models, collapse = ", ")))),
         tags$div(class = "mn-usedby", `data-key` = g$key, style = paste0("margin:2px 0 6px 0;", if (length(users)) "" else " display:none;"),
           tags$span(class = "mn-for", paste0("Also used by: ", paste(users, collapse = ", ")))),
-        if (can_share) selectInput(paste0("mn_share_", gi), "Numbers", width = "100%", selected = sel_share, choices = src_choices),
-        if (can_share) tags$a(href = "#", class = "mn-own-link", `data-sel` = paste0("mn_share_", gi),
-                              style = paste0("display:", if (identical(sel_share, "own")) "none" else "inline-block", "; font-size:13px; margin:4px 0 6px 0;"),
-                              "Type its own numbers instead"),
+        # two ways (own numbers / the numbers of the one other model): both are shown, a drop-down only from three on
+        if (can_share) (if (length(src_choices) <= 2) radioButtons(paste0("mn_share_", gi), "Numbers", width = "100%", selected = sel_share, choices = src_choices)
+                        else selectInput(paste0("mn_share_", gi), "Numbers", width = "100%", selected = sel_share, choices = src_choices)),
         if (can_share) conditionalPanel(sprintf("input.mn_share_%d == 'own'", gi), tbl) else tbl)
     }
     for (gi in seq_along(groups)) local({
@@ -20193,11 +20192,11 @@ server <- shinyServer(function(input, output, session) {
               own = ", as.character(jsonlite::toJSON(stats::setNames(as.list(vapply(groups, function(x) x$key, character(1))), paste0('mn_share_', seq_along(groups))), auto_unbox = TRUE)), ";
           function refresh() {
             var used = {};
-            [].forEach.call(document.querySelectorAll('select[id^=mn_share_]'), function(sel) {
-              var v = sel.value, k = own[sel.id];
+            [].forEach.call(document.querySelectorAll('select[id^=mn_share_], div[id^=mn_share_]'), function(sel) {
+              var v = sel.value;
+              if (sel.tagName === 'DIV') { var r = sel.querySelector('input:checked'); v = r ? r.value : null; }
+              var k = own[sel.id];
               if (v && v !== 'own' && k) { (used[v] = used[v] || []).push(titles[k]); }
-              var lk = document.querySelector('.mn-own-link[data-sel=' + sel.id + ']');
-              if (lk) lk.style.display = (v && v !== 'own') ? 'inline-block' : 'none';
             });
             [].forEach.call(document.querySelectorAll('.mn-usedby'), function(d) {
               var l = used[d.getAttribute('data-key')] || [];
@@ -20205,14 +20204,7 @@ server <- shinyServer(function(input, output, session) {
               var sp = d.querySelector('.mn-for'); if (sp) sp.textContent = 'Also used by: ' + l.join(', ');
             });
           }
-          if (window.jQuery) jQuery(document).on('change', 'select[id^=mn_share_]', function() { setTimeout(refresh, 50); });
-          if (window.jQuery) jQuery(document).on('click', '.mn-own-link', function(e) {
-            e.preventDefault();
-            var el = document.getElementById(this.getAttribute('data-sel'));
-            if (!el) return;
-            if (el.selectize) { el.selectize.setValue('own'); } else { el.value = 'own'; jQuery(el).trigger('change'); }
-            setTimeout(refresh, 50);
-          });
+          if (window.jQuery) jQuery(document).on('change', 'select[id^=mn_share_], div[id^=mn_share_] input', function() { setTimeout(refresh, 50); });
           setTimeout(refresh, 300);
         })();
       "))),
