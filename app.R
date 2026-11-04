@@ -886,10 +886,10 @@ ui <- shinyUI(fluidPage(
       .fairy-hidebtn.on { background: var(--fairy-primary, #5b3494); color: #fff; border-color: var(--fairy-primary, #5b3494); }
       /* expanded card: the display options of the main window are open at the left (the small button folds them away) */
       /* the expanded card is shown large: the menu is enlarged with it (same look, one size up) */
-      #fairy-ov-tools { position: fixed; top: 14px; left: 16px; z-index: 10001; zoom: 1.5; }
+      #fairy-ov-tools { position: fixed; top: 14px; left: 16px; z-index: 10001; zoom: 1; }
       #fairy-ov-handle { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--fairy-border, #c8cdd8); background: var(--fairy-panel, #fff); color: var(--fairy-text-muted, #667085); font-size: 18px; cursor: pointer; opacity: .75; }
       #fairy-ov-tools:hover #fairy-ov-handle { opacity: 1; color: var(--fairy-primary, #5b3494); }
-      #fairy-ov-panel { display: block; padding: 6px 10px 10px; margin-top: 4px; border: 1px solid var(--fairy-border, #c8cdd8); border-radius: 14px; background: var(--fairy-panel, #fff); box-shadow: 0 8px 28px rgba(0,0,0,.18); max-height: calc((100vh - 100px) / 1.5); overflow-y: auto; }
+      #fairy-ov-panel { display: block; padding: 6px 10px 10px; margin-top: 4px; border: 1px solid var(--fairy-border, #c8cdd8); border-radius: 14px; background: var(--fairy-panel, #fff); box-shadow: 0 8px 28px rgba(0,0,0,.18); max-height: calc((100vh - 100px) / var(--zm, 1)); overflow-y: auto; }
       #fairy-ov-tools.collapsed #fairy-ov-panel { display: none; }
       #fairy-ov-par, #fairy-ov-items { display: none; grid-template-columns: repeat(4, 28px); gap: 5px; justify-content: center; margin: 6px auto 0; }
       body.fairy-par-focus #fairy-ov-par, body.fairy-items-focus #fairy-ov-items { display: grid; }
@@ -6618,6 +6618,7 @@ ui <- shinyUI(fluidPage(
              if (curView) overlayContent.attr('data-h-view', curView);
              if (outP.getAttribute('data-h-color')) overlayContent.attr('data-h-color', 'on'); else overlayContent.removeAttr('data-h-color');
              if (window.fairyOverlayOpen) window.fairyOverlayOpen();
+             if (window.fairyOverlayScale) { setTimeout(window.fairyOverlayScale, 300); setTimeout(window.fairyOverlayScale, 1000); setTimeout(window.fairyOverlayScale, 2200); }
              if (outP.getAttribute('data-h-aligned-chosen')) overlayContent.attr('data-h-aligned-chosen', '1'); else overlayContent.removeAttr('data-h-aligned-chosen');
            }
            $('#fairy-card-overlay').addClass('active');
@@ -7729,6 +7730,29 @@ ui <- shinyUI(fluidPage(
           fairyOverlayChips();
           fairyHideBtns();
         }
+        // the menu follows the size of the expanded card (the terms are shown large or small depending on the card)
+        function fairyOverlayScale() {
+          var tools = document.getElementById("fairy-ov-tools"), ov = document.getElementById("fairy-card-overlay-content");
+          if (!tools) return;
+          if (!ov) return;
+          // a term that is really drawn (the other layout is not), in the card and in the main window
+          function seen(root) {
+            var l = root.querySelectorAll(".fairy-pt");
+            for (var i = 0; i !== l.length; i++) { if (l[i].getBoundingClientRect().height) return l[i]; }
+            return null;
+          }
+          var e = seen(ov), m = seen(document.getElementById("outP"));
+          var sc = 1;
+          if (e) {
+            // how large the same kind of term is drawn in the card compared with the main window (works for any way of scaling)
+            var he = e.getBoundingClientRect().height, hm = m ? m.getBoundingClientRect().height : 0;
+            if (hm) sc = he / hm;
+          }
+          sc = Math.min(1.5, Math.max(1, Math.round(sc * 10) / 10));
+          tools.style.zoom = sc;
+          tools.style.setProperty("--zm", sc);
+        }
+        window.fairyOverlayScale = fairyOverlayScale;
         window.fairyOverlayOpen = fairyOverlayOpen;
         document.addEventListener("click", function(e) {
           var tg = e.target;
