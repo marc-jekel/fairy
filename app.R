@@ -19451,7 +19451,7 @@ server <- shinyServer(function(input, output, session) {
       '  "h3{margin:1.6em 0 .2em;font-size:1.05em}",',
       '  "h4{margin:1.2em 0 .2em;font-size:.95em;color:var(--mut)}",',
       '  ".small{color:var(--mut);font-size:.9em;margin:.2em 0}",',
-      '  "table{border-collapse:collapse;width:auto;max-width:100%;",',
+      '  "table{border-collapse:collapse;width:100%;max-width:100%;",',
       '  "margin:.7em 0;",',
       '  "border:1px solid var(--line)}",',
       '  ".tw{overflow-x:auto;max-width:100%}",',
