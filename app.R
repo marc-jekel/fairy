@@ -4782,7 +4782,7 @@ ui <- shinyUI(fluidPage(
           )
         ),
         tags$div(id = "fairy-run-note"),
-        tags$div(id = "fairy-run-optional", "Skipping is optional. If you do not skip, the calculation simply keeps going until it is finished."),
+        tags$div(id = "fairy-run-optional", "Skipping is optional. If you do not skip, the calculation simply keeps going until it is finished or the time limit is reached."),
         tags$div(id = "fairy-run-actions",
           tags$button(id = "fairy-run-cancel", type = "button", "Skip all"),
           tags$button(id = "fairy-run-retryall", type = "button", "Retry all"),
@@ -9023,13 +9023,13 @@ server <- shinyServer(function(input, output, session) {
     v_grace(NULL)
     v_state$active <- TRUE
     session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "v_cancel", label = "Skip all"))
-    session$sendCustomMessage("fairy_run_limit", list(seconds = if (isTRUE(isolate(v_nolimit()))) 0 else V_REP_LIMIT, nolimit = isTRUE(isolate(v_nolimit())), label = "V-representation"))
+    session$sendCustomMessage("fairy_run_limit", list(seconds = if (isTRUE(isolate(v_nolimit()))) 0 else V_REP_LIMIT, nolimit = isTRUE(isolate(v_nolimit())), label = "each V-representation"))
   }
   # fairy dust (five quick clicks on the title or the time of the run window): no time limit for the V-representations
   v_nolimit <- reactiveVal(FALSE)
   observeEvent(input$v_unlock, {
     v_nolimit(!isTRUE(v_nolimit()))
-    if (isTRUE(isolate(v_state$active))) session$sendCustomMessage("fairy_run_limit", list(seconds = if (v_nolimit()) 0 else V_REP_LIMIT, nolimit = v_nolimit(), label = "V-representation"))
+    if (isTRUE(isolate(v_state$active))) session$sendCustomMessage("fairy_run_limit", list(seconds = if (v_nolimit()) 0 else V_REP_LIMIT, nolimit = v_nolimit(), label = "each V-representation"))
     showNotification(if (v_nolimit()) "\u2728 Fairy dust: no time limit for the V-representations (five quick clicks on the title switch it off again)." else paste0("The time limit is back (", V_REP_LIMIT %/% 60, " minutes)."),
                      type = "message", duration = 6)
   })
