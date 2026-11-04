@@ -15161,7 +15161,11 @@ server <- shinyServer(function(input, output, session) {
   # you're looking at model m1 or m2, not just within one table.
   fairy_param_palette <- c(
     "#2563eb", "#dc2626", "#16a34a", "#d97706", "#9333ea",
-    "#0891b2", "#db2777", "#65a30d", "#4f46e5", "#ea580c"
+    "#0891b2", "#db2777", "#65a30d", "#4f46e5", "#ea580c",
+    # more parameters than ten: further colours, all dark enough to read on white (the first ten stay as they were)
+    "#0f766e", "#a21caf", "#92400e", "#475569", "#9f1239",
+    "#1e3a8a", "#166534", "#a16207", "#0369a1", "#6b21a8",
+    "#b45309", "#3f6212", "#be123c", "#134e4a"
   )
   # global_order: the app's full, current list of probability names (in
   # their display order) — when given, color is keyed by each name's
