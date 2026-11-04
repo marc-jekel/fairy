@@ -400,10 +400,10 @@ ui <- shinyUI(fluidPage(
       #fill-unload { right: 170px; }
       #fill-switch { right: 206px; }
       /* the unload button is red, like on the page */
-      body #fill-unload, body:not(.dark-mode) #fill-unload { color: #a8505e; }
-      body.dark-mode #fill-unload { color: #f3a5b3; }
-      body #fill-unload:hover { background: rgba(168,80,94,.14); color: #9f1239; }
-      body.dark-mode #fill-unload:hover { background: rgba(243,165,179,.16); color: #f3a5b3; }
+      body #fill-unload, body:not(.dark-mode) #fill-unload { color: #a8505e !important; }
+      body.dark-mode #fill-unload { color: #f3a5b3 !important; }
+      body #fill-unload:hover { background: rgba(168,80,94,.14) !important; color: #9f1239 !important; }
+      body.dark-mode #fill-unload:hover { background: rgba(243,165,179,.16) !important; color: #f3a5b3 !important; }
       #fill-switch .ico-full { display: none; } #fill-switch .ico-fill { display: block; }
       body.fairy-mode-full #fill-switch .ico-full { display: block; } body.fairy-mode-full #fill-switch .ico-fill { display: none; }
       #fill-exit:hover, #fill-unload:hover, #fill-switch:hover { background: rgba(255,255,255,0.22); }
