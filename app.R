@@ -882,9 +882,8 @@ ui <- shinyUI(fluidPage(
       .fairy-hidden-group { display: none !important; }
       #h_hide_host, #fairy-ov-hide { display: none; justify-content: center; margin-top: 6px; }
       body.fairy-par-focus #h_hide_host, body.fairy-items-focus #h_hide_host, body.fairy-par-focus #fairy-ov-hide, body.fairy-items-focus #fairy-ov-hide { display: flex; }
-      #h_par_chips .fairy-selbtn, #h_items_chips .fairy-selbtn, #fairy-ov-par .fairy-selbtn, #fairy-ov-items .fairy-selbtn { grid-column: span 2; width: auto; height: 22px; font-size: 11px; border-bottom-width: 1px; border-radius: 11px; }
-      #h_par_chips .fairy-selbtn:nth-last-child(2), #h_items_chips .fairy-selbtn:nth-last-child(2), #fairy-ov-par .fairy-selbtn:nth-last-child(2), #fairy-ov-items .fairy-selbtn:nth-last-child(2) { grid-column: 1 / span 2; margin-top: 4px; }
-      #h_par_chips .fairy-selbtn:last-child, #h_items_chips .fairy-selbtn:last-child, #fairy-ov-par .fairy-selbtn:last-child, #fairy-ov-items .fairy-selbtn:last-child { grid-column: 3 / span 2; margin-top: 4px; }
+      .fairy-selrow { grid-column: 1 / -1; display: flex; gap: 6px; justify-content: center; margin-top: 4px; }
+      .fairy-selrow .fairy-selbtn { width: auto !important; height: 22px; padding: 0 9px; font-size: 10.5px; white-space: nowrap; border: 1px solid var(--fairy-border, #c8cdd8); border-radius: 11px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
       /* a short press animation: the click is felt at once */
       #h_par_chips button, #h_items_chips button, #fairy-ov-par button, #fairy-ov-items button, .fairy-hidebtn, .fairy-segmented button { transition: transform .09s ease, background-color .15s ease, opacity .15s ease; }
       #h_par_chips button:active, #h_items_chips button:active, #fairy-ov-par button:active, #fairy-ov-items button:active, .fairy-hidebtn:active, .fairy-segmented button:active { transform: scale(.9); }
@@ -920,10 +919,10 @@ ui <- shinyUI(fluidPage(
       /* colour by parameter: a switch on the card area, nothing else changes */
       #outP[data-h-color='on'] .fairy-pt, #fairy-card-overlay-content[data-h-color='on'] .fairy-pt { color: var(--pc); }
       body.fairy-items-focus .fairy-iw { cursor: pointer; }
-      /* once something is greyed out, the terms that are still active get a soft marker (the greyed-out ones stay plain and fully readable) */
+      /* in the select mode every selected term has the soft marker (the deselected ones stay plain and fully readable) */
       /* the marker of the active terms (a term is active if neither its item nor its parameter is greyed out): a field around the term, as
          large as the free space of its table cell, so it never reaches into the next column; the negative margin keeps the layout as it is */
-      body.fairy-items-focus[data-gray] .fairy-pt, body.fairy-par-focus[data-pgray] .fairy-pt { display: inline-block; padding: 3px 5px; margin: -3px -5px; background: rgba(250, 204, 21, .3); border-radius: 7px; }
+      body.fairy-items-focus .fairy-pt, body.fairy-par-focus .fairy-pt { display: inline-block; padding: 3px 5px; margin: -3px -5px; background: rgba(250, 204, 21, .3); border-radius: 7px; }
       body.fairy-items-focus[data-gray~='1'] .fairy-iw[data-item='1'] .fairy-pt { background: none; }
       body.fairy-items-focus[data-gray~='2'] .fairy-iw[data-item='2'] .fairy-pt { background: none; }
       body.fairy-items-focus[data-gray~='3'] .fairy-iw[data-item='3'] .fairy-pt { background: none; }
@@ -7691,6 +7690,7 @@ ui <- shinyUI(fluidPage(
         }
         // select all / deselect all
         function fairySelectBtns(host, kind, ks) {
+          var row = document.createElement("div"); row.className = "fairy-selrow";
           [["all", "select all", "Select everything again (no marker)"], ["none", "deselect all", "Deselect everything"]].forEach(function(d) {
             var b = document.createElement("button"); b.type = "button"; b.className = "fairy-selbtn"; b.textContent = d[1]; b.title = d[2];
             b.addEventListener("click", function() {
@@ -7699,8 +7699,9 @@ ui <- shinyUI(fluidPage(
               if (l.length) document.body.setAttribute(attr, l.join(" ")); else document.body.removeAttribute(attr);
               if (kind === "par") { fairyParStyle(); fairyAfterGray(); fairyParChips(); } else { fairyAfterGray(); fairyItemChips(); }
             });
-            host.appendChild(b);
+            row.appendChild(b);
           });
+          host.appendChild(row);
         }
         function fairyFillItemChips(host, root) {
           var seen = {};
