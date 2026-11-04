@@ -3026,6 +3026,7 @@ ui <- shinyUI(fluidPage(
         box-shadow: 0 2px 10px color-mix(in srgb, var(--fairy-primary, #3a6df0) 40%, transparent);
       }
       .fairy-go-inline-btn:hover, .fairy-go-inline-btn:focus { filter: brightness(1.08); color: #fff; }
+      .fairy-go-inline-btn:disabled, .fairy-go-inline-btn[disabled] { opacity: .45; box-shadow: none; cursor: not-allowed; }
       .fairy-go-inline-btn small { font-size: 12.5px; font-weight: 500; opacity: .85; }
       /* Generic 'just appeared' attention pulse — shared by every
          button that's hidden below some model-count threshold and
@@ -8017,6 +8018,12 @@ ui <- shinyUI(fluidPage(
           div(
             class = "model-def-panel",
             style = "padding: 18px 22px;",
+            # a big Go at the top of this page too (the one in the floating panel is easy to miss)
+            tags$div(class = "fairy-go-inline", style = "margin-top:0;",
+              tags$button(id = "go_inline_pars", type = "button", class = "btn fairy-go-inline-btn",
+                onclick = "var g = document.getElementById('go'); if (g && !g.disabled) g.click();",
+                icon("play"), tags$span("Go"),
+                tags$small("compute parsimony"))),
             uiOutput("parsimony_placeholder_ui"),
             div(id = "parsim_out",
               uiOutput("parsimony_stale_note"),
@@ -11462,10 +11469,10 @@ server <- shinyServer(function(input, output, session) {
   # Go needs the exact volume or the algorithms (or both)
   observeEvent(list(input$EX, input$ALG), {
     if (!isTRUE(input$EX) && !isTRUE(input$ALG)) {
-      disable("go")
+      disable("go"); disable("go_inline_pars")
       runjs("document.getElementById('go').setAttribute('data-tooltip', 'Switch on Exact volume or Algorithms to enable this option.');")
     } else {
-      enable("go")
+      enable("go"); enable("go_inline_pars")
       runjs("document.getElementById('go').setAttribute('data-tooltip', 'Compute parsimony (⌘/Ctrl+Enter)');")
     }
   })
@@ -11522,6 +11529,7 @@ server <- shinyServer(function(input, output, session) {
     }
     parsimony_results_stale(is_stale)
     shinyjs::toggleClass(id = "go", class = "fairy-stale-blink", condition = is_stale)
+    shinyjs::toggleClass(id = "go_inline_pars", class = "fairy-stale-blink", condition = is_stale)
     # The input$CB|SoB|CG observer elsewhere also sets this button's
     # data-tooltip (disabled-state message vs. the normal Compute
     # message) — this branch only fires while it's enabled, so the two
