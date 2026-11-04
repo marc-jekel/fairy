@@ -919,10 +919,10 @@ ui <- shinyUI(fluidPage(
       /* colour by parameter: a switch on the card area, nothing else changes */
       #outP[data-h-color='on'] .fairy-pt, #fairy-card-overlay-content[data-h-color='on'] .fairy-pt { color: var(--pc); }
       body.fairy-items-focus .fairy-iw { cursor: pointer; }
-      /* in the select mode every selected term has the soft marker (the deselected ones stay plain and fully readable) */
+      /* in the select mode every selected term has the soft marker (the deselected ones stay plain and fully readable); the parameter mode marks all terms, the item mode only the terms that belong to an item */
       /* the marker of the active terms (a term is active if neither its item nor its parameter is greyed out): a field around the term, as
          large as the free space of its table cell, so it never reaches into the next column; the negative margin keeps the layout as it is */
-      body.fairy-items-focus .fairy-pt, body.fairy-par-focus .fairy-pt { display: inline-block; padding: 3px 5px; margin: -3px -5px; background: rgba(250, 204, 21, .3); border-radius: 7px; }
+      body.fairy-par-focus .fairy-pt, body.fairy-items-focus .fairy-iw .fairy-pt { display: inline-block; padding: 3px 5px; margin: -3px -5px; background: rgba(250, 204, 21, .3); border-radius: 7px; }
       body.fairy-items-focus[data-gray~='1'] .fairy-iw[data-item='1'] .fairy-pt { background: none; }
       body.fairy-items-focus[data-gray~='2'] .fairy-iw[data-item='2'] .fairy-pt { background: none; }
       body.fairy-items-focus[data-gray~='3'] .fairy-iw[data-item='3'] .fairy-pt { background: none; }
