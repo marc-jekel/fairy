@@ -7605,13 +7605,9 @@ ui <- shinyUI(fluidPage(
           document.querySelectorAll(sel).forEach(function(e) { var v = e.getAttribute(attr); if (v !== skip) s[v] = 1; });
           return Object.keys(s);
         }
-        // at least one item (and one parameter) always stays: the last one cannot be greyed out
         function fairyGrayToggle(k) {
           var l = fairyGrayList(), p = l.indexOf(k);
-          if (p === -1) {
-            if (Math.max(0, fairyUniq(".fairy-iw", "data-item", "-").length - l.length - 1) === 0) return;
-            l.push(k);
-          } else l.splice(p, 1);
+          if (p === -1) l.push(k); else l.splice(p, 1);
           if (l.length) document.body.setAttribute("data-gray", l.join(" ")); else document.body.removeAttribute("data-gray");
           fairyAfterGray();
           fairyItemChips();
@@ -7690,12 +7686,12 @@ ui <- shinyUI(fluidPage(
           if (kind === "items") { if (!document.body.classList.contains("fairy-items-focus")) $("#h_items_toggle_group button[data-state=focus]").click(); }
           else { if (!document.body.classList.contains("fairy-par-focus")) $("#h_color_toggle_group button[data-state=focus]").click(); }
         }
-        // select all / deselect all (one always stays, so "none" keeps the first)
+        // select all / deselect all
         function fairySelectBtns(host, kind, ks) {
-          [["all", "all", "Bring all back"], ["none", "only " + (kind === "par" ? "p" : "") + ks[0], "Grey out everything except the first one (at least one always stays)"]].forEach(function(d) {
+          [["all", "all", "Select all: bring all back (nothing greyed out)"], ["none", "none", "Deselect all: grey out everything"]].forEach(function(d) {
             var b = document.createElement("button"); b.type = "button"; b.className = "fairy-selbtn"; b.textContent = d[1]; b.title = d[2];
             b.addEventListener("click", function() {
-              var l = d[0] === "all" ? [] : ks.slice(1);
+              var l = d[0] === "all" ? [] : ks.slice();
               var attr = kind === "par" ? "data-pgray" : "data-gray";
               if (l.length) document.body.setAttribute(attr, l.join(" ")); else document.body.removeAttribute(attr);
               if (kind === "par") { fairyParStyle(); fairyAfterGray(); fairyParChips(); } else { fairyAfterGray(); fairyItemChips(); }
@@ -7823,10 +7819,7 @@ ui <- shinyUI(fluidPage(
         }
         function fairyParToggle(k) {
           var l = fairyParList(), p = l.indexOf(k);
-          if (p === -1) {
-            if (Math.max(0, fairyUniq(".fairy-pt", "data-par", "0").length - l.length - 1) === 0) return;
-            l.push(k);
-          } else l.splice(p, 1);
+          if (p === -1) l.push(k); else l.splice(p, 1);
           if (l.length) document.body.setAttribute("data-pgray", l.join(" ")); else document.body.removeAttribute("data-pgray");
           fairyParStyle(); fairyAfterGray(); fairyParChips();
         }
