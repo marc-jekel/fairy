@@ -61,6 +61,7 @@ APP_UPDATED <- tryCatch({
   if (is.na(d)) "" else paste(as.integer(format(d, "%d")), month.abb[as.integer(format(d, "%m"))], format(d, "%Y"))
 }, error = function(e) "")
 EXACT_VOLUME_LIMIT <- 300
+V_REP_LIMIT <- 300   # time limit of one V-representation (seconds); the model is stopped like a skip and can be retried
 EXACT_VOLUME_LIMIT_TXT <- if (EXACT_VOLUME_LIMIT %% 60 == 0) paste(EXACT_VOLUME_LIMIT %/% 60, if (EXACT_VOLUME_LIMIT == 60) "minute" else "minutes") else paste(EXACT_VOLUME_LIMIT, "seconds")
 
 options(warn = -1)
@@ -9022,6 +9023,7 @@ server <- shinyServer(function(input, output, session) {
     v_grace(NULL)
     v_state$active <- TRUE
     session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "v_cancel", label = "Skip all"))
+    session$sendCustomMessage("fairy_run_limit", list(seconds = V_REP_LIMIT, label = "V-representation"))
   }
   v_finish_models <- function(m, res) {
     h_cn <- colnames(isolate(h_reactive[[m]]))
@@ -9048,6 +9050,18 @@ server <- shinyServer(function(input, output, session) {
         procs[[m]] <- NULL
       }
     }
+    # a V-representation that takes longer than the time limit is stopped (like a skip: the model can be retried)
+    for (m in names(procs)) {
+      p <- procs[[m]]
+      if (is.null(p) || !p$is_alive()) next
+      if (as.numeric(difftime(Sys.time(), p$get_start_time(), units = "secs")) > V_REP_LIMIT) {
+        try(p$kill_tree(), silent = TRUE); procs[[m]] <- NULL
+        v_state$skipped <- unique(c(isolate(v_state$skipped), m))
+        last_recomputed_snapshot(NULL)
+        if (is.null(get0(m, envir = mix_components, inherits = FALSE))) { set_v_included(m, FALSE); v_skipped_mem(union(isolate(v_skipped_mem()), m)) }
+        fairy_run_row(m, v = "stop")
+      }
+    }
     # start the next one(s): one at a time, or all at once in parallel mode
     max_run <- if (isolate(v_state$parallel)) length(models) else 1L
     while (length(queue) > 0 && length(procs) < max_run) {
@@ -9061,6 +9075,7 @@ server <- shinyServer(function(input, output, session) {
     v_state$procs <- procs; v_state$queue <- queue
     if (length(queue) == 0 && length(procs) == 0 ) {
       v_state$active <- FALSE
+      session$sendCustomMessage("fairy_run_limit", list(seconds = 0))
       af <- isolate(v_state$after)
       if (is.function(af)) isolate(af(character(0), isolate(v_state$skipped)))
       if (isTRUE(isolate(v_state$retry_go))) {
