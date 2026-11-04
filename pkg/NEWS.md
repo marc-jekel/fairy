@@ -1,3 +1,8 @@
+# fairy 0.6.4
+
+* `results.html` of the multinomineq analysis: the tables use the full width (in line with the scale of the evidence categories) and the
+  trace and density plots are centred.
+
 # fairy 0.6.3
 
 * `results.html` of the multinomineq analysis: every second row of the tables is lightly shaded, so rows are easier to tell apart.
