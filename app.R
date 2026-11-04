@@ -14806,7 +14806,7 @@ server <- shinyServer(function(input, output, session) {
   # Falls back to per-table position (old behavior) when omitted, so any
   # caller that hasn't been updated to pass it still works.
   # Several items of one parameter (p_{1}^{(1)}, p_{1}^{(2)}, ...): the hue stays that of the parameter, the items get steps of
-  # lightness (item 1 a little darker, the last a little lighter). Only for 2 to 6 items: with more, the steps cannot be told apart and all keep the colour.
+  # lightness (item 1 a little darker, the last a little lighter). Only for 2 to 4 items: with more, the steps cannot be told apart and all keep the colour.
   fairy_item_shade <- function(hex, step, n_items) {
     # from a little darker than the parameter's colour to a little lighter: the light end stays readable on white
     t <- seq(-0.25, 0.30, length.out = n_items)[step]
@@ -14822,7 +14822,7 @@ server <- shinyServer(function(input, output, session) {
     for (b in unique(base[!is.na(item)])) {
       sel <- which(base == b & !is.na(item))
       n_items <- length(unique(item[sel]))
-      if (n_items >= 2 && n_items <= 6) {
+      if (n_items >= 2 && n_items <= 4) {
         steps <- match(item[sel], sort(unique(item[sel])))
         cols[sel] <- vapply(seq_along(sel), function(k) fairy_item_shade(cols[sel[k]], steps[k], n_items), character(1))
       }
