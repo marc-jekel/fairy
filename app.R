@@ -8917,11 +8917,20 @@ server <- shinyServer(function(input, output, session) {
     if (length(msgs) == 0) msgs <- graph_msg
     msgs
   }
+  # where an error happened: the calls that were active at that moment (with the line in app.R), for the log of the server
+  fairy_note_stack <- function() {
+    cl <- sys.calls()
+    out <- vapply(rev(utils::tail(cl, 16)), function(x) {
+      sr <- attr(x, "srcref")
+      paste0(substr(paste(deparse(x), collapse = " "), 1, 70), if (!is.null(sr)) paste0(" [app.R#", sr[1], "]") else "")
+    }, character(1))
+    message("[fairy]   stack: ", paste(out, collapse = "  <-  "))
+  }
   observe_guarded <- function(event, handler, where = "go") {
     ev <- substitute(event); hd <- substitute(handler); env <- parent.frame()
     observeEvent(
       eventExpr = ev,
-      handlerExpr = bquote(tryCatch(.(hd), error = function(e) fairy_report_error(e, .(where)))),
+      handlerExpr = bquote(tryCatch(withCallingHandlers(.(hd), error = function(e) fairy_note_stack()), error = function(e) fairy_report_error(e, .(where)))),
       event.quoted = TRUE, handler.quoted = TRUE, event.env = env, handler.env = env
     )
   }
