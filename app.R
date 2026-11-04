@@ -882,6 +882,7 @@ ui <- shinyUI(fluidPage(
       .fairy-hidden-group { display: none !important; }
       #h_hide_host, #fairy-ov-hide { display: none; justify-content: center; margin-top: 6px; }
       body.fairy-par-focus #h_hide_host, body.fairy-items-focus #h_hide_host, body.fairy-par-focus #fairy-ov-hide, body.fairy-items-focus #fairy-ov-hide { display: flex; }
+      #h_par_chips .fairy-selbtn, #h_items_chips .fairy-selbtn, #fairy-ov-par .fairy-selbtn, #fairy-ov-items .fairy-selbtn { grid-column: span 2; width: auto; height: 22px; font-size: 11px; border-bottom-width: 1px; border-radius: 11px; }
       .fairy-hidegrp { display: flex; gap: 6px; position: relative; margin-top: 14px; }
       .fairy-hidegrp[data-cap]::before { content: attr(data-cap); position: absolute; top: -13px; left: -4px; right: -4px; text-align: center; pointer-events: none; font-size: 9.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--fairy-text-muted, #667085); }
       .fairy-hidebtn { height: 24px; padding: 0 14px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-radius: 12px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
@@ -7687,6 +7688,19 @@ ui <- shinyUI(fluidPage(
           if (kind === "items") { if (!document.body.classList.contains("fairy-items-focus")) $("#h_items_toggle_group button[data-state=focus]").click(); }
           else { if (!document.body.classList.contains("fairy-par-focus")) $("#h_color_toggle_group button[data-state=focus]").click(); }
         }
+        // select all / deselect all (one always stays, so "none" keeps the first)
+        function fairySelectBtns(host, kind, ks) {
+          [["all", "Bring all back"], ["none", "Grey out all but the first one (at least one always stays)"]].forEach(function(d) {
+            var b = document.createElement("button"); b.type = "button"; b.className = "fairy-selbtn"; b.textContent = d[0]; b.title = d[1];
+            b.addEventListener("click", function() {
+              var l = d[0] === "all" ? [] : ks.slice(1);
+              var attr = kind === "par" ? "data-pgray" : "data-gray";
+              if (l.length) document.body.setAttribute(attr, l.join(" ")); else document.body.removeAttribute(attr);
+              if (kind === "par") { fairyParStyle(); fairyAfterGray(); fairyParChips(); } else { fairyAfterGray(); fairyItemChips(); }
+            });
+            host.appendChild(b);
+          });
+        }
         function fairyFillItemChips(host, root) {
           var seen = {};
           root.querySelectorAll(".fairy-iw").forEach(function(e) { seen[e.getAttribute("data-item")] = 1; });
@@ -7699,6 +7713,7 @@ ui <- shinyUI(fluidPage(
             b.addEventListener("click", function() { fairyEnsureMode("items"); fairyGrayToggle(k); });
             host.appendChild(b);
           });
+          if (ks.length) fairySelectBtns(host, "items", ks);
         }
         function fairyItemChips() {
           var host = document.getElementById("h_items_chips");
@@ -7829,6 +7844,7 @@ ui <- shinyUI(fluidPage(
             b.addEventListener("click", function() { fairyEnsureMode("par"); fairyParToggle(k); });
             host.appendChild(b);
           });
+          if (ks.length) fairySelectBtns(host, "par", ks);
         }
         function fairyParChips() {
           var host = document.getElementById("h_par_chips");
