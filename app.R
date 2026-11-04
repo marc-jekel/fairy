@@ -2028,6 +2028,7 @@ ui <- shinyUI(fluidPage(
         /* room around the table (cancelled by the negative margin): the marker fields of the active terms are not cut off at the edge */
         padding: 6px 14px;
         margin: -6px -14px;
+        box-sizing: content-box;
       }
       .model-card.fairy-sized .fairy-h-table-scroll { max-height: none; overflow-y: visible; }
       #fairy-card-overlay-content .fairy-h-table-scroll {
@@ -7482,8 +7483,8 @@ ui <- shinyUI(fluidPage(
           ),
           # the items of unpacked models: terms of the same item share a background colour (independent of the colour above)
           tags$div(class = "fairy-segmented fairy-hidden-group", id = "h_items_toggle_group", `data-cap` = "Items",
-            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Items not marked", `data-state` = "off", icon("ban")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Mark the items of unpacked models with a coloured bar below each term (item 1, item 2, ...)", `data-state` = "on", icon("highlighter")),
+            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Items not marked", `data-state` = "off", icon("droplet-slash")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Mark the items of unpacked models with a coloured bar below each term (item 1, item 2, ...)", `data-state` = "on", icon("droplet")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Grey out items: click a term or a number to grey an item out, click again to bring it back", `data-state` = "focus", icon("bullseye"))
           ),
           tags$div(class = "fairy-segmented fairy-card-layout-group", `data-cap` = "Arrange",
