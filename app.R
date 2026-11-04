@@ -3028,6 +3028,14 @@ ui <- shinyUI(fluidPage(
       .fairy-go-inline .fairy-primary-controls .shiny-input-container, .fairy-go-inline .fairy-primary-controls .form-group { margin-bottom: 0; }
       .fairy-go-inline .fairy-primary-controls .fairy-fab-action-row { position: static; display: flex; align-items: center; gap: 6px; }
       .fairy-go-inline .fairy-primary-controls .fairy-toolbar-fileinput { display: inline-block; }
+      /* the buttons next to Go are in the colour of Go too (smaller, same family) */
+      .fairy-go-inline .fairy-toolbar-iconbtn, .fairy-go-inline .fairy-toolbar-fileinput .btn-file {
+        background: var(--fairy-primary, #3a6df0) !important; border-color: transparent !important; color: #fff !important; fill: #fff !important;
+        box-shadow: 0 1px 6px color-mix(in srgb, var(--fairy-primary, #3a6df0) 35%, transparent);
+      }
+      .fairy-go-inline .fairy-toolbar-iconbtn svg, .fairy-go-inline .fairy-toolbar-fileinput .btn-file svg,
+      .fairy-go-inline .fairy-toolbar-iconbtn .fa, .fairy-go-inline .fairy-toolbar-fileinput .btn-file .fa { color: #fff !important; fill: #fff !important; }
+      .fairy-go-inline .fairy-toolbar-iconbtn:hover, .fairy-go-inline .fairy-toolbar-fileinput .btn-file:hover { filter: brightness(1.1); }
       /* Parsimony: Go on top, below it one tidy row: the two main switches, the algorithms (side by side) and the settings */
       .fairy-go-inline-stack { flex-direction: column; gap: 10px; }
       .fairy-pars-hint { flex: 1 1 100%; order: 10; text-align: center; font-size: 12px; color: var(--fairy-text-muted, #667085); max-width: 760px; margin: 0 auto; }
