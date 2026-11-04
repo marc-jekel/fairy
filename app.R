@@ -7136,6 +7136,7 @@ ui <- shinyUI(fluidPage(
                 title = "Copies a link that opens the app with exactly this input; send it to others to share your models",
                 icon("link"), "Copy link to this input"),
               tags$button(id = "fairy_share_file", type = "button", role = "menuitem", class = "fairy-share-item",
+                title = "Saves everything you entered (probabilities, models, unpacking, settings) as an Excel file; upload it later with the arrow button to continue where you stopped",
                 icon("download"), "Save app input (.xlsx)"),
               tags$button(id = "fairy_share_rscript", type = "button", role = "menuitem", class = "fairy-share-item",
                 title = "An R script that repeats everything you entered here with the R package fairy, so the analysis can be reproduced outside the app",
