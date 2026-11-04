@@ -8076,7 +8076,7 @@ ui <- shinyUI(fluidPage(
             materialSwitch("EX", "Exact volume", value = TRUE, status = "primary", right = TRUE)
           ),
           tags$span(class = "fairy-tooltip fairy-tooltip-left", style = "display:block;",
-            `data-tooltip` = "Estimate the volume with algorithms for every model. Off: Cooling Bodies only runs for models without an exact volume",
+            `data-tooltip` = "Estimate the volume with algorithms for every model. Off: Cooling Bodies only runs for models whose exact volume was skipped or did not finish",
             materialSwitch("ALG", "Algorithms", value = FALSE, status = "primary", right = TRUE)
           ),
           # the three algorithms only show while Algorithms is on (kept in step by the small script below, not by a conditionalPanel:
@@ -8099,8 +8099,9 @@ ui <- shinyUI(fluidPage(
           ),
           tags$script(HTML("(function() { function syncAlg() { var a = document.getElementById('ALG'), d = document.getElementById('alg_sub'); if (a && d) d.style.display = a.checked ? '' : 'none'; } document.addEventListener('change', function(e) { if (e.target && e.target.id === 'ALG') syncAlg(); }); setInterval(syncAlg, 300); })();")),
           tags$div(class = "fairy-pars-hint",
-            "The exact volume is calculated first. With Algorithms switched on, the chosen algorithms also run for every model; ",
-            "with Algorithms off, an algorithm (Cooling Bodies) only runs for models without an exact volume."),
+            "Every model has an exact volume, which is calculated first. This can take long, so it has a time limit and can be skipped; ",
+            "for models where it was not calculated, an algorithm (Cooling Bodies) estimates the volume instead. ",
+            "With Algorithms switched on, the chosen algorithms run for every model as well."),
           div(class = "fairy-fab-action-row",
             tags$span(class = "fairy-tooltip fairy-tooltip-left", `data-tooltip` = "Algorithm settings",
               # Same square fairy-toolbar-iconbtn look Download uses
