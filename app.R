@@ -1820,7 +1820,9 @@ ui <- shinyUI(fluidPage(
       #fairy-run-note { font-size: 13px; color: #b05000; margin-top: 10px; }
       #fairy-run-note:empty { display: none; }
       #fairy-run-optional { display: none; font-size: 13px; color: var(--fairy-text-muted, #667085); margin-top: 10px; text-align: center; }
-      #fairy-run-card.fairy-run-skippable #fairy-run-optional { display: block; }
+      /* the note only while a Skip button is really there (Skip all appears after a few seconds, the Skip of a model when it takes longer) */
+      #fairy-run-card.fairy-run-skippable:has(#fairy-run-cancel.armed) #fairy-run-optional,
+      #fairy-run-card.fairy-run-skippable:has(tr.fairy-run-stopready:not(.fairy-run-skipped)) #fairy-run-optional { display: block; }
       #fairy-run-actions { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
       /* the note about what was skipped earlier: a banner with a Retry button, it pulses three times when the run window closes */
       .fairy-skipnote { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: rgba(245,158,11,.16); border-left: 4px solid #f59e0b; border-radius: 4px; padding: 8px 12px; font-size: 13px; margin: 6px 0 10px 0; }
