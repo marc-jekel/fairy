@@ -880,8 +880,10 @@ ui <- shinyUI(fluidPage(
          one shows, so switching is instant either toggle is used. */
       /* Items: the terms of one item of an unpacked model get a coloured bar below them (switched on with the Items buttons): a separate channel from the colour of the text */
       .fairy-hidden-group { display: none !important; }
-      #h_par_chips .fairy-hidebtn, #h_items_chips .fairy-hidebtn, #fairy-ov-par .fairy-hidebtn, #fairy-ov-items .fairy-hidebtn { grid-column: span 2; width: auto; font-size: 11px; border-bottom-width: 1px; }
-      #h_par_chips .fairy-hidebtn.on, #h_items_chips .fairy-hidebtn.on, #fairy-ov-par .fairy-hidebtn.on, #fairy-ov-items .fairy-hidebtn.on { background: var(--fairy-primary, #5b3494); color: #fff; border-color: var(--fairy-primary, #5b3494); }
+      #h_hide_host, #fairy-ov-hide { display: none; justify-content: center; margin-top: 6px; }
+      body.fairy-par-focus #h_hide_host, body.fairy-items-focus #h_hide_host, body.fairy-par-focus #fairy-ov-hide, body.fairy-items-focus #fairy-ov-hide { display: flex; }
+      .fairy-hidebtn { height: 24px; padding: 0 14px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-radius: 12px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
+      .fairy-hidebtn.on { background: var(--fairy-primary, #5b3494); color: #fff; border-color: var(--fairy-primary, #5b3494); }
       /* expanded card: the display options of the main window are open at the left (the small button folds them away) */
       /* the expanded card is shown large: the menu is enlarged with it (same look, one size up) */
       #fairy-ov-tools { position: fixed; top: 14px; left: 16px; z-index: 10001; zoom: 1.5; }
@@ -7635,6 +7637,24 @@ ui <- shinyUI(fluidPage(
           });
           return b;
         }
+        // one hide button: under the buttons of the main window and at the end of the menu of an expanded card
+        function fairyHideBtns() {
+          var h = document.getElementById("h_hide_host");
+          if (!h) {
+            var arr = document.querySelector(".fairy-card-layout-group");
+            if (arr) {
+              h = document.createElement("div"); h.id = "h_hide_host";
+              arr.parentNode.insertBefore(h, arr);
+            }
+          }
+          if (h) { h.innerHTML = ""; h.appendChild(fairyHideBtn()); }
+          var o = document.getElementById("fairy-ov-groups");
+          if (o) {
+            var oh = document.getElementById("fairy-ov-hide");
+            if (!oh) { oh = document.createElement("div"); oh.id = "fairy-ov-hide"; o.appendChild(oh); }
+            oh.innerHTML = ""; oh.appendChild(fairyHideBtn());
+          }
+        }
         function fairyEnsureMode(kind) {
           if (kind === "items") { if (!document.body.classList.contains("fairy-items-focus")) $("#h_items_toggle_group button[data-state=focus]").click(); }
           else { if (!document.body.classList.contains("fairy-par-focus")) $("#h_color_toggle_group button[data-state=focus]").click(); }
@@ -7651,7 +7671,6 @@ ui <- shinyUI(fluidPage(
             b.addEventListener("click", function() { fairyEnsureMode("items"); fairyGrayToggle(k); });
             host.appendChild(b);
           });
-          if (ks.length) host.appendChild(fairyHideBtn());
         }
         function fairyItemChips() {
           var host = document.getElementById("h_items_chips");
@@ -7663,6 +7682,7 @@ ui <- shinyUI(fluidPage(
           }
           fairyFillItemChips(host, document);
           fairyOverlayChips();
+          fairyHideBtns();
         }
         // the same buttons inside an expanded card (the toolbar is covered then)
         function fairyOverlayChips() {
@@ -7707,6 +7727,7 @@ ui <- shinyUI(fluidPage(
           });
           fairyOverlaySync();
           fairyOverlayChips();
+          fairyHideBtns();
         }
         window.fairyOverlayOpen = fairyOverlayOpen;
         document.addEventListener("click", function(e) {
@@ -7757,7 +7778,6 @@ ui <- shinyUI(fluidPage(
             b.addEventListener("click", function() { fairyEnsureMode("par"); fairyParToggle(k); });
             host.appendChild(b);
           });
-          if (ks.length) host.appendChild(fairyHideBtn());
         }
         function fairyParChips() {
           var host = document.getElementById("h_par_chips");
@@ -7769,6 +7789,7 @@ ui <- shinyUI(fluidPage(
           }
           fairyFillParChips(host, document);
           fairyOverlayChips();
+          fairyHideBtns();
         }
         document.addEventListener("click", function(e) {
           if (!document.body.classList.contains("fairy-par-focus")) return;
