@@ -14805,29 +14805,7 @@ server <- shinyServer(function(input, output, session) {
   # position in THAT list, so it's shared across every model/table.
   # Falls back to per-table position (old behavior) when omitted, so any
   # caller that hasn't been updated to pass it still works.
-  # Several items of one parameter (p_{1}^{(1)}, p_{1}^{(2)}, ...): the hue stays that of the parameter, the items get steps of
-  # lightness (item 1 the full colour). Only for 2 to 4 items: with more, the steps cannot be told apart and all keep the colour.
-  fairy_item_shade <- function(hex, step) {
-    t <- c(0, 0.30, 0.52, 0.68)[step]
-    rgb <- grDevices::col2rgb(hex)[, 1]
-    grDevices::rgb(round(rgb[1] + (255 - rgb[1]) * t), round(rgb[2] + (255 - rgb[2]) * t), round(rgb[3] + (255 - rgb[3]) * t), maxColorValue = 255)
-  }
   param_color_map <- function(p_names, global_order = NULL) {
-    cols <- param_color_map_base(p_names, global_order)
-    base <- param_base_name(p_names)
-    m <- regmatches(p_names, regexec("\\^\\{\\((?:.*,)?([0-9]+)\\)\\}$", p_names, perl = TRUE))
-    item <- suppressWarnings(as.integer(vapply(m, function(x) if (length(x) == 2) x[2] else NA_character_, character(1))))
-    for (b in unique(base[!is.na(item)])) {
-      sel <- which(base == b & !is.na(item))
-      n_items <- length(unique(item[sel]))
-      if (n_items >= 2 && n_items <= 4) {
-        steps <- match(item[sel], sort(unique(item[sel])))
-        cols[sel] <- vapply(seq_along(sel), function(k) fairy_item_shade(cols[sel[k]], steps[k]), character(1))
-      }
-    }
-    cols
-  }
-  param_color_map_base <- function(p_names, global_order = NULL) {
     base <- param_base_name(p_names)
     if (!is.null(global_order) && length(global_order) > 0) {
       idx <- match(base, global_order)
