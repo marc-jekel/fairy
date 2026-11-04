@@ -915,16 +915,19 @@ ui <- shinyUI(fluidPage(
       #outP[data-h-color='on'] .fairy-pt, #fairy-card-overlay-content[data-h-color='on'] .fairy-pt { color: var(--pc); }
       body.fairy-items-focus .fairy-iw { cursor: pointer; }
       /* once something is greyed out, the terms that are still active get a soft marker (the greyed-out ones stay plain and fully readable) */
-      /* one layer only (on the term itself): active = not greyed out by its item and not by its parameter */
-      body.fairy-items-focus[data-gray] .fairy-pt, body.fairy-par-focus[data-pgray] .fairy-pt { background: rgba(250, 204, 21, .28); border-radius: 4px; }
-      body.fairy-items-focus[data-gray~='1'] .fairy-iw[data-item='1'] .fairy-pt { background: none; }
-      body.fairy-items-focus[data-gray~='2'] .fairy-iw[data-item='2'] .fairy-pt { background: none; }
-      body.fairy-items-focus[data-gray~='3'] .fairy-iw[data-item='3'] .fairy-pt { background: none; }
-      body.fairy-items-focus[data-gray~='4'] .fairy-iw[data-item='4'] .fairy-pt { background: none; }
-      body.fairy-items-focus[data-gray~='5'] .fairy-iw[data-item='5'] .fairy-pt { background: none; }
-      body.fairy-items-focus[data-gray~='6'] .fairy-iw[data-item='6'] .fairy-pt { background: none; }
-      body.fairy-items-focus[data-gray~='7'] .fairy-iw[data-item='7'] .fairy-pt { background: none; }
-      body.fairy-items-focus[data-gray~='8'] .fairy-iw[data-item='8'] .fairy-pt { background: none; }
+      /* the marker of the active terms: one layer, on the whole field of the term (with its bar), a term is active if neither its item nor its parameter is greyed out */
+      body.fairy-items-focus[data-gray] .fairy-iw, body.fairy-par-focus[data-pgray] .fairy-iw,
+      body.fairy-items-focus[data-gray] .fairy-pt-solo, body.fairy-par-focus[data-pgray] .fairy-pt-solo { background: rgba(250, 204, 21, .3); border-radius: 7px; }
+      body.fairy-items-focus[data-gray] .fairy-iw, body.fairy-par-focus[data-pgray] .fairy-iw { padding: 4px 8px 3px; margin: -2px -4px; }
+      body.fairy-items-focus[data-gray] .fairy-pt-solo, body.fairy-par-focus[data-pgray] .fairy-pt-solo { padding: 3px 6px; margin: -3px -6px; }
+      body.fairy-items-focus[data-gray~='1'] .fairy-iw[data-item='1'] { background: none; }
+      body.fairy-items-focus[data-gray~='2'] .fairy-iw[data-item='2'] { background: none; }
+      body.fairy-items-focus[data-gray~='3'] .fairy-iw[data-item='3'] { background: none; }
+      body.fairy-items-focus[data-gray~='4'] .fairy-iw[data-item='4'] { background: none; }
+      body.fairy-items-focus[data-gray~='5'] .fairy-iw[data-item='5'] { background: none; }
+      body.fairy-items-focus[data-gray~='6'] .fairy-iw[data-item='6'] { background: none; }
+      body.fairy-items-focus[data-gray~='7'] .fairy-iw[data-item='7'] { background: none; }
+      body.fairy-items-focus[data-gray~='8'] .fairy-iw[data-item='8'] { background: none; }
       #h_items_chips { display: none; grid-template-columns: repeat(4, 28px); gap: 5px; justify-content: center; margin: 6px auto 0; }
       body.fairy-items-focus #h_items_chips { display: grid; }
       #h_items_chips button { width: 28px; height: 24px; padding: 0 4px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-bottom-width: 4px; border-radius: 5px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
@@ -7795,7 +7798,7 @@ ui <- shinyUI(fluidPage(
           var st = document.getElementById("fairy-par-style");
           if (!st) { st = document.createElement("style"); st.id = "fairy-par-style"; document.head.appendChild(st); }
           var css = "", q = String.fromCharCode(39);
-          fairyParList().forEach(function(k) { css += "body.fairy-par-focus[data-pgray] .fairy-pt[data-par=" + q + k + q + "] { background: none; } "; });
+          fairyParList().forEach(function(k) { css += "body.fairy-par-focus[data-pgray] .fairy-pt-solo[data-par=" + q + k + q + "], body.fairy-par-focus[data-pgray] .fairy-iw:has(.fairy-pt[data-par=" + q + k + q + "]) { background: none; } "; });
           st.textContent = css;
         }
         function fairyParToggle(k) {
@@ -17692,7 +17695,7 @@ server <- shinyServer(function(input, output, session) {
           col_par_idx <- match(param_base_name(p_names_lt), global_param_names)
           col_par_idx[is.na(col_par_idx)] <- 0L
           term_html <- function(co, j, lead = FALSE)
-            item_wrap(j, paste0('<span class="fairy-pt" data-par="', col_par_idx[j], '" style="--pc:', col_color[j], ';">\\(', math_of(co, j, lead), '\\)</span>'))
+            item_wrap(j, paste0('<span class="fairy-pt', if (!grepl("\\^\\{\\((?:.*,)?[0-9]+\\)\\}$", p_names_lt[j], perl = TRUE)) ' fairy-pt-solo' else '', '" data-par="', col_par_idx[j], '" style="--pc:', col_color[j], ';">\\(', math_of(co, j, lead), '\\)</span>'))
           # Colored (Compact layout only): color by column (see
           # col_color/param_color_map), set before the \\(...\\) so
           # MathJax's rendered output inherits it (renders in
