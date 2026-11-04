@@ -2086,6 +2086,12 @@ ui <- shinyUI(fluidPage(
       .modal-footer { border-top: 0 !important; padding: 16px 28px 24px; }
       .modal-footer .btn, .modal-footer .bttn, .modal-footer a.btn, .modal-footer button { border-radius: 10px !important; }
       .modal-footer .btn-default, .modal-footer .bttn-default { border-width: 1px !important; }
+      /* the buttons of every window stand in the middle of the footer */
+      .modal-footer { display: flex !important; flex-wrap: wrap; justify-content: center !important; align-items: center; gap: 10px 12px; text-align: center !important; }
+      .modal-footer .btn, .modal-footer .bttn, .modal-footer a.btn, .modal-footer button, .modal-footer .btn-group { margin: 0 !important; }
+      .modal-footer > div, .modal-footer .mn-foot, .modal-footer .mn-foot > div { justify-content: center !important; }
+      .modal-footer .mn-foot { width: 100%; gap: 10px 18px; }
+      .modal-footer .btn-group > .btn { margin: 0 !important; }
       .modal .form-control, .modal .selectize-input, .modal .bootstrap-select > .dropdown-toggle { border-radius: 10px; border-color: var(--fairy-border, #dfe3ec); box-shadow: none; }
       .modal .form-control:focus, .modal .selectize-input.focus { border-color: var(--fairy-primary, #3a6df0); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fairy-primary, #3a6df0) 18%, transparent); }
       .modal .close { opacity: .45; font-size: 26px; font-weight: 300; text-shadow: none; }
