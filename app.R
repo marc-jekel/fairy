@@ -880,12 +880,12 @@ ui <- shinyUI(fluidPage(
          one shows, so switching is instant either toggle is used. */
       /* Items: the terms of one item of an unpacked model get a coloured bar below them (switched on with the Items buttons): a separate channel from the colour of the text */
       .fairy-hidden-group { display: none !important; }
-      /* expanded card: the display options appear when the pointer is over the small button (like the tools of the plots) */
+      /* expanded card: the display options of the main window are open at the left (the small button folds them away) */
       #fairy-ov-tools { position: fixed; top: 14px; left: 16px; z-index: 10001; }
       #fairy-ov-handle { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--fairy-border, #c8cdd8); background: var(--fairy-panel, #fff); color: var(--fairy-text-muted, #667085); font-size: 18px; cursor: pointer; opacity: .75; }
-      #fairy-ov-tools:hover #fairy-ov-handle, #fairy-ov-tools.open #fairy-ov-handle { opacity: 1; color: var(--fairy-primary, #5b3494); }
-      #fairy-ov-panel { display: none; padding: 6px 10px 10px; margin-top: 4px; border: 1px solid var(--fairy-border, #c8cdd8); border-radius: 14px; background: var(--fairy-panel, #fff); box-shadow: 0 8px 28px rgba(0,0,0,.18); }
-      #fairy-ov-tools:hover #fairy-ov-panel, #fairy-ov-tools:focus-within #fairy-ov-panel, #fairy-ov-tools.open #fairy-ov-panel { display: block; }
+      #fairy-ov-tools:hover #fairy-ov-handle { opacity: 1; color: var(--fairy-primary, #5b3494); }
+      #fairy-ov-panel { display: block; padding: 6px 10px 10px; margin-top: 4px; border: 1px solid var(--fairy-border, #c8cdd8); border-radius: 14px; background: var(--fairy-panel, #fff); box-shadow: 0 8px 28px rgba(0,0,0,.18); }
+      #fairy-ov-tools.collapsed #fairy-ov-panel { display: none; }
       #fairy-ov-par, #fairy-ov-items { display: grid; grid-template-columns: repeat(4, 28px); gap: 5px; justify-content: center; margin: 6px auto 0; }
       #fairy-ov-par:empty, #fairy-ov-items:empty { display: none; }
       #fairy-ov-par button, #fairy-ov-items button { width: 28px; height: 24px; padding: 0 4px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-bottom-width: 4px; border-radius: 5px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
@@ -4686,7 +4686,7 @@ ui <- shinyUI(fluidPage(
         id = "fairy-card-overlay-inner",
         tags$button(id = "fairy-card-overlay-close", title = "Close (Esc)", HTML("&times;")),
         tags$div(id = "fairy-ov-tools",
-          tags$button(id = "fairy-ov-handle", type = "button", title = "Display options (hover)", icon("sliders")),
+          tags$button(id = "fairy-ov-handle", type = "button", title = "Display options: click to fold away or show", icon("sliders")),
           tags$div(id = "fairy-ov-panel", tags$div(id = "fairy-ov-groups", style = "display:flex; flex-direction:column; align-items:center; gap:6px; padding:4px;"))),
         tags$div(id = "fairy-card-overlay-content")
       )
@@ -7668,7 +7668,7 @@ ui <- shinyUI(fluidPage(
           if (!tg) return;
           if (!tg.closest) return;
           var h = tg.closest("#fairy-ov-handle");
-          if (h) { var t = document.getElementById("fairy-ov-tools"); if (t) t.classList.toggle("open"); }
+          if (h) { var t = document.getElementById("fairy-ov-tools"); if (t) t.classList.toggle("collapsed"); }
         });
         document.addEventListener("click", function(e) {
           if (!document.body.classList.contains("fairy-items-focus")) return;
