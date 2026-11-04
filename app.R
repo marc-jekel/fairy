@@ -20155,7 +20155,7 @@ server <- shinyServer(function(input, output, session) {
           "The seed makes a run repeatable.")),
       tags$div(class = "fairy-mn-note",
         icon("triangle-exclamation"),
-        tags$span(tags$b("Shared server:"), " keep it small. Larger analyses: run ", tags$code("analysis_multinomineq.R"), " yourself.")),
+        tags$span(tags$b("Shared server:"), " keep it small. For larger analyses use ", tags$b("Download"), " under MULTINOMINEQ (left) and run ", tags$code("analysis_multinomineq.R"), " yourself.")),
       footer = tags$div(class = "mn-foot", style = "display:flex; gap:8px; justify-content:flex-end; width:100%;",
         modalButton("Cancel"),
         actionButton("mn_run", "Run analysis here", class = "btn-primary", title = "Runs on our shared server (best for small analyses). For larger ones, run the script from the download on your own computer."))))
