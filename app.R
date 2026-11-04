@@ -7642,6 +7642,9 @@ ui <- shinyUI(fluidPage(
             var g = document.getElementById(id);
             if (!g) return;
             if (g.classList.contains("fairy-hidden-group")) return;
+            // only what this card has: no Items for a model without items
+            var ovc = document.getElementById("fairy-card-overlay-content");
+            if (id === "h_items_toggle_group") { if (!ovc) return; if (!ovc.querySelector(".fairy-iw")) return; }
             var c = g.cloneNode(true);
             c.removeAttribute("id");
             c.querySelectorAll("button").forEach(function(b) {
