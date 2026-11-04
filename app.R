@@ -1224,6 +1224,7 @@ ui <- shinyUI(fluidPage(
       }
       /* the Go button pinned to the bottom edge must not cover the last rows of a page */
       .tab-content { padding-bottom: 110px; }
+      .modal .tab-content > .tab-pane.active { display: block; }   /* the page layout makes panes flex rows: inside windows the content takes the full width */
       .modal .tab-content { padding-bottom: 0; }   /* the reserve is for the pages, not for the tabs inside windows */
       /* tap targets: at least 24 px (WCAG 2.2), about 40 px on touch screens */
       .fairy-del-model-btn, [id^='copy_model_btn_'], [id^='vrep_toggle_btn_'], #rm_prob, #add_prob, #rm_ie, #add_ie,
