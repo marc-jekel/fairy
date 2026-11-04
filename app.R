@@ -6960,6 +6960,12 @@ ui <- shinyUI(fluidPage(
         ),
         div(
           class = "model-def-panel",
+          # a big Go at the top of the page (the one in the floating panel in the lower right corner is easy to miss)
+          tags$div(class = "fairy-go-inline", style = "margin-top:0;",
+            tags$button(id = "go_inline", type = "button", class = "btn fairy-go-inline-btn",
+              onclick = "var g = document.getElementById('go_v_h'); if (g) g.click();",
+              icon("play"), tags$span("Go"),
+              tags$small("calculate the models"))),
           # Probabilities as a horizontal header above the model rows,
           # rather than their own narrow leftmost column — frees up that
           # width for Model Name / Unique Model Specification / Model
@@ -7099,13 +7105,7 @@ ui <- shinyUI(fluidPage(
                 tags$td(style = "vertical-align:top; padding:6px;", uiOutput("textbox_ui_rel", class = "def-col")),
                 tags$td(style = "vertical-align:top; padding:6px;", uiOutput("textbox_ui_rel_complete", class = "def-col"))
               )
-            ),
-            # a big Go right under the models, where the eyes are after typing (the floating one in the lower right corner is easy to miss)
-            tags$div(class = "fairy-go-inline",
-              tags$button(id = "go_inline", type = "button", class = "btn fairy-go-inline-btn",
-                onclick = "var g = document.getElementById('go_v_h'); if (g) g.click();",
-                icon("play"), tags$span("Go"),
-                tags$small("calculate the models")))
+            )
           )
         )
       )
