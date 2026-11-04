@@ -18841,7 +18841,17 @@ server <- shinyServer(function(input, output, session) {
   # (decreasing example frequencies: equal ones can stop the sampler)
   write_multinomineq_data <- function(groups, user = list(), share = list()) {
     # an unpacked model that uses the numbers of the models with the same number of probabilities gets no file of its own
-    drop <- vapply(names(groups), function(key) startsWith(key, "m:") && isTRUE(share[[key]]) && !is.null(groups[[paste0("k:", groups[[key]]$k)]]), logical(1))
+    # (share[[key]]: TRUE = the models with the same number of probabilities, or the key of the group whose numbers it uses)
+    src_of <- function(key) {
+      v <- share[[key]]
+      if (is.character(v) && length(v) == 1) v else if (isTRUE(v) && !is.null(groups[[key]])) paste0("k:", groups[[key]]$k) else NULL
+    }
+    drop <- vapply(names(groups), function(key) {
+      if (!startsWith(key, "m:")) return(FALSE)
+      s0 <- src_of(key)
+      !is.null(s0) && startsWith(s0, "k:") && !is.null(groups[[s0]])
+    }, logical(1))
+    all_groups <- groups
     groups <- groups[!drop]
     base_ks <- unique(vapply(groups[grepl("^k:", names(groups))], function(g) as.integer(g$k), integer(1)))
     out <- character(0)
@@ -18852,8 +18862,17 @@ server <- shinyServer(function(input, output, session) {
       ex <- round(25 * seq(0.8, 0.2, length.out = g$k))
       # the numbers belong to the probability (its name), so they stay with it when the order is changed
       u <- user[[key]]
-      nn <- vapply(seq_len(g$k), function(i) { v <- u[[g$labels[i]]]; if (is.null(v)) 25L else as.integer(v$n) }, integer(1))
-      ff <- vapply(seq_len(g$k), function(i) { v <- u[[g$labels[i]]]; if (is.null(v)) as.integer(ex[i]) else as.integer(v$f) }, integer(1))
+      # an unpacked model that uses the numbers of another unpacked model: the numbers of that model, probability by probability
+      src <- if (startsWith(key, "m:")) src_of(key) else NULL
+      for (hop in 1:4) { if (!is.null(src) && startsWith(src, "m:") && !is.null(src_of(src))) src <- src_of(src) else break }
+      if (!is.null(src) && !is.null(all_groups[[src]]) && all_groups[[src]]$k == g$k) {
+        sg <- all_groups[[src]]; su <- user[[src]]
+        nn <- vapply(seq_len(g$k), function(i) { v <- su[[sg$labels[i]]]; if (is.null(v)) 25L else as.integer(v$n) }, integer(1))
+        ff <- vapply(seq_len(g$k), function(i) { v <- su[[sg$labels[i]]]; if (is.null(v)) as.integer(ex[i]) else as.integer(v$f) }, integer(1))
+      } else {
+        nn <- vapply(seq_len(g$k), function(i) { v <- u[[g$labels[i]]]; if (is.null(v)) 25L else as.integer(v$n) }, integer(1))
+        ff <- vapply(seq_len(g$k), function(i) { v <- u[[g$labels[i]]]; if (is.null(v)) as.integer(ex[i]) else as.integer(v$f) }, integer(1))
+      }
       utils::write.csv(data.frame(probability = g$labels, n = nn, frequency = ff), f, row.names = FALSE, quote = FALSE)
       out <- c(out, f)
     }
@@ -19474,6 +19493,8 @@ server <- shinyServer(function(input, output, session) {
       '  "td>span[class]{display:inline-block;padding:2px 12px;",',
       '  "border-radius:6px;min-width:5.5em}",',
       '  "td{font-size:.94em}",',
+      '  "table:has(td:first-child>span[class]) th:first-child,",',
+      '  "table:has(td:first-child>span[class]) td:first-child,",',
       '  "th:nth-child(n+2),td:nth-child(n+2){text-align:center;",',
       '  "min-width:8em}",',
       '  "tr:last-child td{border-bottom:0}",',
@@ -19967,7 +19988,10 @@ server <- shinyServer(function(input, output, session) {
     sh <- isolate(mn_share())
     for (gi in seq_along(groups)) {
       g <- groups[[gi]]
-      if (startsWith(g$key, "m:") && !is.null(input[[paste0("mn_share_", gi)]])) sh[[g$key]] <- isTRUE(input[[paste0("mn_share_", gi)]])
+      if (startsWith(g$key, "m:") && !is.null(input[[paste0("mn_share_", gi)]])) {
+        sv <- input[[paste0("mn_share_", gi)]]
+        sh[[g$key]] <- if (identical(sv, "own") || identical(sv, FALSE)) FALSE else if (startsWith(as.character(sv), "k:")) TRUE else as.character(sv)
+      }
       nn <- vapply(seq_len(g$k), function(i) as.numeric(input[[paste0("mn_n_", gi, "_", i)]] %||% NA), numeric(1))
       ff <- vapply(seq_len(g$k), function(i) as.numeric(input[[paste0("mn_f_", gi, "_", i)]] %||% NA), numeric(1))
       bad <- anyNA(nn) || anyNA(ff) || any(nn < 1) || any(ff < 0) || any(ff > nn) || any(nn != round(nn)) || any(ff != round(ff))
@@ -20012,7 +20036,8 @@ server <- shinyServer(function(input, output, session) {
       ex <- round(25 * seq(0.8, 0.2, length.out = g$k))
       u <- cur[[g$key]]
       # an unpacked model can use the numbers of the models with the same number of probabilities instead of its own
-      can_share <- startsWith(g$key, "m:") && any(vapply(groups, function(x) identical(x$key, paste0("k:", g$k)), logical(1)))
+      srcs <- if (startsWith(g$key, "m:")) Filter(function(x) x$k == g$k && !identical(x$key, g$key), groups) else list()
+      can_share <- length(srcs) > 0
       tbl <- tags$table(class = "mn-tbl",
           tags$thead(tags$tr(tags$th("Observed for"), tags$th("n"), tags$th("Frequency"))),
           tags$tbody(lapply(seq_len(g$k), function(i) {
@@ -20027,11 +20052,26 @@ server <- shinyServer(function(input, output, session) {
                        numericInput(paste0("mn_nall_", gi), NULL, value = NA, min = 1, step = 1, width = "88px"))
       tbl <- tags$div(
         tbl, nall)
+      # which numbers does this group use: its own, or those of the models with the same number of probabilities / of another unpacked model
+      src_choices <- c("These numbers (typed below)" = "own", stats::setNames(
+        vapply(srcs, function(x) x$key, character(1)),
+        vapply(srcs, function(x) if (startsWith(x$key, "k:")) paste0("The same as the models with ", x$k, " probabilities (", paste(x$models, collapse = ", "), ")")
+                                  else paste0("The same as ", x$title), character(1))))
+      cur_sh <- isolate(mn_share())[[g$key]]
+      sel_share <- if (is.character(cur_sh)) cur_sh else if (isTRUE(cur_sh)) paste0("k:", g$k) else "own"
+      if (!(sel_share %in% src_choices)) sel_share <- "own"
+      # the groups that use the numbers of this one
+      users <- unlist(lapply(groups, function(x) {
+        sv <- isolate(mn_share())[[x$key]]
+        tgt <- if (is.character(sv)) sv else if (isTRUE(sv)) paste0("k:", x$k) else NULL
+        if (!is.null(tgt) && identical(tgt, g$key) && !identical(x$key, g$key)) x$title else NULL
+      }))
       tags$div(
         if (length(g$models)) tags$div(style = "margin:2px 0 4px 0;", tags$span(class = "mn-for", paste0("For: ", paste(g$models, collapse = ", ")))),
-        if (can_share) checkboxInput(paste0("mn_share_", gi), paste0("Use the same numbers as the other models with ", g$k, " probabilities (row by row)"),
-                                     value = isTRUE(isolate(mn_share())[[g$key]])),
-        if (can_share) conditionalPanel(sprintf("!input.mn_share_%d", gi), tbl) else tbl)
+        tags$div(class = "mn-usedby", `data-key` = g$key, style = paste0("margin:2px 0 6px 0;", if (length(users)) "" else " display:none;"),
+          tags$span(class = "mn-for", paste0("Also used by: ", paste(users, collapse = ", ")))),
+        if (can_share) selectInput(paste0("mn_share_", gi), "Numbers", width = "100%", selected = sel_share, choices = src_choices),
+        if (can_share) conditionalPanel(sprintf("input.mn_share_%d == 'own'", gi), tbl) else tbl)
     }
     for (gi in seq_along(groups)) local({
       gi_ <- gi; id <- paste0("mn_nall_", gi_)
@@ -20081,9 +20121,30 @@ server <- shinyServer(function(input, output, session) {
         sep = " "))),
       tags$div(class = "mn-data-modal",
       tags$p(class = "mn-lead", tags$b("n"), " = number of observations, ", tags$b("frequency"), " = how often the outcome happened (out of n)."),
-      if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Each unpacked model has its own tab: its probabilities can rest on different observations. To reuse the numbers of the other models (same number of probabilities), tick 'Use the same numbers as the other models' in its tab."),
+      if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Each unpacked model has its own tab: its probabilities can rest on different observations. To use the same numbers as another model (same number of probabilities), choose it under Numbers in the tab."),
       tags$div(style = "max-height:46vh; overflow-y:auto;", body),
       tags$div(id = "mn_data_warn", class = "mn-warn"),
+      tags$script(HTML(paste0("
+        (function() {
+          // which groups use the numbers of which: the line 'Also used by' of every tab follows the choices
+          var titles = ", as.character(jsonlite::toJSON(stats::setNames(lapply(groups, function(x) x$title), vapply(groups, function(x) x$key, character(1))), auto_unbox = TRUE)), ",
+              own = ", as.character(jsonlite::toJSON(stats::setNames(as.list(vapply(groups, function(x) x$key, character(1))), paste0('mn_share_', seq_along(groups))), auto_unbox = TRUE)), ";
+          function refresh() {
+            var used = {};
+            [].forEach.call(document.querySelectorAll('select[id^=mn_share_]'), function(sel) {
+              var v = sel.value, k = own[sel.id];
+              if (v && v !== 'own' && k) { (used[v] = used[v] || []).push(titles[k]); }
+            });
+            [].forEach.call(document.querySelectorAll('.mn-usedby'), function(d) {
+              var l = used[d.getAttribute('data-key')] || [];
+              d.style.display = l.length ? '' : 'none';
+              var sp = d.querySelector('.mn-for'); if (sp) sp.textContent = 'Also used by: ' + l.join(', ');
+            });
+          }
+          if (window.jQuery) jQuery(document).on('change', 'select[id^=mn_share_]', function() { setTimeout(refresh, 50); });
+          setTimeout(refresh, 300);
+        })();
+      "))),
       tags$script(HTML("
         (function() {
           var root = document.querySelector('.mn-data-modal'), warn = document.getElementById('mn_data_warn');

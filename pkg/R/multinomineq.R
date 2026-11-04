@@ -574,6 +574,8 @@ mn_script_base <- function() {
     '  "td>span[class]{display:inline-block;padding:2px 12px;",',
     '  "border-radius:6px;min-width:5.5em}",',
     '  "td{font-size:.94em}",',
+    '  "table:has(td:first-child>span[class]) th:first-child,",',
+    '  "table:has(td:first-child>span[class]) td:first-child,",',
     '  "th:nth-child(n+2),td:nth-child(n+2){text-align:center;",',
     '  "min-width:8em}",',
     '  "tr:last-child td{border-bottom:0}",',
