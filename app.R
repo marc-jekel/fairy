@@ -7643,8 +7643,8 @@ ui <- shinyUI(fluidPage(
         function fairyHideBtn() {
           var wrap = document.createElement("div"); wrap.className = "fairy-hidegrp"; wrap.setAttribute("data-cap", "Show rows with");
           var cur = fairyHideMode();
-          [["any", "all on", "Show only the rows in which every item and parameter is switched on (none of them greyed out)"],
-           ["all", "some on", "Show only the rows in which at least one item or parameter is switched on (the rows in which everything is greyed out disappear)"]].forEach(function(d) {
+          [["any", "all active", "Show only the rows in which every item and parameter is active (none of them greyed out)"],
+           ["all", "some active", "Show only the rows in which at least one item or parameter is active (the rows in which everything is greyed out disappear)"]].forEach(function(d) {
             var b = document.createElement("button"); b.type = "button";
             b.className = cur === d[0] ? "fairy-hidebtn on" : "fairy-hidebtn";
             b.textContent = d[1]; b.title = d[2];
