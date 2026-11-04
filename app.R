@@ -7482,13 +7482,13 @@ ui <- shinyUI(fluidPage(
           tags$div(class = "fairy-segmented", id = "h_color_toggle_group", `data-cap` = "Parameters",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Parameters not coloured", `data-state` = "off", icon("droplet-slash")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Colour the terms by parameter (p1, p2, ...)", `data-state` = "on", icon("droplet")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Grey out parameters: click a term or a number to grey a parameter out, click again to bring it back (with colour)", `data-state` = "focus", icon("filter"))
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Select parameters: click a number or a term to deselect a parameter, click again to select it again. The terms of the selected parameters get a yellow marker", `data-state` = "focus", icon("filter"))
           ),
           # the items of unpacked models: terms of the same item share a background colour (independent of the colour above)
           tags$div(class = "fairy-segmented fairy-hidden-group", id = "h_items_toggle_group", `data-cap` = "Items",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Items not marked", `data-state` = "off", icon("droplet-slash")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Mark the items of unpacked models with a coloured bar below each term (item 1, item 2, ...)", `data-state` = "on", icon("droplet")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Grey out items: click a term or a number to grey an item out, click again to bring it back", `data-state` = "focus", icon("filter"))
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Select items: click a number or a term to deselect an item, click again to select it again. The terms of the selected items get a yellow marker", `data-state` = "focus", icon("filter"))
           ),
           tags$div(class = "fairy-segmented fairy-card-layout-group", `data-cap` = "Arrange",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", icon("table-cells-large")),
@@ -7654,7 +7654,7 @@ ui <- shinyUI(fluidPage(
         function fairyHideBtn() {
           var wrap = document.createElement("div"); wrap.className = "fairy-hidegrp"; wrap.setAttribute("data-cap", "Show rows with");
           var cur = fairyHideMode();
-          [["any", "all marked", "Show only the rows in which every term has the yellow marker (the terms whose item and parameter are not greyed out)"],
+          [["any", "all marked", "Show only the rows in which every term has the yellow marker (its item and its parameter are selected)"],
            ["all", "some marked", "Show only the rows in which at least one term has the yellow marker (rows without any marked term disappear)"]].forEach(function(d) {
             var b = document.createElement("button"); b.type = "button";
             b.className = cur === d[0] ? "fairy-hidebtn on" : "fairy-hidebtn";
@@ -7691,7 +7691,7 @@ ui <- shinyUI(fluidPage(
         }
         // select all / deselect all
         function fairySelectBtns(host, kind, ks) {
-          [["all", "select all", "Bring all back (nothing greyed out)"], ["none", "deselect all", "Grey out everything"]].forEach(function(d) {
+          [["all", "select all", "Select everything again (no marker)"], ["none", "deselect all", "Deselect everything"]].forEach(function(d) {
             var b = document.createElement("button"); b.type = "button"; b.className = "fairy-selbtn"; b.textContent = d[1]; b.title = d[2];
             b.addEventListener("click", function() {
               var l = d[0] === "all" ? [] : ks.slice();
@@ -7709,7 +7709,7 @@ ui <- shinyUI(fluidPage(
           host.innerHTML = "";
           ks.forEach(function(k) {
             var b = document.createElement("button"); b.type = "button"; b.setAttribute("data-item", k); b.textContent = k;
-            b.title = "Item " + k + ": click to grey out or bring back";
+            b.title = "Item " + k + ": click to deselect or select again";
             if (g.indexOf(k) !== -1) b.className = "off";
             b.addEventListener("click", function() { fairyEnsureMode("items"); fairyGrayToggle(k); });
             host.appendChild(b);
@@ -7837,7 +7837,7 @@ ui <- shinyUI(fluidPage(
           ks.forEach(function(k) {
             var b = document.createElement("button"); b.type = "button"; b.setAttribute("data-par", k); b.textContent = "p" + k;
             b.style.borderBottomColor = seen[k];
-            b.title = "Parameter " + k + ": click to grey out or bring back";
+            b.title = "Parameter " + k + ": click to deselect or select again";
             if (g.indexOf(k) !== -1) b.className = "off";
             b.addEventListener("click", function() { fairyEnsureMode("par"); fairyParToggle(k); });
             host.appendChild(b);
