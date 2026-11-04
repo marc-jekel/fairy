@@ -1559,7 +1559,7 @@ ui <- shinyUI(fluidPage(
       /* Touch devices: form fields at 16px, otherwise iOS Safari zooms into the page when a field is focused */
       @media (max-width: 767px), (pointer: coarse) {
         input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select, .form-control, .selectize-input, .selectize-input input,
-        .dataTables_wrapper input, .dataTables_wrapper select, .fairy-ineq-overlay { font-size: 16px !important; }
+        .dataTables_wrapper input, .dataTables_wrapper select { font-size: 16px !important; }   /* the overlay of the model boxes takes the size of its box (matchStyle) */
       }
       /* Plot Polytope(s): the 800px plot is taller than a phone/tablet window; fit it so the whole cube is in view */
       @media (max-width: 767px), (max-height: 900px) {
@@ -3786,6 +3786,13 @@ ui <- shinyUI(fluidPage(
             });
           }).observe(document.body, { childList: true, subtree: true });
           scan();
+          // the layout switches (Compact, dark mode, ...) change padding and font size of the boxes: the overlay takes the
+          // new metrics over, otherwise the text shown and the cursor of the box are in different places
+          var restyleTimer = null;
+          new MutationObserver(function() {
+            clearTimeout(restyleTimer);
+            restyleTimer = setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 80);
+          }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
           setInterval(function() {
             wiredBoxes.forEach(function(w) { w.sync(); });
@@ -7128,9 +7135,10 @@ ui <- shinyUI(fluidPage(
               tags$button(id = "fairy_share_link", type = "button", role = "menuitem", class = "fairy-share-item",
                 icon("link"), "Copy link"),
               tags$button(id = "fairy_share_file", type = "button", role = "menuitem", class = "fairy-share-item",
-                icon("download"), "Save file (.xlsx)"),
+                icon("download"), "Save app input (.xlsx)"),
               tags$button(id = "fairy_share_rscript", type = "button", role = "menuitem", class = "fairy-share-item",
-                icon("file-code"), "Save R script (.R)")
+                title = "An R script that repeats everything you entered here with the R package fairy, so the analysis can be reproduced outside the app",
+                icon("file-code"), "Save R script for fairy (.R)")
             ),
             tags$span(class = "fairy-share-hidden",
               downloadButton("download", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn fairy-btn-muted"),
