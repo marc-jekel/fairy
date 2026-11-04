@@ -7620,10 +7620,8 @@ ui <- shinyUI(fluidPage(
         function fairyOverlayChips() {
           var ov = document.getElementById("fairy-card-overlay-content"), hp = document.getElementById("fairy-ov-par"), hi = document.getElementById("fairy-ov-items");
           if (!ov) return;
-          if (!hp) return;
-          if (!hi) return;
-          fairyFillParChips(hp, ov);
-          fairyFillItemChips(hi, ov);
+          if (hp) fairyFillParChips(hp, ov);
+          if (hi) fairyFillItemChips(hi, ov);
         }
         window.fairyOverlayChips = fairyOverlayChips;
         // the options of the toolbar again inside an expanded card: copies of the buttons that press the real ones
