@@ -885,6 +885,9 @@ ui <- shinyUI(fluidPage(
       #h_par_chips .fairy-selbtn, #h_items_chips .fairy-selbtn, #fairy-ov-par .fairy-selbtn, #fairy-ov-items .fairy-selbtn { grid-column: span 2; width: auto; height: 22px; font-size: 11px; border-bottom-width: 1px; border-radius: 11px; }
       #h_par_chips .fairy-selbtn:nth-last-child(2), #h_items_chips .fairy-selbtn:nth-last-child(2), #fairy-ov-par .fairy-selbtn:nth-last-child(2), #fairy-ov-items .fairy-selbtn:nth-last-child(2) { grid-column: 1 / span 2; margin-top: 4px; }
       #h_par_chips .fairy-selbtn:last-child, #h_items_chips .fairy-selbtn:last-child, #fairy-ov-par .fairy-selbtn:last-child, #fairy-ov-items .fairy-selbtn:last-child { grid-column: 3 / span 2; margin-top: 4px; }
+      /* a short press animation: the click is felt at once */
+      #h_par_chips button, #h_items_chips button, #fairy-ov-par button, #fairy-ov-items button, .fairy-hidebtn, .fairy-segmented button { transition: transform .09s ease, background-color .15s ease, opacity .15s ease; }
+      #h_par_chips button:active, #h_items_chips button:active, #fairy-ov-par button:active, #fairy-ov-items button:active, .fairy-hidebtn:active, .fairy-segmented button:active { transform: scale(.9); }
       .fairy-hidegrp { display: flex; gap: 6px; position: relative; margin-top: 14px; }
       .fairy-hidegrp[data-cap]::before { content: attr(data-cap); position: absolute; top: -13px; left: -4px; right: -4px; text-align: center; pointer-events: none; font-size: 9.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--fairy-text-muted, #667085); }
       .fairy-hidebtn { height: 24px; padding: 0 14px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-radius: 12px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
@@ -7688,7 +7691,7 @@ ui <- shinyUI(fluidPage(
         }
         // select all / deselect all
         function fairySelectBtns(host, kind, ks) {
-          [["all", "all", "Select all: bring all back (nothing greyed out)"], ["none", "none", "Deselect all: grey out everything"]].forEach(function(d) {
+          [["all", "select all", "Bring all back (nothing greyed out)"], ["none", "deselect all", "Grey out everything"]].forEach(function(d) {
             var b = document.createElement("button"); b.type = "button"; b.className = "fairy-selbtn"; b.textContent = d[1]; b.title = d[2];
             b.addEventListener("click", function() {
               var l = d[0] === "all" ? [] : ks.slice();
