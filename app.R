@@ -1217,8 +1217,9 @@ ui <- shinyUI(fluidPage(
       a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
         outline: 3px solid var(--fairy-primary, #3a6df0) !important; outline-offset: 2px;
       }
-      /* the floating Go button must not cover the last rows of a page */
+      /* the Go button pinned to the bottom edge must not cover the last rows of a page */
       .tab-content { padding-bottom: 110px; }
+      .modal .tab-content { padding-bottom: 0; }   /* the reserve is for the pages, not for the tabs inside windows */
       /* tap targets: at least 24 px (WCAG 2.2), about 40 px on touch screens */
       .fairy-del-model-btn, [id^='copy_model_btn_'], [id^='vrep_toggle_btn_'], #rm_prob, #add_prob, #rm_ie, #add_ie,
       .fairy-compact-toggle-btn, #dm-toggle, .fairy-plot-expand-btn, .fairy-expand-btn, #show_items_modal { min-width: 24px; min-height: 24px; }
@@ -20441,7 +20442,7 @@ server <- shinyServer(function(input, output, session) {
           // the page sits inside the window: no second title (the window has one), the same left edge as the text above, calmer sizes
           ds.textContent += ' header{padding:0 0 .4em !important;border:0 !important} header h1{display:none} main{max-width:none !important;padding:.2em 0 1.2em !important}'
             + ' h2{font-size:1.1em !important;margin:1.1em 0 .25em !important} h3{font-size:1em !important} .scale{gap:4px !important} .scale > *{padding:5px 4px !important;font-size:.82em !important}'
-            + ' .legend span{font-size:.85em !important}';
+            + ' .legend span{font-size:.85em !important} th:nth-child(n+2),td:nth-child(n+2){text-align:center !important}';
           root.appendChild(ds);
           var nt = document.getElementById('mn_results_newtab');
           if (nt) nt.addEventListener('click', function() {
