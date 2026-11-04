@@ -397,9 +397,13 @@ ui <- shinyUI(fluidPage(
         width: 28px; height: 28px; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;
         cursor: pointer; transition: background 0.2s; color: #d0d4e0; line-height: 1; padding: 0; }
       body.fairy-fill-window #fill-exit, body.fairy-fill-window #fill-unload, body.fairy-fill-window #fill-switch, body.fairy-fill-window #fill-restart { display: flex; }
-      #fill-unload { right: 170px; }
-      #fill-restart { right: 206px; }
-      #fill-switch { right: 242px; }
+      /* the same order as the buttons above the app on the page: new session, unload, Fill window, full screen; the one of the two that is on is the exit button, the other one switches */
+      #fill-restart { right: 242px; }
+      #fill-unload { right: 206px; }
+      #fill-exit { right: 170px; }
+      #fill-switch { right: 134px; }
+      body.fairy-mode-full #fill-switch { right: 170px; }
+      body.fairy-mode-full #fill-exit { right: 134px; }
       /* the unload button is red, like on the page */
       body #fill-unload, body:not(.dark-mode) #fill-unload { color: #a8505e !important; }
       body.dark-mode #fill-unload { color: #f3a5b3 !important; }
