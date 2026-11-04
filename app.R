@@ -7445,7 +7445,7 @@ ui <- shinyUI(fluidPage(
           # have.
           tags$div(class = "fairy-segmented", id = "h_layout_toggle_group", `data-cap` = "Layout",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Aligned layout: one column per parameter", `data-state` = "aligned", icon("table-cells")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Compact layout: terms packed per row", `data-state` = "compact", icon("bars"))
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Compact layout: terms packed per row", `data-state` = "compact", icon("bars-staggered"))
           ),
           # Was a single button that cycled shown -> grayed -> hidden on
           # repeat clicks — reported as unintuitive: nothing on screen
@@ -7474,13 +7474,13 @@ ui <- shinyUI(fluidPage(
           tags$div(class = "fairy-segmented", id = "h_color_toggle_group", `data-cap` = "Parameters",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Parameters not coloured", `data-state` = "off", icon("droplet-slash")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Colour the terms by parameter (p1, p2, ...)", `data-state` = "on", icon("droplet")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Grey out parameters: click a term or a number to grey a parameter out, click again to bring it back (with colour)", `data-state` = "focus", icon("bullseye"))
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Grey out parameters: click a term or a number to grey a parameter out, click again to bring it back (with colour)", `data-state` = "focus", icon("filter"))
           ),
           # the items of unpacked models: terms of the same item share a background colour (independent of the colour above)
           tags$div(class = "fairy-segmented fairy-hidden-group", id = "h_items_toggle_group", `data-cap` = "Items",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Items not marked", `data-state` = "off", icon("droplet-slash")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Mark the items of unpacked models with a coloured bar below each term (item 1, item 2, ...)", `data-state` = "on", icon("droplet")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Grey out items: click a term or a number to grey an item out, click again to bring it back", `data-state` = "focus", icon("bullseye"))
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Grey out items: click a term or a number to grey an item out, click again to bring it back", `data-state` = "focus", icon("filter"))
           ),
           tags$div(class = "fairy-segmented fairy-card-layout-group", `data-cap` = "Arrange",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Flowing cards: they fill the rows", `data-state` = "flow", icon("table-cells-large")),
