@@ -1528,6 +1528,8 @@ ui <- shinyUI(fluidPage(
       .fairy-share-pop { position: absolute; left: 0; bottom: calc(100% + 10px); min-width: 188px; z-index: 5; padding: 4px;
         background: var(--fairy-panel, #fff); border: 1px solid var(--fairy-border, #e3e6ee); border-radius: 10px;
         box-shadow: 0 6px 20px rgba(16, 24, 40, 0.18); }
+      /* the menu now sits near the top of the page: it opens downward */
+      .fairy-go-inline .fairy-share-pop { bottom: auto; top: calc(100% + 8px); }
       .fairy-share-pop[hidden] { display: none; }
       .fairy-share-pop:not([hidden]) { display: flex; flex-direction: column; }
       .fairy-share-item { display: flex; align-items: center; gap: 9px; border: 0; background: transparent; color: var(--fairy-text, #222);
