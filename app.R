@@ -5017,7 +5017,7 @@ ui <- shinyUI(fluidPage(
           hide();
         });
         function dismiss() { dismissed = true; hide(); }
-        // fairy dust: five quick clicks on the title or on the time line switch the time limit of the exact calculation off (and on again)
+        // fairy dust: five quick clicks on the title or on the time line switch the time limit of the exact calculation (or of the V-representations) off (and on again)
         document.addEventListener('click', function(e) {
           var t = e.target.closest ? e.target.closest('#fairy-run-title, #fairy-run-sub') : null;
           if (!t || !running || !shown) return;
@@ -5028,7 +5028,7 @@ ui <- shinyUI(fluidPage(
             dustClicks = [];
             var r = t.getBoundingClientRect();
             if (window.fairyBurst) window.fairyBurst(r.left + r.width / 2, r.top + r.height / 2);
-            if (window.Shiny) Shiny.setInputValue(cancelInput === 'mn_cancel' ? 'mn_unlock' : 'ex_unlock', Date.now(), { priority: 'event' });
+            if (window.Shiny) Shiny.setInputValue(cancelInput === 'mn_cancel' ? 'mn_unlock' : (cancelInput === 'v_cancel' ? 'v_unlock' : 'ex_unlock'), Date.now(), { priority: 'event' });
           }
         });
         document.addEventListener('DOMContentLoaded', function() {
@@ -9023,8 +9023,16 @@ server <- shinyServer(function(input, output, session) {
     v_grace(NULL)
     v_state$active <- TRUE
     session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "v_cancel", label = "Skip all"))
-    session$sendCustomMessage("fairy_run_limit", list(seconds = V_REP_LIMIT, label = "V-representation"))
+    session$sendCustomMessage("fairy_run_limit", list(seconds = if (isTRUE(isolate(v_nolimit()))) 0 else V_REP_LIMIT, nolimit = isTRUE(isolate(v_nolimit())), label = "V-representation"))
   }
+  # fairy dust (five quick clicks on the title or the time of the run window): no time limit for the V-representations
+  v_nolimit <- reactiveVal(FALSE)
+  observeEvent(input$v_unlock, {
+    v_nolimit(!isTRUE(v_nolimit()))
+    if (isTRUE(isolate(v_state$active))) session$sendCustomMessage("fairy_run_limit", list(seconds = if (v_nolimit()) 0 else V_REP_LIMIT, nolimit = v_nolimit(), label = "V-representation"))
+    showNotification(if (v_nolimit()) "\u2728 Fairy dust: no time limit for the V-representations (five quick clicks on the title switch it off again)." else paste0("The time limit is back (", V_REP_LIMIT %/% 60, " minutes)."),
+                     type = "message", duration = 6)
+  })
   v_finish_models <- function(m, res) {
     h_cn <- colnames(isolate(h_reactive[[m]]))
     if (is.null(res) || nrow(data.frame(res)) == 0) {
@@ -9054,7 +9062,7 @@ server <- shinyServer(function(input, output, session) {
     for (m in names(procs)) {
       p <- procs[[m]]
       if (is.null(p) || !p$is_alive()) next
-      if (as.numeric(difftime(Sys.time(), p$get_start_time(), units = "secs")) > V_REP_LIMIT) {
+      if (!isTRUE(isolate(v_nolimit())) && as.numeric(difftime(Sys.time(), p$get_start_time(), units = "secs")) > V_REP_LIMIT) {
         try(p$kill_tree(), silent = TRUE); procs[[m]] <- NULL
         v_state$skipped <- unique(c(isolate(v_state$skipped), m))
         last_recomputed_snapshot(NULL)
