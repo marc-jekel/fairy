@@ -1829,8 +1829,8 @@ ui <- shinyUI(fluidPage(
       #fairy-run-note:empty { display: none; }
       #fairy-run-optional { display: none; font-size: 13px; color: var(--fairy-text-muted, #667085); margin-top: 10px; text-align: center; }
       /* the note only while a Skip button is really there (Skip all appears after a few seconds, the Skip of a model when it takes longer) */
-      #fairy-run-card.fairy-run-skippable:has(#fairy-run-cancel.armed) #fairy-run-optional,
-      #fairy-run-card.fairy-run-skippable:has(tr.fairy-run-stopready:not(.fairy-run-skipped)) #fairy-run-optional { display: block; }
+      #fairy-run-card.fairy-run-skippable:has(#fairy-run-cancel.visible.armed) #fairy-run-optional,
+      #fairy-run-card.fairy-run-skippable:not(.fairy-run-vwin:not(.fairy-run-vphase)):has(tr.fairy-run-active.fairy-run-stopready:not(.fairy-run-skipped)) #fairy-run-optional { display: block; }
       #fairy-run-actions { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
       /* the note about what was skipped earlier: a banner with a Retry button, it pulses three times when the run window closes */
       .fairy-skipnote { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: rgba(245,158,11,.16); border-left: 4px solid #f59e0b; border-radius: 4px; padding: 8px 12px; font-size: 13px; margin: 6px 0 10px 0; }
@@ -9003,27 +9003,12 @@ server <- shinyServer(function(input, output, session) {
     if (length(row_idx) == 0) return(invisible())
     vtab[row_idx[1], 2] <- flag
     mytable_v_reactive$value <- vtab
-    # skipping (or taking a skip back) is not a change of the input: the comparison for "results may be outdated" follows the V switch,
-    # everything else in it stays as it was at Go (a real change typed in the meantime still shows)
-    snap <- isolate(last_computed_snapshot())
-    if (!is.null(snap)) { snap$v_selection <- vtab; last_computed_snapshot(snap) }
-  }
-  # switching a V-representation OFF does not make anything outdated (the results that are there stay valid, the card is only hidden):
-  # the comparison for "results may be outdated" and for "nothing has changed since the last Go" follows the V switch
-  sync_v_selection <- function(vtab, models) {
-    on_of <- function(d) if (is.null(d) || ncol(d) < 2) character(0) else as.character(d[[1]][which(as.logical(d[[2]]))])
-    now_on <- on_of(vtab)
-    for (rv in list(last_computed_snapshot, last_recomputed_snapshot, last_parsimony_snapshot)) {
+    # a V-representation that was skipped was not calculated: it no longer counts as calculated, so switching it on again is a real change
+    if (!isTRUE(flag)) for (rv in list(last_computed_snapshot, last_parsimony_snapshot)) {
       snap <- isolate(rv())
-      if (is.null(snap)) next
-      sv <- snap$v_selection
-      if (setequal(setdiff(on_of(sv), models), now_on)) {
-        snap$v_selection <- vtab                    # nothing else is pending: the same as now
-      } else if (!is.null(sv) && ncol(sv) >= 2) {
-        sv[[2]][sv[[1]] %in% models] <- FALSE       # only these models are switched off, other pending changes stay visible
-        snap$v_selection <- sv
+      if (!is.null(snap) && !is.null(snap$v_selection) && ncol(snap$v_selection) >= 2) {
+        sv <- snap$v_selection; sv[[2]][sv[[1]] == model_name] <- FALSE; snap$v_selection <- sv; rv(snap)
       }
-      rv(snap)
     }
   }
   v_start_jobs <- function(models) {
@@ -12034,6 +12019,14 @@ server <- shinyServer(function(input, output, session) {
     prev_model_names_for_items(cur)
   })
 
+  # Same input as at the last calculation? The V switches are compared as "nothing more is switched on than was calculated": switching a
+  # V-representation off, and on again later, does not make the results outdated, switching on one that was never calculated does.
+  snap_same <- function(a, b) {
+    on_of <- function(d) if (is.null(d) || ncol(d) < 2) character(0) else as.character(d[[1]][which(as.logical(d[[2]]))])
+    if (is.null(a) || is.null(b)) return(identical(a, b))
+    a_rest <- a[setdiff(names(a), "v_selection")]; b_rest <- b[setdiff(names(b), "v_selection")]
+    identical(a_rest, b_rest) && all(on_of(b$v_selection) %in% on_of(a$v_selection))
+  }
   make_snapshot <- function() {
     n_m <- isolate(counter_input$n)
     n_p <- isolate(counter$n)
@@ -12163,7 +12156,7 @@ server <- shinyServer(function(input, output, session) {
         items         = mytable_items_reactive$value,
         v_selection   = mytable_v_reactive$value
       )
-      is_stale <- !identical(snap, current)
+      is_stale <- !snap_same(snap, current)
     }
     input_results_stale(is_stale)
     shinyjs::toggleClass(id = "go_v_h", class = "fairy-stale-blink", condition = is_stale)
@@ -12181,7 +12174,7 @@ server <- shinyServer(function(input, output, session) {
     is_stale <- FALSE
     if (!is.null(snap)) {
       current <- make_parsimony_snapshot(live = TRUE)
-      is_stale <- !identical(snap, current)
+      is_stale <- !snap_same(snap, current)
     }
     parsimony_results_stale(is_stale)
     shinyjs::toggleClass(id = "go", class = "fairy-stale-blink", condition = is_stale)
@@ -16569,7 +16562,7 @@ server <- shinyServer(function(input, output, session) {
     current_snap <- make_snapshot()
     # (not after a mixture was skipped: the next Go has to try it again although nothing in the input changed)
     if (!resume_go && !isTRUE(isolate(mix_job$stale)) && !is.null(isolate(last_recomputed_snapshot())) &&
-        identical(isolate(last_recomputed_snapshot()), current_snap)) {
+        snap_same(isolate(last_recomputed_snapshot()), current_snap)) {
       showNotification("Everything is already calculated: nothing has changed since the last Go.", type = "message", duration = 5)
       return()
     }
@@ -21916,7 +21909,6 @@ server <- shinyServer(function(input, output, session) {
             vtab[row_idx[1], 2] <- now_included
           }
           mytable_v_reactive$value <- vtab
-          if (!now_included) sync_v_selection(vtab, model_name)
 
           n_total_v <- sum(vtab[[2]] == TRUE)
           updateActionButton(session, "show_v_rep",
@@ -22122,7 +22114,6 @@ server <- shinyServer(function(input, output, session) {
       }
     }
     mytable_v_reactive$value <- vtab
-    if (!target) sync_v_selection(vtab, model_names)
 
     n_total_v <- sum(vtab[[2]] == TRUE)
     updateActionButton(session, "show_v_rep",
