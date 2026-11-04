@@ -7388,20 +7388,6 @@ ui <- shinyUI(fluidPage(
         div(
           class = "fairy-input-toolbar",
           style = "display:flex; flex-direction:column; align-items:center; gap:6px; padding:4px; flex:0 0 auto;",
-          # Was a single button that cycled shown -> grayed -> hidden on
-          # repeat clicks — reported as unintuitive: nothing on screen
-          # told a user a 3rd state existed, and getting back to a
-          # earlier state meant cycling all the way around again. A
-          # segmented control (3 mini-buttons, one per state, the active
-          # one highlighted) makes all three choices visible up front and
-          # every state one click away — same underlying #outP class
-          # (trivial-gray/trivial-hide) as before, just set directly by
-          # each button instead of advanced by one shared cycling button.
-          tags$div(class = "fairy-segmented", id = "trivial_ineq_toggle_group", `data-cap` = "Bounds",
-            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Show trivial bounds", `data-state` = "shown", icon("eye")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Gray out trivial bounds", `data-state` = "gray", icon("circle-half-stroke")),
-            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Hide trivial bounds", `data-state` = "hide", icon("eye-slash"))
-          ),
           # Two ways to lay out each H-rep table (all four Layout x
           # Color variants rendered server-side up front, see
           # build_aligned_rows/build_packed_rows below — this toggle,
@@ -7420,6 +7406,20 @@ ui <- shinyUI(fluidPage(
           tags$div(class = "fairy-segmented", id = "h_layout_toggle_group", `data-cap` = "Layout",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Aligned layout: one column per parameter", `data-state` = "aligned", icon("table-cells")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Compact layout: terms packed per row", `data-state` = "compact", icon("bars"))
+          ),
+          # Was a single button that cycled shown -> grayed -> hidden on
+          # repeat clicks — reported as unintuitive: nothing on screen
+          # told a user a 3rd state existed, and getting back to a
+          # earlier state meant cycling all the way around again. A
+          # segmented control (3 mini-buttons, one per state, the active
+          # one highlighted) makes all three choices visible up front and
+          # every state one click away — same underlying #outP class
+          # (trivial-gray/trivial-hide) as before, just set directly by
+          # each button instead of advanced by one shared cycling button.
+          tags$div(class = "fairy-segmented", id = "trivial_ineq_toggle_group", `data-cap` = "Bounds",
+            tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Show trivial bounds", `data-state` = "shown", icon("eye")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Gray out trivial bounds", `data-state` = "gray", icon("circle-half-stroke")),
+            tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Hide trivial bounds", `data-state` = "hide", icon("eye-slash"))
           ),
           # Color (by parameter, see param_color_map) used to be
           # available ONLY under Compact, bundled into the same 3-way
