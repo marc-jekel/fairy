@@ -923,6 +923,9 @@ ui <- shinyUI(fluidPage(
       /* the marker of the active terms (a term is active if neither its item nor its parameter is greyed out): a field around the term, as
          large as the free space of its table cell, so it never reaches into the next column; the negative margin keeps the layout as it is */
       body.fairy-par-focus .fairy-pt, body.fairy-items-focus .fairy-iw .fairy-pt { display: inline-block; padding: 3px 5px; margin: -3px -5px; background: rgba(250, 204, 21, .3); border-radius: 7px; }
+      /* dark mode: a softer marker and bright text, so the terms stay readable */
+      body.dark-mode .fairy-pt { color: var(--fairy-text, #e5e7eb); }
+      body.dark-mode.fairy-par-focus .fairy-pt, body.dark-mode.fairy-items-focus .fairy-iw .fairy-pt { background: rgba(250, 204, 21, .2); }
       body.fairy-items-focus[data-gray~='1'] .fairy-iw[data-item='1'] .fairy-pt { background: none; }
       body.fairy-items-focus[data-gray~='2'] .fairy-iw[data-item='2'] .fairy-pt { background: none; }
       body.fairy-items-focus[data-gray~='3'] .fairy-iw[data-item='3'] .fairy-pt { background: none; }
