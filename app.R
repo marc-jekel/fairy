@@ -1288,13 +1288,16 @@ ui <- shinyUI(fluidPage(
         padding: 6px 10px !important; font-size: 13px !important; line-height: 1.35 !important; resize: none !important;
       }
       body.fairy-compact-models .fairy-model-row { margin-bottom: 4px !important; }
-      body.fairy-compact-models #textbox_ui_name_rel { min-width: 240px; }
-      body.fairy-compact-models td:has(> #textbox_ui_name_rel) { width: 260px !important; min-width: 260px; }
+      body.fairy-compact-models td:has(> #textbox_ui_name_rel) { width: 340px !important; min-width: 340px; }
+      body.fairy-compact-models #textbox_ui_name_rel { min-width: 330px; }
+      body.fairy-compact-models textarea[id^='textin_relations_name'] { white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis; }
       body.fairy-compact-models td:has(> #textbox_ui_rel) { width: 100% !important; }
       /* the shared specification (it stands in the third column of the first table row) gets a full-width line of its own */
       body.fairy-compact-models table:has(#add_for_all_models) > tbody > tr:first-child { display: block; }
       body.fairy-compact-models table:has(#add_for_all_models) > tbody > tr:first-child > td:nth-child(-n+2) { display: none; }
-      body.fairy-compact-models table:has(#add_for_all_models) > tbody > tr:first-child > td:nth-child(3) { display: block; width: 100% !important; padding: 0 6px 46px !important; }   /* room for the V switches that float above the first model */
+      body.fairy-compact-models table:has(#add_for_all_models) > tbody > tr:first-child > td:nth-child(3) { display: block; width: 100% !important; padding: 0 6px 8px !important; }
+      /* with two or more models the V switches float above the first model: room for them */
+      body.fairy-compact-models table:has(#add_for_all_models):has(.fairy-model-icon-col > div[style*='top:-40px']) > tbody > tr:first-child > td:nth-child(3) { padding-bottom: 46px !important; }
       body.fairy-compact-models #add_for_all_models { height: 38px !important; min-height: 0; }
       body.fairy-compact-models table:has(#textbox_ui_name_rel) { table-layout: auto !important; width: 100% !important; }
       /* radical: the read-only third column (the parsed text) goes away; every model is one line */
@@ -1328,7 +1331,8 @@ ui <- shinyUI(fluidPage(
         align-items: center !important;
         align-self: center !important;
         justify-content: flex-start !important;
-        width: auto !important;
+        width: 150px !important;
+        flex: 0 0 150px !important;
         min-width: 0 !important;
         height: auto !important;
         gap: 4px !important;
@@ -3094,6 +3098,11 @@ ui <- shinyUI(fluidPage(
       .fairy-form-modal .mn-foot #mn_data_reset { background: transparent !important; border-color: transparent !important; box-shadow: none !important; color: var(--fairy-text-muted, #667085) !important; font-weight: 500; padding: 0 12px; }
       .fairy-form-modal .mn-foot #mn_data_reset .fa, .fairy-form-modal .mn-foot #mn_data_reset svg { margin-right: 7px; }
       .fairy-form-modal .mn-foot #mn_data_reset:hover { color: var(--fairy-primary, #3a6df0); background: color-mix(in srgb, var(--fairy-primary, #3a6df0) 8%, transparent); }
+      .fairy-form-modal .nav-tabs { border-bottom: 0; display: flex; gap: 6px; margin-bottom: 8px; }
+      .fairy-form-modal .nav-tabs > li { float: none; margin: 0; }
+      .fairy-form-modal .nav-tabs > li > a { border: 1px solid var(--fairy-border, #e3e6ee); border-radius: 999px; padding: 4px 14px; font-size: 13px; color: var(--fairy-text-muted, #667085); background: transparent; margin: 0; }
+      .fairy-form-modal .nav-tabs > li.active > a, .fairy-form-modal .nav-tabs > li.active > a:hover, .fairy-form-modal .nav-tabs > li.active > a:focus { background: var(--fairy-primary, #3a6df0); color: #fff; border-color: transparent; }
+      .fairy-form-modal .mn-data-modal input[type=number] { font-size: 14px; }
       /* the big Go under the models (Input page) */
       /* when the page is scrolled down, the Go stays in view below the navigation bar (the place at the top stays reserved) */
       .fairy-go-inline { display: flex; justify-content: center; margin: 22px 0 10px; min-height: 48px; }
@@ -20036,7 +20045,7 @@ server <- shinyServer(function(input, output, session) {
       tags$div(class = "mn-data-modal",
       tags$p(class = "mn-lead", "Enter your observed counts: ", tags$b("n"), " = number of observations (trials), ", tags$b("frequency"),
         " = how often the outcome happened (out of n). The settings of the sampling are in the Run window."),
-      if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Each unpacked model has its own tab, because its probabilities can rest on different observations (for example different jokes or samples). If a model has the same number of probabilities and each one rests on the same observations as in the other models, tick 'Use the same numbers as the other models' in its tab: n and frequency are then copied row by row."),
+      if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Each unpacked model has its own tab: its probabilities can rest on different observations. To reuse the numbers of the other models (same number of probabilities), tick 'Use the same numbers as the other models' in its tab."),
       tags$div(style = "max-height:46vh; overflow-y:auto;", body),
       tags$div(id = "mn_data_warn", class = "mn-warn"),
       tags$script(HTML("
@@ -20506,8 +20515,10 @@ server <- shinyServer(function(input, output, session) {
     }
     showModal(modalDialog(
       title = "Order of the probabilities (p1, p2, ...)",
+      class = "fairy-form-modal",
       tags$p(class = "fairy-eq-tol-help", "Left: the probability as ", tags$a(href = "https://regenwetterlab.web.illinois.edu/qtest/", target = "_blank", rel = "noopener", "QTEST"), " and ", tags$a(href = "https://www.dwheck.de/software/multinomineq/", target = "_blank", rel = "noopener", "multinomineq"), " will see it (p1, p2, ...). Right: which probability of the unpacked model it is. Drag a row (or type a position number) to change the matching."),
-      tags$p(class = "fairy-eq-tol-help", style = "margin-top:-4px;", tags$b("Where it applies: "), "the QTEST downloads (H and V), the multinomineq download and the analysis you run here with Run analysis (one order for all of them), the typed input shown for this model, and the R script from Save R script (.R): it passes the order to fairy_write_qtest() as order = qtest_order, so the QTEST files written by R have the same order."),
+      tags$details(style = "margin:0 0 12px 0;", tags$summary(style = "cursor:pointer; color:var(--fairy-primary); font-size:12.5px;", "Where does the order apply?"),
+        tags$p(class = "fairy-eq-tol-help", style = "margin:6px 0 0 0;", "the QTEST downloads (H and V), the multinomineq download and the analysis you run here with Run analysis (one order for all of them), the typed input shown for this model, and the R script from Save R script (.R): it passes the order to fairy_write_qtest() as order = qtest_order, so the QTEST files written by R have the same order.")),
       tab_bar,
       blocks,
       tags$style(HTML("
