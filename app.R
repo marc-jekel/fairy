@@ -55,6 +55,11 @@ library("forstringr")
 library("parallel")
 
 # total time (seconds) for the exact volumes of one Parsimony run; used in the calculation and in every text that mentions it
+# the day of the last upload (the date of app.R on the server): shown in the bottom bar
+APP_UPDATED <- tryCatch({
+  d <- file.mtime("app.R")
+  if (is.na(d)) "" else paste(as.integer(format(d, "%d")), month.abb[as.integer(format(d, "%m"))], format(d, "%Y"))
+}, error = function(e) "")
 EXACT_VOLUME_LIMIT <- 300
 EXACT_VOLUME_LIMIT_TXT <- if (EXACT_VOLUME_LIMIT %% 60 == 0) paste(EXACT_VOLUME_LIMIT %/% 60, if (EXACT_VOLUME_LIMIT == 60) "minute" else "minutes") else paste(EXACT_VOLUME_LIMIT, "seconds")
 
@@ -8729,7 +8734,9 @@ server <- shinyServer(function(input, output, session) {
 
   shinyjs::html(
     id = "banner",
-    html = "<p class='fairy-banner-text'>Beta release 07/28/26 &middot; under active development &middot; <a href='mailto:mjekel@uni-koeln.de?subject=bug-report fairy app'>report a bug</a> &middot; <a href='#' id='fairy-kbd-open'>keyboard shortcuts (?)</a></p>",
+    html = paste0("<p class='fairy-banner-text'>", if (nzchar(APP_UPDATED)) paste0("Updated ", APP_UPDATED, " &middot; ") else "",
+                  "<a href='https://modeling-for-everyone.eu/posts/fairy/#whats-new' target='_blank' rel='noopener'>what's new</a> &middot; under active development &middot; ",
+                  "<a href='mailto:mjekel@uni-koeln.de?subject=bug-report fairy app'>report a bug</a> &middot; <a href='#' id='fairy-kbd-open'>keyboard shortcuts (?)</a></p>"),
     add = TRUE
   )
 
