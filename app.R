@@ -11409,8 +11409,11 @@ server <- shinyServer(function(input, output, session) {
     max_p <- suppressWarnings(max(p_nums, na.rm = TRUE))
     new_n <- max(1, if (is.finite(max_p)) max_p else 0, isolate(manual_p_floor()))
     old_n <- isolate(counter$n)
+    if (new_n != isolate(p_jump_declined())) p_jump_declined(0)
     if (new_n > old_n) {
       # typing a new probability adds it: say so; a big jump (p12 instead of p1 2, ...) is asked about first
+      # declined once ("No, I will correct the text"): the same number is not asked about again until the text uses another one
+      if (new_n - old_n >= 4 && new_n == isolate(p_jump_declined())) return()
       if (new_n - old_n >= 4 && new_n > isolate(p_jump_ok())) {
         p_jump_pending(new_n)
         showModal(modalDialog(
@@ -11433,6 +11436,7 @@ server <- shinyServer(function(input, output, session) {
       "].forEach(function(k){ var e = document.getElementById('textin_name_' + k); if (!e) return; var b = e.closest('.form-group') || e; b.classList.remove('fairy-flash'); void b.offsetWidth; b.classList.add('fairy-flash'); }); }, 400);"))
   }
   p_jump_pending <- reactiveVal(0)
+  p_jump_declined <- reactiveVal(0)
   p_jump_ok <- reactiveVal(0)
   observeEvent(input$p_jump_yes, {
     n <- isolate(p_jump_pending()); old_n <- isolate(counter$n)
@@ -11442,7 +11446,7 @@ server <- shinyServer(function(input, output, session) {
       counter$n <- n
     }
   })
-  observeEvent(input$p_jump_no, { removeModal() })
+  observeEvent(input$p_jump_no, { p_jump_declined(isolate(p_jump_pending())); removeModal() })
 
   # Plain-text staleness flags, alongside the button-glow class — for
   # people who might not notice/understand a glowing button on its own.
