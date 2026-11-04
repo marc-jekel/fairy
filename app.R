@@ -494,8 +494,8 @@ ui <- shinyUI(fluidPage(
       .fairy-plot-pdf-dl.btn { height: auto; line-height: 1.5; }
       .fairy-plot-pdf:hover, .fairy-plot-pdf-dl.btn:hover { border-color: var(--fairy-primary, #3a6df0); color: var(--fairy-primary, #3a6df0); }
       .fairy-plot-pdf.busy { opacity: .5; cursor: progress; }
-      /* the note that something is running: large, at the top of the window where the eyes are (below the navigation bar) */
-      #fairy-running-note, #fairy-working-note { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); z-index: 100000; display: flex; align-items: center; gap: 14px;
+      /* the note that something is running: large, at the bottom centre (above the bottom bar), where it covers little */
+      #fairy-running-note, #fairy-working-note { position: fixed; left: 50%; bottom: 52px; transform: translateX(-50%); z-index: 100000; display: flex; align-items: center; gap: 14px;
         padding: 14px 32px; border-radius: 999px; background: var(--fairy-primary, #3a6df0); color: #fff; font-size: 19px; font-weight: 700; letter-spacing: .2px;
         border: 0; box-shadow: 0 10px 30px rgba(20,30,60,.30); }
       .fairy-running-spin { width: 22px; height: 22px; border-radius: 50%; border: 3.5px solid rgba(255,255,255,.35);
