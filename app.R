@@ -393,12 +393,13 @@ ui <- shinyUI(fluidPage(
         cursor: pointer; transition: background 0.2s; color: #d0d4e0; line-height: 1; padding: 0; }
       #tips-toggle:hover { background: rgba(255,255,255,0.22); }
       /* leave Fill window of the tutorial page: same round button as the two above, left of them, only while the page fills its window */
-      #fill-exit, #fill-unload, #fill-switch { display: none; position: fixed; top: 13px; right: 134px; z-index: 1035; background: rgba(255,255,255,0.10); border: none; border-radius: 999px;
+      #fill-exit, #fill-unload, #fill-switch, #fill-restart { display: none; position: fixed; top: 13px; right: 134px; z-index: 1035; background: rgba(255,255,255,0.10); border: none; border-radius: 999px;
         width: 28px; height: 28px; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;
         cursor: pointer; transition: background 0.2s; color: #d0d4e0; line-height: 1; padding: 0; }
-      body.fairy-fill-window #fill-exit, body.fairy-fill-window #fill-unload, body.fairy-fill-window #fill-switch { display: flex; }
+      body.fairy-fill-window #fill-exit, body.fairy-fill-window #fill-unload, body.fairy-fill-window #fill-switch, body.fairy-fill-window #fill-restart { display: flex; }
       #fill-unload { right: 170px; }
-      #fill-switch { right: 206px; }
+      #fill-restart { right: 206px; }
+      #fill-switch { right: 242px; }
       /* the unload button is red, like on the page */
       body #fill-unload, body:not(.dark-mode) #fill-unload { color: #a8505e !important; }
       body.dark-mode #fill-unload { color: #f3a5b3 !important; }
@@ -406,13 +407,13 @@ ui <- shinyUI(fluidPage(
       body.dark-mode #fill-unload:hover { background: rgba(243,165,179,.16) !important; color: #f3a5b3 !important; }
       #fill-switch .ico-full { display: none; } #fill-switch .ico-fill { display: block; }
       body.fairy-mode-full #fill-switch .ico-full { display: block; } body.fairy-mode-full #fill-switch .ico-fill { display: none; }
-      #fill-exit:hover, #fill-unload:hover, #fill-switch:hover { background: rgba(255,255,255,0.22); }
-      body:not(.dark-mode) #fill-exit, body:not(.dark-mode) #fill-unload, body:not(.dark-mode) #fill-switch { background: rgba(0,0,0,0.06); color: var(--fairy-text-muted); }
-      #fill-exit::after, #fill-unload::after, #fill-switch::after { content: attr(data-tip); position: absolute; top: 36px; right: 0; width: max-content; max-width: 220px;
+      #fill-exit:hover, #fill-unload:hover, #fill-switch:hover, #fill-restart:hover { background: rgba(255,255,255,0.22); }
+      body:not(.dark-mode) #fill-exit, body:not(.dark-mode) #fill-unload, body:not(.dark-mode) #fill-switch, body:not(.dark-mode) #fill-restart { background: rgba(0,0,0,0.06); color: var(--fairy-text-muted); }
+      #fill-exit::after, #fill-unload::after, #fill-switch::after, #fill-restart::after { content: attr(data-tip); position: absolute; top: 36px; right: 0; width: max-content; max-width: 220px;
         padding: 6px 9px; border-radius: 8px; background: #1d2433; color: #fff; font-size: 12px; font-weight: 500; line-height: 1.3; text-align: left;
         box-shadow: 0 4px 14px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .12s ease; }
-      #fill-exit:hover::after, #fill-exit:focus-visible::after, #fill-unload:hover::after, #fill-unload:focus-visible::after, #fill-switch:hover::after, #fill-switch:focus-visible::after { opacity: 1; }
-      body.fairy-no-tips #fill-exit::after, body.fairy-no-tips #fill-unload::after, body.fairy-no-tips #fill-switch::after { display: none; }
+      #fill-exit:hover::after, #fill-exit:focus-visible::after, #fill-unload:hover::after, #fill-unload:focus-visible::after, #fill-switch:hover::after, #fill-switch:focus-visible::after, #fill-restart:hover::after, #fill-restart:focus-visible::after { opacity: 1; }
+      body.fairy-no-tips #fill-exit::after, body.fairy-no-tips #fill-unload::after, body.fairy-no-tips #fill-switch::after, body.fairy-no-tips #fill-restart::after { display: none; }
       body.fairy-no-tips #tips-toggle { text-decoration: line-through; opacity: .6; }
       /* the two round buttons in the header explain themselves at once, below the button (the page title tip comes late) */
       #dm-toggle::after, #tips-toggle::after { content: attr(data-tip); position: absolute; top: 36px; right: 0; width: max-content; max-width: 220px;
@@ -6780,6 +6781,8 @@ ui <- shinyUI(fluidPage(
              }
              var fsw = document.getElementById('fill-switch');
              if (fsw) fsw.addEventListener('click', function() { try { window.parent.postMessage({ type: 'fairy-switch-mode', to: document.body.classList.contains('fairy-mode-full') ? 'fill' : 'full' }, 'https://modeling-for-everyone.eu'); } catch (e) {} });
+             var frs = document.getElementById('fill-restart');
+             if (frs) frs.addEventListener('click', function() { try { window.parent.postMessage({ type: 'fairy-restart' }, 'https://modeling-for-everyone.eu'); } catch (e) {} });
              var fu = document.getElementById('fill-unload');
              if (fu) fu.addEventListener('click', function() { try { window.parent.postMessage({ type: 'fairy-unload' }, 'https://modeling-for-everyone.eu'); } catch (e) {} });
              try { window.parent.postMessage({ type: 'fairy-app-ready' }, 'https://modeling-for-everyone.eu'); } catch (e) {}
@@ -6866,6 +6869,8 @@ ui <- shinyUI(fluidPage(
   tags$button(id = "fill-exit", `data-tip` = "Leave Fill window (Esc)", `aria-label` = "Leave Fill window", "\u2715"),
   tags$button(id = "fill-switch", `data-tip` = "Show the app in full screen instead", `aria-label` = "Switch between Fill window and full screen",
     HTML("<svg class='ico-fill' width='14' height='14' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4'/></svg><svg class='ico-full' width='14' height='14' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M9.5 2H14v4.5M14 2L9 7M6.5 14H2V9.5M2 14l5-5'/></svg>")),
+  tags$button(id = "fill-restart", `data-tip` = "Start a new session (the window stays)", `aria-label` = "Start a new session",
+    HTML("<svg width='14' height='14' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M13.5 8a5.5 5.5 0 1 1-1.7-4'/><path d='M13.5 2v3h-3'/></svg>")),
   tags$button(id = "fill-unload", `data-tip` = "Unload app: leave the window and free the server", `aria-label` = "Unload app",
     HTML("<svg width='14' height='14' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'><path d='M8 1.5v6'/><path d='M4.2 3.9a5.5 5.5 0 1 0 7.6 0'/></svg>")),
   # Quiet loading screen: the page shell arrives long before the server has
