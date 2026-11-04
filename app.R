@@ -3073,7 +3073,8 @@ ui <- shinyUI(fluidPage(
       .fairy-go-inline .fairy-toolbar-iconbtn:hover, .fairy-go-inline .fairy-toolbar-fileinput .btn-file:hover { filter: brightness(1.1); }
       /* Parsimony: Go on top, below it one tidy row: the two main switches, the algorithms (side by side) and the settings */
       .fairy-go-inline-stack { flex-direction: column; gap: 10px; }
-      .fairy-pars-hint { flex: 1 1 100%; order: 10; text-align: center; font-size: 12px; color: var(--fairy-text-muted, #667085); max-width: 760px; margin: 0 auto; }
+      .fairy-pars-hint { flex: 1 1 100%; order: 10; text-align: center; text-wrap: balance; font-size: 12px; line-height: 1.5; color: var(--fairy-text-muted, #667085); max-width: 680px; margin: 2px auto 0; }
+      body.fairy-no-tips .fairy-pars-hint { display: none; }
       .fairy-go-inline-stack .fairy-primary-controls { justify-content: center; gap: 6px 26px; }
       .fairy-go-inline .fairy-primary-controls .shiny-input-container { width: auto !important; min-width: 0 !important; }
       .fairy-go-inline .fairy-primary-controls > span.fairy-tooltip { display: inline-block !important; }
@@ -8100,9 +8101,8 @@ ui <- shinyUI(fluidPage(
           ),
           tags$script(HTML("(function() { function syncAlg() { var a = document.getElementById('ALG'), d = document.getElementById('alg_sub'); if (a && d) d.style.display = a.checked ? '' : 'none'; } document.addEventListener('change', function(e) { if (e.target && e.target.id === 'ALG') syncAlg(); }); setInterval(syncAlg, 300); })();")),
           tags$div(class = "fairy-pars-hint",
-            "Every model has an exact volume, which is calculated first. This can take long, so it has a time limit and can be skipped; ",
-            "for models where it was not calculated, an algorithm (Cooling Bodies) estimates the volume instead. ",
-            "With Algorithms switched on, the chosen algorithms run for every model as well."),
+            "The exact volume is calculated first. It has a time limit and can be skipped; the algorithm then estimates the volume instead. ",
+            "With Algorithms on, the chosen algorithms run for every model as well."),
           div(class = "fairy-fab-action-row",
             tags$span(class = "fairy-tooltip fairy-tooltip-left", `data-tooltip` = "Algorithm settings",
               # Same square fairy-toolbar-iconbtn look Download uses
