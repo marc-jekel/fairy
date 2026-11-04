@@ -9817,10 +9817,15 @@ server <- shinyServer(function(input, output, session) {
             v <- as.numeric(strsplit(tm, "/", fixed = TRUE)[[1]]); cst <- cst + (if (length(v) == 2) v[1] / v[2] else v)
             cst_txt <- c(cst_txt, tm); next
           }
-          m <- regmatches(tm, regexec("^(?:([0-9]*\\.?[0-9]+(?:/[0-9]*\\.?[0-9]+)?)\\s*\\*\\s*)?p([0-9]+)$", tm, perl = TRUE))[[1]]
-          if (length(m) == 0) return(NULL)
-          cf <- if (nzchar(m[2])) { v <- as.numeric(strsplit(m[2], "/", fixed = TRUE)[[1]]); if (length(v) == 2) v[1] / v[2] else v } else 1
-          ps <- c(ps, as.integer(m[3])); cfs <- c(cfs, cf)
+          # a term as typed: p1, 2*p1, p1*2, 1/2*p1, p1*1/2 or p1/2
+          cof <- function(x) { v <- as.numeric(strsplit(x, "/", fixed = TRUE)[[1]]); if (length(v) == 2) v[1] / v[2] else v }
+          nmb <- "[0-9]*\\.?[0-9]+(?:/[0-9]*\\.?[0-9]+)?"
+          m <- regmatches(tm, regexec(paste0("^(?:(", nmb, ")\\s*\\*\\s*)?p([0-9]+)$"), tm, perl = TRUE))[[1]]
+          if (length(m)) { pv <- as.integer(m[3]); cf <- if (nzchar(m[2])) cof(m[2]) else 1 }
+          else if (length(m <- regmatches(tm, regexec(paste0("^p([0-9]+)\\s*\\*\\s*(", nmb, ")$"), tm, perl = TRUE))[[1]])) { pv <- as.integer(m[2]); cf <- cof(m[3]) }
+          else if (length(m <- regmatches(tm, regexec("^p([0-9]+)\\s*/\\s*([0-9]*\\.?[0-9]+)$", tm, perl = TRUE))[[1]])) { pv <- as.integer(m[2]); cf <- 1 / as.numeric(m[3]) }
+          else return(NULL)
+          ps <- c(ps, pv); cfs <- c(cfs, cf)
         }
         if (!length(ps)) return(NULL)
         list(ps = ps, p = ps[1], cf = if (length(ps) == 1L && !length(cst_txt)) cf else 1, cfs = cfs, cst = paste(cst_txt, collapse = "+"))
