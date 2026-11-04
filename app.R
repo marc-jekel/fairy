@@ -2074,6 +2074,26 @@ ui <- shinyUI(fluidPage(
       .modal-footer .btn-link { border: none !important; background: transparent !important; padding: 0 8px !important; }
       /* a footer with a single button: the button sits in the middle */
       .modal-footer:has(> :only-child) { text-align: center; }
+      /* ---- Windows: one modern skin for every dialog (the stock Bootstrap look read like the 90s) ---- */
+      .modal-backdrop, .modal-backdrop.in { background: #0f1424; }
+      .modal-backdrop.in { opacity: .45; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+      .modal-content { border: 1px solid color-mix(in srgb, var(--fairy-border, #e3e6ee) 60%, transparent); border-radius: 18px; overflow: hidden;
+        box-shadow: 0 30px 80px rgba(12, 18, 40, .35), 0 2px 8px rgba(12, 18, 40, .10); }
+      .modal-header { border-bottom: 0 !important; padding: 22px 28px 6px; }
+      .modal-title { font-size: 18px; font-weight: 700; letter-spacing: -.01em; line-height: 1.3; }
+      .modal-body { padding: 10px 28px 6px; }
+      .modal-footer { border-top: 0 !important; padding: 16px 28px 24px; }
+      .modal-footer .btn, .modal-footer .bttn, .modal-footer a.btn, .modal-footer button { border-radius: 10px !important; }
+      .modal-footer .btn-default, .modal-footer .bttn-default { border-width: 1px !important; }
+      .modal .form-control, .modal .selectize-input, .modal .bootstrap-select > .dropdown-toggle { border-radius: 10px; border-color: var(--fairy-border, #dfe3ec); box-shadow: none; }
+      .modal .form-control:focus, .modal .selectize-input.focus { border-color: var(--fairy-primary, #3a6df0); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fairy-primary, #3a6df0) 18%, transparent); }
+      .modal .close { opacity: .45; font-size: 26px; font-weight: 300; text-shadow: none; }
+      .modal .close:hover { opacity: .8; }
+      .modal.fade .modal-dialog { transform: translateY(12px) scale(.985); opacity: 0; transition: transform .24s cubic-bezier(.2, .8, .2, 1), opacity .24s ease; }
+      .modal.in .modal-dialog { transform: none; opacity: 1; }
+      .modal-body > .fairy-eq-tol-header:first-child, .modal-body > .fairy-combo-header:first-child { padding-top: 12px; margin-bottom: 8px; }
+      .modal-body > .fairy-eq-tol-header strong, .modal-body > .fairy-combo-header strong { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+      @media (prefers-reduced-motion: reduce) { .modal.fade .modal-dialog { transition: none; } }
       .bttn-primary.bttn-jelly, .bttn-primary.bttn-unite {
         background: var(--fairy-primary-contrast-bg) !important;
       }
@@ -3128,7 +3148,7 @@ ui <- shinyUI(fluidPage(
       /* Parsimony: Go on top, below it one tidy row: the two main switches, the algorithms (side by side) and the settings */
       .fairy-go-inline-stack { flex-direction: column; gap: 10px; }
       .fairy-pars-hint { flex: 0 0 100%; order: 10; text-align: center; text-wrap: balance; font-size: 12px; line-height: 1.5; color: var(--fairy-text-muted, #667085); box-sizing: border-box; padding: 0 max(0px, calc((100% - 680px) / 2)); margin: 2px 0 0; }
-      body.fairy-no-tips .fairy-pars-hint, body.fairy-no-tips .fairy-pars-placeholder { display: none; }
+      body.fairy-no-tips .fairy-pars-hint, body.fairy-no-tips .fairy-pars-placeholder, body.fairy-no-tips .fairy-form-modal .fairy-eq-tol-help, body.fairy-no-tips .fairy-form-modal .mn-lead { display: none; }
       .fairy-go-inline-stack .fairy-primary-controls { justify-content: center; gap: 6px 26px; }
       .fairy-go-inline .fairy-primary-controls .shiny-input-container { width: auto !important; min-width: 0 !important; }
       .fairy-go-inline .fairy-primary-controls > span.fairy-tooltip { display: inline-block !important; }
@@ -20043,8 +20063,7 @@ server <- shinyServer(function(input, output, session) {
         ".mn-data-modal label.control-label { font-size: 13px; font-weight: 600; margin-bottom: 4px; }",
         sep = " "))),
       tags$div(class = "mn-data-modal",
-      tags$p(class = "mn-lead", "Enter your observed counts: ", tags$b("n"), " = number of observations (trials), ", tags$b("frequency"),
-        " = how often the outcome happened (out of n). The settings of the sampling are in the Run window."),
+      tags$p(class = "mn-lead", tags$b("n"), " = number of observations, ", tags$b("frequency"), " = how often the outcome happened (out of n)."),
       if (has_unpacked) tags$p(class = "fairy-eq-tol-help", "Each unpacked model has its own tab: its probabilities can rest on different observations. To reuse the numbers of the other models (same number of probabilities), tick 'Use the same numbers as the other models' in its tab."),
       tags$div(style = "max-height:46vh; overflow-y:auto;", body),
       tags$div(id = "mn_data_warn", class = "mn-warn"),
@@ -20107,17 +20126,17 @@ server <- shinyServer(function(input, output, session) {
       tags$style(HTML(".mn-foot .btn { margin: 0 !important; } .mn-lead { font-size: 13px; color: var(--fairy-text-muted, #667085); margin: 0 0 10px 0; } .modal-body hr { margin: 14px 0 12px 0; } .modal-body label.control-label { font-size: 13px; font-weight: 600; margin-bottom: 4px; }")),
       uiOutput("mn_skipped_note"),
       tags$p(class = "fairy-eq-tol-help",
-        HTML(paste0("Runs here with the R package <a href='https://www.dwheck.de/software/multinomineq/' target='_blank' rel='noopener'>multinomineq</a> (Heck &amp; Davis-Stober, 2019) on the numbers saved under <b>Data</b>",
-          if (own) "" else " (example numbers until you save your own)", ". ")),
+        HTML(paste0("Runs <a href='https://www.dwheck.de/software/multinomineq/' target='_blank' rel='noopener'>multinomineq</a> on the numbers under <b>Data</b>",
+          if (own) "" else " (examples until you save your own)", ". ")),
         actionLink("mn_run_to_data", "Change the data")),
       if (length(mn_model_choices()) > 1)
         checkboxGroupInput("mn_models", "Models to analyse",
                            choices = mn_model_choices(), selected = unname(mn_model_choices()), inline = TRUE, width = "100%"),
-      selectInput("mn_samples", "Samples (also used by the downloads)", width = "100%", selected = (function(x) if (is.null(x)) "std" else x)(isolate(mn_settings())$samples), choices = c(
-        "Standard: 10,000 samples for the Bayes factors, 5,000 for the posterior" = "std",
-        "More: 100,000 and 20,000 (smaller Monte-Carlo error, slower)" = "more",
-        "Even more: 1,000,000 and 100,000 (can take a long time and uses a lot of the shared server)" = "max",
-        "Custom: the numbers under Advanced" = "custom")),
+      selectInput("mn_samples", "Samples (Bayes factors / posterior)", width = "100%", selected = (function(x) if (is.null(x)) "std" else x)(isolate(mn_settings())$samples), choices = c(
+        "Standard: 10,000 / 5,000 samples" = "std",
+        "More: 100,000 / 20,000 (slower)" = "more",
+        "Even more: 1,000,000 / 100,000 (very slow)" = "max",
+        "Custom (see Advanced)" = "custom")),
       tags$details(style = "margin:4px 0 8px 0;",
         tags$summary(style = "cursor:pointer; color:var(--fairy-primary); font-size:13px;", "Advanced: burn-in, prior, seed"),
         tags$div(style = "display:flex; flex-wrap:wrap; gap:12px; margin-top:6px;",
@@ -20135,7 +20154,7 @@ server <- shinyServer(function(input, output, session) {
           "The seed makes a run repeatable.")),
       tags$div(class = "fairy-mn-note",
         icon("triangle-exclamation"),
-        tags$span(tags$b("Runs on our shared server."), " Keep it small. For larger analyses download the files and run ", tags$code("analysis_multinomineq.R"), " on your own computer.")),
+        tags$span(tags$b("Shared server:"), " keep it small. Larger analyses: run ", tags$code("analysis_multinomineq.R"), " yourself.")),
       footer = tags$div(class = "mn-foot", style = "display:flex; gap:8px; justify-content:flex-end; width:100%;",
         modalButton("Cancel"),
         actionButton("mn_run", "Run analysis here", class = "btn-primary", title = "Runs on our shared server (best for small analyses). For larger ones, run the script from the download on your own computer."))))
@@ -20397,8 +20416,8 @@ server <- shinyServer(function(input, output, session) {
     page <- paste(readLines(file.path(d, "results.html"), warn = FALSE, encoding = "UTF-8"), collapse = "\n")
     showModal(modalDialog(
       title = "Results of the multinomineq analysis", size = "l", easyClose = TRUE, class = "fairy-form-modal",
-      tags$p(class = "fairy-eq-tol-help", HTML("The Bayes factors and the posterior were computed by the R package <a href='https://www.dwheck.de/software/multinomineq/' target='_blank' rel='noopener'>multinomineq</a> (Heck &amp; Davis-Stober, 2019). "),
-        "This ran on our shared server. For larger or repeated analyses, download the results below: the download contains the files and ", tags$code("analysis_multinomineq.R"), ", which you can run on your own computer."),
+      tags$p(class = "fairy-eq-tol-help", HTML("Computed with <a href='https://www.dwheck.de/software/multinomineq/' target='_blank' rel='noopener'>multinomineq</a> (Heck &amp; Davis-Stober, 2019) on our shared server. For larger or repeated analyses, download the results and run "),
+        tags$code("analysis_multinomineq.R"), " yourself."),
       # the page is put into the window itself (in a shadow root, so its styles stay apart from the app's): no frame to scroll in
       tags$textarea(id = "mn_results_src", style = "display:none;", page),
       tags$div(id = "mn_results_host"),
@@ -20516,7 +20535,7 @@ server <- shinyServer(function(input, output, session) {
     showModal(modalDialog(
       title = "Order of the probabilities (p1, p2, ...)",
       class = "fairy-form-modal",
-      tags$p(class = "fairy-eq-tol-help", "Left: the probability as ", tags$a(href = "https://regenwetterlab.web.illinois.edu/qtest/", target = "_blank", rel = "noopener", "QTEST"), " and ", tags$a(href = "https://www.dwheck.de/software/multinomineq/", target = "_blank", rel = "noopener", "multinomineq"), " will see it (p1, p2, ...). Right: which probability of the unpacked model it is. Drag a row (or type a position number) to change the matching."),
+      tags$p(class = "fairy-eq-tol-help", "Left: the probability as ", tags$a(href = "https://regenwetterlab.web.illinois.edu/qtest/", target = "_blank", rel = "noopener", "QTEST"), " and ", tags$a(href = "https://www.dwheck.de/software/multinomineq/", target = "_blank", rel = "noopener", "multinomineq"), " see it. Right: which probability of the unpacked model it is. Drag a row or type a number to reorder."),
       tags$details(style = "margin:0 0 12px 0;", tags$summary(style = "cursor:pointer; color:var(--fairy-primary); font-size:12.5px;", "Where does the order apply?"),
         tags$p(class = "fairy-eq-tol-help", style = "margin:6px 0 0 0;", "the QTEST downloads (H and V), the multinomineq download and the analysis you run here with Run analysis (one order for all of them), the typed input shown for this model, and the R script from Save R script (.R): it passes the order to fairy_write_qtest() as order = qtest_order, so the QTEST files written by R have the same order.")),
       tab_bar,
