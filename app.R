@@ -393,17 +393,21 @@ ui <- shinyUI(fluidPage(
         cursor: pointer; transition: background 0.2s; color: #d0d4e0; line-height: 1; padding: 0; }
       #tips-toggle:hover { background: rgba(255,255,255,0.22); }
       /* leave Fill window of the tutorial page: same round button as the two above, left of them, only while the page fills its window */
-      #fill-exit { display: none; position: fixed; top: 13px; right: 134px; z-index: 1035; background: rgba(255,255,255,0.10); border: none; border-radius: 999px;
+      #fill-exit, #fill-unload, #fill-switch { display: none; position: fixed; top: 13px; right: 134px; z-index: 1035; background: rgba(255,255,255,0.10); border: none; border-radius: 999px;
         width: 28px; height: 28px; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;
         cursor: pointer; transition: background 0.2s; color: #d0d4e0; line-height: 1; padding: 0; }
-      body.fairy-fill-window #fill-exit { display: flex; }
-      #fill-exit:hover { background: rgba(255,255,255,0.22); }
-      body:not(.dark-mode) #fill-exit { background: rgba(0,0,0,0.06); color: var(--fairy-text-muted); }
-      #fill-exit::after { content: attr(data-tip); position: absolute; top: 36px; right: 0; width: max-content; max-width: 220px;
+      body.fairy-fill-window #fill-exit, body.fairy-fill-window #fill-unload, body.fairy-fill-window #fill-switch { display: flex; }
+      #fill-unload { right: 170px; }
+      #fill-switch { right: 206px; }
+      #fill-switch .ico-full { display: none; } #fill-switch .ico-fill { display: block; }
+      body.fairy-mode-full #fill-switch .ico-full { display: block; } body.fairy-mode-full #fill-switch .ico-fill { display: none; }
+      #fill-exit:hover, #fill-unload:hover, #fill-switch:hover { background: rgba(255,255,255,0.22); }
+      body:not(.dark-mode) #fill-exit, body:not(.dark-mode) #fill-unload, body:not(.dark-mode) #fill-switch { background: rgba(0,0,0,0.06); color: var(--fairy-text-muted); }
+      #fill-exit::after, #fill-unload::after, #fill-switch::after { content: attr(data-tip); position: absolute; top: 36px; right: 0; width: max-content; max-width: 220px;
         padding: 6px 9px; border-radius: 8px; background: #1d2433; color: #fff; font-size: 12px; font-weight: 500; line-height: 1.3; text-align: left;
         box-shadow: 0 4px 14px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .12s ease; }
-      #fill-exit:hover::after, #fill-exit:focus-visible::after { opacity: 1; }
-      body.fairy-no-tips #fill-exit::after { display: none; }
+      #fill-exit:hover::after, #fill-exit:focus-visible::after, #fill-unload:hover::after, #fill-unload:focus-visible::after, #fill-switch:hover::after, #fill-switch:focus-visible::after { opacity: 1; }
+      body.fairy-no-tips #fill-exit::after, body.fairy-no-tips #fill-unload::after, body.fairy-no-tips #fill-switch::after { display: none; }
       body.fairy-no-tips #tips-toggle { text-decoration: line-through; opacity: .6; }
       /* the two round buttons in the header explain themselves at once, below the button (the page title tip comes late) */
       #dm-toggle::after, #tips-toggle::after { content: attr(data-tip); position: absolute; top: 36px; right: 0; width: max-content; max-width: 220px;
@@ -3021,10 +3025,15 @@ ui <- shinyUI(fluidPage(
       }
       /* the big Go under the models (Input page) */
       /* when the page is scrolled down, the Go stays in view below the navigation bar (the place at the top stays reserved) */
-      .fairy-go-inline { display: flex; justify-content: center; margin: 14px 0 6px; min-height: 48px; }
+      .fairy-go-inline { display: flex; justify-content: center; margin: 22px 0 10px; min-height: 48px; }
+      .fairy-go-inline.fairy-go-inline-bottom.pinned > .fairy-go-inline-btn { position: fixed; top: auto; bottom: 44px; left: 50%; transform: translateX(-50%); z-index: 1000; padding: 8px 30px; font-size: 19px; }
       .fairy-go-inline.pinned > .fairy-go-inline-btn { position: fixed; top: 52px; left: 50%; transform: translateX(-50%); z-index: 1000; padding: 8px 30px; font-size: 19px; }
-      .fairy-go-inline { align-items: center; gap: 12px 26px; flex-wrap: wrap; }
-      .fairy-go-inline .fairy-primary-controls { display: flex; align-items: center; gap: 10px 22px; flex-wrap: wrap; }
+      .fairy-go-inline { align-items: center; gap: 12px 14px; flex-wrap: wrap; }
+      .fairy-go-inline .fairy-primary-controls { display: flex; align-items: center; align-self: center; gap: 8px 14px; flex-wrap: wrap; margin: 0; }
+      .fairy-go-inline .fairy-primary-controls > *, .fairy-go-inline .fairy-primary-controls .fairy-share-wrap > * { margin-top: 0; margin-bottom: 0; }
+      .fairy-go-inline .fairy-toolbar-iconbtn, .fairy-go-inline .fairy-toolbar-fileinput .btn-file { width: 46px !important; height: 46px !important; min-width: 46px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+      .fairy-go-inline .fairy-toolbar-fileinput, .fairy-go-inline .fairy-toolbar-fileinput .shiny-input-container, .fairy-go-inline .fairy-toolbar-fileinput .input-group,
+      .fairy-go-inline .fairy-toolbar-fileinput .input-group-btn { display: inline-flex; align-items: center; margin: 0 !important; padding: 0; height: 46px !important; min-height: 0 !important; width: auto; }
       .fairy-go-inline .fairy-primary-controls .shiny-input-container, .fairy-go-inline .fairy-primary-controls .form-group { margin-bottom: 0; }
       .fairy-go-inline .fairy-primary-controls .fairy-fab-action-row { position: static; display: flex; align-items: center; gap: 6px; }
       .fairy-go-inline .fairy-primary-controls .fairy-toolbar-fileinput { display: inline-block; }
@@ -6711,6 +6720,7 @@ ui <- shinyUI(fluidPage(
                  document.body.classList.toggle('fairy-fill-window', !!e.data.on);
                  var fb = document.getElementById('fill-exit'), what = e.data.mode === 'full' ? 'fullscreen' : 'Fill window';
                  if (fb) { fb.setAttribute('data-tip', 'Leave ' + what + ' (Esc)'); fb.setAttribute('aria-label', 'Leave ' + what); }
+                 fairyMode(e.data.mode);
                  return;
                }
                if (e.data.type !== 'fairy-theme') return;
@@ -6719,6 +6729,7 @@ ui <- shinyUI(fluidPage(
                  document.body.classList.toggle('fairy-fill-window', !!e.data.fill);
                  var fb2 = document.getElementById('fill-exit'), what2 = e.data.mode === 'full' ? 'fullscreen' : 'Fill window';
                  if (fb2) { fb2.setAttribute('data-tip', 'Leave ' + what2 + ' (Esc)'); fb2.setAttribute('aria-label', 'Leave ' + what2); }
+                 fairyMode(e.data.mode);
                }
                if (!!e.data.dark !== document.body.classList.contains('dark-mode')) setDark(!!e.data.dark, false);
              });
@@ -6728,6 +6739,16 @@ ui <- shinyUI(fluidPage(
              });
              var fx = document.getElementById('fill-exit');
              if (fx) fx.addEventListener('click', function() { try { window.parent.postMessage({ type: 'fairy-exit-fill' }, 'https://modeling-for-everyone.eu'); } catch (e) {} });
+             // the button next to the exit: in Fill window it goes to full screen, in full screen it goes to Fill window
+             function fairyMode(m) {
+               var full = m === 'full', sw = document.getElementById('fill-switch');
+               document.body.classList.toggle('fairy-mode-full', full);
+               if (sw) { sw.setAttribute('data-tip', full ? 'Fill the whole window instead' : 'Show the app in full screen instead'); sw.setAttribute('aria-label', sw.getAttribute('data-tip')); }
+             }
+             var fsw = document.getElementById('fill-switch');
+             if (fsw) fsw.addEventListener('click', function() { try { window.parent.postMessage({ type: 'fairy-switch-mode', to: document.body.classList.contains('fairy-mode-full') ? 'fill' : 'full' }, 'https://modeling-for-everyone.eu'); } catch (e) {} });
+             var fu = document.getElementById('fill-unload');
+             if (fu) fu.addEventListener('click', function() { try { window.parent.postMessage({ type: 'fairy-unload' }, 'https://modeling-for-everyone.eu'); } catch (e) {} });
              try { window.parent.postMessage({ type: 'fairy-app-ready' }, 'https://modeling-for-everyone.eu'); } catch (e) {}
            }
          });
@@ -6810,6 +6831,10 @@ ui <- shinyUI(fluidPage(
   tags$button(id = "tips-toggle", `data-tip` = "Tooltips and hover hints: click to hide them", `aria-label` = "Show or hide tooltips", "?"),
   # only shown when the tutorial page has enlarged the app to its whole window ("Fill window"); the click is passed to the page
   tags$button(id = "fill-exit", `data-tip` = "Leave Fill window (Esc)", `aria-label` = "Leave Fill window", "\u2715"),
+  tags$button(id = "fill-switch", `data-tip` = "Show the app in full screen instead", `aria-label` = "Switch between Fill window and full screen",
+    HTML("<svg class='ico-fill' width='14' height='14' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4'/></svg><svg class='ico-full' width='14' height='14' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M9.5 2H14v4.5M14 2L9 7M6.5 14H2V9.5M2 14l5-5'/></svg>")),
+  tags$button(id = "fill-unload", `data-tip` = "Unload app: leave the window and free the server", `aria-label` = "Unload app",
+    HTML("<svg width='14' height='14' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'><path d='M8 1.5v6'/><path d='M4.2 3.9a5.5 5.5 0 1 0 7.6 0'/></svg>")),
   # Quiet loading screen: the page shell arrives long before the server has
   # rendered the model rows (cold start, or a busy R process), which left a
   # half-empty Input tab. Shown from the first paint, removed on the first
@@ -6997,13 +7022,6 @@ ui <- shinyUI(fluidPage(
         ),
         div(
           class = "model-def-panel",
-          # a big Go at the top of the page (the one in the floating panel in the lower right corner is easy to miss)
-          tags$div(class = "fairy-go-inline", style = "margin-top:0;",
-            tags$button(id = "go_inline", type = "button", class = "btn fairy-go-inline-btn",
-              onclick = "var g = document.getElementById('go_v_h'); if (g) g.click();",
-              icon("play"), tags$span("Go"),
-              tags$small("calculate the models")),
-            tags$script(HTML("(function() { function pin() { [].forEach.call(document.querySelectorAll('.fairy-go-inline'), function(d) { if (d.offsetParent === null) return; d.classList.toggle('pinned', d.getBoundingClientRect().top < 48); }); } window.addEventListener('scroll', pin, true); window.addEventListener('resize', pin); setInterval(pin, 400); })();"))),
           # Probabilities as a horizontal header above the model rows,
           # rather than their own narrow leftmost column — frees up that
           # width for Model Name / Unique Model Specification / Model
@@ -7143,7 +7161,14 @@ ui <- shinyUI(fluidPage(
                 tags$td(style = "vertical-align:top; padding:6px;", uiOutput("textbox_ui_rel", class = "def-col")),
                 tags$td(style = "vertical-align:top; padding:6px;", uiOutput("textbox_ui_rel_complete", class = "def-col"))
               )
-            )
+            ),
+          # a big Go below the models (the end of the way: things are entered from top to bottom); when this place is not on the screen it stays at the bottom edge of the window
+          tags$div(class = "fairy-go-inline fairy-go-inline-bottom",
+            tags$button(id = "go_inline", type = "button", class = "btn fairy-go-inline-btn",
+              onclick = "var g = document.getElementById('go_v_h'); if (g) g.click();",
+              icon("play"), tags$span("Go"),
+              tags$small("calculate the models")),
+            tags$script(HTML("(function() { function pin() { [].forEach.call(document.querySelectorAll('.fairy-go-inline'), function(d) { if (d.offsetParent === null) return; var t = d.getBoundingClientRect().top; d.classList.toggle('pinned', d.classList.contains('fairy-go-inline-bottom') ? t > window.innerHeight - 70 : t < 48); }); } window.addEventListener('scroll', pin, true); window.addEventListener('resize', pin); setInterval(pin, 400); })();")))
           )
         )
       )
