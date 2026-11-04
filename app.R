@@ -7401,7 +7401,7 @@ ui <- shinyUI(fluidPage(
             tags$button(id = "go_inline", type = "button", class = "btn fairy-go-inline-btn",
               onclick = "var g = document.getElementById('go_v_h'); if (g) g.click();",
               icon("play"), tags$span("Go"),
-              tags$small("calculate the models")),
+              tags$small("Build and analyze the models")),
             tags$script(HTML("(function() { function pin() { [].forEach.call(document.querySelectorAll('.fairy-go-inline'), function(d) { if (d.offsetParent === null) return; var t = d.getBoundingClientRect().top; d.classList.toggle('pinned', d.classList.contains('fairy-go-inline-bottom') ? t > window.innerHeight - 70 : t < 48); }); } window.addEventListener('scroll', pin, true); window.addEventListener('resize', pin); setInterval(pin, 400); })();")))
           )
         )
