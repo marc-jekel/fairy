@@ -1291,6 +1291,11 @@ ui <- shinyUI(fluidPage(
       body.fairy-compact-models #textbox_ui_name_rel { min-width: 240px; }
       body.fairy-compact-models td:has(> #textbox_ui_name_rel) { width: 260px !important; min-width: 260px; }
       body.fairy-compact-models td:has(> #textbox_ui_rel) { width: 100% !important; }
+      /* the shared specification (it stands in the third column of the first table row) gets a full-width line of its own */
+      body.fairy-compact-models table:has(#add_for_all_models) > tbody > tr:first-child { display: block; }
+      body.fairy-compact-models table:has(#add_for_all_models) > tbody > tr:first-child > td:nth-child(-n+2) { display: none; }
+      body.fairy-compact-models table:has(#add_for_all_models) > tbody > tr:first-child > td:nth-child(3) { display: block; width: 100% !important; padding: 0 6px 46px !important; }   /* room for the V switches that float above the first model */
+      body.fairy-compact-models #add_for_all_models { height: 38px !important; min-height: 0; }
       body.fairy-compact-models table:has(#textbox_ui_name_rel) { table-layout: auto !important; width: 100% !important; }
       /* radical: the read-only third column (the parsed text) goes away; every model is one line */
       body.fairy-compact-models td:has(> #textbox_ui_rel_complete), body.fairy-compact-models #textbox_ui_rel_complete { display: none !important; }
