@@ -891,14 +891,6 @@ ui <- shinyUI(fluidPage(
       #fairy-ov-par:empty, #fairy-ov-items:empty { display: none !important; }
       #fairy-ov-par button, #fairy-ov-items button { width: 28px; height: 24px; padding: 0 4px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-bottom-width: 4px; border-radius: 5px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
       #fairy-ov-par button.off, #fairy-ov-items button.off { opacity: .35; filter: grayscale(1); }
-      #fairy-ov-items button[data-item='1'] { border-bottom-color: #0ea5e9; }
-      #fairy-ov-items button[data-item='2'] { border-bottom-color: #f59e0b; }
-      #fairy-ov-items button[data-item='3'] { border-bottom-color: #10b981; }
-      #fairy-ov-items button[data-item='4'] { border-bottom-color: #ec4899; }
-      #fairy-ov-items button[data-item='5'] { border-bottom-color: #8b5cf6; }
-      #fairy-ov-items button[data-item='6'] { border-bottom-color: #64748b; }
-      #fairy-ov-items button[data-item='7'] { border-bottom-color: #84cc16; }
-      #fairy-ov-items button[data-item='8'] { border-bottom-color: #f97316; }
       #h_par_chips { display: none; grid-template-columns: repeat(4, 28px); gap: 5px; justify-content: center; margin: 6px auto 0; }
       body.fairy-par-focus #h_par_chips { display: grid; }
       #h_par_chips button { width: 28px; height: 24px; padding: 0 4px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-bottom-width: 4px; border-radius: 5px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
@@ -919,23 +911,22 @@ ui <- shinyUI(fluidPage(
       body.fairy-items-focus #h_items_chips { display: grid; }
       #h_items_chips button { width: 28px; height: 24px; padding: 0 4px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-bottom-width: 4px; border-radius: 5px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
       #h_items_chips button.off { opacity: .35; filter: grayscale(1); }
-      #h_items_chips button[data-item='1'] { border-bottom-color: #0ea5e9; }
-      #h_items_chips button[data-item='2'] { border-bottom-color: #f59e0b; }
-      #h_items_chips button[data-item='3'] { border-bottom-color: #10b981; }
-      #h_items_chips button[data-item='4'] { border-bottom-color: #ec4899; }
-      #h_items_chips button[data-item='5'] { border-bottom-color: #8b5cf6; }
-      #h_items_chips button[data-item='6'] { border-bottom-color: #64748b; }
-      #h_items_chips button[data-item='7'] { border-bottom-color: #84cc16; }
-      #h_items_chips button[data-item='8'] { border-bottom-color: #f97316; }
       .fairy-iw { display: inline-block; vertical-align: middle; padding: 2px 4px 1px; line-height: 1.35; border-bottom: 4px solid transparent; border-radius: 2px; }
-      body.fairy-items-on .fairy-iw[data-item='1'] { border-bottom-color: #0ea5e9; }
-      body.fairy-items-on .fairy-iw[data-item='2'] { border-bottom-color: #f59e0b; }
-      body.fairy-items-on .fairy-iw[data-item='3'] { border-bottom-color: #10b981; }
-      body.fairy-items-on .fairy-iw[data-item='4'] { border-bottom-color: #ec4899; }
-      body.fairy-items-on .fairy-iw[data-item='5'] { border-bottom-color: #8b5cf6; }
-      body.fairy-items-on .fairy-iw[data-item='6'] { border-bottom-color: #64748b; }
-      body.fairy-items-on .fairy-iw[data-item='7'] { border-bottom-color: #84cc16; }
-      body.fairy-items-on .fairy-iw[data-item='8'] { border-bottom-color: #f97316; }
+      /* Items: each item has a line of its own style below its terms (solid, dashed, dotted, double, ...), in the colour of the parameter if
+         that is switched on: one colour system (the parameters), the items as a pattern */
+      .fairy-iw, .fairy-itchip { --bar: currentColor; position: relative; }
+      #outP[data-h-color='on'] .fairy-iw, #fairy-card-overlay-content[data-h-color='on'] .fairy-iw { --bar: var(--pc); }
+      .fairy-iw::after { content: none; position: absolute; left: 3px; right: 3px; bottom: 0; height: 4px; pointer-events: none; }
+      body.fairy-items-on .fairy-iw::after { content: ''; }
+      .fairy-itchip::after { content: ''; position: absolute; left: 4px; right: 4px; bottom: -3px; height: 4px; pointer-events: none; }
+      .fairy-iw[data-item='1']::after, .fairy-itchip[data-item='1']::after { background: linear-gradient(var(--bar), var(--bar)) left bottom / 100% 3px no-repeat; }
+      .fairy-iw[data-item='2']::after, .fairy-itchip[data-item='2']::after { background: linear-gradient(90deg, var(--bar) 62%, transparent 0) left bottom / 12px 3px repeat-x; }
+      .fairy-iw[data-item='3']::after, .fairy-itchip[data-item='3']::after { background: radial-gradient(circle, var(--bar) 55%, transparent 62%) left bottom / 6px 4px repeat-x; }
+      .fairy-iw[data-item='4']::after, .fairy-itchip[data-item='4']::after { background: linear-gradient(var(--bar), var(--bar)) left top / 100% 1px no-repeat, linear-gradient(var(--bar), var(--bar)) left bottom / 100% 1px no-repeat; }
+      .fairy-iw[data-item='5']::after, .fairy-itchip[data-item='5']::after { background: linear-gradient(90deg, var(--bar) 55%, transparent 0 68%, var(--bar) 68% 80%, transparent 0) left bottom / 18px 3px repeat-x; }
+      .fairy-iw[data-item='6']::after, .fairy-itchip[data-item='6']::after { background: linear-gradient(var(--bar), var(--bar)) left top / 100% 2px no-repeat, linear-gradient(var(--bar), var(--bar)) left bottom / 100% 1px no-repeat; }
+      .fairy-iw[data-item='7']::after, .fairy-itchip[data-item='7']::after { background: linear-gradient(90deg, var(--bar) 85%, transparent 0) left bottom / 26px 3px repeat-x; }
+      .fairy-iw[data-item='8']::after, .fairy-itchip[data-item='8']::after { background: repeating-linear-gradient(90deg, var(--bar) 0 2px, transparent 2px 4px) left bottom / 100% 4px no-repeat; }
       #outP[data-h-view='aligned-color'] .fairy-h-aligned-plain-table,
       #outP[data-h-view='compact'] .fairy-h-aligned-plain-table,
       #outP[data-h-view='compact-color'] .fairy-h-aligned-plain-table { display: none !important; }
@@ -7601,7 +7592,7 @@ ui <- shinyUI(fluidPage(
           ks.forEach(function(k) {
             var b = document.createElement("button"); b.type = "button"; b.setAttribute("data-item", k); b.textContent = k;
             b.title = "Item " + k + ": click to grey out or bring back";
-            if (g.indexOf(k) !== -1) b.className = "off";
+            b.className = g.indexOf(k) !== -1 ? "fairy-itchip off" : "fairy-itchip";
             b.addEventListener("click", function() { fairyEnsureMode("items"); fairyGrayToggle(k); });
             host.appendChild(b);
           });
@@ -17567,7 +17558,7 @@ server <- shinyServer(function(input, output, session) {
           item_wrap <- function(j, inner) {
             m <- regmatches(p_names_lt[j], regexec("\\^\\{\\((?:.*,)?([0-9]+)\\)\\}$", p_names_lt[j], perl = TRUE))[[1]]
             if (length(m) != 2) return(inner)
-            paste0('<span class="fairy-iw" data-item="', ((as.integer(m[2]) - 1L) %% 8L) + 1L, '">', inner, '</span>')
+            paste0('<span class="fairy-iw" data-item="', ((as.integer(m[2]) - 1L) %% 8L) + 1L, '" style="--pc:', col_color[j], ';">', inner, '</span>')
           }
           # the colour of the parameter only travels with the term (--pc); whether it shows is a switch in the CSS, so switching the
           # colour on or off changes nothing in the size or the place of anything
