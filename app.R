@@ -3074,7 +3074,7 @@ ui <- shinyUI(fluidPage(
       /* Parsimony: Go on top, below it one tidy row: the two main switches, the algorithms (side by side) and the settings */
       .fairy-go-inline-stack { flex-direction: column; gap: 10px; }
       .fairy-pars-hint { flex: 1 1 100%; order: 10; text-align: center; text-wrap: balance; font-size: 12px; line-height: 1.5; color: var(--fairy-text-muted, #667085); max-width: 680px; margin: 2px auto 0; }
-      body.fairy-no-tips .fairy-pars-hint { display: none; }
+      body.fairy-no-tips .fairy-pars-hint, body.fairy-no-tips .fairy-pars-placeholder { display: none; }
       .fairy-go-inline-stack .fairy-primary-controls { justify-content: center; gap: 6px 26px; }
       .fairy-go-inline .fairy-primary-controls .shiny-input-container { width: auto !important; min-width: 0 !important; }
       .fairy-go-inline .fairy-primary-controls > span.fairy-tooltip { display: inline-block !important; }
@@ -9208,6 +9208,7 @@ server <- shinyServer(function(input, output, session) {
     # that it does would just be misleading. Plain equivalent styling
     # instead, and a real icon() instead of an emoji glyph.
     div(
+      class = "fairy-pars-placeholder",
       style = paste(
         "text-align:center; padding:28px 20px; color:#777;",
         "background-color: var(--fairy-panel); border: 1px solid var(--fairy-border);",
