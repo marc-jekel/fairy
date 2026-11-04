@@ -878,16 +878,17 @@ ui <- shinyUI(fluidPage(
          .fairy-h-aligned-plain-table/-color-table and .fairy-h-packed-
          plain-table/-color-table below); only this value decides which
          one shows, so switching is instant either toggle is used. */
-      /* Items: the terms of one item of an unpacked model get a soft background of their own colour (switched on with the Items buttons) */
-      .fairy-iw { border-radius: 6px; padding: 1px 3px; }
-      body.fairy-items-on .fairy-iw[data-item='1'] { background: rgba(14,165,233,.22); }
-      body.fairy-items-on .fairy-iw[data-item='2'] { background: rgba(245,158,11,.25); }
-      body.fairy-items-on .fairy-iw[data-item='3'] { background: rgba(16,185,129,.22); }
-      body.fairy-items-on .fairy-iw[data-item='4'] { background: rgba(236,72,153,.20); }
-      body.fairy-items-on .fairy-iw[data-item='5'] { background: rgba(139,92,246,.22); }
-      body.fairy-items-on .fairy-iw[data-item='6'] { background: rgba(100,116,139,.25); }
-      body.fairy-items-on .fairy-iw[data-item='7'] { background: rgba(132,204,22,.28); }
-      body.fairy-items-on .fairy-iw[data-item='8'] { background: rgba(249,115,22,.22); }
+      /* Items: the terms of one item of an unpacked model get a coloured bar below them (switched on with the Items buttons): a separate channel from the colour of the text */
+      .fairy-hidden-group { display: none !important; }
+      .fairy-iw { display: inline-block; vertical-align: middle; padding: 2px 4px 1px; line-height: 1.35; border-bottom: 4px solid transparent; border-radius: 2px; }
+      body.fairy-items-on .fairy-iw[data-item='1'] { border-bottom-color: #0ea5e9; }
+      body.fairy-items-on .fairy-iw[data-item='2'] { border-bottom-color: #f59e0b; }
+      body.fairy-items-on .fairy-iw[data-item='3'] { border-bottom-color: #10b981; }
+      body.fairy-items-on .fairy-iw[data-item='4'] { border-bottom-color: #ec4899; }
+      body.fairy-items-on .fairy-iw[data-item='5'] { border-bottom-color: #8b5cf6; }
+      body.fairy-items-on .fairy-iw[data-item='6'] { border-bottom-color: #64748b; }
+      body.fairy-items-on .fairy-iw[data-item='7'] { border-bottom-color: #84cc16; }
+      body.fairy-items-on .fairy-iw[data-item='8'] { border-bottom-color: #f97316; }
       #outP[data-h-view='aligned-color'] .fairy-h-aligned-plain-table,
       #outP[data-h-view='compact'] .fairy-h-aligned-plain-table,
       #outP[data-h-view='compact-color'] .fairy-h-aligned-plain-table { display: none !important; }
@@ -7411,7 +7412,7 @@ ui <- shinyUI(fluidPage(
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Color terms by parameter", `data-state` = "on", icon("droplet"))
           ),
           # the items of unpacked models: terms of the same item share a background colour (independent of the colour above)
-          tags$div(class = "fairy-segmented", id = "h_items_toggle_group", `data-cap` = "Items",
+          tags$div(class = "fairy-segmented fairy-hidden-group", id = "h_items_toggle_group", `data-cap` = "Items",
             tags$button(type = "button", class = "active fairy-tooltip", `data-tooltip` = "Items not marked", `data-state` = "off", icon("ban")),
             tags$button(type = "button", class = "fairy-tooltip", `data-tooltip` = "Mark the items of unpacked models with a background colour (item 1, item 2, ...)", `data-state` = "on", icon("highlighter"))
           ),
@@ -7530,6 +7531,12 @@ ui <- shinyUI(fluidPage(
           $(this).parent().find("button").removeClass("active");
           $(this).addClass("active");
           document.body.classList.toggle("fairy-items-on", $(this).data("state") === "on");
+          // the rows get a little taller (bar below): the cards measure their tables again, as after a change of layout
+          document.querySelectorAll(".fairy-h-table-scroll").forEach(function(scrollWrap) {
+            scrollWrap.style.height = "";
+            scrollWrap.querySelectorAll("table").forEach(function(t) { t.style.transform = "none"; });
+          });
+          if (window.fitHTablesToWidth) window.fitHTablesToWidth();
         });
         $("#h_layout_toggle_group button, #h_color_toggle_group button").click(function(){
           var group = $(this).parent();
@@ -11737,6 +11744,11 @@ server <- shinyServer(function(input, output, session) {
       enable("go"); enable("go_inline_pars")
       runjs("document.getElementById('go').setAttribute('data-tooltip', 'Compute parsimony (⌘/Ctrl+Enter)');")
     }
+  })
+
+  # the Items buttons (H-representation) only exist for unpacked models
+  observe({
+    shinyjs::toggleClass(id = "h_items_toggle_group", class = "fairy-hidden-group", condition = length(items_reactive$names) == 0)
   })
 
   # Stale results no longer render a separate badge — Go/Compute itself
