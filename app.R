@@ -3095,6 +3095,12 @@ ui <- shinyUI(fluidPage(
         box-shadow: 0 2px 10px color-mix(in srgb, var(--fairy-primary, #3a6df0) 40%, transparent);
       }
       .fairy-go-inline-btn:hover, .fairy-go-inline-btn:focus { filter: brightness(1.08); color: #fff; }
+      /* stale results: the big Go only glows (no growing: it would cover the buttons next to it, and the pinned Go is centred by a transform) */
+      @keyframes fairyGoGlow {
+        0%, 100% { filter: drop-shadow(0 0 5px rgba(217, 119, 6, 1)) drop-shadow(0 0 14px rgba(217, 119, 6, 0.5)); }
+        50% { filter: drop-shadow(0 0 2px rgba(217, 119, 6, 0.55)) drop-shadow(0 0 20px rgba(217, 119, 6, 0.18)); }
+      }
+      .fairy-go-inline-btn.fairy-stale-blink { animation: fairyGoGlow 0.9s ease-in-out 5; animation-fill-mode: forwards; }
       .fairy-go-inline-btn:disabled, .fairy-go-inline-btn[disabled] { opacity: .45; box-shadow: none; cursor: not-allowed; }
       .fairy-go-inline-btn small { font-size: 12.5px; font-weight: 500; opacity: .85; }
       /* Generic 'just appeared' attention pulse — shared by every
