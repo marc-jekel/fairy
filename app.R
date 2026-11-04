@@ -3021,6 +3021,11 @@ ui <- shinyUI(fluidPage(
       /* when the page is scrolled down, the Go stays in view below the navigation bar (the place at the top stays reserved) */
       .fairy-go-inline { display: flex; justify-content: center; margin: 14px 0 6px; min-height: 48px; }
       .fairy-go-inline.pinned > .fairy-go-inline-btn { position: fixed; top: 52px; left: 50%; transform: translateX(-50%); z-index: 1000; padding: 8px 30px; font-size: 19px; }
+      .fairy-go-inline { align-items: center; gap: 12px 26px; flex-wrap: wrap; }
+      .fairy-go-inline .fairy-primary-controls { display: flex; align-items: center; gap: 10px 22px; flex-wrap: wrap; }
+      .fairy-go-inline .fairy-primary-controls .shiny-input-container, .fairy-go-inline .fairy-primary-controls .form-group { margin-bottom: 0; }
+      .fairy-go-inline .fairy-primary-controls .fairy-fab-action-row { position: static; display: flex; align-items: center; gap: 6px; }
+      .fairy-go-inline .fairy-primary-controls .fairy-toolbar-fileinput { display: inline-block; }
       .fairy-go-inline-btn {
         display: inline-flex; align-items: baseline; gap: 10px; padding: 12px 38px; border-radius: 14px; border: 0;
         font-size: 22px; font-weight: 700; line-height: 1.1;
@@ -4048,7 +4053,7 @@ ui <- shinyUI(fluidPage(
           var openModal = document.querySelector('.modal.in, .modal.show');
           var btn = openModal
             ? openModal.querySelector('.bttn-primary')
-            : document.querySelector('.fairy-primary-action');
+            : (document.querySelector('.tab-pane.active .fairy-primary-action') || document.querySelector('.fairy-primary-action'));
           if (!btn || btn.disabled || btn.classList.contains('disabled')) return;
           e.preventDefault();
           // A programmatic .click() fires the click event fine, but
@@ -4156,6 +4161,17 @@ ui <- shinyUI(fluidPage(
           if (!hiddenState && !forceFloat) return;
           var btn = pane ? pane.querySelector('.fairy-primary-action') : null;
           if (!btn) return;
+          // Input and Parsimony: no floating panel. The controls (Share/Upload, the switches, the settings) stand in one row
+          // next to the big Go at the top of the page; the small Go stays in its hidden place and is clicked by the big one
+          var inlineHost = forceFloat ? pane.querySelector('.fairy-go-inline') : null;
+          if (inlineHost) {
+            var ctl = pane.querySelector('.fairy-primary-controls');
+            if (ctl) {
+              homed = [{ node: ctl, parent: ctl.parentNode, next: ctl.nextSibling }];
+              inlineHost.appendChild(ctl);
+            }
+            return;
+          }
           homed = [];
           // Flow content (Parsimony's switches+Download, Input's
           // Download/Upload) — shown only on hover/focus (see the CSS),
@@ -9116,12 +9132,11 @@ server <- shinyServer(function(input, output, session) {
       ),
       icon("chart-column", style = "font-size:28px; color:var(--fairy-text-muted);"),
       p(style = "margin:10px 0 0 0; font-size:13.5px;",
-        "No results yet. Hover the floating panel in the lower right — Cooling Bodies is preselected — and click ",
-        strong("Go"), " (or press ⌘/Ctrl+Enter) to see volumes here."
+        "No results yet. Click ", strong("Go"), " above (or press ⌘/Ctrl+Enter) to see volumes here."
       ),
       p(style = "margin:6px 0 0 0; font-size:12.5px;",
-        "In the same panel you can also switch on Cooling Gaussian or Sequence of Balls, ",
-        "and adjust the algorithm settings (gear icon) before you start."
+        "Next to Go you can switch the exact volume and the algorithms on or off (switch on Algorithms to choose Cooling Bodies, ",
+        "Cooling Gaussian or Sequence of Balls), and adjust the algorithm settings (gear icon) before you start."
       )
     )
   })
