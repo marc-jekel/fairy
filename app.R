@@ -3059,7 +3059,7 @@ ui <- shinyUI(fluidPage(
       .fairy-go-inline { display: flex; justify-content: center; margin: 22px 0 10px; min-height: 48px; }
       .fairy-go-inline.fairy-go-inline-bottom.pinned > .fairy-go-inline-btn { position: fixed; top: auto; bottom: 44px; left: 50%; transform: translateX(-50%); z-index: 1000; padding: 8px 30px; font-size: 19px; }
       .fairy-go-inline.pinned > .fairy-go-inline-btn { position: fixed; top: 52px; left: 50%; transform: translateX(-50%); z-index: 1000; padding: 8px 30px; font-size: 19px; }
-      .fairy-go-inline { align-items: center; gap: 12px 14px; flex-wrap: wrap; }
+      .fairy-go-inline { align-items: center; gap: 12px 20px; flex-wrap: wrap; }
       .fairy-go-inline .fairy-primary-controls { display: flex; align-items: center; align-self: center; gap: 8px 14px; flex-wrap: wrap; margin: 0; }
       .fairy-go-inline .fairy-primary-controls > *, .fairy-go-inline .fairy-primary-controls .fairy-share-wrap > * { margin-top: 0; margin-bottom: 0; }
       .fairy-go-inline .fairy-toolbar-iconbtn, .fairy-go-inline .fairy-toolbar-fileinput .btn-file { width: 46px !important; height: 46px !important; min-width: 46px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
@@ -3099,10 +3099,11 @@ ui <- shinyUI(fluidPage(
         box-shadow: 0 2px 10px color-mix(in srgb, var(--fairy-primary, #3a6df0) 40%, transparent);
       }
       .fairy-go-inline-btn:hover, .fairy-go-inline-btn:focus { filter: brightness(1.08); color: #fff; }
-      /* stale results: the big Go only glows (no growing: it would cover the buttons next to it, and the pinned Go is centred by a transform) */
+      /* stale results: the big Go grows a little and glows. The growth uses the scale property (it adds to the transform of the pinned Go, which is
+         centred by a transform) and stays small, so it does not reach the buttons next to it (gap 14px) */
       @keyframes fairyGoGlow {
-        0%, 100% { filter: drop-shadow(0 0 5px rgba(217, 119, 6, 1)) drop-shadow(0 0 14px rgba(217, 119, 6, 0.5)); }
-        50% { filter: drop-shadow(0 0 2px rgba(217, 119, 6, 0.55)) drop-shadow(0 0 20px rgba(217, 119, 6, 0.18)); }
+        0%, 100% { scale: 1.04; filter: drop-shadow(0 0 6px rgba(217, 119, 6, 1)) drop-shadow(0 0 14px rgba(217, 119, 6, 0.5)); }
+        50% { scale: 1.07; filter: drop-shadow(0 0 2px rgba(217, 119, 6, 0.55)) drop-shadow(0 0 20px rgba(217, 119, 6, 0.18)); }
       }
       .fairy-go-inline-btn.fairy-stale-blink { animation: fairyGoGlow 0.9s ease-in-out 5; animation-fill-mode: forwards; }
       .fairy-go-inline-btn:disabled, .fairy-go-inline-btn[disabled] { opacity: .45; box-shadow: none; cursor: not-allowed; }
