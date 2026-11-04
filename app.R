@@ -13476,6 +13476,42 @@ server <- shinyServer(function(input, output, session) {
     NULL
   }
 
+  # The default order of the probabilities of an unpacked model, the same for every model: first by probability (p1, p2, ... of the
+  # input), then by item. The model itself is built differently (not repeated probabilities first, then item by item), so without
+  # this the same probability would sit at a different place in different unpacked models. NULL when it cannot be told.
+  items_canonical_perm <- function(nm) {
+    n <- isolate(counter_input$n)
+    for (i in seq_len(n)) {
+      nmi <- isolate(input[[paste0("textin_relations_name", i)]]) %||% paste0("m", i)
+      if (!identical(nmi, nm)) next
+      idx <- isolate(item_model_spec_idx$value[[as.character(i)]]); specs <- isolate(mytable_items_reactive$value)
+      if (is.null(idx) || is.null(specs) || idx > length(specs)) return(NULL)
+      spec <- specs[[idx]]; hb <- isolate(h_reactive[[spec$base]]); h <- isolate(h_reactive[[nm]])
+      if (is.null(hb) || is.null(h) || is.null(spec$factors)) return(NULL)
+      pf <- as.integer(spec$param_factors[colnames(hb)[-(1:2)]]); pf[is.na(pf)] <- 0L
+      par <- which(pf == 0L); lev <- rep(0L, length(par))
+      for (f in seq_along(spec$factors)) {
+        idx_f <- which(pf == f)
+        if (length(idx_f) == 0) next
+        for (l in seq_len(spec$factors[[f]]$n)) { par <- c(par, idx_f); lev <- c(lev, rep(l, length(idx_f))) }
+      }
+      if (length(par) != ncol(h) - 2L) return(NULL)
+      return(order(par, lev))
+    }
+    NULL
+  }
+  # every unpacked model without an order of its own gets the default order
+  observe({
+    nms <- items_reactive$names
+    for (nm in nms) h_reactive[[nm]]
+    isolate({
+      for (nm in nms) {
+        if (!is.null(qtest_perm$map[[nm]])) next
+        pm <- items_canonical_perm(nm)
+        if (!is.null(pm) && !identical(as.integer(pm), seq_along(pm))) qtest_perm$map[[nm]] <- as.integer(pm)
+      }
+    })
+  })
   # Card title: "m1 [long description of the unpacking]" -> the description goes onto a small second line of its own;
   # the text content stays exactly the full name (the cards are ordered and sized by it).
   card_title_html <- function(nm) {
@@ -20750,6 +20786,10 @@ server <- shinyServer(function(input, output, session) {
   })
   observeEvent(input$qtest_order_reset, {
     qtest_perm$map <- list()
+    for (nm in isolate(items_reactive$names)) {
+      pm <- items_canonical_perm(nm)
+      if (!is.null(pm) && !identical(as.integer(pm), seq_along(pm))) qtest_perm$map[[nm]] <- as.integer(pm)
+    }
   })
 
   output$d_h <- downloadHandler(
