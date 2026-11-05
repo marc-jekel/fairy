@@ -14186,13 +14186,34 @@ server <- shinyServer(function(input, output, session) {
     out
   }
   # the "Volume by model" chart as a PDF (vector graphic), drawn with base graphics: same bars, colours and axis as on the screen
+  # extra last page of the PDFs written by the app: the link that recreates the input, as text and as a QR code
+  pdf_link_page <- function(w, h) {
+    url <- tryCatch(isolate(app_share_url()), error = function(e) NULL)
+    if (is.null(url) || !nzchar(url)) return(invisible(FALSE))
+    graphics::par(mar = c(0, 0, 0, 0), mai = c(0, 0, 0, 0)); graphics::plot.new(); graphics::plot.window(c(0, w), c(0, h), xaxs = "i", yaxs = "i")
+    y <- h - 0.5
+    graphics::text(0.4, y, "Recreate this input", adj = c(0, 0.5), font = 2, cex = 1.2); y <- y - 0.3
+    intro <- paste(strwrap("This link opens the Fairy app with the probabilities, models and settings used here. Everything is stored in the link itself (nothing is saved on a server). Copy it into a browser, or scan the QR code.", 100), collapse = "\n")
+    graphics::text(0.4, y, intro, adj = c(0, 1), cex = 0.7, col = "grey30"); y <- y - 0.55
+    chunks <- substring(url, seq(1, nchar(url), 95), pmin(seq(95, nchar(url) + 94, 95), nchar(url)))
+    for (ch in chunks) { graphics::text(0.4, y, ch, adj = c(0, 0.5), cex = 0.42); y <- y - 0.12 }
+    y <- y - 0.15
+    qr <- tryCatch(if (requireNamespace("qrcode", quietly = TRUE) && nchar(url) < 2300) as.matrix(qrcode::qr_code(url, ecl = "L")) else NULL, error = function(e) NULL)
+    if (is.null(qr)) { graphics::text(0.4, y, "(The link is too long for a QR code.)", adj = c(0, 0.5), cex = 0.6, col = "grey30"); return(invisible(TRUE)) }
+    n <- nrow(qr); sz <- min(3.6, y - 0.3); cw <- sz / n
+    for (i in seq_len(n)) for (j in seq_len(n)) if (isTRUE(qr[i, j]))
+      graphics::rect(0.4 + (j - 1) * cw, y - i * cw, 0.4 + j * cw, y - (i - 1) * cw, col = "black", border = NA)
+    invisible(TRUE)
+  }
   parsimony_pdf <- function(df, file) {
     algo_colors <- c("Cooling Bodies" = "#7a4fc4", "Cooling Gaussian" = "#f0ad4e", "Sequence of Balls" = "#5cb85c", "Exact" = "#8b93a7")
     models <- unique(df$Model); algos <- unique(df$Algorithm)
     pos <- df$Volume[is.finite(df$Volume) & df$Volume > 0]
     use_log <- length(pos) > 0 && min(pos) < 0.01
     k <- length(algos); n <- length(models)
-    grDevices::pdf(file, width = 8, height = max(2.8, 1.9 + n * (0.3 + 0.18 * k)))
+    ph <- max(2.8, 1.9 + n * (0.3 + 0.18 * k)); has_url <- !is.null(tryCatch(isolate(app_share_url()), error = function(e) NULL))
+    if (has_url) ph <- max(ph, 6.6)
+    grDevices::pdf(file, width = 8, height = ph)
     on.exit(grDevices::dev.off())
     labs <- vapply(models, function(z) paste(strwrap(z, 38), collapse = "\n"), character(1))
     graphics::par(mai = c(0.9, 0.5, 0.6, 0.2))
@@ -14220,6 +14241,7 @@ server <- shinyServer(function(input, output, session) {
     graphics::axis(2, at = n:1, labels = labs, las = 1, tick = FALSE, cex.axis = 0.8)
     if (k > 1) graphics::legend("topleft", legend = algos, fill = unname(algo_colors[algos]), horiz = TRUE, bty = "n",
                                 inset = c(0, -0.13), xpd = NA, cex = 0.8)
+    if (has_url) pdf_link_page(8, ph)
     invisible(file)
   }
   output$download_parsimony_pdf <- downloadHandler(
@@ -14739,6 +14761,7 @@ server <- shinyServer(function(input, output, session) {
     # legend
     if (length(legend_rows) > 0)
       graphics::legend("topright", inset = c(0.01, 0.01), legend = names(legend_rows), pch = 21, pt.bg = unlist(legend_rows), col = "white", pt.cex = 1.1, bty = "n", cex = 0.85)
+    pdf_link_page(8, 7.2)
     invisible(file)
   }
   add_model_trace <- function(p, matrix_pl, model_col, name_model,
@@ -19551,6 +19574,7 @@ server <- shinyServer(function(input, output, session) {
       'library("multinomineq")',
       'library("coda")',
       'seed <- 1234   # makes a run repeatable; every model gets its own random numbers',
+      'fairy_app_url <- ""   # link that opens the app with this input (filled in by the app; used in results.pdf)',
       '',
       '# In RStudio: work in the folder of this script',
       'try({',
@@ -20345,6 +20369,18 @@ server <- shinyServer(function(input, output, session) {
       '      y <- y - 0.02',
       '    }',
       '  }',
+      '  if (nzchar(fairy_app_url)) {',
+      '    y <- new_page("Recreate this input")',
+      '    y <- para(y, "This link opens the Fairy app with the probabilities, models and settings of this analysis. Everything is stored in the link itself (nothing is saved on a server). Copy it into a browser, or scan the QR code.", w = 100, cex = 0.7)',
+      '    chunks <- substring(fairy_app_url, seq(1, nchar(fairy_app_url), 95), pmin(seq(95, nchar(fairy_app_url) + 94, 95), nchar(fairy_app_url)))',
+      '    for (ch in chunks) { if (y < 0.07) y <- new_page("Recreate this input (continued)"); tx(0.06, y, ch, cex = 0.42, col = ink); y <- y - 0.013 }',
+      '    y <- y - 0.02',
+      '    qr <- tryCatch(if (requireNamespace("qrcode", quietly = TRUE) && nchar(fairy_app_url) < 2300) as.matrix(qrcode::qr_code(fairy_app_url, ecl = "L")) else NULL, error = function(e) NULL)',
+      '    if (!is.null(qr) && y > 0.5) {',
+      '      n <- nrow(qr); cw <- 0.5 / n; ch <- cw * 8.27 / 11.69',
+      '      for (i in seq_len(n)) for (j in seq_len(n)) if (isTRUE(qr[i, j])) rect(0.06 + (j - 1) * cw, y - i * ch, 0.06 + j * cw, y - (i - 1) * ch, col = "black", border = NA)',
+      '    } else if (is.null(qr)) y <- para(y, "(The link is too long for a QR code.)", cex = 0.6)',
+      '  }',
       '  dev.off()',
       '}, error = function(e) { try(dev.off(), silent = TRUE); cat("results.pdf could not be written:", conditionMessage(e), "\\n") })',
       'if (interactive()) browseURL("results.html")',
@@ -20521,6 +20557,8 @@ server <- shinyServer(function(input, output, session) {
     ln <- sub("^burnin_bf <- [0-9.]+", paste0("burnin_bf <- ", fmt(g("bb", 5))), ln)
     ln <- sub("^prior <- c\\(1, 1\\)", paste0("prior <- c(", fmt(g("pa", 1)), ", ", fmt(g("pb", 1)), ")"), ln)
     ln <- sub("^seed <- 1234", paste0("seed <- ", fmt(round(g("seed", 1234)))), ln)
+    url <- tryCatch(isolate(app_share_url()), error = function(e) NULL)
+    if (!is.null(url) && nzchar(url)) ln <- sub("^fairy_app_url <- \"\"", paste0("fairy_app_url <- ", encodeString(url, quote = "\""), "   # opens the app with this input"), ln)
     paste(ln, collapse = "\n")
   }
   mn_share <- reactiveVal(list())   # unpacked model (key m:<name>) -> TRUE: uses the numbers of the models with the same number of probabilities
