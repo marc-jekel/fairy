@@ -1841,7 +1841,7 @@ ui <- shinyUI(fluidPage(
         border-bottom: 1px solid color-mix(in srgb, var(--fairy-border, #e5e5e5) 60%, transparent);
       }
       /* the room for Stop / Retry is always there, so the table does not change when the button appears */
-      .fairy-run-name { font-weight: 600; position: relative; padding-right: 96px !important; }
+      .fairy-run-name { font-weight: 600; position: relative; padding-right: 96px !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .fairy-run-kind {
         margin-left: 8px;
         font-size: 11px;
@@ -4858,7 +4858,7 @@ ui <- shinyUI(fluidPage(
           var r = rows[name];
           if (!r) {
             var tr = document.createElement('tr');
-            var tn = document.createElement('td'); tn.className = 'fairy-run-name'; tn.textContent = name;
+            var tn = document.createElement('td'); tn.className = 'fairy-run-name'; tn.textContent = name; tn.title = name;
             // Skip of this one model, right at its name (shown while the model is being calculated)
             var sb = document.createElement('button'); sb.type = 'button'; sb.className = 'fairy-run-rowbtn'; sb.textContent = 'Skip';
             sb.setAttribute('title', 'Skip this model and go on with the others');
