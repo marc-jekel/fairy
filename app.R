@@ -14332,17 +14332,21 @@ server <- shinyServer(function(input, output, session) {
     }
     NULL
   }
-  # the fairy as polygons in the unit square (y up): wings, dress, head, wand with a star
+  # the fairy of the app (same drawing as the logo, see fairy_svg), as polygons / lines in the unit square (y up)
   fairy_polys <- function() {
-    ell <- function(cx, cy, rx, ry, rot) { t <- seq(0, 2 * pi, length.out = 28)[-28]; x <- rx * cos(t); y <- ry * sin(t)
-      cbind(cx + x * cos(rot) - y * sin(rot), cy + x * sin(rot) + y * cos(rot)) }
-    star <- function(cx, cy, r) { t <- seq(0, 2 * pi, length.out = 11)[-11] + pi / 2; rr <- rep(c(r, r * 0.45), 5); cbind(cx + rr * cos(t), cy + rr * sin(t)) }
+    bez <- function(p0, p1, p2, p3, n = 14) { t <- seq(0, 1, length.out = n); cbind((1 - t)^3 * p0[1] + 3 * (1 - t)^2 * t * p1[1] + 3 * (1 - t) * t^2 * p2[1] + t^3 * p3[1],
+                                                                                 (1 - t)^3 * p0[2] + 3 * (1 - t)^2 * t * p1[2] + 3 * (1 - t) * t^2 * p2[2] + t^3 * p3[2]) }
+    U <- function(xy) cbind((xy[, 1] - 4) / 56, 1 - (xy[, 2] - 6) / 56)   # the drawing is 64 x 64 (y down); the empty margin is cut off
+    th <- seq(0, 2 * pi, length.out = 30)[-30]
+    wing_l <- rbind(bez(c(31, 34), c(16, 20), c(6, 24), c(10, 34)), bez(c(10, 34), c(6, 44), c(18, 44), c(31, 34)))
+    wing_r <- rbind(bez(c(33, 34), c(48, 20), c(58, 24), c(54, 34)), bez(c(54, 34), c(58, 44), c(46, 44), c(33, 34)))
+    seg <- function(x1, y1, x2, y2) list(xy = U(rbind(c(x1, y1), c(x2, y2))), col = "#000000", line = TRUE, bw = 2.4)
     list(
-      list(xy = ell(0.27, 0.62, 0.21, 0.12, 0.5), col = "#b9a3f0"), list(xy = ell(0.73, 0.62, 0.21, 0.12, -0.5), col = "#b9a3f0"),
-      list(xy = rbind(c(0.5, 0.62), c(0.33, 0.14), c(0.67, 0.14)), col = "#7a4fc4"),
-      list(xy = ell(0.5, 0.74, 0.11, 0.11, 0), col = "#f4c9a8"),
-      list(xy = rbind(c(0.6, 0.46), c(0.63, 0.43), c(0.83, 0.78), c(0.8, 0.8)), col = "#8a6d3b"),
-      list(xy = star(0.84, 0.86, 0.13), col = "#f0ad4e"))
+      list(xy = U(wing_l), col = "#000000", border = "#000000", bw = 1.5),
+      list(xy = U(wing_r), col = "#ffffff", border = "#000000", bw = 1.5),
+      list(xy = U(cbind(32 + 5 * cos(th), 20 + 5 * sin(th))), col = "#ffffff", border = "#000000", bw = 1.4),
+      seg(32, 25, 32, 44), seg(32, 30, 26, 38), seg(32, 30, 38, 38), seg(32, 44, 27, 52), seg(32, 44, 37, 52),
+      list(xy = U(rbind(c(50, 12), c(51.6, 15.4), c(55, 17), c(51.6, 18.6), c(50, 22), c(48.4, 18.6), c(45, 17), c(48.4, 15.4))), col = "#000000"))
   }
   qr_with_fairy <- function(qr) !is.null(attr(qr, "ecl")) && attr(qr, "ecl") %in% c("H", "Q")
   observeEvent(input$qr_request, {
@@ -14354,9 +14358,13 @@ server <- shinyServer(function(input, output, session) {
     for (i in seq_len(n)) { r <- which(qr[i, ]); if (length(r)) cells <- c(cells, sprintf("M%d %dh1v1h-1z", r - 1 + q, i - 1 + q)) }
     logo <- ""
     if (qr_with_fairy(qr)) {
-      ls <- n * 0.21; lx <- q + (n - ls) / 2; ly <- q + (n - ls) / 2
-      pts <- vapply(fairy_polys(), function(z) sprintf('<polygon fill="%s" points="%s"/>', z$col,
-        paste(sprintf("%.2f,%.2f", lx + z$xy[, 1] * ls, ly + (1 - z$xy[, 2]) * ls), collapse = " ")), character(1))
+      ls <- n * 0.24; lx <- q + (n - ls) / 2; ly <- q + (n - ls) / 2
+      pts <- vapply(fairy_polys(), function(z) {
+        xy <- paste(sprintf("%.2f,%.2f", lx + z$xy[, 1] * ls, ly + (1 - z$xy[, 2]) * ls), collapse = " ")
+        sw <- (z$bw %||% 0) * ls / 56
+        if (isTRUE(z$line)) sprintf('<polyline fill="none" stroke="%s" stroke-width="%.3f" stroke-linecap="round" points="%s"/>', z$col, sw, xy)
+        else sprintf('<polygon fill="%s" %s opacity="%s" stroke-linejoin="round" points="%s"/>', z$col, if (is.null(z$border)) "" else sprintf('stroke="%s" stroke-width="%.3f"', z$border, sw), z$alpha %||% 1, xy)
+      }, character(1))
       logo <- paste0(sprintf('<rect x="%.2f" y="%.2f" width="%.2f" height="%.2f" rx="%.2f" fill="#fff"/>', lx - 0.6, ly - 0.6, ls + 1.2, ls + 1.2, ls * 0.15), paste(pts, collapse = ""))
     }
     svg <- sprintf('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" shape-rendering="crispEdges"><rect width="100%%" height="100%%" fill="#fff"/><path fill="#000" d="%s"/>%s</svg>', n + 2 * q, n + 2 * q, paste(cells, collapse = ""), logo)
@@ -14369,9 +14377,13 @@ server <- shinyServer(function(input, output, session) {
     for (i in seq_len(n)) for (j in seq_len(n)) if (isTRUE(qr[i, j]))
       graphics::rect(0.3 + (j - 1) * cw, top - i * cw, 0.3 + j * cw, top - (i - 1) * cw, col = "black", border = NA)
     if (qr_with_fairy(qr)) {
-      ls <- sz * 0.21; lx <- 0.3 + (sz - ls) / 2; ly <- top - sz / 2 - ls / 2
+      ls <- sz * 0.24; lx <- 0.3 + (sz - ls) / 2; ly <- top - sz / 2 - ls / 2
       graphics::rect(lx - 0.6 * cw, ly - 0.6 * cw, lx + ls + 0.6 * cw, ly + ls + 0.6 * cw, col = "white", border = NA)
-      for (z in fairy_polys()) graphics::polygon(lx + z$xy[, 1] * ls, ly + z$xy[, 2] * ls, col = z$col, border = NA)
+      for (z in fairy_polys()) {
+        lwd <- max(0.1, (z$bw %||% 0) * ls * 96 / 56)
+        if (isTRUE(z$line)) graphics::lines(lx + z$xy[, 1] * ls, ly + z$xy[, 2] * ls, col = z$col, lwd = lwd, lend = 1)
+        else graphics::polygon(lx + z$xy[, 1] * ls, ly + z$xy[, 2] * ls, col = grDevices::adjustcolor(z$col, alpha.f = z$alpha %||% 1), border = if (is.null(z$border)) NA else z$border, lwd = lwd, lend = 1, ljoin = 1)
+      }
     }
     lt <- "Recreate this input in the Fairy app"; cx <- 0.8
     tw <- graphics::strwidth(lt, cex = cx); x0 <- (w - tw) / 2
