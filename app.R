@@ -1701,6 +1701,12 @@ ui <- shinyUI(fluidPage(
       #fairy-tour-card { position: fixed; z-index: 10602; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; padding: 16px 18px 14px; border-radius: 14px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1f2430); border: 1px solid var(--fairy-border, #e5e5e5); box-shadow: 0 18px 50px rgba(0,0,0,.4); font-size: 14px; line-height: 1.45; }
       #fairy-tour-card h4 { margin: 0 0 6px; font-size: 16px; font-weight: 700; }
       #fairy-tour-card p { margin: 0 0 12px; }
+      #fairy-tour-card.fairy-tour-pick { width: min(400px, calc(100vw - 24px)); }
+      .fairy-tour-group { margin: 12px 0 5px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--fairy-text-muted, #667085); }
+      #fairy-tour-card button.fairy-tour-opt { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 10px; text-align: left; margin: 0 0 6px; padding: 7px 12px; }
+      #fairy-tour-card button.fairy-tour-opt .fairy-tour-opt-t { display: flex; flex-direction: column; gap: 1px; }
+      #fairy-tour-card button.fairy-tour-opt small { font-size: 12px; opacity: .75; }
+      #fairy-tour-card button.fairy-tour-opt .fairy-tour-opt-n { font-size: 12px; opacity: .7; white-space: nowrap; }
       .fairy-tour-foot { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
       .fairy-tour-dots { display: flex; gap: 5px; flex: 0 0 100%; margin-bottom: 4px; }
       #fairy-tour-card .fairy-tour-skip { margin-right: auto; }
@@ -6513,15 +6519,30 @@ ui <- shinyUI(fluidPage(
         function btn(label, k, cls) { var b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.setAttribute('data-k', k); if (cls) b.className = cls; return b; }
         function pick() {
           picking = true; tourStep = -1; ensure();
-          var card = document.getElementById('fairy-tour-card'); card.textContent = '';
+          var card = document.getElementById('fairy-tour-card'); card.textContent = ''; card.classList.add('fairy-tour-pick');
           var h = document.createElement('h4'); h.textContent = 'Welcome to Fairy'; card.appendChild(h);
-          var p = document.createElement('p'); p.textContent = 'Which tour do you want?'; card.appendChild(p);
-          var l = document.createElement('p'); l.style.cssText = 'font-size:13px; color:var(--fairy-text-muted, #667085);';
-          l.textContent = 'Start page: the first steps from input to results, about a minute. Full tour: every part of the app, one after the other. Or look at one part only: input controls, unpacking, combining models, or the results tabs.'; card.appendChild(l);
-          var foot = document.createElement('div'); foot.className = 'fairy-tour-foot';
-          foot.appendChild(btn('Cancel', 'end', 'fairy-tour-skip')); foot.appendChild(btn('Input controls', 'input')); foot.appendChild(btn('Unpacking', 'unpack')); foot.appendChild(btn('Combining', 'combine')); foot.appendChild(btn('Results', 'results')); foot.appendChild(btn('Run window', 'run')); foot.appendChild(btn('multinomineq', 'mn')); foot.appendChild(btn('Full tour', 'full')); foot.appendChild(btn('Start page', 'basic', 'fairy-tour-primary'));
-          card.appendChild(foot); place(); setTimeout(place, 150);
-          foot.lastChild.focus();
+          var p0 = document.createElement('p'); p0.textContent = 'Which tour do you want?'; card.appendChild(p0);
+          function group(label) { var g = document.createElement('div'); g.className = 'fairy-tour-group'; g.textContent = label; card.appendChild(g); }
+          function opt(name, desc, n, k, primary) {
+            var b2 = document.createElement('button'); b2.type = 'button'; b2.setAttribute('data-k', k); b2.className = 'fairy-tour-opt' + (primary ? ' fairy-tour-primary' : '');
+            var l = document.createElement('span'); l.className = 'fairy-tour-opt-t'; var t1 = document.createElement('b'); t1.textContent = name; l.appendChild(t1);
+            var t2 = document.createElement('small'); t2.textContent = desc; l.appendChild(t2); b2.appendChild(l);
+            var c = document.createElement('span'); c.className = 'fairy-tour-opt-n'; c.textContent = n + ' steps'; b2.appendChild(c);
+            card.appendChild(b2); return b2;
+          }
+          group('Overview');
+          var first = opt('Start page', 'A first look, from input to results', basicSteps().length, 'basic', true);
+          opt('Full tour', 'Every part of the app, one after the other', allSteps().length, 'full');
+          group('One part only');
+          opt('Input controls', 'Every control of the Input tab', fullSteps().length, 'input');
+          opt('Unpacking', 'The Unpack across items window', unpackSteps().length, 'unpack');
+          opt('Combining models', 'Intersection and mixture', combineSteps().length, 'combine');
+          opt('Results', 'H- and V-representation, plots, Parsimony', resultSteps().length, 'results');
+          opt('Run window', 'Progress, skipping and time limits', runSteps().length, 'run');
+          opt('multinomineq', 'Data, run window and results', mnSteps().length, 'mn');
+          var foot = document.createElement('div'); foot.className = 'fairy-tour-foot'; foot.appendChild(btn('Cancel', 'end', 'fairy-tour-skip')); card.appendChild(foot);
+          place(); setTimeout(place, 150);
+          first.focus();
         }
         function show(i) {
           picking = false;
@@ -6553,7 +6574,7 @@ ui <- shinyUI(fluidPage(
           ensure();
           var st = steps[i], card = document.getElementById('fairy-tour-card');
           if (!card) return;
-          card.textContent = '';
+          card.textContent = ''; card.classList.remove('fairy-tour-pick');
           var h = document.createElement('h4'); h.textContent = st.title; card.appendChild(h);
           var p = document.createElement('p'); p.textContent = st.text; card.appendChild(p);
           var foot = document.createElement('div'); foot.className = 'fairy-tour-foot';
