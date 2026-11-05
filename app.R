@@ -6302,7 +6302,14 @@ ui <- shinyUI(fluidPage(
         function radioClick(v) { var r = document.querySelectorAll('.fairy-items-quick-type'), i; for (i = 0; i !== r.length; i++) { if (r[i].value === v) r[i].click(); } }
         function labelClick(re) { clickEl(byText('label', re)); }
         function closeModal() { var m = modalOpen(); if (m) { var c = m.querySelector('[data-dismiss=modal]'); if (c) c.click(); } }
-        var addedModel = false;
+        var addedModel = false, tabsTouched = false;
+        function tabLink(name) { var l = document.querySelectorAll('a[data-value]'), i; for (i = 0; i !== l.length; i++) { if (l[i].getAttribute('data-value') === name) return l[i]; } return null; }
+        function goTab(name) { var a = tabLink(name); if (a) { a.click(); tabsTouched = true; } }
+        function pane() { return document.querySelector('.tab-pane.active'); }
+        function inPane(sel) { var p = pane(), e = p ? p.querySelector(sel) : null; return shown(e) ? e : null; }
+        function byTip(re) { var p = pane(), l = p ? p.querySelectorAll('[data-tooltip]') : [], i; for (i = 0; i !== l.length; i++) { if (re.test(l[i].getAttribute('data-tooltip')) && shown(l[i])) return l[i]; } return null; }
+        function paneLabel(re) { var p = pane(), l = p ? p.querySelectorAll('label') : [], i; for (i = 0; i !== l.length; i++) { if (re.test(l[i].textContent) && shown(l[i])) return l[i]; } return null; }
+        function tabShown(name) { return shown(tabLink(name)); }
         function ensureModel() { var ta = document.getElementById('textin_relations_1'); if (ta && !ta.value.trim()) { ta.value = 'p1 > p2 > p3'; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.dispatchEvent(new Event('change', { bubbles: true })); } }
         function ensureTwoModels() { if (!document.getElementById('add_intersection_model') && document.getElementById('add_ie')) { document.getElementById('add_ie').click(); addedModel = true; } }
         function S(title, text, f, extra) { var o = { title: title, text: text, els: f }; if (extra) { for (var k in extra) { o[k] = extra[k]; } } return o; }
@@ -6375,6 +6382,42 @@ ui <- shinyUI(fluidPage(
             S('Add or cancel', 'Add creates the mixture as a new model row. Cancel closes the window without changes.', function() { var a = document.getElementById('submit_mixture_model'); return [a ? a.parentElement : null]; }, { last: true })
           ];
         }
+        function resultSteps() {
+          function R(tab, title, text, f, extra) { var o = { pre: function() { goTab(tab); }, wait: 700 }; if (extra) { for (var k in extra) { o[k] = extra[k]; } } return S(title, text, f, o); }
+          return [
+            S('Results', 'This tour runs your model (an example if the first row is empty) and visits each result tab: H-representation, V-representation, the two plots and Parsimony.', function() { return []; }, {
+              pre: function() { goTab('Input'); ensureModel(); var vb = document.getElementById('vrep_toggle_btn_1'); if (vb && !tabShown('V-representation')) { vb.click(); } setTimeout(function() { clickEl(document.getElementById('go_inline')); }, 700); },
+              until: function() { return tabShown('V-representation') && tabShown('Plot Edge Cases'); }, wait: 2500, maxwait: 60000 }),
+            R('H-representation', 'H-representation', 'One card per model with its inequalities. The badge counts equalities and inequalities without the automatic 0 to 1 bounds. Drag a card by its header, resize it in the corner, and enlarge it with the arrows.', function() { return [inPane('#h')]; }),
+            R('H-representation', 'Layout', 'Aligned: one column per probability. Compact: the terms are packed per row.', function() { return [inPane('#h_layout_toggle_group')]; }),
+            R('H-representation', 'Bounds', 'Show, gray out or hide the trivial bounds (every probability between 0 and 1).', function() { return [inPane('#trivial_ineq_toggle_group')]; }),
+            R('H-representation', 'Parameters', 'Colour the terms by probability, or select probabilities: click a number or a term to deselect it, and click again to select it. Terms of selected probabilities get a yellow marker, and rows can be filtered.', function() { return [inPane('#h_color_toggle_group')]; }),
+            R('H-representation', 'Cards', 'Flowing cards fill the rows, free layout lets you drag them anywhere, and the circle arrow resets order, positions and sizes.', function() { var t = byTip(/Flowing cards/); return [t ? t.parentElement : null]; }),
+            R('H-representation', 'QTEST download', 'Downloads the H-representation for QTEST.', function() { return [inPane('#d_h')]; }),
+            R('H-representation', 'Data for multinomineq', 'Your data for multinomineq: n and frequencies. They go into the files and the script of the multinomineq download and are used by Run analysis.', function() { return [inPane('#mn_data_open')]; }),
+            R('H-representation', 'multinomineq download', 'Files, analysis script and data file for the multinomineq R package. Run the script on your own computer for large analyses.', function() { return [inPane('#d_h_multinomineq')]; }),
+            R('H-representation', 'Run analysis', 'Runs the multinomineq analysis here, for small analyses, with the numbers and settings saved under Data. Results come as tables, a web page and a PDF.', function() { return [inPane('#mn_run_open')]; }),
+            R('H-representation', 'LaTeX download', 'Downloads the H-representation as a LaTeX file.', function() { return [inPane('#d_latex')]; }),
+            R('V-representation', 'V-representation', 'The vertices (corner points) of each model, one card per model. Click a column header to sort.', function() { var p = pane(); var e = p ? p.querySelector('.model-card') : null; return [shown(e) ? e : null]; }),
+            R('V-representation', 'Vertices in words', 'Shows the vertices in words (all, none, fractions) instead of numbers.', function() { return [paneLabel(/Show vertices in words/)]; }),
+            R('V-representation', 'Downloads', 'The V-representation for QTEST, or as a LaTeX table.', function() { return [inPane('#d_v'), inPane('#d_v_latex')]; }),
+            R('Plot Edge Cases', 'Choose a model', 'The model whose vertices are plotted.', function() { var p = pane(); var h = p ? p.querySelector('h5') : null; return [shown(h) ? h.parentElement : null]; }),
+            R('Plot Edge Cases', 'Edge cases', 'Every vertex of the model is one case. The plot shows the value of every probability at that vertex. Play steps through the vertices.', function() { return [inPane('#plot_example')]; }),
+            R('Plot Edge Cases', 'Save as PDF', 'Saves the plot as a PDF.', function() { return [inPane('#plot_example_pdf')]; }),
+            R('Plot Polytope(s)', 'Models to plot', 'Choose which models are drawn. Several models can be drawn together in different colours.', function() { var l = paneLabel(/Models to plot/); return [l ? l.parentElement : null]; }),
+            R('Plot Polytope(s)', 'Auto-rotate', 'Turns the plot slowly all the time.', function() { return [paneLabel(/Auto-rotate/)]; }),
+            R('Plot Polytope(s)', 'Axes', 'Choose which three probabilities are the x, y and z axes.', function() { var h = inPane('#dim_pick_heading'); var z = inPane('#dim_3'); return [h, z ? z.closest('.form-group') : null]; }),
+            R('Plot Polytope(s)', 'The polytope', 'Drag to rotate and scroll to zoom. Click a model in the legend to hide or show it.', function() { return [inPane('#plot')]; }),
+            R('Plot Polytope(s)', 'PDF and full size', 'Saves the plot as a vector PDF, sharp at any size. The arrows enlarge the plot.', function() { return [inPane('#download_polytope_pdf'), inPane('#polytope_plot_expand')]; }),
+            R('Model Properties', 'Parsimony', 'Computes the volume of every model: the share of the parameter space that fits the model. A smaller volume means a more restrictive model.', function() { return [inPane('#go_inline_pars')]; }),
+            R('Model Properties', 'Exact volume', 'Calculates the volume from the corner points of the model (up to 5 minutes in total; you can skip it). Where it works, no algorithm is needed.', function() { return [byTip(/Calculates the volume from the corner points/)]; }),
+            R('Model Properties', 'Algorithms', 'Estimates the volume with algorithms for every model. Off: Cooling Bodies only runs for models whose exact volume was skipped or did not finish.', function() { return [byTip(/Estimate the volume with algorithms/)]; }),
+            R('Model Properties', 'Algorithm settings', 'Choose the algorithms (Cooling Bodies, Cooling Gaussian, Sequence of Balls) and their settings before you start.', function() { return [inPane('#show')]; }),
+            R('Model Properties', 'Volume by model', 'One bar per model and method. PDF saves the chart, and the arrows enlarge it.', function() { return [inPane('#parsimony_plot_ui')]; }, { pre: function() { goTab('Model Properties'); setTimeout(function() { if (!document.getElementById('parsimony_plot_ui') || !shown(document.getElementById('parsimony_bar_plot'))) clickEl(document.getElementById('go_inline_pars')); }, 800); }, until: function() { return shown(document.getElementById('parsimony_bar_plot')); }, wait: 1500, maxwait: 30000 }),
+            R('Model Properties', 'Detailed results', 'Volume (exact ones as fractions), the dimensionality, and Max BF, the largest Bayes factor the model can reach (1 divided by the volume). CSV saves the table, and the heading above explains the columns.', function() { return [inPane('#parsimony_spinner_table')]; }),
+            S('That is it', 'Every tab has the same pattern: controls on the left, the result in the middle, downloads for your own work.', function() { return []; }, { last: true, noexample: true, pre: function() { goTab('Input'); }, wait: 400 })
+          ];
+        }
         function union(els) {
           var l = els.filter(function(e) { return !!e; });
           if (!l.length) return null;
@@ -6392,6 +6435,7 @@ ui <- shinyUI(fluidPage(
           ['fairy-tour-block', 'fairy-tour-hole', 'fairy-tour-card'].forEach(function(id) { var e = document.getElementById(id); if (e) e.remove(); });
           tourStep = -1; picking = false; token++;
           closeModal();
+          if (tabsTouched) { tabsTouched = false; var ti = tabLink('Input'); if (ti) ti.click(); }
           if (addedModel) { addedModel = false; var rm = document.getElementById('rm_ie'); if (rm) rm.click(); }
           try { localStorage.setItem('fairy_tour_done', '1'); } catch (er) {}
         }
@@ -6426,9 +6470,9 @@ ui <- shinyUI(fluidPage(
           var h = document.createElement('h4'); h.textContent = 'Welcome to Fairy'; card.appendChild(h);
           var p = document.createElement('p'); p.textContent = 'Which tour do you want?'; card.appendChild(p);
           var l = document.createElement('p'); l.style.cssText = 'font-size:13px; color:var(--fairy-text-muted, #667085);';
-          l.textContent = 'Basic: the steps from input to results, about a minute. Full: every control of the Input tab. Unpacking and Combining explain those two windows.'; card.appendChild(l);
+          l.textContent = 'Basic: the steps from input to results, about a minute. Full: every control of the Input tab. Unpacking, Combining and Results explain those parts.'; card.appendChild(l);
           var foot = document.createElement('div'); foot.className = 'fairy-tour-foot';
-          foot.appendChild(btn('Cancel', 'end', 'fairy-tour-skip')); foot.appendChild(btn('Unpacking', 'unpack')); foot.appendChild(btn('Combining models', 'combine')); foot.appendChild(btn('Full tour', 'full')); foot.appendChild(btn('Basic tour', 'basic', 'fairy-tour-primary'));
+          foot.appendChild(btn('Cancel', 'end', 'fairy-tour-skip')); foot.appendChild(btn('Unpacking', 'unpack')); foot.appendChild(btn('Combining models', 'combine')); foot.appendChild(btn('Results', 'results')); foot.appendChild(btn('Full tour', 'full')); foot.appendChild(btn('Basic tour', 'basic', 'fairy-tour-primary'));
           card.appendChild(foot); place(); setTimeout(place, 150);
           foot.lastChild.focus();
         }
@@ -6446,7 +6490,16 @@ ui <- shinyUI(fluidPage(
           if (i === -1) { pick(); return; }
           tourStep = i;
           var st = steps[i];
-          if (st.pre) { st.pre(); setTimeout(function() { if (my === token) render(i); }, st.wait || 500); }
+          if (st.pre) {
+            st.pre();
+            if (st.until) { ensure(); var wc = document.getElementById('fairy-tour-card'); wc.textContent = ''; var wh = document.createElement('h4'); wh.textContent = 'One moment'; wc.appendChild(wh); var wp = document.createElement('p'); wp.textContent = 'Running your model ...'; wc.appendChild(wp); place(); }
+            var t0 = Date.now();
+            (function poll() {
+              if (my !== token) return;
+              var el = Date.now() - t0;
+              if (el >= (st.wait || 500) && ((st.until ? st.until() : true) || el >= (st.maxwait || st.wait || 500))) render(i); else setTimeout(poll, 250);
+            })();
+          }
           else render(i);
         }
         function render(i) {
@@ -6463,7 +6516,7 @@ ui <- shinyUI(fluidPage(
           foot.appendChild(dots);
           if (!st.last) foot.appendChild(btn('Skip', 'end', 'fairy-tour-skip'));
           foot.appendChild(btn('Back', 'back'));
-          if (st.last && !st.noexample && steps.kind !== 'unpack' && steps.kind !== 'combine') foot.appendChild(btn('Fill in example', 'example'));
+          if (st.last && !st.noexample && steps.kind !== 'unpack' && steps.kind !== 'combine' && steps.kind !== 'results') foot.appendChild(btn('Fill in example', 'example'));
           if (st.full) foot.appendChild(btn('Full tour', 'full'));
           var nx = btn(st.last ? 'Finish' : 'Next', 'next', 'fairy-tour-primary'); foot.appendChild(nx);
           card.appendChild(foot);
@@ -6476,7 +6529,7 @@ ui <- shinyUI(fluidPage(
           var tab = document.querySelector('a[data-value=Input]'); if (tab && !tab.parentElement.classList.contains('active')) tab.click();
           setTimeout(pick, 150);
         }
-        function go(mode) { steps = mode === 'full' ? fullSteps() : (mode === 'unpack' ? unpackSteps() : (mode === 'combine' ? combineSteps() : basicSteps())); steps.kind = mode; tourStep = -1; show(0); }
+        function go(mode) { steps = mode === 'full' ? fullSteps() : (mode === 'unpack' ? unpackSteps() : (mode === 'combine' ? combineSteps() : (mode === 'results' ? resultSteps() : basicSteps()))); steps.kind = mode; tourStep = -1; show(0); }
         function next() { if (steps[tourStep].last) end(); else show(tourStep + 1); }
         document.addEventListener('click', function(e) {
           var t = e.target.closest ? e.target : e.target.parentNode;
@@ -6487,7 +6540,7 @@ ui <- shinyUI(fluidPage(
             if (k === 'next') next();
             else if (k === 'back') show(tourStep - 1);
             else if (k === 'end') end();
-            else if (k === 'basic' || k === 'full' || k === 'unpack' || k === 'combine') go(k);
+            else if (k === 'basic' || k === 'full' || k === 'unpack' || k === 'combine' || k === 'results') go(k);
             else if (k === 'example') {
               var ta = document.getElementById('textin_relations_1');
               end();
