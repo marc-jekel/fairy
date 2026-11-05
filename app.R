@@ -1690,6 +1690,7 @@ ui <- shinyUI(fluidPage(
       #fairy-qr-overlay { position: fixed; inset: 0; z-index: 10500; display: flex; align-items: center; justify-content: center; background: rgba(15, 20, 35, .55); }
       .fairy-qr-card { background: #fff; color: #1f2430; border-radius: 14px; padding: 22px 24px 18px; box-shadow: 0 18px 60px rgba(0,0,0,.35); display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 92vw; }
       .fairy-qr-svg svg { width: min(70vmin, 460px); height: auto; display: block; }
+      .fairy-qr-note { font-size: 12px; color: #667085; text-align: center; max-width: 360px; margin-top: -6px; }
       .fairy-qr-link { font-size: 13px; color: #1a5fb4; text-decoration: underline; }
       .fairy-qr-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
       .fairy-qr-btns button { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 8px; border: 1px solid #cfd4e0; background: #f4f6fb; color: #1f2430; cursor: pointer; }
@@ -6151,7 +6152,8 @@ ui <- shinyUI(fluidPage(
           var card = document.createElement('div'); card.className = 'fairy-qr-card'; card.setAttribute('role', 'dialog');
           var sv = document.createElement('div'); sv.className = 'fairy-qr-svg'; sv.innerHTML = m.svg; card.appendChild(sv);
           var lk = document.createElement('a'); lk.className = 'fairy-qr-link'; lk.target = '_blank'; lk.rel = 'noopener'; lk.href = m.url;
-          lk.textContent = 'Recreate this input in the Fairy app'; card.appendChild(lk);
+          lk.textContent = 'Restore these models in the Fairy app'; card.appendChild(lk);
+          var nt = document.createElement('div'); nt.className = 'fairy-qr-note'; nt.textContent = 'Restores the models together with all other input: probabilities, settings and unpacking.'; card.appendChild(nt);
           var bt = document.createElement('div'); bt.className = 'fairy-qr-btns';
           [['copy', 'Copy link'], ['pdf', 'Download PDF'], ['png', 'Download PNG'], ['close', 'Close']].forEach(function(x) {
             var b = document.createElement('button'); b.type = 'button'; b.setAttribute('data-k', x[0]); b.textContent = x[1]; bt.appendChild(b);
@@ -8434,7 +8436,7 @@ ui <- shinyUI(fluidPage(
                   var doc = new window.jspdf.jsPDF({ orientation: w >= h ? 'l' : 'p', unit: 'pt', format: [w + 2 * pad, h + 2 * pad + extra], compress: true });
                   var done = function() {
                     document.body.removeChild(host);
-                    if (url) { doc.setFontSize(8); doc.setTextColor(26, 95, 180); doc.textWithLink('Recreate this input in the Fairy app', pad, h + 2 * pad + 8, { url: url }); }
+                    if (url) { doc.setFontSize(8); doc.setTextColor(26, 95, 180); doc.textWithLink('Restore these models in the Fairy app', pad, h + 2 * pad + 8, { url: url }); }
                     doc.save('fairy-items.pdf');
                   };
                   var p = doc.svg(copy, { x: pad, y: pad, width: w, height: h });
@@ -14275,7 +14277,7 @@ server <- shinyServer(function(input, output, session) {
     url <- tryCatch(isolate(app_share_url()), error = function(e) NULL)
     if (is.null(url) || !nzchar(url)) return(NULL)
     graphics::par(fig = c(0, 1, 0, 1), mai = c(0, 0, 0, 0), new = TRUE); graphics::plot.new(); graphics::plot.window(c(0, w), c(0, h), xaxs = "i", yaxs = "i")
-    lt <- "Recreate this input in the Fairy app"
+    lt <- "Restore these models in the Fairy app"
     graphics::text(0.3, 0.14, lt, adj = c(0, 0.5), cex = 0.6, col = "#1a5fb4")
     lw <- graphics::strwidth(lt, cex = 0.6)
     graphics::segments(0.3, 0.095, 0.3 + lw, 0.095, col = "#1a5fb4")
@@ -14405,7 +14407,7 @@ server <- shinyServer(function(input, output, session) {
       }
     }
     if (!with_link) return(NULL)
-    lt <- "Recreate this input in the Fairy app"; cx <- 0.8
+    lt <- "Restore these models in the Fairy app"; cx <- 0.8
     tw <- graphics::strwidth(lt, cex = cx); x0 <- (w - tw) / 2
     graphics::text(x0, 0.28, lt, adj = c(0, 0.5), cex = cx, col = "#1a5fb4")
     graphics::segments(x0, 0.2, x0 + tw, 0.2, col = "#1a5fb4")
@@ -20445,7 +20447,7 @@ server <- shinyServer(function(input, output, session) {
       '  y <- new_page("Results: overview")',
       '  link_rect <- NULL',
       '  if (nzchar(fairy_app_url)) {',
-      '    lt <- "Recreate this input in the Fairy app"',
+      '    lt <- "Restore these models in the Fairy app"',
       '    tx(0.06, 0.055, lt, cex = 0.5, col = "#1a5fb4"); w_lt <- strwidth(lt, cex = 0.5)',
       '    segments(0.06, 0.047, 0.06 + w_lt, 0.047, col = "#1a5fb4")',
       '    link_rect <- c(0.06, 0.045, 0.06 + w_lt, 0.066) * rep(c(8.27, 11.69), 2) * 72',
