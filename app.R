@@ -11035,8 +11035,8 @@ server <- shinyServer(function(input, output, session) {
                 var sumM = r1.virt ? r1 : r0, partM = r1.virt ? r0 : r1, cPm = r1.virt ? c0 : c1, cSm = r1.virt ? c1 : c0, yPm = r1.virt ? y0 : y1, ySm = r1.virt ? y1 : y0, sgm = ySm > yPm ? 1 : -1;
                 for (var jj = 0; jj < cPm; jj++) for (var kk = 0; kk < cSm; kk++) {
                   // the lines go to the first square only; the same holds for the other squares and items (the legend states the numbers)
-                  if (sumM.jm) { if (jj !== kk) continue; } else if (kk > 0) continue;
-                  el('path', { d: 'M' + X(jj) + ' ' + (yPm + sgm * 8) + ' C ' + X(jj) + ' ' + (yPm + sgm * 34) + ' ' + X(kk) + ' ' + (ySm - sgm * 34) + ' ' + X(kk) + ' ' + (ySm - sgm * 8), stroke: 'currentColor', opacity: jj === 0 ? '0.55' : '0.3', 'stroke-width': '1.3', 'stroke-dasharray': pp[2] === String.fromCharCode(8722) ? '4 3' : null, 'data-minus': pp[2] === String.fromCharCode(8722) ? '1' : null }, g);
+                  if (sumM.jm && jj !== kk) continue;   // joint: item k with item k; substitutable: every item with every square (the first drawn stronger)
+                  el('path', { d: 'M' + X(jj) + ' ' + (yPm + sgm * 8) + ' C ' + X(jj) + ' ' + (yPm + sgm * 34) + ' ' + X(kk) + ' ' + (ySm - sgm * 34) + ' ' + X(kk) + ' ' + (ySm - sgm * 8), stroke: 'currentColor', opacity: (sumM.jm ? jj === 0 : (jj === 0 && kk === 0)) ? '0.55' : '0.2', 'stroke-width': '1.3', 'stroke-dasharray': pp[2] === String.fromCharCode(8722) ? '4 3' : null, 'data-minus': pp[2] === String.fromCharCode(8722) ? '1' : null }, g);
                 }
                 return;
               }
