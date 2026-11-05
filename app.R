@@ -6323,7 +6323,7 @@ ui <- shinyUI(fluidPage(
             S('6 Results tabs', 'After Go, tabs appear at the top. H-representation lists the inequalities, V-representation the vertices. Plot Edge Cases and Plot Polytope(s) draw the models, and Parsimony compares volumes and Bayes factors.', function() { return []; }),
             S('7 Display', 'Switch between light and dark mode, and turn the tool tips on or off.', function() { return [q1('#tips-toggle'), q1('#dm-toggle')]; }),
             S('8 Help', 'What is new, how to report a bug, and the keyboard shortcuts are in the bar at the bottom.', function() { return [q1('#banner')]; }),
-            S('That is it', 'Try an example: type a model such as p1 > p2 > p3 into the first row and press Go. The full tour explains every control.', function() { return []; }, { last: true, full: true })
+            S('That is it', 'Try an example: type a model such as p1 > p2 > p3 into the first row and press Go. The full tour explains every part of the app.', function() { return []; }, { last: true, full: true })
           ];
         }
         function fullSteps() {
@@ -6386,7 +6386,7 @@ ui <- shinyUI(fluidPage(
           function R(tab, title, text, f, extra) { var o = { pre: function() { goTab(tab); }, wait: 700 }; if (extra) { for (var k in extra) { o[k] = extra[k]; } } return S(title, text, f, o); }
           return [
             S('Results', 'This tour runs your model (an example if the first row is empty) and visits each result tab: H-representation, V-representation, the two plots and Parsimony.', function() { return []; }, {
-              pre: function() { goTab('Input'); ensureModel(); var vb = document.getElementById('vrep_toggle_btn_1'); if (vb && !tabShown('V-representation')) { vb.click(); } setTimeout(function() { clickEl(document.getElementById('go_inline')); }, 700); },
+              pre: function() { closeModal(); if (addedModel) { addedModel = false; var rm0 = document.getElementById('rm_ie'); if (rm0) rm0.click(); } goTab('Input'); ensureModel(); var vb = document.getElementById('vrep_toggle_btn_1'); if (vb && !tabShown('V-representation')) { vb.click(); } setTimeout(function() { clickEl(document.getElementById('go_inline')); }, 700); },
               until: function() { return tabShown('V-representation') && tabShown('Plot Edge Cases'); }, wait: 2500, maxwait: 60000 }),
             R('H-representation', 'H-representation', 'One card per model with its inequalities. The badge counts equalities and inequalities without the automatic 0 to 1 bounds. Drag a card by its header, resize it in the corner, and enlarge it with the arrows.', function() { var p = pane(); var l = p ? p.querySelectorAll('.model-card') : []; return [].filter.call(l, shown); }),
             R('H-representation', 'Layout', 'Aligned: one column per probability. Compact: the terms are packed per row.', function() { return [inPane('#h_layout_toggle_group')]; }),
@@ -6417,6 +6417,12 @@ ui <- shinyUI(fluidPage(
             R('Model Properties', 'Detailed results', 'Volume (exact ones as fractions), the dimensionality, and Max BF, the largest Bayes factor the model can reach (1 divided by the volume). CSV saves the table, and the heading above explains the columns.', function() { return [inPane('#parsimony_spinner_table')]; }),
             S('That is it', 'Every tab has the same pattern: controls on the left, the result in the middle, downloads for your own work.', function() { return []; }, { last: true, noexample: true, pre: function() { goTab('Input'); }, wait: 400 })
           ];
+        }
+        function allSteps() {
+          var parts = [fullSteps().filter(function(x) { return x.title !== 'Results tabs' && x.title !== 'That is it'; }), unpackSteps(), combineSteps(), resultSteps()], out = [];
+          parts.forEach(function(pt) { pt.forEach(function(st) { st.last = false; out.push(st); }); });
+          out[out.length - 1].last = true;
+          return out;
         }
         function union(els) {
           var l = els.filter(function(e) { return !!e; });
@@ -6470,9 +6476,9 @@ ui <- shinyUI(fluidPage(
           var h = document.createElement('h4'); h.textContent = 'Welcome to Fairy'; card.appendChild(h);
           var p = document.createElement('p'); p.textContent = 'Which tour do you want?'; card.appendChild(p);
           var l = document.createElement('p'); l.style.cssText = 'font-size:13px; color:var(--fairy-text-muted, #667085);';
-          l.textContent = 'Basic: the steps from input to results, about a minute. Full: every control of the Input tab. Unpacking, Combining and Results explain those parts.'; card.appendChild(l);
+          l.textContent = 'Start page: the first steps from input to results, about a minute. Full tour: every part of the app, one after the other. Or look at one part only: input controls, unpacking, combining models, or the results tabs.'; card.appendChild(l);
           var foot = document.createElement('div'); foot.className = 'fairy-tour-foot';
-          foot.appendChild(btn('Cancel', 'end', 'fairy-tour-skip')); foot.appendChild(btn('Unpacking', 'unpack')); foot.appendChild(btn('Combining models', 'combine')); foot.appendChild(btn('Results', 'results')); foot.appendChild(btn('Full tour', 'full')); foot.appendChild(btn('Basic tour', 'basic', 'fairy-tour-primary'));
+          foot.appendChild(btn('Cancel', 'end', 'fairy-tour-skip')); foot.appendChild(btn('Input controls', 'input')); foot.appendChild(btn('Unpacking', 'unpack')); foot.appendChild(btn('Combining', 'combine')); foot.appendChild(btn('Results', 'results')); foot.appendChild(btn('Full tour', 'full')); foot.appendChild(btn('Start page', 'basic', 'fairy-tour-primary'));
           card.appendChild(foot); place(); setTimeout(place, 150);
           foot.lastChild.focus();
         }
@@ -6529,7 +6535,7 @@ ui <- shinyUI(fluidPage(
           var tab = document.querySelector('a[data-value=Input]'); if (tab && !tab.parentElement.classList.contains('active')) tab.click();
           setTimeout(pick, 150);
         }
-        function go(mode) { steps = mode === 'full' ? fullSteps() : (mode === 'unpack' ? unpackSteps() : (mode === 'combine' ? combineSteps() : (mode === 'results' ? resultSteps() : basicSteps()))); steps.kind = mode; tourStep = -1; show(0); }
+        function go(mode) { steps = mode === 'full' ? allSteps() : (mode === 'input' ? fullSteps() : (mode === 'unpack' ? unpackSteps() : (mode === 'combine' ? combineSteps() : (mode === 'results' ? resultSteps() : basicSteps())))); steps.kind = mode; tourStep = -1; show(0); }
         function next() { if (steps[tourStep].last) end(); else show(tourStep + 1); }
         document.addEventListener('click', function(e) {
           var t = e.target.closest ? e.target : e.target.parentNode;
@@ -6540,7 +6546,7 @@ ui <- shinyUI(fluidPage(
             if (k === 'next') next();
             else if (k === 'back') show(tourStep - 1);
             else if (k === 'end') end();
-            else if (k === 'basic' || k === 'full' || k === 'unpack' || k === 'combine' || k === 'results') go(k);
+            else if (k === 'basic' || k === 'full' || k === 'unpack' || k === 'combine' || k === 'results' || k === 'input') go(k);
             else if (k === 'example') {
               var ta = document.getElementById('textin_relations_1');
               end();
