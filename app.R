@@ -16639,8 +16639,12 @@ server <- shinyServer(function(input, output, session) {
         next
       }
       # a "p" without a number (p instead of p1) cannot be read; say so instead of failing further down
-      if (grepl("(?<![A-Za-z0-9_{\\\\])p(?![0-9A-Za-z_{])", gsub("[^A-Za-z0-9_{}]", " ", spec_chk), perl = TRUE)) {
-        precheck_msgs <- c(precheck_msgs, paste0("<b>", htmltools::htmlEscape(label_chk), "</b>: a probability needs a number, write p1, p2, p3, \u2026 instead of just p."))
+      bare_pat <- "(?<![A-Za-z_{\\\\])p(?![0-9A-Za-z_{])"   # a p without a number, also after a weight (2p)
+      bare_cl <- Filter(function(cl) grepl(bare_pat, gsub("\\s", "", cl), perl = TRUE), trimws(strsplit(spec_chk, "[;,\n]")[[1]]))
+      if (length(bare_cl) > 0) {
+        shown <- vapply(bare_cl, function(cl) gsub(bare_pat, "<u style='color:#c9353b'>p</u>", htmltools::htmlEscape(gsub("\\s", "", cl)), perl = TRUE), character(1))
+        precheck_msgs <- c(precheck_msgs, paste0("<b>", htmltools::htmlEscape(label_chk), "</b>: a <u>p</u> without a number in <b>", paste(shown, collapse = "</b>, <b>"),
+          "</b>. Write p1, p2, p3, \u2026 (for example 2*p1 or 2p1)."))
       }
       # a probability that does not exist (p20 with six probabilities) cannot be calculated: say which one
       # a model is a set of linear constraints: 1/p1, p1*p2, p1^2 or functions of probabilities cannot be calculated
@@ -16856,7 +16860,22 @@ server <- shinyServer(function(input, output, session) {
             error = function(e) character()
           )
 
-          if (length(bad) > 0) {
+          bare_pat2 <- "(?<![A-Za-z_{\\\\])p(?![0-9A-Za-z_{])"
+          pieces_all <- tryCatch(split_spec(spec_txt), error = function(e) character())
+          bare_pieces <- pieces_all[grepl(bare_pat2, gsub("\\s", "", pieces_all), perl = TRUE)]
+          # does a clause really multiply or divide probabilities, or raise them to a power?
+          looks_nonlinear <- function(cl) {
+            cl <- gsub("\\s", "", cl)
+            dens <- regmatches(cl, gregexpr("/\\s*(\\([^)]*\\)|[A-Za-z0-9_.]+)", cl))[[1]]
+            prods <- regmatches(cl, gregexpr("p[0-9]+\\s*[*]\\s*(p[0-9]+|\\()|\\)\\s*[*]\\s*(p[0-9]+|\\()|[*]\\s*\\([^)]*p[0-9]", cl))[[1]]
+            pows <- regmatches(cl, gregexpr("[A-Za-z0-9_.)]+\\s*\\^\\s*[A-Za-z0-9_.(]+", cl))[[1]]
+            length(c(dens[grepl("p[0-9]+", dens)], prods, pows[grepl("p[0-9]+", pows)])) > 0
+          }
+          if (length(bare_pieces) > 0) {
+            shown <- vapply(bare_pieces, function(cl) gsub(bare_pat2, "<u style='color:#c9353b'>p</u>", htmltools::htmlEscape(gsub("\\s", "", cl)), perl = TRUE), character(1))
+            msg <- paste0("A <u>p</u> without a number:<br><br><b>", paste(shown, collapse = "</b><br><b>"), "</b>",
+                          "<br><br>Write p1, p2, p3, \u2026 (for example 2*p1 or 2p1).")
+          } else if (length(bad) > 0 && any(vapply(bad, looks_nonlinear, logical(1)))) {
             msg <- paste0(
               "This constraint is not <b>linear</b> in the probabilities:",
               "<br><br><b>", paste(bad, collapse = "</b><br><b>"), "</b>",
