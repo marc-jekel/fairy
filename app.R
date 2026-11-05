@@ -1686,6 +1686,7 @@ ui <- shinyUI(fluidPage(
       /* the buttons sit below the models, at the end of the page: the menu opens upward (downward it is cut off by the page end) */
       .fairy-go-inline .fairy-share-pop { top: auto; bottom: calc(100% + 8px); }
       .fairy-share-pop[hidden] { display: none; }
+      body:has(#fairy-qr-overlay) .fairy-tooltip::after, body:has(#fairy-qr-overlay) .fairy-tooltip::before { display: none !important; }
       #fairy-qr-overlay { position: fixed; inset: 0; z-index: 10500; display: flex; align-items: center; justify-content: center; background: rgba(15, 20, 35, .55); }
       .fairy-qr-card { background: #fff; color: #1f2430; border-radius: 14px; padding: 22px 24px 18px; box-shadow: 0 18px 60px rgba(0,0,0,.35); display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 92vw; }
       .fairy-qr-svg svg { width: min(70vmin, 460px); height: auto; display: block; }
