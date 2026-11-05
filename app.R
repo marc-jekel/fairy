@@ -1686,6 +1686,13 @@ ui <- shinyUI(fluidPage(
       /* the buttons sit below the models, at the end of the page: the menu opens upward (downward it is cut off by the page end) */
       .fairy-go-inline .fairy-share-pop { top: auto; bottom: calc(100% + 8px); }
       .fairy-share-pop[hidden] { display: none; }
+      #fairy-qr-overlay { position: fixed; inset: 0; z-index: 10500; display: flex; align-items: center; justify-content: center; background: rgba(15, 20, 35, .55); }
+      .fairy-qr-card { background: #fff; color: #1f2430; border-radius: 14px; padding: 22px 24px 18px; box-shadow: 0 18px 60px rgba(0,0,0,.35); display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 92vw; }
+      .fairy-qr-svg svg { width: min(70vmin, 460px); height: auto; display: block; }
+      .fairy-qr-link { font-size: 13px; color: #1a5fb4; text-decoration: underline; }
+      .fairy-qr-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+      .fairy-qr-btns button { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 8px; border: 1px solid #cfd4e0; background: #f4f6fb; color: #1f2430; cursor: pointer; }
+      .fairy-qr-btns button:hover { background: #e8ecf6; }
       .fairy-share-pop:not([hidden]) { display: flex; flex-direction: column; }
       .fairy-share-item { display: flex; align-items: center; gap: 9px; border: 0; background: transparent; color: var(--fairy-text, #222);
         padding: 8px 10px; border-radius: 7px; font-size: 12.5px; text-align: left; cursor: pointer; white-space: nowrap; }
@@ -6136,6 +6143,28 @@ ui <- shinyUI(fluidPage(
             }, ms);
           });
         });
+        // QR code of the link in the middle of the screen (shown by the Share menu); download as PDF (clickable link) or PNG
+        Shiny.addCustomMessageHandler('fairy_qr', function(m) {
+          var old = document.getElementById('fairy-qr-overlay'); if (old) old.remove();
+          var o = document.createElement('div'); o.id = 'fairy-qr-overlay';
+          var card = document.createElement('div'); card.className = 'fairy-qr-card'; card.setAttribute('role', 'dialog');
+          var sv = document.createElement('div'); sv.className = 'fairy-qr-svg'; sv.innerHTML = m.svg; card.appendChild(sv);
+          var lk = document.createElement('a'); lk.className = 'fairy-qr-link'; lk.target = '_blank'; lk.rel = 'noopener'; lk.href = m.url;
+          lk.textContent = 'Recreate this input in the Fairy app'; card.appendChild(lk);
+          var bt = document.createElement('div'); bt.className = 'fairy-qr-btns';
+          [['pdf', 'Download PDF'], ['png', 'Download PNG'], ['close', 'Close']].forEach(function(x) {
+            var b = document.createElement('button'); b.type = 'button'; b.setAttribute('data-k', x[0]); b.textContent = x[1]; bt.appendChild(b);
+          });
+          card.appendChild(bt); o.appendChild(card);
+          o.addEventListener('click', function(e) {
+            var t = e.target, k = t.getAttribute ? t.getAttribute('data-k') : null;
+            if (k === 'pdf') { var a1 = document.getElementById('qr_pdf'); if (a1) a1.click(); }
+            else if (k === 'png') { var a2 = document.getElementById('qr_png'); if (a2) a2.click(); }
+            else if (k === 'close' || t === o) o.remove();
+          });
+          document.body.appendChild(o);
+        });
+        document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { var q = document.getElementById('fairy-qr-overlay'); if (q) q.remove(); } });
         Shiny.addCustomMessageHandler('fairy_pdf_link', function(m) { if (window.fairyPdfLinkCb) window.fairyPdfLinkCb(m.url || null); });
         Shiny.addCustomMessageHandler('fairy_share', function(m) {
           // embedded in the tutorial page: share a link to that page, which loads the app with this input
@@ -6260,6 +6289,8 @@ ui <- shinyUI(fluidPage(
               Shiny.setInputValue('share_request', Date.now(), { priority: 'event' });
             } else if (item.id === 'fairy_share_file' && !item.classList.contains('fairy-share-muted') && p.dl) {
               p.dl.click();
+            } else if (item.id === 'fairy_share_qr') {
+              Shiny.setInputValue('qr_request', Date.now(), { priority: 'event' });
             } else if (item.id === 'fairy_share_rscript') {
               var rd = document.getElementById('download_rscript'); if (rd) rd.click();
             }
@@ -7263,6 +7294,9 @@ ui <- shinyUI(fluidPage(
               tags$button(id = "fairy_share_link", type = "button", role = "menuitem", class = "fairy-share-item",
                 title = "Copies a link that opens the app with exactly this input; send it to others to share your models",
                 icon("link"), "Copy link to this input"),
+              tags$button(id = "fairy_share_qr", type = "button", role = "menuitem", class = "fairy-share-item",
+                title = "Shows a QR code of the link to this input in the middle of the screen, for showing it to others quickly; it can be downloaded",
+                icon("qrcode"), "Show QR code"),
               tags$button(id = "fairy_share_file", type = "button", role = "menuitem", class = "fairy-share-item",
                 title = "Saves everything you entered (probabilities, models, unpacking, settings) as an Excel file; upload it later with the arrow button to continue where you stopped",
                 icon("download"), "Save app input (.xlsx)"),
@@ -7272,7 +7306,8 @@ ui <- shinyUI(fluidPage(
             ),
             tags$span(class = "fairy-share-hidden",
               downloadButton("download", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn fairy-btn-muted"),
-              downloadButton("download_rscript", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn")
+              downloadButton("download_rscript", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn"),
+              downloadLink("qr_pdf", ""), downloadLink("qr_png", "")
             )
           ),
           # A hand-rolled <input type=file> here would NOT get Shiny's
@@ -14285,6 +14320,47 @@ server <- shinyServer(function(input, output, session) {
     lk <- if (has_url) pdf_link_page(8, ph)
     invisible(structure(file, link = lk))
   }
+  # QR code of the share link: shown in the middle of the screen (Share menu), downloadable as PDF or PNG
+  qr_matrix <- function(url) {
+    if (is.null(url) || !nzchar(url) || nchar(url) >= 2300 || !requireNamespace("qrcode", quietly = TRUE)) return(NULL)
+    tryCatch(as.matrix(qrcode::qr_code(url, ecl = "L")), error = function(e) NULL)
+  }
+  observeEvent(input$qr_request, {
+    url <- tryCatch(app_share_url(), error = function(e) NULL)
+    qr <- qr_matrix(url)
+    if (is.null(qr)) { showNotification("This input is too large for a QR code. Use \"Copy link to this input\" instead.", type = "warning", duration = 8); return() }
+    n <- nrow(qr); q <- 4
+    cells <- character()
+    for (i in seq_len(n)) { r <- which(qr[i, ]); if (length(r)) cells <- c(cells, sprintf("M%d %dh1v1h-1z", r - 1 + q, i - 1 + q)) }
+    svg <- sprintf('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" shape-rendering="crispEdges"><rect width="100%%" height="100%%" fill="#fff"/><path fill="#000" d="%s"/></svg>', n + 2 * q, n + 2 * q, paste(cells, collapse = ""))
+    session$sendCustomMessage("fairy_qr", list(svg = svg, url = url))
+  })
+  qr_draw <- function(url, w, h) {
+    qr <- qr_matrix(url); req(!is.null(qr))
+    graphics::par(mai = c(0, 0, 0, 0)); graphics::plot.new(); graphics::plot.window(c(0, w), c(0, h), xaxs = "i", yaxs = "i")
+    n <- nrow(qr); sz <- w - 0.6; cw <- sz / n; top <- h - 0.3
+    for (i in seq_len(n)) for (j in seq_len(n)) if (isTRUE(qr[i, j]))
+      graphics::rect(0.3 + (j - 1) * cw, top - i * cw, 0.3 + j * cw, top - (i - 1) * cw, col = "black", border = NA)
+    lt <- "Recreate this input in the Fairy app"; cx <- 0.8
+    tw <- graphics::strwidth(lt, cex = cx); x0 <- (w - tw) / 2
+    graphics::text(x0, 0.28, lt, adj = c(0, 0.5), cex = cx, col = "#1a5fb4")
+    graphics::segments(x0, 0.2, x0 + tw, 0.2, col = "#1a5fb4")
+    c(x0, 0.12, x0 + tw, 0.42)
+  }
+  output$qr_pdf <- downloadHandler(
+    filename = function() paste0("fairy-input-qr-", Sys.Date(), ".pdf"),
+    content = function(file) {
+      url <- isolate(app_share_url()); w <- 4; h <- 4 + 0.3 + 0.6
+      grDevices::pdf(file, width = w, height = h); r <- qr_draw(url, w, h); grDevices::dev.off()
+      pdf_add_link(file, r * 72, url)
+    }, contentType = "application/pdf")
+  output$qr_png <- downloadHandler(
+    filename = function() paste0("fairy-input-qr-", Sys.Date(), ".png"),
+    content = function(file) {
+      url <- isolate(app_share_url()); w <- 4; h <- 4.9
+      grDevices::png(file, width = w * 300, height = h * 300, res = 300); qr_draw(url, w, h); grDevices::dev.off()
+    }, contentType = "image/png")
+  outputOptions(output, "qr_pdf", suspendWhenHidden = FALSE); outputOptions(output, "qr_png", suspendWhenHidden = FALSE)
   observeEvent(input$fairy_pdf_link_req, {
     session$sendCustomMessage("fairy_pdf_link", list(url = tryCatch(app_share_url(), error = function(e) NULL)))
   })
