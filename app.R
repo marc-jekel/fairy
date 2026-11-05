@@ -1701,15 +1701,10 @@ ui <- shinyUI(fluidPage(
       #fairy-tour-card { position: fixed; z-index: 10602; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; padding: 16px 18px 14px; border-radius: 14px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1f2430); border: 1px solid var(--fairy-border, #e5e5e5); box-shadow: 0 18px 50px rgba(0,0,0,.4); font-size: 14px; line-height: 1.45; }
       #fairy-tour-card h4 { margin: 0 0 6px; font-size: 16px; font-weight: 700; }
       #fairy-tour-card p { margin: 0 0 12px; }
-      #fairy-tour-keys { position: fixed; left: 50%; bottom: 48px; transform: translateX(-50%); z-index: 10612; display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; align-items: flex-end; pointer-events: none; max-width: min(94vw, 1180px); }
-      #fairy-tour-keys.fairy-tour-keys-small { gap: 5px; }
-      #fairy-tour-keys.fairy-tour-keys-small .fairy-tour-key { min-width: 26px; height: 28px; padding: 0 7px; font-size: 13px; border-radius: 6px; }
-      #fairy-tour-keys.fairy-tour-keys-small .fairy-tour-key.fairy-tour-key-wide { min-width: 70px; font-size: 10px; }
-      .fairy-tour-key { min-width: 36px; height: 36px; padding: 0 11px; box-sizing: border-box; border-radius: 8px; background: #fff; color: #1f2430; border: 1px solid #c9cedb; box-shadow: 0 4px 0 #aeb5c4, 0 8px 16px rgba(0,0,0,.28); font: 600 16px ui-monospace, Menlo, Consolas, monospace; display: flex; align-items: center; justify-content: center; transition: opacity .25s, transform .1s; }
-      .fairy-tour-key.fairy-tour-key-wide { min-width: 120px; font-size: 12px; letter-spacing: .04em; color: #596073; }
-      .fairy-tour-key.fairy-tour-key-mod { font-size: 12px; color: #596073; background: #eef0f6; }
-      .fairy-tour-key.fresh { transform: translateY(3px); box-shadow: 0 1px 0 #aeb5c4, 0 4px 10px rgba(0,0,0,.25); }
-      .fairy-tour-key.old { opacity: .72; }
+      #fairy-tour-keys { position: fixed; left: 50%; bottom: 46px; transform: translateX(-50%); z-index: 10612; width: min(560px, 92vw); box-sizing: border-box; padding: 8px 9px 6px; border-radius: 12px; background: rgba(28, 32, 44, .93); box-shadow: 0 10px 30px rgba(0,0,0,.4); pointer-events: none; font-size: clamp(7px, 1.3vw, 11px); }
+      .fairy-kb-row { display: flex; gap: 4px; margin-bottom: 4px; }
+      .fairy-kb-key { height: 2.6em; min-width: 0; display: flex; align-items: center; justify-content: center; box-sizing: border-box; border-radius: .5em; background: #3b4256; color: #8d96ad; font: 600 1em ui-monospace, Menlo, Consolas, monospace; transition: background .12s, color .12s, transform .08s, box-shadow .12s; }
+      .fairy-kb-key.hit { background: var(--fairy-primary, #7a4fc4); color: #fff; transform: translateY(2px); box-shadow: 0 0 0 2px rgba(255,255,255,.55), 0 0 14px rgba(160, 120, 240, .9); }
       #fairy-tour-cursor { position: fixed; z-index: 10610; left: 50%; top: 60%; width: 22px; height: 22px; margin: -2px 0 0 -2px; pointer-events: none; transition: left .7s cubic-bezier(.4, 0, .2, 1), top .7s cubic-bezier(.4, 0, .2, 1); filter: drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
       #fairy-tour-cursor svg { display: block; width: 22px; height: 22px; }
       #fairy-tour-cursor::after { content: ''; position: absolute; left: -9px; top: -9px; width: 20px; height: 20px; border-radius: 50%; border: 3px solid var(--fairy-primary, #593196); opacity: 0; transform: scale(.3); }
@@ -6375,15 +6370,40 @@ ui <- shinyUI(fluidPage(
         }
         async function cclick(el) { await clickOn(el); }
         async function tabC(name) { var a = tabLink(name); if (a) { await clickOn(a); tabsTouched = true; } }
-        // key caps that show what is typed (shift is shown for capital letters and symbols)
-        function keysEl() { var k = document.getElementById('fairy-tour-keys'); if (!k) { k = document.createElement('div'); k.id = 'fairy-tour-keys'; document.body.appendChild(k); } return k; }
+        // a drawn keyboard: the key that is hit lights up (shift too for capitals and symbols)
+        var KB_ROWS = [
+          [['`', 1], ['1', 1], ['2', 1], ['3', 1], ['4', 1], ['5', 1], ['6', 1], ['7', 1], ['8', 1], ['9', 1], ['0', 1], ['-', 1], ['=', 1], ['del', 1.6]],
+          [['tab', 1.5], ['q', 1], ['w', 1], ['e', 1], ['r', 1], ['t', 1], ['y', 1], ['u', 1], ['i', 1], ['o', 1], ['p', 1], ['[', 1], [']', 1], ['\\\\', 1.1]],
+          [['caps', 1.8], ['a', 1], ['s', 1], ['d', 1], ['f', 1], ['g', 1], ['h', 1], ['j', 1], ['k', 1], ['l', 1], [';', 1], [String.fromCharCode(39), 1], ['enter', 2.1]],
+          [['shift', 2.3], ['z', 1], ['x', 1], ['c', 1], ['v', 1], ['b', 1], ['n', 1], ['m', 1], [',', 1], ['.', 1], ['/', 1], ['shift', 2.7]],
+          [['space', 7]]
+        ];
+        var KB_SHIFTED = { '~': '`', '!': '1', '@': '2', '#': '3', '$': '4', '%': '5', '^': '6', '&': '7', '*': '8', '(': '9', ')': '0', '_': '-', '+': '=', '{': '[', '}': ']', '|': '\\\\', ':': ';', '<': ',', '>': '.', '?': '/' };
+        KB_SHIFTED[String.fromCharCode(34)] = String.fromCharCode(39);
+        function keysEl() {
+          var k = document.getElementById('fairy-tour-keys');
+          if (!k) {
+            k = document.createElement('div'); k.id = 'fairy-tour-keys';
+            KB_ROWS.forEach(function(row) {
+              var r = document.createElement('div'); r.className = 'fairy-kb-row';
+              row.forEach(function(kk) { var e = document.createElement('div'); e.className = 'fairy-kb-key'; e.setAttribute('data-kb', kk[0]); e.style.flex = kk[1] + ' 1 0'; e.textContent = kk[0].length === 1 || kk[0] === 'del' || kk[0] === 'tab' || kk[0] === 'caps' || kk[0] === 'enter' || kk[0] === 'shift' ? kk[0] : ''; r.appendChild(e); });
+              k.appendChild(r);
+            });
+            document.body.appendChild(k);
+          }
+          return k;
+        }
+        function flashKey(id, ms) {
+          var k = keysEl(), l = k.querySelectorAll('.fairy-kb-key'), i;
+          for (i = 0; i !== l.length; i++) { if (l[i].getAttribute('data-kb') === id) { (function(e) { e.classList.add('hit'); setTimeout(function() { e.classList.remove('hit'); }, ms); })(l[i]); } }
+        }
         function showKey(ch) {
-          var k = keysEl(), needShift = ch.length === 1 && /[A-Z<>?:{}|~!@#$%^&*()_+]/.test(ch);
-          [].forEach.call(k.querySelectorAll('.fairy-tour-key'), function(e) { e.classList.remove('fresh'); e.classList.add('old'); });
-          while (k.children.length > 110) { k.removeChild(k.firstChild); }
-          k.classList.toggle('fairy-tour-keys-small', k.children.length > 22);
-          if (needShift) { var sh = document.createElement('div'); sh.className = 'fairy-tour-key fairy-tour-key-mod old'; sh.textContent = 'shift'; k.appendChild(sh); }
-          var c = document.createElement('div'); c.className = 'fairy-tour-key fresh' + (ch === ' ' ? ' fairy-tour-key-wide' : ''); c.textContent = ch === ' ' ? 'space' : ch; k.appendChild(c);
+          var id = ch, shift = false;
+          if (ch === ' ') id = 'space';
+          else if (KB_SHIFTED[ch]) { id = KB_SHIFTED[ch]; shift = true; }
+          else if (/[A-Z]/.test(ch)) { id = ch.toLowerCase(); shift = true; }
+          if (shift) flashKey('shift', 260);
+          flashKey(id, 170);
         }
         function hideKeys() { var k = document.getElementById('fairy-tour-keys'); if (k) k.remove(); }
         function hideCursor() { var c = document.getElementById('fairy-tour-cursor'); if (c) c.remove(); }
