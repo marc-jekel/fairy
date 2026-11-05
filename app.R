@@ -1710,6 +1710,8 @@ ui <- shinyUI(fluidPage(
       #fairy-tour-cursor { position: fixed; z-index: 10610; left: 50%; top: 60%; width: 22px; height: 22px; margin: -2px 0 0 -2px; pointer-events: none; transition: left .7s cubic-bezier(.4, 0, .2, 1), top .7s cubic-bezier(.4, 0, .2, 1); filter: drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
       #fairy-tour-cursor svg { display: block; width: 22px; height: 22px; }
       #fairy-tour-cursor::after { content: ''; position: absolute; left: -9px; top: -9px; width: 20px; height: 20px; border-radius: 50%; border: 3px solid var(--fairy-primary, #593196); opacity: 0; transform: scale(.3); }
+      #fairy-tour-cursor.fairy-tour-down svg { transform: scale(.85); }
+      #fairy-tour-cursor.fairy-tour-down::after { opacity: .55; transform: scale(.9); }
       #fairy-tour-cursor.fairy-tour-click::after { animation: fairy-tour-ripple .55s ease-out; }
       @keyframes fairy-tour-ripple { 0% { opacity: .9; transform: scale(.3); } 100% { opacity: 0; transform: scale(2); } }
       #fairy-tour-card.fairy-tour-pick { width: min(400px, calc(100vw - 24px)); }
@@ -6476,7 +6478,7 @@ ui <- shinyUI(fluidPage(
             R('Plot Polytope(s)', 'Models to plot', 'Choose which models are drawn. Several models can be drawn together in different colours.', function() { var l = paneLabel(/Models to plot/); return [l ? l.parentElement : null]; }),
             R('Plot Polytope(s)', 'Auto-rotate', 'Turns the plot slowly all the time.', function() { return [paneLabel(/Auto-rotate/)]; }),
             R('Plot Polytope(s)', 'Axes', 'Choose which three probabilities are the x, y and z axes.', function() { var h = inPane('#dim_pick_heading'); var z = inPane('#dim_3'); return [h, z ? z.closest('.form-group') : null]; }),
-            R('Plot Polytope(s)', 'The polytope', 'Drag to rotate and scroll to zoom. Click a model in the legend to hide or show it. The toolbar at the top right of the plot offers more views and saves a PNG.', function() { return [inPane('#plot')]; }),
+            R('Plot Polytope(s)', 'The polytope', 'Drag to rotate and scroll to zoom. Click a model in the legend to hide or show it. The toolbar at the top right of the plot offers more views and saves a PNG.', function() { return [inPane('#plot')]; }, { demo: async function(tk) { await rotateCube(tk); } }),
             R('Plot Polytope(s)', 'PDF and full size', 'Saves the plot as a vector PDF, sharp at any size. The arrows enlarge the plot.', function() { return [inPane('#download_polytope_pdf'), inPane('#polytope_plot_expand')]; }),
             R('Model Properties', 'Parsimony', 'Computes the volume of every model: the share of the parameter space that fits the model. A smaller volume means a more restrictive model.', function() { return [inPane('#go_inline_pars')]; }),
             R('Model Properties', 'Exact volume', 'Calculates the volume from the corner points of the model (up to 5 minutes in total; you can skip it). Where it works, no algorithm is needed.', function() { return [byTip(/Calculates the volume from the corner points/)]; }),
@@ -6544,6 +6546,26 @@ ui <- shinyUI(fluidPage(
         function runIdle() { var o = document.getElementById('fairy-run-overlay'); return !(o && o.classList.contains('active')); }
         function hCards() { var l = document.querySelectorAll('#h .model-card, .tab-pane .model-card'); return l.length; }
         function parsRows() { return document.querySelectorAll('#parsim_table tbody tr').length; }
+        // the pointer grabs the 3D plot and turns the cube a little (the camera follows the pointer), then turns it back
+        function plotGd() { return document.querySelector('#plot.js-plotly-plot') || document.querySelector('#plot .js-plotly-plot'); }
+        async function rotateCube(tk) {
+          var gd = plotGd(); if (!gd || !window.Plotly || !shown(gd)) return;
+          var eye = (gd.layout && gd.layout.scene && gd.layout.scene.camera && gd.layout.scene.camera.eye) || { x: 1.25, y: 1.25, z: 1.25 };
+          var ex = eye.x, ey = eye.y, ez = eye.z, r = Math.sqrt(ex * ex + ey * ey), a0 = Math.atan2(ey, ex);
+          var rect = gd.getBoundingClientRect(), cx = rect.left + rect.width * 0.5, cy = rect.top + rect.height * 0.62;
+          var c = cursorEl(); c.style.left = Math.round(cx) + 'px'; c.style.top = Math.round(cy) + 'px'; await sleep(900);
+          c.classList.add('fairy-tour-down'); await sleep(250);
+          var steps2 = 64, i, t, ang, ph;
+          for (i = 1; i !== steps2 + 1; i++) {
+            if (tk !== undefined && tk !== token) break;
+            ph = Math.sin(Math.PI * i / steps2);             // 0 -> 1 -> 0: out and back
+            ang = a0 + ph * 0.95;
+            c.style.transition = 'none'; c.style.left = Math.round(cx + ph * 110) + 'px'; c.style.top = Math.round(cy - ph * 14) + 'px';
+            await window.Plotly.relayout(gd, { 'scene.camera.eye': { x: r * Math.cos(ang), y: r * Math.sin(ang), z: ez + ph * 0.25 } });
+            await sleep(60);
+          }
+          c.style.transition = ''; c.classList.remove('fairy-tour-down'); await sleep(400);
+        }
         async function ensureRowsFast(n) { var g = 0; while (rowCount() < n && g !== 20) { await addOne('add_ie', rowCount, false); g++; } await sleep(300); }
         var vTutOn = false;
         function tutorialSteps() {
@@ -6557,12 +6579,11 @@ ui <- shinyUI(fluidPage(
             S('Vertices on', 'The vertices of the model (V-representation) are optional because they can take long for large models. Here the switch is turned on.', function() { return [q1('#vrep_toggle_btn_1')]; }, { demo: async function(tk) { if (!tabShown('V-representation')) { await cclick(document.getElementById('vrep_toggle_btn_1')); vTutOn = true; } } }),
             S('Go', 'Go builds the H-representation of the model, and the vertices.', function() { return [q1('#go_inline')]; }, { demo: async function(tk) { await cclick(document.getElementById('go_inline')); await waitFor(function() { return tabShown('V-representation') && tabShown('Plot Edge Cases'); }, 60000); } }),
             R2('H-representation', 'The H-representation', 'The fairy describes the model with inequalities. Line 1: p_T is at most p_C. Line 2: p_A is at most p_T. Line 3: p_C is at most 1, and line 4: p_A is at least 0, because probabilities lie between 0 and 1. On the left you can download the files for QTEST and a LaTeX file.', function() { var p = pane(); var l = p ? p.querySelectorAll('.model-card') : []; return [].filter.call(l, shown); }),
-            R2('Plot Polytope(s)', 'The polytope', 'Each axis is one probability (p_C, p_T, p_A) from 0 to 1, so the cube holds all possible triples. The coloured figure marks the triples that fit your model. This figure is a polytope. Drag to rotate it.', function() { return [inPane('#plot')]; }),
+            R2('Plot Polytope(s)', 'The polytope', 'Each axis is one probability (p_C, p_T, p_A) from 0 to 1, so the cube holds all possible triples. The coloured figure marks the triples that fit your model. This figure is a polytope. Drag to rotate it.', function() { return [inPane('#plot')]; }, { demo: async function(tk) { await rotateCube(tk); } }),
             R2('V-representation', 'The vertices', 'The corner points of the polytope, written as (p_C, p_T, p_A): (1, 1, 1), (1, 1, 0), (1, 0, 0) and (0, 0, 0). Each row is one vertex and each column one probability. Vertices are the edge cases of your model.', function() { var p = pane(); var e = p ? p.querySelector('.model-card') : null; return [shown(e) ? e : null]; }),
             R2('Plot Edge Cases', 'The edge cases', 'Step through the four vertices: the plot shows the value of each probability at every vertex.', function() { return [inPane('#plot_example')]; }),
             R2('Model Properties', 'Parsimony: the volume', 'The smaller the polytope, the more parsimonious the model. Go computes its volume, the share of the cube that fits the model.', function() { return [inPane('#go_inline_pars')]; }, { demo: async function(tk) { await cclick(document.getElementById('go_inline_pars')); await waitFor(function() { return shown(document.getElementById('parsimony_bar_plot')); }, 60000); } }),
             S('1 / volume = the largest Bayes factor', 'The model fills 1/6 of the cube (about 17 percent). The reciprocal of the volume is the largest Bayes factor the model can reach against an unconstrained model: here 6. If this is too low for your purposes, look for stimuli where your theory predicts more.', function() { return [inPane('#parsimony_spinner_table')]; }),
-            S('Vertices off again', 'For the big models of the next part the vertices are not needed and would take long, so the switch is turned off again.', function() { return [q1('#vrep_toggle_btn_1')]; }, { pre: function() { closeModal(); return tabC('Input'); }, wait: 300, demo: async function(tk) { if (vTutOn) { await cclick(document.getElementById('vrep_toggle_btn_1')); vTutOn = false; } } }),
             S('Now the full study', 'The paper crosses three age groups with two joke types: illogical jokes (i) and puns (p). That makes a 2 x 3 design with six probabilities: p1 children, p2 teens and p3 adults for illogical jokes, and p4, p5 and p6 for puns. Nine cringe theories predict how they relate.', function() { return []; }, { pre: function() { closeModal(); return tabC('Input'); } }),
             S('Six probabilities', 'Three probabilities are added and all six are named: C, T and A for children, teens and adults, with i for illogical jokes and p for puns.', function() { return [q1('.def-col--pnames')]; }, { demo: async function(tk) { await ensureProbs(6, tk); var names = ['p_{C,i}', 'p_{T,i}', 'p_{A,i}', 'p_{C,p}', 'p_{T,p}', 'p_{A,p}'], i; for (i = 0; i !== 6; i++) { await typeInto(document.getElementById('textin_name_' + (i + 1)), names[i], tk); } } }),
             S('Nine models', 'One row per theory: eight more rows are added.', function() { return [q1('.def-col--models-card')]; }, { demo: async function(tk) { await ensureModelRows(9, tk); } }),
@@ -6572,20 +6593,20 @@ ui <- shinyUI(fluidPage(
             model(4, 'm4: ... in every age group', 'Like m3, but puns are cringier than illogical jokes in every single age group.', 'p1 > p2 > p3; p4 < p5 < p6; p1 < p4; p2 < p5; p3 < p6'),
             model(5, 'm5: equally cringy', 'Both joke types are exactly equally cringe-worthy in all age groups: all six probabilities are equal.', 'p1 = p2 = p3 = p4 = p5 = p6'),
             model(6, 'm6: the trends balance out', 'Like m3, but the average cringyness of both joke types is exactly equal.', 'p1 > p2 > p3; p4 < p5 < p6; 1/3 * p1 + 1/3 * p2 + 1/3 * p3 = 1/3 * p4 + 1/3 * p5 + 1/3 * p6'),
-            S('m7: about equally cringy', 'm7 reads about equally cringy differently: the two averages may differ by .05. The input is the same as for m6; then the equality is switched to approximate with a tolerance of .05.', function() { return [modQ('.modal-body') || specTd(7)]; }, { pre: function() { return ensureRowsFast(7); }, wait: 200, demo: async function(tk) {
+            S('m7: about equally cringy', 'm7 reads about equally cringy differently: the two averages may differ by .05. The input is the same as for m6; then the equality is switched to approximate with a tolerance of .05.', function() { return [modQ('.modal-content') || specTd(7)]; }, { pre: function() { return ensureRowsFast(7); }, wait: 200, demo: async function(tk) {
               await typeInto(document.getElementById('textin_relations_7'), 'p1 > p2 > p3; p4 < p5 < p6; 1/3 * p1 + 1/3 * p2 + 1/3 * p3 = 1/3 * p4 + 1/3 * p5 + 1/3 * p6', tk);
               await sleep(1200); await cclick(document.getElementById('eq_tol_btn_7')); await sleep(1500); place();
               var sw = modQ('label[for=eq_tol_switch_7_1]'); if (sw) await cclick(sw); await sleep(700);
               await cclick(modQ('#submit_eq_tol_7')); await sleep(900); place(); } }),
-            S('m8: wiggle room for all pairs', 'm8 says that all six probabilities are about the same, within .05. The braces are a shortcut: every element on the left is set equal to every element on the right, so this stands for all pairs. The buttons for each term switch all its pairs to approximate at once.', function() { return [modQ('.modal-body') || specTd(8)]; }, { pre: function() { return ensureRowsFast(8); }, wait: 200, demo: async function(tk) {
+            S('m8: wiggle room for all pairs', 'm8 says that all six probabilities are about the same, within .05. The braces are a shortcut: every element on the left is set equal to every element on the right, so this stands for all pairs. The buttons for each term switch all its pairs to approximate at once.', function() { return [modQ('.modal-content') || specTd(8)]; }, { pre: function() { return ensureRowsFast(8); }, wait: 200, demo: async function(tk) {
               await typeInto(document.getElementById('textin_relations_8'), '{p1,p2,p3,p4,p5,p6} = {p1,p2,p3,p4,p5,p6}', tk);
               await sleep(1200); await cclick(document.getElementById('eq_tol_btn_8')); await sleep(1500); place();
               var m = modalOpen(), bs = m ? m.querySelectorAll('#fairy-eq-tol-terms button') : [], i;
               for (i = 0; i !== 5 && i !== bs.length; i++) { await cclick(bs[i]); }
               await sleep(500); await cclick(modQ('#submit_eq_tol_8')); await sleep(900); place(); } }),
             model(9, 'm9: the opposite of m4', 'Illogical jokes increase with age, puns decrease, and illogical jokes are cringier than puns in every age group.', 'p1 < p2 < p3; p4 > p5 > p6; p1 > p4; p2 > p5; p3 > p6'),
-            S('Intersections: what two models share', 'Models can make similar predictions: their polytopes overlap. The intersection of two models is the space they share. The Intersection model button adds a model with all constraints of the models you pick. Here m1 and m2.', function() { return [modQ('.modal-body') || q1('#add_intersection_model')]; }, { pre: function() { closeModal(); return tabC('Input'); }, wait: 300, demo: async function(tk) { await interDemo([1, 2], tk); } }),
-            S('Another intersection: m1 and m3', 'The same for m1 and m3. Each intersection is a new row of its own.', function() { return [modQ('.modal-body') || q1('#add_intersection_model')]; }, { pre: function() { closeModal(); }, wait: 300, demo: async function(tk) { await interDemo([1, 3], tk); } }),
+            S('Intersections: what two models share', 'Models can make similar predictions: their polytopes overlap. The intersection of two models is the space they share. The Intersection model button adds a model with all constraints of the models you pick. Here m1 and m2.', function() { return [modQ('.modal-content') || q1('#add_intersection_model')]; }, { pre: function() { closeModal(); return tabC('Input'); }, wait: 300, demo: async function(tk) { await interDemo([1, 2], tk); } }),
+            S('Another intersection: m1 and m3', 'The same for m1 and m3. Each intersection is a new row of its own.', function() { return [modQ('.modal-content') || q1('#add_intersection_model')]; }, { pre: function() { closeModal(); }, wait: 300, demo: async function(tk) { await interDemo([1, 3], tk); } }),
             S('Go for all models', 'Go builds the H-representation of every model, the nine theories and the two intersections.', function() { return [q1('#go_inline')]; }, { pre: function() { closeModal(); return tabC('Input'); }, wait: 300, demo: async function(tk) { await cclick(document.getElementById('go_inline')); await sleep(3000); await waitFor(function() { return calcIdle(); }, 900000); await sleep(1500); } }),
             R2('H-representation', 'One card per model', 'The H-representation of every model. Equalities are counted separately from inequalities in the badge, so m5 shows five equalities.', function() { var p = pane(); var l = p ? p.querySelectorAll('.model-card') : []; return [].filter.call(l, shown).slice(0, 2); }),
             R2('Model Properties', 'Parsimony of all models', 'Now the volumes of all models. The tournament of the paper compares the theories by how much of the space they occupy. This can take a moment for six probabilities.', function() { return [inPane('#go_inline_pars')]; }, { demo: async function(tk) { await cclick(document.getElementById('go_inline_pars')); await sleep(3000); await waitFor(function() { return calcIdle() && parsRows() > 0; }, 900000); await sleep(1500); } }),
@@ -6633,6 +6654,9 @@ ui <- shinyUI(fluidPage(
         function place() {
           if (tourStep === -1 && !picking) return;
           var els = picking ? [] : steps[tourStep].els(), hole = document.getElementById('fairy-tour-hole'), card = document.getElementById('fairy-tour-card');
+          // while the run window is open it is what matters: it is lit and the card stays out of its way
+          var runOv = document.getElementById('fairy-run-overlay'), runOn = !!(runOv && runOv.classList.contains('active') && !picking && steps && steps[tourStep] && steps[tourStep].title !== 'The run window');
+          if (runOn) { var rc = document.getElementById('fairy-run-card'); if (shown(rc)) els = [rc]; else runOn = false; }
           if (!hole || !card) return;
           var r = union(els), pad = 8, vw = window.innerWidth, vh = window.innerHeight;
           if (r) {
@@ -6648,7 +6672,8 @@ ui <- shinyUI(fluidPage(
           else {
             var below = vh - (r.b + pad), above = r.t - pad;
             x = Math.max(12, Math.min(vw - cw - 12, r.l + (r.r - r.l) / 2 - cw / 2));
-            if (below >= ch + 20) y = r.b + pad + 14;
+            if (runOn) { y = vh - ch - 12; x = Math.max(12, Math.min(vw - cw - 12, vw / 2 - cw / 2)); }
+            else if (below >= ch + 20) y = r.b + pad + 14;
             else if (above >= ch + 20) y = r.t - pad - ch - 14;
             else { y = Math.max(12, Math.min(vh - ch - 12, r.t)); x = (vw - r.r) >= cw + 24 ? r.r + pad + 14 : Math.max(12, r.l - pad - cw - 14); }
           }
