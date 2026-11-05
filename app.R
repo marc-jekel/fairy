@@ -1701,6 +1701,11 @@ ui <- shinyUI(fluidPage(
       #fairy-tour-card { position: fixed; z-index: 10602; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; padding: 16px 18px 14px; border-radius: 14px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1f2430); border: 1px solid var(--fairy-border, #e5e5e5); box-shadow: 0 18px 50px rgba(0,0,0,.4); font-size: 14px; line-height: 1.45; }
       #fairy-tour-card h4 { margin: 0 0 6px; font-size: 16px; font-weight: 700; }
       #fairy-tour-card p { margin: 0 0 12px; }
+      #fairy-tour-cursor { position: fixed; z-index: 10610; left: 50%; top: 60%; width: 22px; height: 22px; margin: -2px 0 0 -2px; pointer-events: none; transition: left .7s cubic-bezier(.4, 0, .2, 1), top .7s cubic-bezier(.4, 0, .2, 1); filter: drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
+      #fairy-tour-cursor svg { display: block; width: 22px; height: 22px; }
+      #fairy-tour-cursor::after { content: ''; position: absolute; left: -9px; top: -9px; width: 20px; height: 20px; border-radius: 50%; border: 3px solid var(--fairy-primary, #593196); opacity: 0; transform: scale(.3); }
+      #fairy-tour-cursor.fairy-tour-click::after { animation: fairy-tour-ripple .55s ease-out; }
+      @keyframes fairy-tour-ripple { 0% { opacity: .9; transform: scale(.3); } 100% { opacity: 0; transform: scale(2); } }
       #fairy-tour-card.fairy-tour-pick { width: min(400px, calc(100vw - 24px)); }
       .fairy-tour-group { margin: 12px 0 5px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--fairy-text-muted, #667085); }
       #fairy-tour-card button.fairy-tour-opt { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 10px; text-align: left; margin: 0 0 6px; padding: 7px 12px; }
@@ -6308,7 +6313,33 @@ ui <- shinyUI(fluidPage(
         function radioClick(v) { var r = document.querySelectorAll('.fairy-items-quick-type'), i; for (i = 0; i !== r.length; i++) { if (r[i].value === v) r[i].click(); } }
         function labelClick(re) { clickEl(byText('label', re)); }
         function closeModal() { if (demoOn) { demoOn = false; Shiny.setInputValue('fairy_run_demo_stop', Date.now(), { priority: 'event' }); } var kc = document.querySelector('#fairy-kbd-help .fairy-kbd-close'); if (shown(kc)) kc.click(); var m = modalOpen(); if (m) { var c = m.querySelector('[data-dismiss=modal]'); if (c) c.click(); else if (window.jQuery) window.jQuery(m).modal('hide'); } }
-        var addedModel = false, tabsTouched = false, demoOn = false;
+        var addedModel = false, tabsTouched = false, demoOn = false, cursorHidden = false;
+        // simulated mouse pointer: glides to an element, clicks (ring) and types text letter by letter
+        function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+        function cursorEl() {
+          var c = document.getElementById('fairy-tour-cursor');
+          if (!c) { c = document.createElement('div'); c.id = 'fairy-tour-cursor'; var NS = 'http://www.w3.org/2000/svg', sv = document.createElementNS(NS, 'svg'), pa = document.createElementNS(NS, 'path'); sv.setAttribute('viewBox', '0 0 22 22'); pa.setAttribute('d', 'M3 2 L3 17 L7 13.5 L10 20 L12.6 18.8 L9.7 12.4 L15 12 Z'); pa.setAttribute('fill', '#fff'); pa.setAttribute('stroke', '#111'); pa.setAttribute('stroke-width', '1.3'); pa.setAttribute('stroke-linejoin', 'round'); sv.appendChild(pa); c.appendChild(sv); document.body.appendChild(c); }
+          return c;
+        }
+        async function moveTo(el, my) {
+          if (!shown(el)) return;
+          var c = cursorEl(), r = el.getBoundingClientRect();
+          c.style.left = Math.round(r.left + Math.min(r.width * 0.5, 60)) + 'px'; c.style.top = Math.round(r.top + r.height * 0.5) + 'px';
+          await sleep(800);
+        }
+        async function clickOn(el, my) { if (!shown(el)) return; await moveTo(el); var c = cursorEl(); c.classList.remove('fairy-tour-click'); void c.offsetWidth; c.classList.add('fairy-tour-click'); await sleep(250); if (el.click) el.click(); await sleep(350); }
+        async function typeInto(el, text, tk) {
+          if (!shown(el)) return;
+          await moveTo(el); var c = cursorEl(); c.classList.remove('fairy-tour-click'); void c.offsetWidth; c.classList.add('fairy-tour-click'); await sleep(300);
+          el.focus(); el.value = '';
+          var i;
+          for (i = 1; i !== text.length + 1; i++) { if (tk !== undefined && tk !== token) return; el.value = text.slice(0, i); await sleep(45); }
+          el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
+          await sleep(500);
+        }
+        async function cclick(el) { await clickOn(el); }
+        async function tabC(name) { var a = tabLink(name); if (a) { await clickOn(a); tabsTouched = true; } }
+        function hideCursor() { var c = document.getElementById('fairy-tour-cursor'); if (c) c.remove(); }
         function shRoot() { var h = document.getElementById('mn_results_host'); return h ? h.shadowRoot : null; }
         function shQ(sel) { var r = shRoot(), e = r ? r.querySelector(sel) : null; return shown(e) ? e : null; }
         function shLabel(re) { var r = shRoot(), l = r ? r.querySelectorAll('label') : [], i; for (i = 0; i !== l.length; i++) { if (re.test(l[i].textContent.trim()) && shown(l[i])) return l[i]; } return null; }
@@ -6329,9 +6360,9 @@ ui <- shinyUI(fluidPage(
         function basicSteps() {
           return [
             S('1 Probabilities', 'Choose how many probabilities your models use and name them. Names may use TeX, for example p_{1}.', function() { return [q1('.def-col--pnames')]; }),
-            S('2 Models', 'One row per model. Describe a model with inequalities such as p1 > p2 > p3 and separate statements with a semicolon. The right column shows the model in full.', function() { return [q1('.def-col--models-card')]; }),
+            S('2 Models', 'One row per model. Describe a model with inequalities such as p1 > p2 > p3 and separate statements with a semicolon. The right column shows the model in full.', function() { return [q1('.def-col--models-card')]; }, { demo: async function(tk) { var t = document.getElementById('textin_relations_1'); if (t && !t.value.trim()) await typeInto(t, 'p1 > p2 > p3', tk); } }),
             S('3 Unpack across items', 'Repeat the model over several items, for example trials. Items can be matched item by item (joint), combined in all ways (substitutable), identical, or averaged. The picture shows what your choice means.', function() { return [byText('button', /Unpack across items/)]; }),
-            S('4 Go', 'Builds the H-representation of every model and starts the analysis.', function() { return [q1('#go_inline')]; }),
+            S('4 Go', 'Builds the H-representation of every model and starts the analysis.', function() { return [q1('#go_inline')]; }, { demo: async function(tk) { await moveTo(q1('#go_inline')); } }),
             S('5 Share and save', 'Copy a link or QR code of your input, save it as an Excel file or an R script, or upload a saved input again with the arrow button.', function() { return [q1('.fairy-primary-controls')]; }),
             S('6 Results tabs', 'After Go, tabs appear at the top. H-representation lists the inequalities, V-representation the vertices. Plot Edge Cases and Plot Polytope(s) draw the models, and Parsimony compares volumes and Bayes factors.', function() { return []; }),
             S('7 Display', 'Switch between light and dark mode, and turn the tool tips on or off.', function() { return [q1('#tips-toggle'), q1('#dm-toggle')]; }),
@@ -6371,7 +6402,7 @@ ui <- shinyUI(fluidPage(
         function unpackSteps() {
           function mod(sel) { return function() { var m = modalOpen(); var e = m ? m.querySelector(sel) : null; return [shown(e) ? e : null]; }; }
           return [
-            S('Base model', 'The model row that is repeated over items. Pick one of your models.', mod('#fairy_items_base_wrap'), { pre: function() { closeModal(); ensureModel(); setTimeout(function() { clickEl(document.getElementById('show_items_modal')); }, 300); }, wait: 1500 }),
+            S('Base model', 'The model row that is repeated over items. Pick one of your models.', mod('#fairy_items_base_wrap'), { pre: function() { closeModal(); ensureModel(); return cclick(document.getElementById('show_items_modal')); }, wait: 1500 }),
             S('1 Same items for all probabilities?', 'Yes: every probability has the same items, for example the same trials. No: the probabilities get their own lists of items, for example p1 and p2 on one list and p3 on another. The next steps start with Yes.', mod('#fairy_items_q1'), { pre: function() { labelClick(/Yes, the same items/); }, wait: 500 }),
             S('2 How many items?', 'The number of items, for example trials or stimuli.', mod('#fairy_items_count_same')),
             S('joint: matching items', 'The model holds item by item: item 1 with item 1, item 2 with item 2, and so on. p1 > p2 then means that p1 of item k is larger than p2 of item k, for every k.', function() { return [byText('label', /joint\\s+matching/)]; }, { pre: function() { radioClick('joint'); }, wait: 500 }),
@@ -6392,15 +6423,15 @@ ui <- shinyUI(fluidPage(
           var note = ' Models unpacked across items can only be combined with other unpacked models with the same number of items.';
           return [
             S('Intersection model', 'Appears when there are two or more models. Adds a model that must satisfy all constraints of the models you pick, for example to see what remains when two theories hold at once. For this tour a second example model (m2: p1 > p3) is added and removed again at the end.', function() { return [q1('#add_intersection_model')]; }, { pre: function() { closeModal(); ensureTwoModels(); }, wait: 1200 }),
-            S('Pick the models', 'Tick two or more models. The new row contains all of their constraints together.' + note, mod('#intersection_model_picker'), { pre: function() { closeModal(); setTimeout(function() { clickEl(document.getElementById('add_intersection_model')); }, 300); }, wait: 1300 }),
+            S('Pick the models', 'Tick two or more models. The new row contains all of their constraints together.' + note, mod('#intersection_model_picker'), { pre: function() { closeModal(); return cclick(document.getElementById('add_intersection_model')); }, wait: 1300 }),
             S('Add or cancel', 'Add stays grey until at least two models are ticked and they can be combined; a warning says why not. Add creates the new model row.', function() { var a = document.getElementById('submit_intersection_model'); return [a ? a.parentElement : null]; }),
             S('Mixture model', 'Adds a model that stands for a mixture of the models you pick: everything you get by mixing them (the convex hull of the union of their vertices). Its V-representation is always computed.', function() { return [q1('#add_mixture_model')]; }, { pre: function() { closeModal(); }, wait: 700 }),
-            S('Pick the models to mix', 'Tick two or more models.' + note, mod('#mixture_model_picker'), { pre: function() { closeModal(); setTimeout(function() { clickEl(document.getElementById('add_mixture_model')); }, 300); }, wait: 1300 }),
+            S('Pick the models to mix', 'Tick two or more models.' + note, mod('#mixture_model_picker'), { pre: function() { closeModal(); return cclick(document.getElementById('add_mixture_model')); }, wait: 1300 }),
             S('Add or cancel', 'Add creates the mixture as a new model row. Cancel closes the window without changes.', function() { var a = document.getElementById('submit_mixture_model'); return [a ? a.parentElement : null]; }, { last: true })
           ];
         }
         function resultSteps() {
-          function R(tab, title, text, f, extra) { var o = { pre: function() { goTab(tab); }, wait: 700 }; if (extra) { for (var k in extra) { o[k] = extra[k]; } } return S(title, text, f, o); }
+          function R(tab, title, text, f, extra) { var o = { pre: function() { return tabC(tab); }, wait: 400 }; if (extra) { for (var k in extra) { o[k] = extra[k]; } } return S(title, text, f, o); }
           return [
             S('Results', 'This tour runs your model (an example if the first row is empty) and visits each result tab: H-representation, V-representation, the two plots and Parsimony.', function() { return []; }, {
               pre: function() { if (addedModel) { addedModel = false; var rm0 = document.getElementById('rm_ie'); if (rm0) rm0.click(); } runGo(); },
@@ -6433,7 +6464,7 @@ ui <- shinyUI(fluidPage(
             R('Model Properties', 'Exact volume', 'Calculates the volume from the corner points of the model (up to 5 minutes in total; you can skip it). Where it works, no algorithm is needed.', function() { return [byTip(/Calculates the volume from the corner points/)]; }),
             R('Model Properties', 'Algorithms', 'Estimates the volume with algorithms for every model. Off: Cooling Bodies only runs for models whose exact volume was skipped or did not finish.', function() { return [byTip(/Estimate the volume with algorithms/)]; }),
             R('Model Properties', 'Algorithm settings', 'Opens the settings of the algorithms that estimate the volume. Choose them before you start.', function() { return [inPane('#show')]; }),
-            S('The settings window', 'One tab per algorithm (Cooling Bodies, Cooling Gaussian, Sequence of Balls). Each has the approximation error, the random walk method, walk length, sliding window length, H-polytopes in MMC and the random seed. The fields are pre-filled with each algorithm own default, and Save keeps your values.', function() { return [modQ('.modal-body')]; }, { pre: function() { closeModal(); setTimeout(function() { clickEl(document.getElementById('show')); }, 300); }, wait: 1400 }),
+            S('The settings window', 'One tab per algorithm (Cooling Bodies, Cooling Gaussian, Sequence of Balls). Each has the approximation error, the random walk method, walk length, sliding window length, H-polytopes in MMC and the random seed. The fields are pre-filled with each algorithm own default, and Save keeps your values.', function() { return [modQ('.modal-body')]; }, { pre: function() { closeModal(); return cclick(document.getElementById('show')); }, wait: 1400 }),
             R('Model Properties', 'Volume by model', 'One bar per model and method. PDF saves the chart, and the arrows enlarge it.', function() { return [inPane('#parsimony_plot_ui')]; }, { pre: function() { closeModal(); goTab('Model Properties'); setTimeout(function() { if (!document.getElementById('parsimony_plot_ui') || !shown(document.getElementById('parsimony_bar_plot'))) clickEl(document.getElementById('go_inline_pars')); }, 800); }, until: function() { return shown(document.getElementById('parsimony_bar_plot')); }, wait: 1500, maxwait: 30000 }),
             R('Model Properties', 'Detailed results', 'Volume (exact ones as fractions), the dimensionality, and Max BF, the largest Bayes factor the model can reach (1 divided by the volume). CSV saves the table, and the heading above explains the columns.', function() { return [inPane('#parsimony_spinner_table')]; }),
             R('Model Properties', 'What do the columns mean?', 'Volume is the share of the parameter space that fits the model. Exact is calculated from the corner points, the algorithms estimate it by sampling and differ from run to run. Max BF is 1 divided by the volume: a smaller volume means a more restrictive model. The text also names the R packages behind the numbers.', function() { return [inPane('details')]; }, { pre: function() { goTab('Model Properties'); setTimeout(function() { var d = inPane('details'); if (d) d.open = true; }, 600); }, wait: 1300 }),
@@ -6456,10 +6487,10 @@ ui <- shinyUI(fluidPage(
             S('Data for multinomineq', 'The multinomineq analysis needs your data: how many observations (n) and how often the outcome happened (frequency) for each probability.', function() { return [inPane('#mn_data_open')]; }, {
               pre: function() { closeModal(); if (!tabShown('H-representation')) runGo(); },
               until: function() { if (tabShown('H-representation')) { if (!shown(document.getElementById('mn_data_open'))) goTab('H-representation'); } return shown(document.getElementById('mn_data_open')); }, wait: 1500, maxwait: 60000 }),
-            S('n and frequency', 'One row per probability. The numbers are examples until you save your own. The badge shows which model they belong to.', function() { return [modQ('.modal-body')]; }, { pre: function() { closeModal(); setTimeout(function() { clickEl(document.getElementById('mn_data_open')); }, 300); }, wait: 1400 }),
+            S('n and frequency', 'One row per probability. The numbers are examples until you save your own. The badge shows which model they belong to.', function() { return [modQ('.modal-body')]; }, { pre: function() { closeModal(); return cclick(document.getElementById('mn_data_open')); }, wait: 1400 }),
             S('Same n for every row', 'Optional: one n for all rows at once.', mf('#mn_nall_1')),
             S('Reset or save', 'Reset puts the example numbers back. Save keeps your numbers for the next download and for Run analysis.', function() { var a = modQ('#mn_data_reset'), b2 = modQ('#mn_data_save'); return [a, b2]; }),
-            S('Samples', 'How many draws the analysis uses for the Bayes factors and the posterior. More draws are more precise and take longer.', function() { var l = modQ('#mn_samples-label'); return [l ? l.parentElement : null]; }, { pre: function() { closeModal(); setTimeout(function() { clickEl(document.getElementById('mn_run_open')); }, 300); }, wait: 1400 }),
+            S('Samples', 'How many draws the analysis uses for the Bayes factors and the posterior. More draws are more precise and take longer.', function() { var l = modQ('#mn_samples-label'); return [l ? l.parentElement : null]; }, { pre: function() { closeModal(); return cclick(document.getElementById('mn_run_open')); }, wait: 1400 }),
             S('Advanced', 'Burn-in is the number of draws thrown away at the start. The prior is a Beta(a, b) distribution on every probability, and Beta(1, 1) is flat. The random seed makes a run repeatable.', function() { return [modQ('details')]; }, { pre: function() { var d = modQ('details'); if (d) d.open = true; }, wait: 500 }),
             S('Shared server', 'The analysis runs on a shared server, so keep it small. For larger analyses download the files and run the script on your own computer.', function() { var st = modText('strong', /Shared server/); return [st ? st.parentElement : null]; }),
             S('Run analysis here', 'Starts the analysis with these settings. The next steps start it now to show the results window.', function() { return [modQ('#mn_run')]; }),
@@ -6494,7 +6525,7 @@ ui <- shinyUI(fluidPage(
           var c = document.createElement('div'); c.id = 'fairy-tour-card'; c.setAttribute('role', 'dialog'); c.setAttribute('aria-label', 'Tour of the app'); document.body.appendChild(c);
         }
         function end() {
-          ['fairy-tour-block', 'fairy-tour-hole', 'fairy-tour-card'].forEach(function(id) { var e = document.getElementById(id); if (e) e.remove(); });
+          ['fairy-tour-block', 'fairy-tour-hole', 'fairy-tour-card', 'fairy-tour-cursor'].forEach(function(id) { var e = document.getElementById(id); if (e) e.remove(); });
           tourStep = -1; picking = false; token++;
           closeModal();
           if (demoOn) { demoOn = false; Shiny.setInputValue('fairy_run_demo_stop', Date.now(), { priority: 'event' }); }
@@ -6569,14 +6600,14 @@ ui <- shinyUI(fluidPage(
           tourStep = i;
           var st = steps[i];
           if (st.pre) {
-            st.pre();
+            var pr = st.pre();
             if (st.until) { ensure(); var wc = document.getElementById('fairy-tour-card'); wc.textContent = ''; var wh = document.createElement('h4'); wh.textContent = 'One moment'; wc.appendChild(wh); var wp = document.createElement('p'); wp.textContent = st.quiet ? 'Opening the example ...' : 'Running ...'; wc.appendChild(wp); place(); }
-            var t0 = Date.now();
+            Promise.resolve(pr).then(function() { var t0 = Date.now();
             (function poll() {
               if (my !== token) return;
               var el = Date.now() - t0;
               if (el >= (st.wait || 500) && ((st.until ? st.until() : true) || el >= (st.maxwait || st.wait || 500))) render(i); else setTimeout(poll, 250);
-            })();
+            })(); });
           }
           else render(i);
         }
@@ -6602,6 +6633,10 @@ ui <- shinyUI(fluidPage(
           if (first && first.scrollIntoView) first.scrollIntoView({ block: 'center', inline: 'nearest' });
           place(); setTimeout(place, 120); setTimeout(place, 400);
           nx.focus();
+          hideCursor();
+          var tk = token;
+          if (st.demo) setTimeout(function() { if (tk === token) st.demo(tk); }, 600);
+          else if (first) setTimeout(function() { if (tk === token && !cursorHidden) moveTo(first); }, 500);
         }
         function start() {
           var tab = document.querySelector('a[data-value=Input]'); if (tab && !tab.parentElement.classList.contains('active')) tab.click();
