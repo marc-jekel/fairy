@@ -6917,7 +6917,16 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
             if (runOn) { y = vh - ch - 12; x = Math.max(12, Math.min(vw - cw - 12, vw / 2 - cw / 2)); }
             else if (below >= ch + 20) y = r.b + pad + 14;
             else if (above >= ch + 20) y = r.t - pad - ch - 14;
-            else { y = Math.max(12, Math.min(vh - ch - 12, r.t)); x = (vw - r.r) >= cw + 24 ? r.r + pad + 14 : Math.max(12, r.l - pad - cw - 14); }
+            else {
+              // no free side: take the corner or edge spot that covers the least of the lit area
+              var cands = [[x, vh - ch - 12], [x, 12], [vw - cw - 12, vh - ch - 12], [12, vh - ch - 12], [vw - cw - 12, 12], [12, 12], [Math.min(vw - cw - 12, r.r + pad + 14), Math.max(12, Math.min(vh - ch - 12, r.t))], [Math.max(12, r.l - pad - cw - 14), Math.max(12, Math.min(vh - ch - 12, r.t))]], bi = 0, bo = 1e15, ci;
+              for (ci = 0; ci !== cands.length; ci++) {
+                var cx = Math.max(12, cands[ci][0]), cy = Math.max(12, cands[ci][1]);
+                var ow = Math.max(0, Math.min(cx + cw, r.r + pad) - Math.max(cx, r.l - pad)), oh = Math.max(0, Math.min(cy + ch, r.b + pad) - Math.max(cy, r.t - pad));
+                if (ow * oh < bo) { bo = ow * oh; bi = ci; }
+              }
+              x = cands[bi][0]; y = cands[bi][1];
+            }
           }
           card.style.left = Math.max(12, x) + 'px'; card.style.top = Math.max(12, y) + 'px';
         }
