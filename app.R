@@ -1723,6 +1723,10 @@ ui <- shinyUI(fluidPage(
       #fairy-tour-card button.fairy-tour-opt .fairy-tour-opt-t { display: flex; flex-direction: column; gap: 1px; }
       #fairy-tour-card button.fairy-tour-opt small { font-size: 12px; opacity: .75; }
       #fairy-tour-card button.fairy-tour-opt .fairy-tour-opt-n { font-size: 12px; opacity: .7; white-space: nowrap; }
+      .fairy-tour-dots { align-items: center; }
+      .fairy-tour-speed { margin-left: auto; display: flex; border: 1px solid var(--fairy-border, #cfd4e0); border-radius: 8px; overflow: hidden; }
+      #fairy-tour-card button.fairy-tour-spd { border: 0; border-radius: 0; padding: 2px 8px; font-size: 11px; background: transparent; color: var(--fairy-text-muted, #667085); }
+      #fairy-tour-card button.fairy-tour-spd.on { background: var(--fairy-primary, #593196); color: #fff; }
       #fairy-tour-card button.fairy-tour-disabled { opacity: .45; cursor: default; }
       .fairy-tour-foot { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
       .fairy-tour-dots { display: flex; gap: 5px; flex: 0 0 100%; margin-bottom: 4px; }
@@ -6340,7 +6344,13 @@ ui <- shinyUI(fluidPage(
         }
         var addedModel = false, tabsTouched = false, demoOn = false, cursorHidden = false;
         // simulated mouse pointer: glides to an element, clicks (ring) and types text letter by letter
+        // speed of the pointer and of the typing: slow, normal or fast (remembered in this browser)
+        var tourSpeed = 'normal';
+        try { var sv0 = localStorage.getItem('fairy_tour_speed'); if (sv0 === 'slow' || sv0 === 'fast') tourSpeed = sv0; } catch (er) {}
+        function spMul() { return tourSpeed === 'slow' ? 1.9 : (tourSpeed === 'fast' ? 0.45 : 1); }
+        function sp(ms) { return Math.round(ms * spMul()); }
         function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+        function ssleep(ms) { return sleep(sp(ms)); }
         function cursorEl() {
           var c = document.getElementById('fairy-tour-cursor');
           if (!c) { c = document.createElement('div'); c.id = 'fairy-tour-cursor'; var NS = 'http://www.w3.org/2000/svg', sv = document.createElementNS(NS, 'svg'), pa = document.createElementNS(NS, 'path'); sv.setAttribute('viewBox', '0 0 22 22'); pa.setAttribute('d', 'M3 2 L3 17 L7 13.5 L10 20 L12.6 18.8 L9.7 12.4 L15 12 Z'); pa.setAttribute('fill', '#fff'); pa.setAttribute('stroke', '#111'); pa.setAttribute('stroke-width', '1.3'); pa.setAttribute('stroke-linejoin', 'round'); sv.appendChild(pa); c.appendChild(sv); document.body.appendChild(c); }
@@ -6349,19 +6359,19 @@ ui <- shinyUI(fluidPage(
         async function moveTo(el, my) {
           if (!shown(el)) return;
           var c = cursorEl(), r = el.getBoundingClientRect();
-          c.style.left = Math.round(r.left + Math.min(r.width * 0.5, 60)) + 'px'; c.style.top = Math.round(r.top + r.height * 0.5) + 'px';
-          await sleep(800);
+          c.style.transitionDuration = (0.7 * spMul()).toFixed(2) + 's'; c.style.left = Math.round(r.left + Math.min(r.width * 0.5, 60)) + 'px'; c.style.top = Math.round(r.top + r.height * 0.5) + 'px';
+          await ssleep(800);
         }
-        async function clickOn(el, my) { if (!shown(el)) return; await moveTo(el); var c = cursorEl(); c.classList.remove('fairy-tour-click'); void c.offsetWidth; c.classList.add('fairy-tour-click'); await sleep(250); if (el.click) el.click(); await sleep(350); }
+        async function clickOn(el, my) { if (!shown(el)) return; await moveTo(el); var c = cursorEl(); c.classList.remove('fairy-tour-click'); void c.offsetWidth; c.classList.add('fairy-tour-click'); await ssleep(250); if (el.click) el.click(); await ssleep(350); }
         async function typeInto(el, text, tk) {
           if (!shown(el)) return;
-          await moveTo(el); var c = cursorEl(); c.classList.remove('fairy-tour-click'); void c.offsetWidth; c.classList.add('fairy-tour-click'); await sleep(300);
+          await moveTo(el); var c = cursorEl(); c.classList.remove('fairy-tour-click'); void c.offsetWidth; c.classList.add('fairy-tour-click'); await ssleep(300);
           el.focus(); el.value = '';
           var i;
-          var dl = Math.max(32, Math.min(80, Math.round(5600 / Math.max(1, text.length))));
-          for (i = 1; i !== text.length + 1; i++) { if (tk !== undefined && tk !== token) { el.value = text; break; } el.value = text.slice(0, i); showKey(text.charAt(i - 1)); await sleep(dl); }
+          var dl0 = Math.max(32, Math.min(80, Math.round(5600 / Math.max(1, text.length))));
+          for (i = 1; i !== text.length + 1; i++) { if (tk !== undefined && tk !== token) { el.value = text; break; } el.value = text.slice(0, i); showKey(text.charAt(i - 1)); await sleep(Math.max(10, Math.round(dl0 * spMul()))); }
           el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
-          await sleep(1800); hideKeys(); await sleep(300);
+          await ssleep(1800); hideKeys(); await ssleep(300);
         }
         async function cclick(el) { await clickOn(el); }
         async function tabC(name) { var a = tabLink(name); if (a) { await clickOn(a); tabsTouched = true; } }
@@ -6397,7 +6407,7 @@ ui <- shinyUI(fluidPage(
         function basicSteps() {
           return [
             S('1 Probabilities', 'Choose how many probabilities your models use and name them. Names may use TeX, for example p_{1}.', function() { return [q1('.def-col--pnames')]; }),
-            S('2 Models', 'One row per model. Describe a model with inequalities such as p1 > p2 > p3 and separate statements with a semicolon. The right column shows the model in full.', function() { return [q1('.def-col--models-card')]; }, { demo: async function(tk) { var t = document.getElementById('textin_relations_1'); if (t && !t.value.trim()) await typeInto(t, 'p1 > p2 > p3', tk); } }),
+            S('2 Models', 'One row per model. Describe a model with inequalities such as p1 > p2 > p3 and separate statements with a semicolon. The right column shows the model in full.', function() { return [specTd(1) || q1('.def-col--models-card')]; }, { demo: async function(tk) { var t = document.getElementById('textin_relations_1'); if (t && !t.value.trim()) await typeInto(t, 'p1 > p2 > p3', tk); } }),
             S('3 Unpack across items', 'Repeat the model over several items, for example trials. Items can be matched item by item (joint), combined in all ways (substitutable), identical, or averaged. The picture shows what your choice means.', function() { return [byText('button', /Unpack across items/)]; }),
             S('4 Go', 'Builds the H-representation of every model and starts the analysis.', function() { return [q1('#go_inline')]; }, { demo: async function(tk) { await moveTo(q1('#go_inline')); } }),
             S('5 Share and save', 'Copy a link or QR code of your input, save it as an Excel file or an R script, or upload a saved input again with the arrow button.', function() { return [q1('.fairy-primary-controls')]; }),
@@ -6570,8 +6580,8 @@ ui <- shinyUI(fluidPage(
           var eye = (gd.layout && gd.layout.scene && gd.layout.scene.camera && gd.layout.scene.camera.eye) || { x: 1.25, y: 1.25, z: 1.25 };
           var ex = eye.x, ey = eye.y, ez = eye.z, r = Math.sqrt(ex * ex + ey * ey), a0 = Math.atan2(ey, ex);
           var rect = gd.getBoundingClientRect(), cx = rect.left + rect.width * 0.5, cy = rect.top + rect.height * 0.62;
-          var c = cursorEl(); c.style.left = Math.round(cx) + 'px'; c.style.top = Math.round(cy) + 'px'; await sleep(900);
-          c.classList.add('fairy-tour-down'); await sleep(250);
+          var c = cursorEl(); c.style.transitionDuration = (0.7 * spMul()).toFixed(2) + 's'; c.style.left = Math.round(cx) + 'px'; c.style.top = Math.round(cy) + 'px'; await ssleep(900);
+          c.classList.add('fairy-tour-down'); await ssleep(250);
           var steps2 = 64, i, t, ang, ph;
           for (i = 1; i !== steps2 + 1; i++) {
             if (tk !== undefined && tk !== token) break;
@@ -6579,9 +6589,9 @@ ui <- shinyUI(fluidPage(
             ang = a0 + ph * 0.95;
             c.style.transition = 'none'; c.style.left = Math.round(cx + ph * 110) + 'px'; c.style.top = Math.round(cy - ph * 14) + 'px';
             await window.Plotly.relayout(gd, { 'scene.camera.eye': { x: r * Math.cos(ang), y: r * Math.sin(ang), z: ez + ph * 0.25 } });
-            await sleep(60);
+            await sleep(Math.max(20, sp(60)));
           }
-          c.style.transition = ''; c.classList.remove('fairy-tour-down'); await sleep(400);
+          c.style.transition = ''; c.classList.remove('fairy-tour-down'); await ssleep(400);
         }
         async function ensureRowsFast(n) { var g = 0; while (rowCount() < n && g !== 20) { await addOne('add_ie', rowCount, false); g++; } await sleep(300); }
         var vTutOn = false;
@@ -6675,7 +6685,8 @@ ui <- shinyUI(fluidPage(
           var runOv = document.getElementById('fairy-run-overlay'), runOn = !!(runOv && runOv.classList.contains('active') && !picking && steps && steps[tourStep] && steps[tourStep].title !== 'The run window');
           if (runOn) { var rc = document.getElementById('fairy-run-card'); if (shown(rc)) els = [rc]; else runOn = false; }
           if (!hole || !card) return;
-          var r = union(els), pad = 8, vw = window.innerWidth, vh = window.innerHeight;
+          var kEl = document.getElementById('fairy-tour-keys'), reserve = kEl ? kEl.offsetHeight + 60 : 0;
+          var r = union(els), pad = 8, vw = window.innerWidth, vh = window.innerHeight - reserve;
           if (r) {
             hole.classList.remove('fairy-tour-nohole');
             hole.style.left = (r.l - pad) + 'px'; hole.style.top = (r.t - pad) + 'px';
@@ -6764,6 +6775,9 @@ ui <- shinyUI(fluidPage(
           var dots = document.createElement('div'); dots.className = 'fairy-tour-dots';
           if (steps.length < 12) steps.forEach(function(x, k) { var d = document.createElement('i'); if (k === i) d.className = 'on'; dots.appendChild(d); });
           else { var cnt = document.createElement('span'); cnt.style.cssText = 'font-size:12px; color:var(--fairy-text-muted, #667085);'; cnt.textContent = (i + 1) + ' of ' + steps.length; dots.appendChild(cnt); }
+          var spd = document.createElement('div'); spd.className = 'fairy-tour-speed'; spd.title = 'Speed of the pointer and the typing';
+          [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']].forEach(function(o) { var sb = document.createElement('button'); sb.type = 'button'; sb.setAttribute('data-k', 'speed-' + o[0]); sb.textContent = o[1]; sb.className = 'fairy-tour-spd' + (tourSpeed === o[0] ? ' on' : ''); spd.appendChild(sb); });
+          dots.appendChild(spd);
           foot.appendChild(dots);
           if (!st.last) { var sk = btn('End tour', 'end'); sk.style.marginRight = 'auto'; foot.appendChild(sk); }
           foot.appendChild(btn('Back', 'back'));
@@ -6794,6 +6808,7 @@ ui <- shinyUI(fluidPage(
           var b = t.closest ? t.closest('#fairy-tour-card button') : null;
           if (b) {
             var k = b.getAttribute('data-k');
+            if (k && k.indexOf('speed-') === 0) { tourSpeed = k.slice(6); try { localStorage.setItem('fairy_tour_speed', tourSpeed); } catch (er) {} [].forEach.call(document.querySelectorAll('#fairy-tour-card .fairy-tour-spd'), function(x) { x.classList.toggle('on', x.getAttribute('data-k') === k); }); return; }
             if ((k === 'next' || k === 'back') && locked) return;
             if (k === 'next') next();
             else if (k === 'back') show(tourStep - 1);
