@@ -6322,6 +6322,19 @@ ui <- shinyUI(fluidPage(
         function radioClick(v) { var r = document.querySelectorAll('.fairy-items-quick-type'), i; for (i = 0; i !== r.length; i++) { if (r[i].value === v) r[i].click(); } }
         function labelClick(re) { clickEl(byText('label', re)); }
         function closeModal() { if (demoOn) { demoOn = false; Shiny.setInputValue('fairy_run_demo_stop', Date.now(), { priority: 'event' }); } var kc = document.querySelector('#fairy-kbd-help .fairy-kbd-close'); if (shown(kc)) kc.click(); var m = modalOpen(); if (m) { var c = m.querySelector('[data-dismiss=modal]'); if (c) c.click(); else if (window.jQuery) window.jQuery(m).modal('hide'); } }
+        // a fresh start: clears the saved session and reloads the app (the tour can continue afterwards)
+        window.fairyStartOver = function(kind, idx, ask) {
+          if (ask && !window.confirm('Clear all input and start over? Save your input first (Share or save) if you want to keep it.')) return;
+          try { localStorage.removeItem('fairy_autosave'); if (kind) sessionStorage.setItem('fairy_tour_resume', kind + ':' + idx); } catch (er) {}
+          location.href = location.pathname + location.search;
+        };
+        function isPristine() {
+          var t1 = document.getElementById('textin_relations_1'), i, ok = true;
+          if (!t1 || t1.value.trim()) return false;
+          if (probCount() !== 3 || rowCount() !== 1) return false;
+          for (i = 1; i !== 4; i++) { var n = document.getElementById('textin_name_' + i); if (!n || n.value.trim() !== 'p_{' + i + '}') ok = false; }
+          return ok;
+        }
         var addedModel = false, tabsTouched = false, demoOn = false, cursorHidden = false;
         // simulated mouse pointer: glides to an element, clicks (ring) and types text letter by letter
         function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
@@ -6573,7 +6586,7 @@ ui <- shinyUI(fluidPage(
             return S(title, text, function() { return [specTd(k)]; }, { pre: function() { return ensureRowsFast(k); }, wait: 200, demo: async function(tk) { await typeInto(document.getElementById('textin_relations_' + k), spec, tk); } });
           }
           var A = [
-            S('The cringe study', 'A fictitious joke study: children, teens and adults hear jokes, and we record who cringes. A theory predicts that children cringe most and adults least. This tutorial enters everything for you, so you see how it is done. It replaces your current input, so save it first if you want to keep it (Share or save).', function() { return []; }, { pre: function() { closeModal(); goTab('Input'); } }),
+            S('The cringe study', 'A fictitious joke study: children, teens and adults hear jokes, and we record who cringes. A theory predicts that children cringe most and adults least. This tutorial enters everything for you, so you see how it is done. The tutorial starts with a fresh app: your current input is cleared, so save it first if you want to keep it (Share or save).', function() { return []; }, { pre: function() { closeModal(); goTab('Input'); }, nextLabel: 'Start fresh', onNext: function() { if (isPristine()) show(tourStep + 1); else window.fairyStartOver('tutorial', 1, false); } }),
             S('Three probabilities', 'p1 is the probability that a child cringes, p2 that a teen cringes, and p3 that an adult cringes. Here the names are typed in.', function() { return [q1('.def-col--pnames')]; }, { demo: async function(tk) { await ensureProbs(3, tk); var names = ['p_{C}', 'p_{T}', 'p_{A}'], i; for (i = 0; i !== 3; i++) { await typeInto(document.getElementById('textin_name_' + (i + 1)), names[i], tk); } } }),
             S('The theory', 'The theory says: children cringe at least as much as teens, who cringe at least as much as adults. In the app you type p1 > p2 > p3. The app takes > for easier input and means at least as much.', function() { return [specTd(1)]; }, { demo: async function(tk) { await typeInto(document.getElementById('textin_relations_1'), 'p1 > p2 > p3', tk); } }),
             S('Vertices on', 'The vertices of the model (V-representation) are optional because they can take long for large models. Here the switch is turned on.', function() { return [q1('#vrep_toggle_btn_1')]; }, { demo: async function(tk) { if (!tabShown('V-representation')) { await cclick(document.getElementById('vrep_toggle_btn_1')); vTutOn = true; } } }),
@@ -6752,7 +6765,7 @@ ui <- shinyUI(fluidPage(
           foot.appendChild(btn('Back', 'back'));
           if (st.last && !st.noexample && steps.kind !== 'unpack' && steps.kind !== 'combine' && steps.kind !== 'results' && steps.kind !== 'run' && steps.kind !== 'mn' && steps.kind !== 'tutorial') foot.appendChild(btn('Fill in example', 'example'));
           if (st.full) foot.appendChild(btn('Full tour', 'full'));
-          var nx = btn(st.last ? 'Finish' : 'Next', 'next', 'fairy-tour-primary'); foot.appendChild(nx);
+          var nx = btn(st.last ? 'Finish' : (st.nextLabel || 'Next'), 'next', 'fairy-tour-primary'); foot.appendChild(nx);
           card.appendChild(foot);
           var first = st.els().filter(function(e) { return !!e; })[0];
           if (first && first.scrollIntoView) first.scrollIntoView({ block: 'center', inline: 'nearest' });
@@ -6770,7 +6783,7 @@ ui <- shinyUI(fluidPage(
           setTimeout(pick, 150);
         }
         function go(mode) { window.__tourFrom = window.__tourFrom || 0; steps = mode === 'full' ? allSteps() : (mode === 'input' ? fullSteps() : (mode === 'unpack' ? unpackSteps() : (mode === 'combine' ? combineSteps() : (mode === 'results' ? resultSteps() : (mode === 'run' ? runSteps() : (mode === 'mn' ? mnSteps() : (mode === 'tutorial' ? tutorialSteps() : basicSteps()))))))); steps.kind = mode; tourStep = -1; show(window.__tourFromTitle ? Math.max(0, steps.map(function(x) { return x.title; }).indexOf(window.__tourFromTitle)) : (window.__tourFrom || 0)); window.__tourFrom = 0; window.__tourFromTitle = null; }
-        function next() { if (steps[tourStep].last) end(); else show(tourStep + 1); }
+        function next() { var st0 = steps[tourStep]; if (st0.onNext) { st0.onNext(); return; } if (st0.last) end(); else show(tourStep + 1); }
         document.addEventListener('click', function(e) {
           var t = e.target.closest ? e.target : e.target.parentNode;
           if (t.closest && (t.closest('#fairy-tour-open') || t.closest('#tour-btn'))) { e.preventDefault(); var pb = document.getElementById('tour-btn'); if (pb) pb.classList.remove('fairy-tour-pulse'); start(); return; }
@@ -6796,6 +6809,10 @@ ui <- shinyUI(fluidPage(
           else if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); if (!locked) next(); }
           else if (e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); if (!locked) show(tourStep - 1); }
         }, true);
+        if (window.jQuery) window.jQuery(document).one('shiny:connected', function() {
+          var rs = null; try { rs = sessionStorage.getItem('fairy_tour_resume'); sessionStorage.removeItem('fairy_tour_resume'); } catch (er) {}
+          if (rs) setTimeout(function() { var pr = rs.split(':'); window.__tourFrom = parseInt(pr[1], 10) || 0; go(pr[0]); }, 2500);
+        });
         window.addEventListener('resize', place);
         window.addEventListener('scroll', place, true);
         // first visit: the button pulses a few times
@@ -6818,7 +6835,7 @@ ui <- shinyUI(fluidPage(
           var file = document.getElementById('fairy_share_file');
           if (v && file) {
             var mutedNow = !!(p.dl && p.dl.classList.contains('fairy-btn-muted'));
-            ['fairy_share_file', 'fairy_share_qr', 'fairy_share_rscript'].forEach(function(id) {
+            ['fairy_share_file', 'fairy_share_qr', 'fairy_share_rscript', 'fairy_share_reset'].forEach(function(id) {
               var el = document.getElementById(id); if (el) el.classList.toggle('fairy-share-muted', mutedNow);
             });
             var first = document.getElementById('fairy_share_qr'); if (first) first.focus();
@@ -6836,6 +6853,8 @@ ui <- shinyUI(fluidPage(
               p.dl.click();
             } else if (item.id === 'fairy_share_qr' && !item.classList.contains('fairy-share-muted')) {
               Shiny.setInputValue('qr_request', Date.now(), { priority: 'event' });
+            } else if (item.id === 'fairy_share_reset' && !item.classList.contains('fairy-share-muted')) {
+              if (window.fairyStartOver) window.fairyStartOver(null, 0, true);
             } else if (item.id === 'fairy_share_rscript' && !item.classList.contains('fairy-share-muted')) {
               var rd = document.getElementById('download_rscript'); if (rd) rd.click();
             }
@@ -7847,7 +7866,10 @@ ui <- shinyUI(fluidPage(
                 icon("download"), "Save app input (.xlsx)"),
               tags$button(id = "fairy_share_rscript", type = "button", role = "menuitem", class = "fairy-share-item",
                 title = "An R script that repeats everything you entered here with the R package fairy, so the analysis can be reproduced outside the app",
-                icon("file-code"), "Save R script for fairy (.R)")
+                icon("file-code"), "Save R script for fairy (.R)"),
+              tags$button(id = "fairy_share_reset", type = "button", role = "menuitem", class = "fairy-share-item",
+                title = "Clears everything you entered and starts the app again from scratch (save your input first if you want to keep it)",
+                icon("rotate-left"), "Start over (clear all input)")
             ),
             tags$span(class = "fairy-share-hidden",
               downloadButton("download", NULL, icon = icon("download"), class = "fairy-toolbar-iconbtn fairy-btn-muted"),
