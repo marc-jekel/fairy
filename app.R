@@ -6761,7 +6761,7 @@ ui <- shinyUI(fluidPage(
           if (steps.length < 12) steps.forEach(function(x, k) { var d = document.createElement('i'); if (k === i) d.className = 'on'; dots.appendChild(d); });
           else { var cnt = document.createElement('span'); cnt.style.cssText = 'font-size:12px; color:var(--fairy-text-muted, #667085);'; cnt.textContent = (i + 1) + ' of ' + steps.length; dots.appendChild(cnt); }
           foot.appendChild(dots);
-          if (!st.last) { var sk = btn('Skip', 'end'); sk.style.marginRight = 'auto'; foot.appendChild(sk); }
+          if (!st.last) { var sk = btn('End tour', 'end'); sk.style.marginRight = 'auto'; foot.appendChild(sk); }
           foot.appendChild(btn('Back', 'back'));
           if (st.last && !st.noexample && steps.kind !== 'unpack' && steps.kind !== 'combine' && steps.kind !== 'results' && steps.kind !== 'run' && steps.kind !== 'mn' && steps.kind !== 'tutorial') foot.appendChild(btn('Fill in example', 'example'));
           if (st.full) foot.appendChild(btn('Full tour', 'full'));
