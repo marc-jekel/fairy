@@ -6718,7 +6718,7 @@ ui <- shinyUI(fluidPage(
           opt('Results', 'H- and V-representation, plots, Parsimony', resultSteps().length, 'results');
           opt('Run window', 'Progress, skipping and time limits', runSteps().length, 'run');
           opt('multinomineq', 'Data, run window and results', mnSteps().length, 'mn');
-          var foot = document.createElement('div'); foot.className = 'fairy-tour-foot'; foot.appendChild(btn('Cancel', 'end', 'fairy-tour-skip')); card.appendChild(foot);
+          var foot = document.createElement('div'); foot.className = 'fairy-tour-foot'; foot.style.marginTop = '8px'; foot.appendChild(btn('Cancel', 'end')); card.appendChild(foot);
           place(); setTimeout(place, 150);
           first.focus();
         }
