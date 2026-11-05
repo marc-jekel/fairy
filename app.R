@@ -14358,7 +14358,7 @@ server <- shinyServer(function(input, output, session) {
     for (i in seq_len(n)) { r <- which(qr[i, ]); if (length(r)) cells <- c(cells, sprintf("M%d %dh1v1h-1z", r - 1 + q, i - 1 + q)) }
     logo <- ""
     if (qr_with_fairy(qr)) {
-      ls <- n * 0.24; lx <- q + (n - ls) / 2; ly <- q + (n - ls) / 2
+      ls <- n * 0.18; lx <- q + (n - ls) / 2; ly <- q + (n - ls) / 2
       pts <- vapply(fairy_polys(), function(z) {
         xy <- paste(sprintf("%.2f,%.2f", lx + z$xy[, 1] * ls, ly + (1 - z$xy[, 2]) * ls), collapse = " ")
         sw <- (z$bw %||% 0) * ls / 56
@@ -14377,7 +14377,7 @@ server <- shinyServer(function(input, output, session) {
     for (i in seq_len(n)) for (j in seq_len(n)) if (isTRUE(qr[i, j]))
       graphics::rect(0.3 + (j - 1) * cw, top - i * cw, 0.3 + j * cw, top - (i - 1) * cw, col = "black", border = NA)
     if (qr_with_fairy(qr)) {
-      ls <- sz * 0.24; lx <- 0.3 + (sz - ls) / 2; ly <- top - sz / 2 - ls / 2
+      ls <- sz * 0.18; lx <- 0.3 + (sz - ls) / 2; ly <- top - sz / 2 - ls / 2
       graphics::rect(lx - 0.6 * cw, ly - 0.6 * cw, lx + ls + 0.6 * cw, ly + ls + 0.6 * cw, col = "white", border = NA)
       for (z in fairy_polys()) {
         lwd <- max(0.1, (z$bw %||% 0) * ls * 96 / 56)
