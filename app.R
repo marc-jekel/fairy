@@ -927,14 +927,6 @@ ui <- shinyUI(fluidPage(
       /* dark mode: a softer marker and bright text, so the terms stay readable */
       body.dark-mode .fairy-pt { color: var(--fairy-text, #e5e7eb); }
       body.dark-mode.fairy-par-focus .fairy-pt, body.dark-mode.fairy-items-focus .fairy-iw .fairy-pt { background: rgba(250, 204, 21, .2); }
-      body.fairy-items-focus[data-gray~='1'] .fairy-iw[data-item='1'] .fairy-pt { background: none; }
-      body.fairy-items-focus[data-gray~='2'] .fairy-iw[data-item='2'] .fairy-pt { background: none; }
-      body.fairy-items-focus[data-gray~='3'] .fairy-iw[data-item='3'] .fairy-pt { background: none; }
-      body.fairy-items-focus[data-gray~='4'] .fairy-iw[data-item='4'] .fairy-pt { background: none; }
-      body.fairy-items-focus[data-gray~='5'] .fairy-iw[data-item='5'] .fairy-pt { background: none; }
-      body.fairy-items-focus[data-gray~='6'] .fairy-iw[data-item='6'] .fairy-pt { background: none; }
-      body.fairy-items-focus[data-gray~='7'] .fairy-iw[data-item='7'] .fairy-pt { background: none; }
-      body.fairy-items-focus[data-gray~='8'] .fairy-iw[data-item='8'] .fairy-pt { background: none; }
       #h_items_chips { display: none; grid-template-columns: repeat(4, 28px); gap: 5px; justify-content: center; margin: 6px auto 0; }
       body.fairy-items-focus #h_items_chips { display: grid; }
       #h_items_chips button { width: 28px; height: 24px; padding: 0 4px; font-size: 12px; line-height: 1; border: 1px solid var(--fairy-border, #c8cdd8); border-bottom-width: 4px; border-radius: 5px; background: transparent; color: var(--fairy-text, #1d2433); cursor: pointer; }
@@ -7643,10 +7635,18 @@ ui <- shinyUI(fluidPage(
         // hide rows: "any" hides every row that contains a greyed-out item or parameter, "all" only the rows in which everything is greyed
         // out (a row stays as long as at least one item or parameter in it is not greyed out)
         function fairyHideMode() { return document.body.getAttribute("data-hide") || ""; }
+        // a dimension in which nothing at all is selected does not restrict anything: all items deselected = the items do not matter
+        // (so all terms of the selected parameters are marked, whatever their item), and the same for the parameters
+        function fairyEffGray() {
+          var gi = fairyGrayList(), gp = fairyParList();
+          if (gi.length) { if (gi.length === fairyUniq(".fairy-iw", "data-item", "-").length) gi = []; }
+          if (gp.length) { if (gp.length === fairyUniq(".fairy-pt", "data-par", "0").length) gp = []; }
+          return { gi: gi, gp: gp };
+        }
         function fairyHideStyle() {
           var st = document.getElementById("fairy-hide-style");
           if (!st) { st = document.createElement("style"); st.id = "fairy-hide-style"; document.head.appendChild(st); }
-          var css = "", q = String.fromCharCode(39), mode = fairyHideMode(), gi = fairyGrayList(), gp = fairyParList();
+          var css = "", q = String.fromCharCode(39), mode = fairyHideMode(), eff = fairyEffGray(), gi = eff.gi, gp = eff.gp;
           function nots(attr, list) { return list.map(function(k) { return ":not([" + attr + "=" + q + k + q + "])"; }).join(""); }
           function is(attr, k) { return "[" + attr + "=" + q + k + q + "]"; }
           // a term is active when neither its item nor its parameter is greyed out; the rows follow the terms
@@ -7665,6 +7665,7 @@ ui <- shinyUI(fluidPage(
           st.textContent = css;
         }
         function fairyAfterGray() {
+          fairyParStyle();
           fairyHideStyle();
           if (fairyHideMode()) fairyRefit();
         }
@@ -7835,8 +7836,9 @@ ui <- shinyUI(fluidPage(
         function fairyParStyle() {
           var st = document.getElementById("fairy-par-style");
           if (!st) { st = document.createElement("style"); st.id = "fairy-par-style"; document.head.appendChild(st); }
-          var css = "", q = String.fromCharCode(39);
-          fairyParList().forEach(function(k) { css += "body.fairy-par-focus[data-pgray] .fairy-pt[data-par=" + q + k + q + "] { background: none; } "; });
+          var css = "", q = String.fromCharCode(39), eff = fairyEffGray();
+          eff.gp.forEach(function(k) { css += "body.fairy-par-focus[data-pgray] .fairy-pt[data-par=" + q + k + q + "] { background: none; } "; });
+          eff.gi.forEach(function(k) { css += "body.fairy-items-focus[data-gray] .fairy-iw[data-item=" + q + k + q + "] .fairy-pt { background: none; } "; });
           st.textContent = css;
         }
         function fairyParToggle(k) {
@@ -7886,6 +7888,7 @@ ui <- shinyUI(fluidPage(
           if (ev.name !== "h") return;
           if (document.body.classList.contains("fairy-items-focus")) setTimeout(fairyItemChips, 600);
           if (document.body.classList.contains("fairy-par-focus")) setTimeout(fairyParChips, 600);
+          setTimeout(fairyAfterGray, 700);
         });
         $("#h_items_toggle_group button").click(function(){
           $(this).parent().find("button").removeClass("active");
