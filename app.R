@@ -11023,7 +11023,7 @@ server <- shinyServer(function(input, output, session) {
                 }
                 return;
               }
-              if (q2 - q > 1 && same && r0.type === r1.type && (r0.type === 'joint' || r0.type === 'identical')) {
+              if (q2 - q > 1 && same && !r0.hub && !r1.hub && r0.type === r1.type && (r0.type === 'joint' || r0.type === 'identical')) {
                 // item by item: the comparison holds in every column, so curve it in every column
                 var bulge = Math.min(12 + 4 * (q2 - q - 1), 24);
                 for (k = 0; k < Math.min(c0, c1); k++) {
@@ -11037,8 +11037,8 @@ server <- shinyServer(function(input, output, session) {
                 var xr = baseR + 30 + Math.min(8 * (q2 - q), 60);
                 // every item of one row is compared with every item of the other: all dots join a common node at the side
                 var ym = (y0 + y1) / 2, st0 = [], st1 = [];
-                if (r0.type === 'average') st0.push(avgX + 8); else for (k = 0; k < c0; k++) st0.push(X(k) + 7);
-                if (r1.type === 'average') st1.push(avgX + 8); else for (k = 0; k < c1; k++) st1.push(X(k) + 7);
+                if (r0.type === 'average') st0.push(avgX + 8); else if (r0.hub) st0.push((X(0) + X(cols - 1)) / 2 + 7); else for (k = 0; k < c0; k++) st0.push(X(k) + 7);
+                if (r1.type === 'average') st1.push(avgX + 8); else if (r1.hub) st1.push((X(0) + X(cols - 1)) / 2 + 7); else for (k = 0; k < c1; k++) st1.push(X(k) + 7);
                 var thin = st0.length * st1.length > 1, ga = {};
                 if (thin) { ga.opacity = '0.6'; ga['stroke-width'] = '1.3'; }
                 // the curves of one row leave on their own lane (the left dots rise higher), so they no longer run on top of each other through the other dots
@@ -11047,16 +11047,16 @@ server <- shinyServer(function(input, output, session) {
                 el('circle', { cx: xr, cy: ym, r: 3.2, fill: BL, stroke: 'none' }, g); hubDrawn = true;
                 sign(xr + 12, ym, ch);
               } else if (anchor[q].grid && anchor[q2].grid) {
-                if (same && r0.type === r1.type && (r0.type === 'joint' || r0.type === 'identical')) {
+                if (same && !r0.hub && !r1.hub && r0.type === r1.type && (r0.type === 'joint' || r0.type === 'identical')) {
                   for (k = 0; k < Math.min(c0, c1); k++) el('line', { x1: X(k), y1: y0 + 7, x2: X(k), y2: y1 - 7 }, g);
                   for (k = 0; k < Math.min(c0, c1); k++) sign(X(k), (y0 + y1) / 2, ch);
                 } else if ((r0.virt && r0.type === 'substitutable') || (r1.virt && r1.type === 'substitutable')) {
                   // every item of the bar (any combination of its parts) is compared with every item of the other row;
                   // the first item is drawn in full, the others fade out (the same holds for them)
-                  for (k = 0; k < c0; k++) for (m = 0; m < c1; m++) el('line', { x1: X(k), y1: y0 + 7, x2: X(m), y2: y1 - 7, opacity: k === 0 ? '0.95' : '0.2', 'stroke-width': k === 0 ? '1.7' : '1' }, g);
+                  for (k = 0; k < c0; k++) for (m = 0; m < c1; m++) el('line', { x1: r0.hub ? (X(0) + X(cols - 1)) / 2 : X(k), y1: y0 + 7, x2: r1.hub ? (X(0) + X(cols - 1)) / 2 : X(m), y2: y1 - 7, opacity: k === 0 ? '0.95' : '0.2', 'stroke-width': k === 0 ? '1.7' : '1' }, g);
                 } else {
                   // item 1 is shown in full, the other items fade out (the same holds for them)
-                  for (k = 0; k < c0; k++) for (m = 0; m < c1; m++) el('line', { x1: X(k), y1: y0 + 7, x2: X(m), y2: y1 - 7, opacity: k === 0 ? '0.95' : '0.2', 'stroke-width': k === 0 ? '1.7' : '1' }, g);
+                  for (k = 0; k < c0; k++) for (m = 0; m < c1; m++) el('line', { x1: r0.hub ? (X(0) + X(cols - 1)) / 2 : X(k), y1: y0 + 7, x2: r1.hub ? (X(0) + X(cols - 1)) / 2 : X(m), y2: y1 - 7, opacity: k === 0 ? '0.95' : '0.2', 'stroke-width': k === 0 ? '1.7' : '1' }, g);
                   sign((X(0) + X(c0 - 1)) / 4 + (X(0) + X(c1 - 1)) / 4, (y0 + y1) / 2, ch);
                 }
               } else {
