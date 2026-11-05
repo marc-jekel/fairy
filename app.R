@@ -10809,6 +10809,8 @@ server <- shinyServer(function(input, output, session) {
             var nProb = document.querySelectorAll('.fairy-items-row').length || 2;
             var vK = [], vS = [], vN = [], vM = [], vW = [];
             function nm(i) { return i >= nProb ? vN[i - nProb] : chipRowName(i); }
+            // two rows whose lists are both joint (or identical) are compared item k with item k, also across lists (items without a partner are left out)
+            function jiPair(r0, r1) { return !r0.hub && !r1.hub && (r0.type === 'joint' || r0.type === 'identical') && (r1.type === 'joint' || r1.type === 'identical'); }
             // a sum with a part from another list and a part in the list of the sum: one square per item of that list (the items of the other lists are
             // added to each); the comparison with the next row then follows the type (joint: item with item, substitutable: every item with every item)
             function hubDiff(i, k) { return (vM[i - nProb] || []).some(function(pm) { return chipState.asg[pm] !== k; }); }
@@ -10820,7 +10822,7 @@ server <- shinyServer(function(input, output, session) {
                 // joint in all lists of the sum: item k with item k of the other lists; only items that exist in all of them are summed
                 if (hm && tyk === 'joint') {
                   jm = true;
-                  (vM[i - nProb] || []).forEach(function(pm) { var l2 = chipState.asg[pm]; if (l2 !== k) { var t2 = chipState.sets[l2 - 1].over || gType; if (t2 !== 'joint') jm = false; } });
+                  (vM[i - nProb] || []).forEach(function(pm) { var l2 = chipState.asg[pm]; if (l2 !== k) { var t2 = chipState.sets[l2 - 1].over || gType; if (t2 !== 'joint' && t2 !== 'identical') jm = false; } });
                   if (jm) (vM[i - nProb] || []).forEach(function(pm) { var l2 = chipState.asg[pm]; if (l2 !== k) nn = Math.min(nn, chipState.sets[l2 - 1].n); });
                 }
                 return { name: nm(i), virt: vt, n: nn, list: k, color: chipColor(k - 1), type: tyk, tag: vt ? '' : ' - ' + listTitle(k - 1), hub: dm && !hm, hubM: hm, jm: jm };
@@ -11054,7 +11056,7 @@ server <- shinyServer(function(input, output, session) {
                 }
                 return;
               }
-              if (q2 - q > 1 && same && !r0.hub && !r1.hub && r0.type === r1.type && (r0.type === 'joint' || r0.type === 'identical')) {
+              if (q2 - q > 1 && (same || two) && jiPair(r0, r1)) {
                 // item by item: the comparison holds in every column, so curve it in every column
                 var bulge = Math.min(12 + 4 * (q2 - q - 1), 24);
                 for (k = 0; k < Math.min(c0, c1); k++) {
@@ -11078,7 +11080,7 @@ server <- shinyServer(function(input, output, session) {
                 el('circle', { cx: xr, cy: ym, r: 3.2, fill: BL, stroke: 'none' }, g); hubDrawn = true;
                 sign(xr + 12, ym, ch);
               } else if (anchor[q].grid && anchor[q2].grid) {
-                if (same && !r0.hub && !r1.hub && r0.type === r1.type && (r0.type === 'joint' || r0.type === 'identical')) {
+                if ((same || two) && jiPair(r0, r1)) {
                   for (k = 0; k < Math.min(c0, c1); k++) el('line', { x1: X(k), y1: y0 + 7, x2: X(k), y2: y1 - 7 }, g);
                   for (k = 0; k < Math.min(c0, c1); k++) sign(X(k), (y0 + y1) / 2, ch);
                 } else if ((r0.virt && r0.type === 'substitutable') || (r1.virt && r1.type === 'substitutable')) {
@@ -11181,7 +11183,7 @@ server <- shinyServer(function(input, output, session) {
             var pair = realPairs ? (cmpTxt.length === 1 ? ('the two probabilities in ' + cmpTxt[0]) : ('two of its probabilities (here ' + cmpTxt.slice(0, 2).join(' and ') + ')')) : 'two probabilities (for example ' + a + ' > ' + b + ')';
             var allType = R.every(function(r) { return r.type === R[0].type; }), t0 = R[0].type, txt;
             var shortT = { joint: a + ' for item 1 is compared with ' + b + ' for item 1, ' + a + ' for item 2 with ' + b + ' for item 2, and so on.', substitutable: 'Each item of ' + a + ' is compared with each item of ' + b + ', and so on for every pair of probabilities (item 1 highlighted).', identical: 'All items of a probability are equal, so each probability counts as one value.', average: 'The average of ' + a + ' over its items is compared with the average of ' + b + ', and so on.' };
-            txt = (two || !allType) ? ((two && chipState.sets.every(function(x) { return (x.over || gType) === 'joint'; })) ? 'Different item lists: item k of one list is compared with item k of the other list (items without a partner are left out).' : 'Different item lists: each item of one list is compared with each item of the other list.') : shortT[t0];
+            txt = (two || !allType) ? ((two && chipState.sets.every(function(x) { var tx = x.over || gType; return tx === 'joint' || tx === 'identical'; })) ? 'Different item lists: item k of one list is compared with item k of the other list (items without a partner are left out).' : 'Different item lists: each item of one list is compared with each item of the other list.') : shortT[t0];
             if (realPairs && nProb > nRows) {
               var hidden = []; for (var hz = 0; hz < nProb; hz++) if (idxs.indexOf(hz) < 0) hidden.push(chipRowName(hz));
               if (hidden.length) txt += ' Not shown: ' + hidden.join(', ') + ' (not compared).';
@@ -11203,8 +11205,10 @@ server <- shinyServer(function(input, output, session) {
                 var perList = {}, nextL = 0, count = 1, vars = [];
                 terms.forEach(function(t) { t.s = spec(t.r); (perList[t.s.list] = perList[t.s.list] || []).push(t); });
                 // joint lists of the same constraint share one item index (item k with item k); items that are not in all of them are left out
-                var jKeys = Object.keys(perList).filter(function(lk) { return perList[lk][0].s.type === 'joint'; }), jShare = jKeys.length >= 2, jL = null;
-                var jN = Math.min.apply(null, jKeys.map(function(lk) { return perList[lk][0].s.n; }));
+                var jKeys = Object.keys(perList).filter(function(lk) { return perList[lk][0].s.type === 'joint'; }), jL = null;
+                var jAll = Object.keys(perList).filter(function(lk) { var ty0 = perList[lk][0].s.type; return ty0 === 'joint' || ty0 === 'identical'; });
+                var jShare = jKeys.length >= 1 && jAll.length >= 2;
+                var jN = Math.min.apply(null, jAll.map(function(lk) { return perList[lk][0].s.n; }));
                 Object.keys(perList).forEach(function(lk) {
                   var sl = perList[lk], ty = sl[0].s.type, n = sl[0].s.n;
                   if (ty === 'joint' && jShare) { if (!jL) { jL = LET[nextL++]; count *= jN; vars.push({ l: jL, n: jN }); } sl.forEach(function(t) { t.ix = jL; }); }
