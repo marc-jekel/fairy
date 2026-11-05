@@ -10801,9 +10801,13 @@ server <- shinyServer(function(input, output, session) {
             var nProb = document.querySelectorAll('.fairy-items-row').length || 2;
             var vK = [], vS = [], vN = [], vM = [], vW = [];
             function nm(i) { return i >= nProb ? vN[i - nProb] : chipRowName(i); }
+            // a sum with a part from another list: with 'joint' / 'identical' in the list of the sum, the parts of that list stay matched item by item,
+            // so the sum has one square per item (the items of the other lists are added to each); otherwise it is one node
+            function hubDiff(i, k) { return (vM[i - nProb] || []).some(function(pm) { return chipState.asg[pm] !== k; }); }
+            function hubMatch(i, k, ty) { return (ty === 'joint' || ty === 'identical') && (vM[i - nProb] || []).some(function(pm) { return chipState.asg[pm] === k; }); }
             function spec(i) {
               var si = i >= nProb ? vS[i - nProb] : i, vt = i >= nProb;
-              if (two) { var k = chipState.asg[si], st = chipState.sets[k - 1]; return { name: nm(i), virt: vt, n: st.n, list: k, color: chipColor(k - 1), type: st.over || gType, tag: vt ? '' : ' - ' + listTitle(k - 1), hub: vt && (vM[i - nProb] || []).some(function(pm) { return chipState.asg[pm] !== k; }) }; }
+              if (two) { var k = chipState.asg[si], st = chipState.sets[k - 1]; return { name: nm(i), virt: vt, n: st.n, list: k, color: chipColor(k - 1), type: st.over || gType, tag: vt ? '' : ' - ' + listTitle(k - 1), hub: vt && hubDiff(i, k) && !hubMatch(i, k, st.over || gType), hubM: vt && hubDiff(i, k) && hubMatch(i, k, st.over || gType) }; }
               return { name: nm(i), virt: vt, n: n0, list: 1, color: null, type: gType, tag: '' };
             }
             var sumConstOf = {};
@@ -11009,6 +11013,14 @@ server <- shinyServer(function(input, output, session) {
                 }
                 return;
               }
+              if (pp[3] && anchor[q].grid && anchor[q2].grid && (r0.hubM || r1.hubM) && r0.list !== r1.list) {
+                // a part from another list is added to every square of the sum (every combination); the first is drawn stronger
+                var partM = r1.virt ? r0 : r1, cPm = r1.virt ? c0 : c1, cSm = r1.virt ? c1 : c0, yPm = r1.virt ? y0 : y1, ySm = r1.virt ? y1 : y0, sgm = ySm > yPm ? 1 : -1;
+                for (var jj = 0; jj < cPm; jj++) for (var kk = 0; kk < cSm; kk++) {
+                  el('path', { d: 'M' + X(jj) + ' ' + (yPm + sgm * 8) + ' C ' + X(jj) + ' ' + (yPm + sgm * 34) + ' ' + X(kk) + ' ' + (ySm - sgm * 34) + ' ' + X(kk) + ' ' + (ySm - sgm * 8), stroke: 'currentColor', opacity: (jj === 0 && kk === 0) ? '0.5' : '0.15', 'stroke-width': '1.3', 'stroke-dasharray': pp[2] === String.fromCharCode(8722) ? '4 3' : null, 'data-minus': pp[2] === String.fromCharCode(8722) ? '1' : null }, g);
+                }
+                return;
+              }
               if (pp[3] && anchor[q].grid && anchor[q2].grid) {
                 // parts of a sum: one straight line down from each part to the square, in every column (dots sit on the line)
                 for (k = 0; k < Math.min(c0, c1); k++) {
@@ -11122,6 +11134,7 @@ server <- shinyServer(function(input, output, session) {
             });
             var gd = el('g', {}, svg);
             R.forEach(function(r, i) {
+              if (r.hubM) { for (var hk = 0; hk < cnt[i]; hk++) el('rect', { x: X(hk) - 6.5, y: ys[i] - 6.5, width: 13, height: 13, rx: 3, fill: 'var(--ct-default, #fff)', stroke: r.color || 'currentColor', 'stroke-width': '2' }, gd); return; }
               if (r.hub) { var hxc = (X(0) + X(cols - 1)) / 2; el('rect', { x: hxc - 6.5, y: ys[i] - 6.5, width: 13, height: 13, rx: 3, fill: 'var(--ct-default, #fff)', stroke: r.color || 'currentColor', 'stroke-width': '2' }, gd); return; }
               if (r.virt && r.type === 'substitutable' && cnt[i] > 0) {
                 el('rect', { x: X(0) - 9, y: ys[i] - 6.5, width: X(cnt[i] - 1) - X(0) + 18, height: 13, rx: 6.5, fill: 'var(--ct-default, #fff)', stroke: r.color || 'currentColor', 'stroke-width': '2' }, gd);
@@ -11233,6 +11246,7 @@ server <- shinyServer(function(input, output, session) {
               var entries = [[C9, 'one item', null], [String.fromCharCode(8594), 'points to the smaller one', BL]];
               if (vN.length) entries.push([SQ, 'sum (grey lines: its parts)', null]);
               if (svg.querySelector('[data-minus]')) entries.push([null, 'dashed grey line: this part is subtracted', null]);
+              if (R.some(function(r) { return r.hubM; })) entries.push([null, 'one square per item for a sum with a part from another list: the items of that part are added to each', null]);
               if (R.some(function(r) { return r.hub; })) entries.push([null, 'one square for a sum of parts from different lists: every item of one part is added to every item of the others', null]);
               if (hasAvg) entries.push([String.fromCharCode(9675), 'average over the items', BL]);
               if (hasTol) entries.push(['=', 'items equal (' + AP + ': roughly)', null]);
