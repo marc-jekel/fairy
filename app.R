@@ -14323,18 +14323,43 @@ server <- shinyServer(function(input, output, session) {
     invisible(structure(file, link = lk))
   }
   # QR code of the share link: shown in the middle of the screen (Share menu), downloadable as PDF or PNG
+  # highest error correction that still holds the link: with "Q" or "H" a small fairy fits in the middle of the code
   qr_matrix <- function(url) {
     if (is.null(url) || !nzchar(url) || nchar(url) >= 2300 || !requireNamespace("qrcode", quietly = TRUE)) return(NULL)
-    tryCatch(as.matrix(qrcode::qr_code(url, ecl = "L")), error = function(e) NULL)
+    for (e in c("H", "Q", "M", "L")) {
+      m <- tryCatch(as.matrix(qrcode::qr_code(url, ecl = e)), error = function(err) NULL)
+      if (!is.null(m)) { attr(m, "ecl") <- e; return(m) }
+    }
+    NULL
   }
+  # the fairy as polygons in the unit square (y up): wings, dress, head, wand with a star
+  fairy_polys <- function() {
+    ell <- function(cx, cy, rx, ry, rot) { t <- seq(0, 2 * pi, length.out = 28)[-28]; x <- rx * cos(t); y <- ry * sin(t)
+      cbind(cx + x * cos(rot) - y * sin(rot), cy + x * sin(rot) + y * cos(rot)) }
+    star <- function(cx, cy, r) { t <- seq(0, 2 * pi, length.out = 11)[-11] + pi / 2; rr <- rep(c(r, r * 0.45), 5); cbind(cx + rr * cos(t), cy + rr * sin(t)) }
+    list(
+      list(xy = ell(0.27, 0.62, 0.21, 0.12, 0.5), col = "#b9a3f0"), list(xy = ell(0.73, 0.62, 0.21, 0.12, -0.5), col = "#b9a3f0"),
+      list(xy = rbind(c(0.5, 0.62), c(0.33, 0.14), c(0.67, 0.14)), col = "#7a4fc4"),
+      list(xy = ell(0.5, 0.74, 0.11, 0.11, 0), col = "#f4c9a8"),
+      list(xy = rbind(c(0.6, 0.46), c(0.63, 0.43), c(0.83, 0.78), c(0.8, 0.8)), col = "#8a6d3b"),
+      list(xy = star(0.84, 0.86, 0.13), col = "#f0ad4e"))
+  }
+  qr_with_fairy <- function(qr) !is.null(attr(qr, "ecl")) && attr(qr, "ecl") %in% c("H", "Q")
   observeEvent(input$qr_request, {
     url <- tryCatch(app_share_url(), error = function(e) NULL)
     qr <- qr_matrix(url)
-    if (is.null(qr)) { showNotification("This input is too large for a QR code. Use \"Copy link to this input\" instead.", type = "warning", duration = 8); return() }
+    if (is.null(qr)) { showNotification("This input is too large for a QR code. Use \"Copy link\" in this menu instead.", type = "warning", duration = 8); return() }
     n <- nrow(qr); q <- 4
     cells <- character()
     for (i in seq_len(n)) { r <- which(qr[i, ]); if (length(r)) cells <- c(cells, sprintf("M%d %dh1v1h-1z", r - 1 + q, i - 1 + q)) }
-    svg <- sprintf('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" shape-rendering="crispEdges"><rect width="100%%" height="100%%" fill="#fff"/><path fill="#000" d="%s"/></svg>', n + 2 * q, n + 2 * q, paste(cells, collapse = ""))
+    logo <- ""
+    if (qr_with_fairy(qr)) {
+      ls <- n * 0.21; lx <- q + (n - ls) / 2; ly <- q + (n - ls) / 2
+      pts <- vapply(fairy_polys(), function(z) sprintf('<polygon fill="%s" points="%s"/>', z$col,
+        paste(sprintf("%.2f,%.2f", lx + z$xy[, 1] * ls, ly + (1 - z$xy[, 2]) * ls), collapse = " ")), character(1))
+      logo <- paste0(sprintf('<rect x="%.2f" y="%.2f" width="%.2f" height="%.2f" rx="%.2f" fill="#fff"/>', lx - 0.6, ly - 0.6, ls + 1.2, ls + 1.2, ls * 0.15), paste(pts, collapse = ""))
+    }
+    svg <- sprintf('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" shape-rendering="crispEdges"><rect width="100%%" height="100%%" fill="#fff"/><path fill="#000" d="%s"/>%s</svg>', n + 2 * q, n + 2 * q, paste(cells, collapse = ""), logo)
     session$sendCustomMessage("fairy_qr", list(svg = svg, url = url))
   })
   qr_draw <- function(url, w, h) {
@@ -14343,6 +14368,11 @@ server <- shinyServer(function(input, output, session) {
     n <- nrow(qr); sz <- w - 0.6; cw <- sz / n; top <- h - 0.3
     for (i in seq_len(n)) for (j in seq_len(n)) if (isTRUE(qr[i, j]))
       graphics::rect(0.3 + (j - 1) * cw, top - i * cw, 0.3 + j * cw, top - (i - 1) * cw, col = "black", border = NA)
+    if (qr_with_fairy(qr)) {
+      ls <- sz * 0.21; lx <- 0.3 + (sz - ls) / 2; ly <- top - sz / 2 - ls / 2
+      graphics::rect(lx - 0.6 * cw, ly - 0.6 * cw, lx + ls + 0.6 * cw, ly + ls + 0.6 * cw, col = "white", border = NA)
+      for (z in fairy_polys()) graphics::polygon(lx + z$xy[, 1] * ls, ly + z$xy[, 2] * ls, col = z$col, border = NA)
+    }
     lt <- "Recreate this input in the Fairy app"; cx <- 0.8
     tw <- graphics::strwidth(lt, cex = cx); x0 <- (w - tw) / 2
     graphics::text(x0, 0.28, lt, adj = c(0, 0.5), cex = cx, col = "#1a5fb4")
@@ -14352,14 +14382,14 @@ server <- shinyServer(function(input, output, session) {
   output$qr_pdf <- downloadHandler(
     filename = function() paste0("fairy-input-qr-", Sys.Date(), ".pdf"),
     content = function(file) {
-      url <- isolate(app_share_url()); w <- 4; h <- 4 + 0.3 + 0.6
+      url <- isolate(app_share_url()); w <- 4; h <- 4.4
       grDevices::pdf(file, width = w, height = h); r <- qr_draw(url, w, h); grDevices::dev.off()
       pdf_add_link(file, r * 72, url)
     }, contentType = "application/pdf")
   output$qr_png <- downloadHandler(
     filename = function() paste0("fairy-input-qr-", Sys.Date(), ".png"),
     content = function(file) {
-      url <- isolate(app_share_url()); w <- 4; h <- 4.9
+      url <- isolate(app_share_url()); w <- 4; h <- 4.4
       grDevices::png(file, width = w * 300, height = h * 300, res = 300); qr_draw(url, w, h); grDevices::dev.off()
     }, contentType = "image/png")
   outputOptions(output, "qr_pdf", suspendWhenHidden = FALSE); outputOptions(output, "qr_png", suspendWhenHidden = FALSE)
