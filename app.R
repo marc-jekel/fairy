@@ -14370,7 +14370,7 @@ server <- shinyServer(function(input, output, session) {
     svg <- sprintf('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" shape-rendering="crispEdges"><rect width="100%%" height="100%%" fill="#fff"/><path fill="#000" d="%s"/>%s</svg>', n + 2 * q, n + 2 * q, paste(cells, collapse = ""), logo)
     session$sendCustomMessage("fairy_qr", list(svg = svg, url = url))
   })
-  qr_draw <- function(url, w, h) {
+  qr_draw <- function(url, w, h, with_link = TRUE) {
     qr <- qr_matrix(url); req(!is.null(qr))
     graphics::par(mai = c(0, 0, 0, 0)); graphics::plot.new(); graphics::plot.window(c(0, w), c(0, h), xaxs = "i", yaxs = "i")
     n <- nrow(qr); sz <- w - 0.6; cw <- sz / n; top <- h - 0.3
@@ -14385,6 +14385,7 @@ server <- shinyServer(function(input, output, session) {
         else graphics::polygon(lx + z$xy[, 1] * ls, ly + z$xy[, 2] * ls, col = grDevices::adjustcolor(z$col, alpha.f = z$alpha %||% 1), border = if (is.null(z$border)) NA else z$border, lwd = lwd, lend = 1, ljoin = 1)
       }
     }
+    if (!with_link) return(NULL)
     lt <- "Recreate this input in the Fairy app"; cx <- 0.8
     tw <- graphics::strwidth(lt, cex = cx); x0 <- (w - tw) / 2
     graphics::text(x0, 0.28, lt, adj = c(0, 0.5), cex = cx, col = "#1a5fb4")
@@ -14401,8 +14402,8 @@ server <- shinyServer(function(input, output, session) {
   output$qr_png <- downloadHandler(
     filename = function() paste0("fairy-input-qr-", Sys.Date(), ".png"),
     content = function(file) {
-      url <- isolate(app_share_url()); w <- 4; h <- 4.4
-      grDevices::png(file, width = w * 300, height = h * 300, res = 300); qr_draw(url, w, h); grDevices::dev.off()
+      url <- isolate(app_share_url()); w <- 4; h <- 4
+      grDevices::png(file, width = w * 300, height = h * 300, res = 300); qr_draw(url, w, h, with_link = FALSE); grDevices::dev.off()
     }, contentType = "image/png")
   outputOptions(output, "qr_pdf", suspendWhenHidden = FALSE); outputOptions(output, "qr_png", suspendWhenHidden = FALSE)
   observeEvent(input$fairy_pdf_link_req, {
