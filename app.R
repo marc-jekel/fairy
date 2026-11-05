@@ -1687,6 +1687,20 @@ ui <- shinyUI(fluidPage(
       .fairy-go-inline .fairy-share-pop { top: auto; bottom: calc(100% + 8px); }
       .fairy-share-pop[hidden] { display: none; }
       body:has(#fairy-qr-overlay) .fairy-tooltip::after, body:has(#fairy-qr-overlay) .fairy-tooltip::before { display: none !important; }
+      #fairy-tour-block { position: fixed; inset: 0; z-index: 10600; background: transparent; }
+      #fairy-tour-hole { position: fixed; z-index: 10601; pointer-events: none; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(10, 14, 26, .74), 0 0 0 3px var(--fairy-primary, #593196); transition: top .25s ease, left .25s ease, width .25s ease, height .25s ease; }
+      #fairy-tour-hole.fairy-tour-nohole { box-shadow: 0 0 0 9999px rgba(10, 14, 26, .74); }
+      #fairy-tour-card { position: fixed; z-index: 10602; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; padding: 16px 18px 14px; border-radius: 14px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1f2430); border: 1px solid var(--fairy-border, #e5e5e5); box-shadow: 0 18px 50px rgba(0,0,0,.4); font-size: 14px; line-height: 1.45; }
+      #fairy-tour-card h4 { margin: 0 0 6px; font-size: 16px; font-weight: 700; }
+      #fairy-tour-card p { margin: 0 0 12px; }
+      .fairy-tour-foot { display: flex; align-items: center; gap: 8px; }
+      .fairy-tour-dots { display: flex; gap: 5px; flex: 1; }
+      .fairy-tour-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--fairy-border, #cfd4e0); display: block; }
+      .fairy-tour-dots i.on { background: var(--fairy-primary, #593196); }
+      #fairy-tour-card button { font: inherit; font-size: 13px; padding: 5px 12px; border-radius: 8px; border: 1px solid var(--fairy-border, #cfd4e0); background: transparent; color: inherit; cursor: pointer; }
+      #fairy-tour-card button.fairy-tour-primary { background: var(--fairy-primary, #593196); border-color: var(--fairy-primary, #593196); color: #fff; }
+      #fairy-tour-card button:hover { filter: brightness(1.1); }
+      #fairy-tour-card .fairy-tour-skip { border: 0; padding: 5px 4px; color: var(--fairy-text-muted, #667085); font-size: 12px; text-decoration: underline; }
       #fairy-qr-overlay { position: fixed; inset: 0; z-index: 10500; display: flex; align-items: center; justify-content: center; background: rgba(15, 20, 35, .55); }
       .fairy-qr-card { background: #fff; color: #1f2430; border-radius: 14px; padding: 22px 24px 18px; box-shadow: 0 18px 60px rgba(0,0,0,.35); display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 92vw; }
       .fairy-qr-svg svg { width: min(70vmin, 460px); height: auto; display: block; }
@@ -6266,6 +6280,130 @@ ui <- shinyUI(fluidPage(
         if (window.MutationObserver) new MutationObserver(later).observe(document.documentElement, { childList: true, subtree: true });
       })();
 
+      // ---- Guided tour: the page is dimmed, one part at a time is lit and explained ----
+      (function() {
+        var tourStep = -1, steps = null;
+        function shown(e) { return !!e && e.getClientRects().length !== 0 && e.getBoundingClientRect().width !== 0; }
+        function q1(sel) { var e = document.querySelector(sel); return shown(e) ? e : null; }
+        function byText(sel, re) { var l = document.querySelectorAll(sel), i, r = null; for (i = 0; i !== l.length; i++) { if (!r && re.test(l[i].textContent) && shown(l[i])) r = l[i]; } return r; }
+        function buildSteps() {
+          return [
+            { title: 'Welcome to Fairy', text: 'A quick tour of the Input tab, about a minute. Use Next or the arrow keys, and Esc to leave.', els: function() { return []; } },
+            { title: '1 Probabilities', text: 'Choose how many probabilities your models use (the plus and minus buttons) and name them. Names may use TeX, for example p_{1}.', els: function() { return [q1('.def-col--pnames')]; } },
+            { title: '2 Models', text: 'One row per model. Describe a model with inequalities such as p1 > p2 > p3 and separate statements with a semicolon. The right column shows the model in full. Add a constraint for all models with the link above the table.', els: function() { return [q1('.def-col--models-card')]; } },
+            { title: '3 Unpack across items', text: 'Repeat the model over several items, for example trials. Items can be matched item by item (joint), combined in all ways (substitutable), identical, or averaged. The picture shows what your choice means.', els: function() { return [byText('button', /Unpack across items/)]; } },
+            { title: '4 Go', text: 'Builds the H-representation of every model and starts the analysis. Results appear in the tabs above.', els: function() { return [q1('#go_inline')]; } },
+            { title: '5 Share and save', text: 'Copy a link or QR code of your input, save it as an Excel file or an R script, or upload a saved input again with the arrow button.', els: function() { return [q1('.fairy-primary-controls')]; } },
+            { title: '6 Results tabs', text: 'After Go, tabs appear at the top. H-representation lists the inequalities, V-representation the vertices. Plot Edge Cases and Plot Polytope(s) draw the models, and Parsimony compares volumes and Bayes factors.', els: function() { return []; } },
+            { title: '7 Display', text: 'Switch between light and dark mode, and turn the tool tips on or off.', els: function() { return [q1('#tips-toggle'), q1('#dm-toggle')]; } },
+            { title: '8 Help', text: 'What is new, how to report a bug, and the keyboard shortcuts are in the bar at the bottom. You can start this tour again from there at any time.', els: function() { return [q1('#banner')]; } },
+            { title: 'That is it', text: 'Try an example: type a model such as p1 > p2 > p3 into the first row and press Go.', last: true, els: function() { return []; } }
+          ];
+        }
+        function union(els) {
+          var l = els.filter(function(e) { return !!e; });
+          if (!l.length) return null;
+          var r = null;
+          l.forEach(function(e) { var b = e.getBoundingClientRect(); r = r ? { l: Math.min(r.l, b.left), t: Math.min(r.t, b.top), r: Math.max(r.r, b.right), b: Math.max(r.b, b.bottom) } : { l: b.left, t: b.top, r: b.right, b: b.bottom }; });
+          return r;
+        }
+        function ensure() {
+          var b = document.getElementById('fairy-tour-block');
+          if (b) return;
+          b = document.createElement('div'); b.id = 'fairy-tour-block'; document.body.appendChild(b);
+          var h = document.createElement('div'); h.id = 'fairy-tour-hole'; document.body.appendChild(h);
+          var c = document.createElement('div'); c.id = 'fairy-tour-card'; c.setAttribute('role', 'dialog'); c.setAttribute('aria-label', 'Tour of the app'); document.body.appendChild(c);
+        }
+        function end() {
+          ['fairy-tour-block', 'fairy-tour-hole', 'fairy-tour-card'].forEach(function(id) { var e = document.getElementById(id); if (e) e.remove(); });
+          tourStep = -1;
+          try { localStorage.setItem('fairy_tour_done', '1'); } catch (er) {}
+        }
+        function place() {
+          if (tourStep === -1) return;
+          var st = steps[tourStep], hole = document.getElementById('fairy-tour-hole'), card = document.getElementById('fairy-tour-card');
+          if (!hole || !card) return;
+          var els = st.els(), r = union(els), pad = 8, vw = window.innerWidth, vh = window.innerHeight;
+          if (r) {
+            hole.classList.remove('fairy-tour-nohole');
+            hole.style.left = (r.l - pad) + 'px'; hole.style.top = (r.t - pad) + 'px';
+            hole.style.width = (r.r - r.l + 2 * pad) + 'px'; hole.style.height = (r.b - r.t + 2 * pad) + 'px';
+          } else {
+            hole.classList.add('fairy-tour-nohole');
+            hole.style.left = (vw / 2) + 'px'; hole.style.top = (vh / 2) + 'px'; hole.style.width = '0px'; hole.style.height = '0px';
+          }
+          var cw = card.offsetWidth, ch = card.offsetHeight, x, y;
+          if (!r) { x = (vw - cw) / 2; y = (vh - ch) / 2; }
+          else {
+            var below = vh - (r.b + pad), above = r.t - pad;
+            x = Math.max(12, Math.min(vw - cw - 12, r.l + (r.r - r.l) / 2 - cw / 2));
+            if (below >= ch + 20) y = r.b + pad + 14;
+            else if (above >= ch + 20) y = r.t - pad - ch - 14;
+            else { y = Math.max(12, Math.min(vh - ch - 12, r.t)); x = (vw - r.r) >= cw + 24 ? r.r + pad + 14 : Math.max(12, r.l - pad - cw - 14); }
+          }
+          card.style.left = Math.max(12, x) + 'px'; card.style.top = Math.max(12, y) + 'px';
+        }
+        function show(i) {
+          steps = steps || buildSteps();
+          // steps whose part is not on the screen are skipped
+          var dir = i >= tourStep ? 1 : -1, guard = 0;
+          while (i >= 0 && i !== steps.length && guard !== 30) {
+            var els = steps[i].els();
+            if (!steps[i].els().length || els.some(function(e) { return !!e; })) break;
+            i += dir; guard++;
+          }
+          if (i === steps.length || i === -1) { if (i === -1) i = 0; else { end(); return; } }
+          tourStep = i;
+          ensure();
+          var st = steps[i], card = document.getElementById('fairy-tour-card');
+          card.textContent = '';
+          var h = document.createElement('h4'); h.textContent = st.title; card.appendChild(h);
+          var p = document.createElement('p'); p.textContent = st.text; card.appendChild(p);
+          var foot = document.createElement('div'); foot.className = 'fairy-tour-foot';
+          var dots = document.createElement('div'); dots.className = 'fairy-tour-dots';
+          steps.forEach(function(x, k) { var d = document.createElement('i'); if (k === i) d.className = 'on'; dots.appendChild(d); });
+          foot.appendChild(dots);
+          var skip = document.createElement('button'); skip.type = 'button'; skip.className = 'fairy-tour-skip'; skip.textContent = st.last ? '' : 'Skip'; skip.setAttribute('data-k', 'end');
+          if (!st.last) foot.appendChild(skip);
+          if (i !== 0) { var bk = document.createElement('button'); bk.type = 'button'; bk.textContent = 'Back'; bk.setAttribute('data-k', 'back'); foot.appendChild(bk); }
+          if (st.last) { var ex = document.createElement('button'); ex.type = 'button'; ex.textContent = 'Fill in example'; ex.setAttribute('data-k', 'example'); foot.appendChild(ex); }
+          var nx = document.createElement('button'); nx.type = 'button'; nx.className = 'fairy-tour-primary'; nx.textContent = st.last ? 'Finish' : (i === 0 ? 'Start' : 'Next'); nx.setAttribute('data-k', 'next'); foot.appendChild(nx);
+          card.appendChild(foot);
+          var first = st.els().filter(function(e) { return !!e; })[0];
+          if (first && first.scrollIntoView) first.scrollIntoView({ block: 'center', inline: 'nearest' });
+          place(); setTimeout(place, 120); setTimeout(place, 400);
+          nx.focus();
+        }
+        function start() {
+          var tab = document.querySelector('a[data-value=Input]'); if (tab && !tab.parentElement.classList.contains('active')) tab.click();
+          steps = buildSteps(); tourStep = -1;
+          setTimeout(function() { show(0); }, 150);
+        }
+        document.addEventListener('click', function(e) {
+          var t = e.target.closest ? e.target : e.target.parentNode;
+          if (t.closest && t.closest('#fairy-tour-open')) { e.preventDefault(); start(); return; }
+          var b = t.closest ? t.closest('#fairy-tour-card button') : null;
+          if (b) {
+            var k = b.getAttribute('data-k');
+            if (k === 'next') { if (steps[tourStep].last) end(); else show(tourStep + 1); }
+            else if (k === 'back') show(tourStep - 1);
+            else if (k === 'end') end();
+            else if (k === 'example') {
+              var ta = document.getElementById('textin_relations_1');
+              end();
+              if (ta) { ta.value = 'p1 > p2 > p3'; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.dispatchEvent(new Event('change', { bubbles: true })); ta.focus(); }
+            }
+          }
+        });
+        document.addEventListener('keydown', function(e) {
+          if (tourStep === -1) return;
+          if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); end(); }
+          else if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); if (steps[tourStep].last) end(); else show(tourStep + 1); }
+          else if (e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); if (tourStep !== 0) show(tourStep - 1); }
+        }, true);
+        window.addEventListener('resize', place);
+        window.addEventListener('scroll', place, true);
+      })();
       // ---- Share / save menu in the floating panel ----
       (function() {
         function parts() {
@@ -9293,7 +9431,7 @@ server <- shinyServer(function(input, output, session) {
     id = "banner",
     html = paste0("<p class='fairy-banner-text'>", if (nzchar(APP_UPDATED)) paste0("Updated ", APP_UPDATED, " &middot; ") else "",
                   "<a href='https://modeling-for-everyone.eu/posts/fairy/#whats-new' target='_blank' rel='noopener'>what's new</a> &middot; under active development &middot; ",
-                  "<a href='mailto:mjekel@uni-koeln.de?subject=bug-report fairy app'>report a bug</a> &middot; <a href='#' id='fairy-kbd-open'>keyboard shortcuts (?)</a></p>"),
+                  "<a href='mailto:mjekel@uni-koeln.de?subject=bug-report fairy app'>report a bug</a> &middot; <a href='#' id='fairy-kbd-open'>keyboard shortcuts (?)</a> &middot; <a href='#' id='fairy-tour-open'>take a tour</a></p>"),
     add = TRUE
   )
 
