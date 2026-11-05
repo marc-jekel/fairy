@@ -6800,7 +6800,7 @@ ui <- shinyUI(fluidPage(
           dots.appendChild(spd);
           foot.appendChild(dots);
           if (!st.last) { var sk = btn('End tour', 'end'); sk.style.marginRight = 'auto'; foot.appendChild(sk); }
-          foot.appendChild(btn('Back', 'back'));
+          foot.appendChild(btn(i === 0 ? 'All tours' : 'Back', 'back'));
           if (st.last && !st.noexample && steps.kind !== 'unpack' && steps.kind !== 'combine' && steps.kind !== 'results' && steps.kind !== 'run' && steps.kind !== 'mn' && steps.kind !== 'tutorial') foot.appendChild(btn('Fill in example', 'example'));
           if (st.full) foot.appendChild(btn('Full tour', 'full'));
           var nx = btn(st.last ? 'Finish' : (st.nextLabel || 'Next'), 'next', 'fairy-tour-primary'); foot.appendChild(nx);
