@@ -1696,8 +1696,8 @@ ui <- shinyUI(fluidPage(
       .fairy-share-pop[hidden] { display: none; }
       body:has(#fairy-qr-overlay) .fairy-tooltip::after, body:has(#fairy-qr-overlay) .fairy-tooltip::before { display: none !important; }
       #fairy-tour-block { position: fixed; inset: 0; z-index: 10600; background: transparent; }
-      #fairy-tour-hole { position: fixed; z-index: 10601; pointer-events: none; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(10, 14, 26, .74), 0 0 0 3px var(--fairy-primary, #593196); }
-      #fairy-tour-hole.fairy-tour-nohole { box-shadow: 0 0 0 9999px rgba(10, 14, 26, .74); }
+      #fairy-tour-hole { position: fixed; z-index: 10601; pointer-events: none; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(10, 14, 26, .38), 0 0 0 3px var(--fairy-primary, #593196); }
+      #fairy-tour-hole.fairy-tour-nohole { box-shadow: 0 0 0 9999px rgba(10, 14, 26, .38); }
       #fairy-tour-card { position: fixed; z-index: 10602; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; padding: 16px 18px 14px; border-radius: 14px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1f2430); border: 1px solid var(--fairy-border, #e5e5e5); box-shadow: 0 18px 50px rgba(0,0,0,.4); font-size: 14px; line-height: 1.45; }
       #fairy-tour-card h4 { margin: 0 0 6px; font-size: 16px; font-weight: 700; }
       #fairy-tour-card p { margin: 0 0 12px; }
