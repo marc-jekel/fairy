@@ -6292,11 +6292,19 @@ ui <- shinyUI(fluidPage(
 
       // ---- Guided tour: basic (the workflow) or full (every control of the Input tab) ----
       (function() {
-        var tourStep = -1, steps = null, picking = false;
+        var tourStep = -1, steps = null, picking = false, token = 0;
         function shown(e) { return !!e && e.getClientRects().length !== 0 && e.getBoundingClientRect().width !== 0; }
         function q1(sel) { var e = document.querySelector(sel); return shown(e) ? e : null; }
         function byText(sel, re) { var l = document.querySelectorAll(sel), i, r = null; for (i = 0; i !== l.length; i++) { if (!r && re.test(l[i].textContent) && shown(l[i])) r = l[i]; } return r; }
         function byTitle(sel, re) { var l = document.querySelectorAll(sel), i, r = null; for (i = 0; i !== l.length; i++) { if (!r && re.test((l[i].getAttribute('title') || '') + (l[i].getAttribute('data-fairy-title') || '')) && shown(l[i])) r = l[i]; } return r; }
+        function modalOpen() { return document.querySelector('.modal.in'); }
+        function clickEl(e) { if (e) e.click(); }
+        function radioClick(v) { var r = document.querySelectorAll('.fairy-items-quick-type'), i; for (i = 0; i !== r.length; i++) { if (r[i].value === v) r[i].click(); } }
+        function labelClick(re) { clickEl(byText('label', re)); }
+        function closeModal() { var m = modalOpen(); if (m) { var c = m.querySelector('[data-dismiss=modal]'); if (c) c.click(); } }
+        var addedModel = false;
+        function ensureModel() { var ta = document.getElementById('textin_relations_1'); if (ta && !ta.value.trim()) { ta.value = 'p1 > p2 > p3'; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.dispatchEvent(new Event('change', { bubbles: true })); } }
+        function ensureTwoModels() { if (!document.getElementById('add_intersection_model') && document.getElementById('add_ie')) { document.getElementById('add_ie').click(); addedModel = true; } }
         function S(title, text, f, extra) { var o = { title: title, text: text, els: f }; if (extra) { for (var k in extra) { o[k] = extra[k]; } } return o; }
         function basicSteps() {
           return [
@@ -6336,6 +6344,37 @@ ui <- shinyUI(fluidPage(
             S('That is it', 'Try an example: type a model such as p1 > p2 > p3 into the first row and press Go.', function() { return []; }, { last: true })
           ];
         }
+        function unpackSteps() {
+          function mod(sel) { return function() { var m = modalOpen(); var e = m ? m.querySelector(sel) : null; return [shown(e) ? e : null]; }; }
+          return [
+            S('Base model', 'The model row that is repeated over items. Pick one of your models.', mod('#fairy_items_base_wrap'), { pre: function() { closeModal(); ensureModel(); setTimeout(function() { clickEl(document.getElementById('show_items_modal')); }, 300); }, wait: 1500 }),
+            S('1 Same items for all probabilities?', 'Yes: every probability has the same items, for example the same trials. No: the probabilities get their own lists of items, for example p1 and p2 on one list and p3 on another. The next steps start with Yes.', mod('#fairy_items_q1'), { pre: function() { labelClick(/Yes, the same items/); }, wait: 500 }),
+            S('2 How many items?', 'The number of items, for example trials or stimuli.', mod('#fairy_items_count_same')),
+            S('joint: matching items', 'The model holds item by item: item 1 with item 1, item 2 with item 2, and so on. p1 > p2 then means that p1 of item k is larger than p2 of item k, for every k.', function() { return [byText('label', /joint\\s+matching/)]; }, { pre: function() { radioClick('joint'); }, wait: 500 }),
+            S('substitutable: all combinations', 'The model holds for every combination of items: each probability may take any item. p1 > p2 then holds for all pairs of items, which restricts the model much more.', function() { return [byText('label', /substitutable\\s+all/)]; }, { pre: function() { radioClick('substitutable'); }, wait: 500 }),
+            S('identical: same value for every item', 'All items of a probability have the same value, and the model holds for it. The items may differ by a small tolerance (next step).', function() { return [byText('label', /identical\\s+e\\.g\\./)]; }, { pre: function() { radioClick('identical'); }, wait: 600 }),
+            S('3 Exactly equal or approximately?', 'Exactly equal is 0. A larger number lets the items of a probability differ by up to that value.', mod('#fairy_items_quick_eps_wrap')),
+            S('average: only the average', 'The model holds for the average over the items of each probability. Single items may break it, but each item stays a probability between 0 and 1.', function() { return [byText('label', /average\\s+e\\.g\\./)]; }, { pre: function() { radioClick('average'); }, wait: 500 }),
+            S('The picture', 'One row per probability and one dot per item. Arrows point to the smaller one, squares are sums, and grey lines show how a sum is built. The legend names what is drawn.', function() { var m = modalOpen(); return m ? [m.querySelector('#fairy_items_diagram'), m.querySelector('#fairy_items_legend')] : []; }, { pre: function() { radioClick('joint'); }, wait: 600 }),
+            S('What this makes of your model', 'The statements that result from your choice, and how many there are. Click the heading to unfold them.', mod('#fairy_items_stmts')),
+            S('Download or enlarge the picture', 'The PDF is a vector graphic for slides and papers. The arrows enlarge the picture to the whole window.', function() { var m = modalOpen(); return m ? [m.querySelector('#fairy_items_pdf'), m.querySelector('#fairy_items_expand')] : []; }),
+            S('Different item lists', 'Click a probability to move it to the next list (A, B, C, ...). Probabilities of one list share the same items. Give each list a name and its own number of items.', mod('#fairy_items_two_panel'), { pre: function() { labelClick(/No, different lists/); }, wait: 800 }),
+            S('Rules per list', 'Each list can follow its own rule, for example joint for one list and substitutable for another. Joint lists used together in one constraint are matched item by item (item k with item k); items without a partner are left out. Substitutable combines all items.', function() { return [byText('label', /differently for each list/)]; }, { pre: function() { radioClick('perlist'); }, wait: 600 }),
+            S('Add or cancel', 'Add creates the unpacked model as a new row. Cancel closes the window without changes.', function() { var a = document.getElementById('submit_items_multi'); return [a ? a.parentElement : null]; }, { last: true })
+          ];
+        }
+        function combineSteps() {
+          function mod(sel) { return function() { var m = modalOpen(); var e = m ? m.querySelector(sel) : null; return [shown(e) ? e : null]; }; }
+          var note = ' Models unpacked across items can only be combined with other unpacked models with the same number of items.';
+          return [
+            S('Intersection model', 'Appears when there are two or more models. Adds a model that must satisfy all constraints of the models you pick, for example to see what remains when two theories hold at once.', function() { return [q1('#add_intersection_model')]; }, { pre: function() { closeModal(); ensureTwoModels(); }, wait: 1200 }),
+            S('Pick the models', 'Tick two or more models. The new row contains all of their constraints together.' + note, mod('#intersection_model_picker'), { pre: function() { closeModal(); setTimeout(function() { clickEl(document.getElementById('add_intersection_model')); }, 300); }, wait: 1300 }),
+            S('Add or cancel', 'Add stays grey until at least two models are ticked and they can be combined; a warning says why not. Add creates the new model row.', function() { var a = document.getElementById('submit_intersection_model'); return [a ? a.parentElement : null]; }),
+            S('Mixture model', 'Adds a model that stands for a mixture of the models you pick: everything you get by mixing them (the convex hull of the union of their vertices). Its V-representation is always computed.', function() { return [q1('#add_mixture_model')]; }, { pre: function() { closeModal(); }, wait: 700 }),
+            S('Pick the models to mix', 'Tick two or more models.' + note, mod('#mixture_model_picker'), { pre: function() { closeModal(); setTimeout(function() { clickEl(document.getElementById('add_mixture_model')); }, 300); }, wait: 1300 }),
+            S('Add or cancel', 'Add creates the mixture as a new model row. Cancel closes the window without changes.', function() { var a = document.getElementById('submit_mixture_model'); return [a ? a.parentElement : null]; }, { last: true })
+          ];
+        }
         function union(els) {
           var l = els.filter(function(e) { return !!e; });
           if (!l.length) return null;
@@ -6351,7 +6390,9 @@ ui <- shinyUI(fluidPage(
         }
         function end() {
           ['fairy-tour-block', 'fairy-tour-hole', 'fairy-tour-card'].forEach(function(id) { var e = document.getElementById(id); if (e) e.remove(); });
-          tourStep = -1; picking = false;
+          tourStep = -1; picking = false; token++;
+          closeModal();
+          if (addedModel) { addedModel = false; var rm = document.getElementById('rm_ie'); if (rm) rm.click(); }
           try { localStorage.setItem('fairy_tour_done', '1'); } catch (er) {}
         }
         function place() {
@@ -6385,36 +6426,44 @@ ui <- shinyUI(fluidPage(
           var h = document.createElement('h4'); h.textContent = 'Welcome to Fairy'; card.appendChild(h);
           var p = document.createElement('p'); p.textContent = 'Which tour do you want?'; card.appendChild(p);
           var l = document.createElement('p'); l.style.cssText = 'font-size:13px; color:var(--fairy-text-muted, #667085);';
-          l.textContent = 'Basic: the steps from input to results, about a minute. Full: every control of the Input tab, one by one.'; card.appendChild(l);
+          l.textContent = 'Basic: the steps from input to results, about a minute. Full: every control of the Input tab. Unpacking and Combining explain those two windows.'; card.appendChild(l);
           var foot = document.createElement('div'); foot.className = 'fairy-tour-foot';
-          foot.appendChild(btn('Cancel', 'end', 'fairy-tour-skip')); foot.appendChild(btn('Full tour', 'full')); foot.appendChild(btn('Basic tour', 'basic', 'fairy-tour-primary'));
+          foot.appendChild(btn('Cancel', 'end', 'fairy-tour-skip')); foot.appendChild(btn('Unpacking', 'unpack')); foot.appendChild(btn('Combining models', 'combine')); foot.appendChild(btn('Full tour', 'full')); foot.appendChild(btn('Basic tour', 'basic', 'fairy-tour-primary'));
           card.appendChild(foot); place(); setTimeout(place, 150);
           foot.lastChild.focus();
         }
         function show(i) {
           picking = false;
-          // steps whose part is not on the screen are skipped
-          var dir = i >= tourStep ? 1 : -1, guard = 0;
+          var my = ++token, dir = i >= tourStep ? 1 : -1, guard = 0;
+          // steps whose part is not on the screen are skipped (steps with an action of their own are not checked)
           while (i >= 0 && i !== steps.length && guard !== 60) {
+            if (steps[i].pre) break;
             var els0 = steps[i].els();
             if (!els0.length || els0.some(function(e) { return !!e; })) break;
             i += dir; guard++;
           }
           if (i === steps.length) { end(); return; }
           if (i === -1) { pick(); return; }
-          tourStep = i; ensure();
+          tourStep = i;
+          var st = steps[i];
+          if (st.pre) { st.pre(); setTimeout(function() { if (my === token) render(i); }, st.wait || 500); }
+          else render(i);
+        }
+        function render(i) {
+          ensure();
           var st = steps[i], card = document.getElementById('fairy-tour-card');
+          if (!card) return;
           card.textContent = '';
           var h = document.createElement('h4'); h.textContent = st.title; card.appendChild(h);
           var p = document.createElement('p'); p.textContent = st.text; card.appendChild(p);
           var foot = document.createElement('div'); foot.className = 'fairy-tour-foot';
           var dots = document.createElement('div'); dots.className = 'fairy-tour-dots';
-          if (steps.length !== 0 && steps.length < 12) steps.forEach(function(x, k) { var d = document.createElement('i'); if (k === i) d.className = 'on'; dots.appendChild(d); });
+          if (steps.length < 12) steps.forEach(function(x, k) { var d = document.createElement('i'); if (k === i) d.className = 'on'; dots.appendChild(d); });
           else { var cnt = document.createElement('span'); cnt.style.cssText = 'font-size:12px; color:var(--fairy-text-muted, #667085);'; cnt.textContent = (i + 1) + ' of ' + steps.length; dots.appendChild(cnt); }
           foot.appendChild(dots);
           if (!st.last) foot.appendChild(btn('Skip', 'end', 'fairy-tour-skip'));
           foot.appendChild(btn('Back', 'back'));
-          if (st.last) foot.appendChild(btn('Fill in example', 'example'));
+          if (st.last && !st.noexample && steps.kind !== 'unpack' && steps.kind !== 'combine') foot.appendChild(btn('Fill in example', 'example'));
           if (st.full) foot.appendChild(btn('Full tour', 'full'));
           var nx = btn(st.last ? 'Finish' : 'Next', 'next', 'fairy-tour-primary'); foot.appendChild(nx);
           card.appendChild(foot);
@@ -6427,7 +6476,7 @@ ui <- shinyUI(fluidPage(
           var tab = document.querySelector('a[data-value=Input]'); if (tab && !tab.parentElement.classList.contains('active')) tab.click();
           setTimeout(pick, 150);
         }
-        function go(mode) { steps = mode === 'full' ? fullSteps() : basicSteps(); tourStep = -1; show(0); }
+        function go(mode) { steps = mode === 'full' ? fullSteps() : (mode === 'unpack' ? unpackSteps() : (mode === 'combine' ? combineSteps() : basicSteps())); steps.kind = mode; tourStep = -1; show(0); }
         function next() { if (steps[tourStep].last) end(); else show(tourStep + 1); }
         document.addEventListener('click', function(e) {
           var t = e.target.closest ? e.target : e.target.parentNode;
@@ -6438,7 +6487,7 @@ ui <- shinyUI(fluidPage(
             if (k === 'next') next();
             else if (k === 'back') show(tourStep - 1);
             else if (k === 'end') end();
-            else if (k === 'basic' || k === 'full') go(k);
+            else if (k === 'basic' || k === 'full' || k === 'unpack' || k === 'combine') go(k);
             else if (k === 'example') {
               var ta = document.getElementById('textin_relations_1');
               end();
