@@ -7635,18 +7635,27 @@ ui <- shinyUI(fluidPage(
         // hide rows: "any" hides every row that contains a greyed-out item or parameter, "all" only the rows in which everything is greyed
         // out (a row stays as long as at least one item or parameter in it is not greyed out)
         function fairyHideMode() { return document.body.getAttribute("data-hide") || ""; }
-        // a dimension in which nothing at all is selected does not restrict anything: all items deselected = the items do not matter
-        // (so all terms of the selected parameters are marked, whatever their item), and the same for the parameters
+        // A mode (parameters, items) in which nothing at all is selected does not restrict anything as long as the other mode has a
+        // selection: all items deselected = the items do not matter (all terms of the selected parameters are marked). When every mode
+        // that is switched on has nothing selected, nothing is marked.
         function fairyEffGray() {
           var gi = fairyGrayList(), gp = fairyParList();
-          if (gi.length) { if (gi.length === fairyUniq(".fairy-iw", "data-item", "-").length) gi = []; }
-          if (gp.length) { if (gp.length === fairyUniq(".fairy-pt", "data-par", "0").length) gp = []; }
-          return { gi: gi, gp: gp };
+          var parOn = document.body.classList.contains("fairy-par-focus"), itOn = document.body.classList.contains("fairy-items-focus");
+          var iEmpty = false, pEmpty = false;
+          if (itOn) { if (gi.length) { iEmpty = gi.length === fairyUniq(".fairy-iw", "data-item", "-").length; } }
+          if (parOn) { if (gp.length) { pEmpty = gp.length === fairyUniq(".fairy-pt", "data-par", "0").length; } }
+          var none = false;
+          if (parOn || itOn) {
+            var itDone = !itOn || iEmpty, parDone = !parOn || pEmpty;
+            if (itDone) { if (parDone) none = true; }
+          }
+          return { gi: iEmpty ? [] : gi, gp: pEmpty ? [] : gp, none: none };
         }
         function fairyHideStyle() {
           var st = document.getElementById("fairy-hide-style");
           if (!st) { st = document.createElement("style"); st.id = "fairy-hide-style"; document.head.appendChild(st); }
           var css = "", q = String.fromCharCode(39), mode = fairyHideMode(), eff = fairyEffGray(), gi = eff.gi, gp = eff.gp;
+          if (eff.none) { if (mode) css += "tr:has(.fairy-pt) { display: none !important; } "; st.textContent = css; return; }
           function nots(attr, list) { return list.map(function(k) { return ":not([" + attr + "=" + q + k + q + "])"; }).join(""); }
           function is(attr, k) { return "[" + attr + "=" + q + k + q + "]"; }
           // a term is active when neither its item nor its parameter is greyed out; the rows follow the terms
@@ -7837,6 +7846,7 @@ ui <- shinyUI(fluidPage(
           var st = document.getElementById("fairy-par-style");
           if (!st) { st = document.createElement("style"); st.id = "fairy-par-style"; document.head.appendChild(st); }
           var css = "", q = String.fromCharCode(39), eff = fairyEffGray();
+          if (eff.none) css += ".fairy-pt { background: none !important; } ";
           eff.gp.forEach(function(k) { css += "body.fairy-par-focus[data-pgray] .fairy-pt[data-par=" + q + k + q + "] { background: none; } "; });
           eff.gi.forEach(function(k) { css += "body.fairy-items-focus[data-gray] .fairy-iw[data-item=" + q + k + q + "] .fairy-pt { background: none; } "; });
           st.textContent = css;
@@ -7896,7 +7906,8 @@ ui <- shinyUI(fluidPage(
           var st = $(this).data("state");
           document.body.classList.toggle("fairy-items-on", st === "on" || st === "focus");
           document.body.classList.toggle("fairy-items-focus", st === "focus");
-          if (st !== "focus") { document.body.removeAttribute("data-gray"); fairyAfterGray(); } else fairyItemChips();
+          if (st !== "focus") { document.body.removeAttribute("data-gray"); } else fairyItemChips();
+          fairyAfterGray();
         });
         $("#h_layout_toggle_group button, #h_color_toggle_group button").click(function(){
           var group = $(this).parent();
@@ -7907,7 +7918,8 @@ ui <- shinyUI(fluidPage(
             var cst = $(this).data("state");
             var on = cst === "on" || cst === "focus";
             document.body.classList.toggle("fairy-par-focus", cst === "focus");
-            if (cst === "focus") { fairyParChips(); } else { document.body.removeAttribute("data-pgray"); fairyParStyle(); fairyAfterGray(); }
+            if (cst === "focus") { fairyParChips(); } else { document.body.removeAttribute("data-pgray"); }
+            fairyAfterGray();
             $("#outP, #fairy-card-overlay-content").each(function() { if (on) this.setAttribute("data-h-color", "on"); else this.removeAttribute("data-h-color"); });
             return;
           }
