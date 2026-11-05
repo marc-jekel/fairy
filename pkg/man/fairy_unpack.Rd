@@ -55,7 +55,10 @@ and the lists follow each other in the order in which they first occur.
 The ways a theory can hold across the items of a list (\code{type}):
 \itemize{
 \item \code{"joint"}: item by item. Every constraint holds for each item \code{k},
-with the same item \code{k} in all probabilities of the list.
+with the same item \code{k} in all probabilities of the list. A constraint
+that uses probabilities of several \code{"joint"} lists is paired item by
+item as well (item \code{k} of one list with item \code{k} of the other); items
+that do not exist in all of these lists are left out.
 \item \code{"substitutable"}: for every combination of items. Each constraint
 holds whichever item is plugged in for each term. A constraint with \code{m}
 probabilities of a list and \code{n} items gives \code{n^m} constraints.

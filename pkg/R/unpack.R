@@ -15,7 +15,10 @@
 #' The ways a theory can hold across the items of a list (`type`):
 #'
 #' * `"joint"`: item by item. Every constraint holds for each item `k`,
-#'   with the same item `k` in all probabilities of the list.
+#'   with the same item `k` in all probabilities of the list. A constraint
+#'   that uses probabilities of several `"joint"` lists is paired item by
+#'   item as well (item `k` of one list with item `k` of the other); items
+#'   that do not exist in all of these lists are left out.
 #' * `"substitutable"`: for every combination of items. Each constraint
 #'   holds whichever item is plugged in for each term. A constraint with `m`
 #'   probabilities of a list and `n` items gives `n^m` constraints.

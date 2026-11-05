@@ -54,3 +54,17 @@ test_that("intersections and mixtures of unpacked models match the columns by na
   expect_error(fairy_intersect(avg, fairy_unpack(m, items = 3, type = "average")),
                "same space")
 })
+
+
+test_that("joint lists in the same constraint are paired item by item; substitutable uses all combinations", {
+  items <- c(2, 2, 2, 3, 3, 2); lists <- c("A", "A", "A", "B", "B", "C")
+  cross_rows <- function(type) {
+    h <- fairy_unpack("p1 > p2 > p3; p4 < p5 + 1/3 * p6", items = items, lists = lists, type = type, n_p = 6, reduce = FALSE)
+    hn <- rcdd::q2d(h); nm <- colnames(h)[-(1:2)]
+    p6 <- which(nm %in% c("p_{6}^(1)", "p_{6}^(2)"))
+    cf <- hn[, 3:ncol(hn), drop = FALSE]
+    sum(rowSums(cf[, p6, drop = FALSE] != 0) > 0 & rowSums(cf != 0) > 1)
+  }
+  expect_equal(cross_rows("joint"), 2)            # item 1 with item 1, item 2 with item 2; the third B item has no partner
+  expect_equal(cross_rows("substitutable"), 18)   # 3 x 3 items of B times 2 items of C
+})

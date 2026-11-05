@@ -1,3 +1,10 @@
+# fairy 0.6.6
+
+* `fairy_unpack()`: with type `"joint"`, a constraint that uses probabilities of several lists is now paired item by item (item `k` of one
+  list with item `k` of the other); items that do not exist in all of these lists are left out. Before, every item of one list was combined
+  with every item of the other. Use `"substitutable"` for all combinations. Results of models with different `"joint"` lists change
+  accordingly (fewer constraints).
+
 # fairy 0.6.5
 
 * `results.html` of the multinomineq analysis: the labels of the probabilities of unpacked models (p with a stacked superscript and subscript) are no
