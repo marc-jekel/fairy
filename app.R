@@ -1701,6 +1701,12 @@ ui <- shinyUI(fluidPage(
       #fairy-tour-card { position: fixed; z-index: 10602; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; padding: 16px 18px 14px; border-radius: 14px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1f2430); border: 1px solid var(--fairy-border, #e5e5e5); box-shadow: 0 18px 50px rgba(0,0,0,.4); font-size: 14px; line-height: 1.45; }
       #fairy-tour-card h4 { margin: 0 0 6px; font-size: 16px; font-weight: 700; }
       #fairy-tour-card p { margin: 0 0 12px; }
+      #fairy-tour-keys { position: fixed; left: 50%; bottom: 48px; transform: translateX(-50%); z-index: 10612; display: flex; gap: 7px; align-items: flex-end; pointer-events: none; }
+      .fairy-tour-key { min-width: 36px; height: 36px; padding: 0 11px; box-sizing: border-box; border-radius: 8px; background: #fff; color: #1f2430; border: 1px solid #c9cedb; box-shadow: 0 4px 0 #aeb5c4, 0 8px 16px rgba(0,0,0,.28); font: 600 16px ui-monospace, Menlo, Consolas, monospace; display: flex; align-items: center; justify-content: center; transition: opacity .25s, transform .1s; }
+      .fairy-tour-key.fairy-tour-key-wide { min-width: 120px; font-size: 12px; letter-spacing: .04em; color: #596073; }
+      .fairy-tour-key.fairy-tour-key-mod { font-size: 12px; color: #596073; background: #eef0f6; }
+      .fairy-tour-key.fresh { transform: translateY(3px); box-shadow: 0 1px 0 #aeb5c4, 0 4px 10px rgba(0,0,0,.25); }
+      .fairy-tour-key.old { opacity: .5; }
       #fairy-tour-cursor { position: fixed; z-index: 10610; left: 50%; top: 60%; width: 22px; height: 22px; margin: -2px 0 0 -2px; pointer-events: none; transition: left .7s cubic-bezier(.4, 0, .2, 1), top .7s cubic-bezier(.4, 0, .2, 1); filter: drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
       #fairy-tour-cursor svg { display: block; width: 22px; height: 22px; }
       #fairy-tour-cursor::after { content: ''; position: absolute; left: -9px; top: -9px; width: 20px; height: 20px; border-radius: 50%; border: 3px solid var(--fairy-primary, #593196); opacity: 0; transform: scale(.3); }
@@ -1712,6 +1718,7 @@ ui <- shinyUI(fluidPage(
       #fairy-tour-card button.fairy-tour-opt .fairy-tour-opt-t { display: flex; flex-direction: column; gap: 1px; }
       #fairy-tour-card button.fairy-tour-opt small { font-size: 12px; opacity: .75; }
       #fairy-tour-card button.fairy-tour-opt .fairy-tour-opt-n { font-size: 12px; opacity: .7; white-space: nowrap; }
+      #fairy-tour-card button.fairy-tour-disabled { opacity: .45; cursor: default; }
       .fairy-tour-foot { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
       .fairy-tour-dots { display: flex; gap: 5px; flex: 0 0 100%; margin-bottom: 4px; }
       #fairy-tour-card .fairy-tour-skip { margin-right: auto; }
@@ -6303,7 +6310,7 @@ ui <- shinyUI(fluidPage(
 
       // ---- Guided tour: basic (the workflow) or full (every control of the Input tab) ----
       (function() {
-        var tourStep = -1, steps = null, picking = false, token = 0;
+        var tourStep = -1, steps = null, picking = false, token = 0, locked = false;
         function shown(e) { return !!e && e.getClientRects().length !== 0 && e.getBoundingClientRect().width !== 0; }
         function q1(sel) { var e = document.querySelector(sel); return shown(e) ? e : null; }
         function byText(sel, re) { var l = document.querySelectorAll(sel), i, r = null; for (i = 0; i !== l.length; i++) { if (!r && re.test(l[i].textContent) && shown(l[i])) r = l[i]; } return r; }
@@ -6334,12 +6341,22 @@ ui <- shinyUI(fluidPage(
           el.focus(); el.value = '';
           var i;
           var dl = Math.max(12, Math.min(45, Math.round(2600 / Math.max(1, text.length))));
-          for (i = 1; i !== text.length + 1; i++) { if (tk !== undefined && tk !== token) { el.value = text; break; } el.value = text.slice(0, i); await sleep(dl); }
+          for (i = 1; i !== text.length + 1; i++) { if (tk !== undefined && tk !== token) { el.value = text; break; } el.value = text.slice(0, i); showKey(text.charAt(i - 1)); await sleep(dl); }
           el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
-          await sleep(500);
+          await sleep(500); hideKeys();
         }
         async function cclick(el) { await clickOn(el); }
         async function tabC(name) { var a = tabLink(name); if (a) { await clickOn(a); tabsTouched = true; } }
+        // key caps that show what is typed (shift is shown for capital letters and symbols)
+        function keysEl() { var k = document.getElementById('fairy-tour-keys'); if (!k) { k = document.createElement('div'); k.id = 'fairy-tour-keys'; document.body.appendChild(k); } return k; }
+        function showKey(ch) {
+          var k = keysEl(), needShift = ch.length === 1 && /[A-Z<>?:{}|~!@#$%^&*()_+]/.test(ch);
+          [].forEach.call(k.querySelectorAll('.fairy-tour-key'), function(e) { e.classList.remove('fresh'); e.classList.add('old'); });
+          while (k.children.length > 7) { k.removeChild(k.firstChild); }
+          if (needShift) { var sh = document.createElement('div'); sh.className = 'fairy-tour-key fairy-tour-key-mod old'; sh.textContent = 'shift'; k.appendChild(sh); }
+          var c = document.createElement('div'); c.className = 'fairy-tour-key fresh' + (ch === ' ' ? ' fairy-tour-key-wide' : ''); c.textContent = ch === ' ' ? 'space' : ch; k.appendChild(c);
+        }
+        function hideKeys() { var k = document.getElementById('fairy-tour-keys'); if (k) k.remove(); }
         function hideCursor() { var c = document.getElementById('fairy-tour-cursor'); if (c) c.remove(); }
         function shRoot() { var h = document.getElementById('mn_results_host'); return h ? h.shadowRoot : null; }
         function shQ(sel) { var r = shRoot(), e = r ? r.querySelector(sel) : null; return shown(e) ? e : null; }
@@ -6582,15 +6599,22 @@ ui <- shinyUI(fluidPage(
           l.forEach(function(e) { var b = e.getBoundingClientRect(); r = r ? { l: Math.min(r.l, b.left), t: Math.min(r.t, b.top), r: Math.max(r.r, b.right), b: Math.max(r.b, b.bottom) } : { l: b.left, t: b.top, r: b.right, b: b.bottom }; });
           return r;
         }
+        var placeTimer = null;
         function ensure() {
+          if (!placeTimer) placeTimer = setInterval(function() { place(); }, 600);
           if (document.getElementById('fairy-tour-block')) return;
           var b = document.createElement('div'); b.id = 'fairy-tour-block'; document.body.appendChild(b);
           var h = document.createElement('div'); h.id = 'fairy-tour-hole'; document.body.appendChild(h);
           var c = document.createElement('div'); c.id = 'fairy-tour-card'; c.setAttribute('role', 'dialog'); c.setAttribute('aria-label', 'Tour of the app'); document.body.appendChild(c);
         }
+        function setLock(on) {
+          locked = on;
+          var c = document.getElementById('fairy-tour-card');
+          if (c) { [].forEach.call(c.querySelectorAll('[data-k=next],[data-k=back]'), function(bt) { bt.disabled = on; bt.classList.toggle('fairy-tour-disabled', on); }); }
+        }
         function end() {
-          ['fairy-tour-block', 'fairy-tour-hole', 'fairy-tour-card', 'fairy-tour-cursor'].forEach(function(id) { var e = document.getElementById(id); if (e) e.remove(); });
-          tourStep = -1; picking = false; token++;
+          ['fairy-tour-block', 'fairy-tour-hole', 'fairy-tour-card', 'fairy-tour-cursor', 'fairy-tour-keys'].forEach(function(id) { var e = document.getElementById(id); if (e) e.remove(); });
+          tourStep = -1; picking = false; token++; locked = false; if (placeTimer) { clearInterval(placeTimer); placeTimer = null; }
           closeModal();
           if (demoOn) { demoOn = false; Shiny.setInputValue('fairy_run_demo_stop', Date.now(), { priority: 'event' }); }
           if (tabsTouched) { tabsTouched = false; var ti = tabLink('Input'); if (ti) ti.click(); }
@@ -6665,6 +6689,7 @@ ui <- shinyUI(fluidPage(
           if (i === -1) { pick(); return; }
           tourStep = i;
           var st = steps[i];
+          setLock(!!(st.pre || st.demo));
           if (st.pre) {
             var pr = st.pre();
             if (st.until) { ensure(); var wc = document.getElementById('fairy-tour-card'); wc.textContent = ''; var wh = document.createElement('h4'); wh.textContent = 'One moment'; wc.appendChild(wh); var wp = document.createElement('p'); wp.textContent = st.quiet ? 'Opening the example ...' : 'Running ...'; wc.appendChild(wp); place(); }
@@ -6700,8 +6725,10 @@ ui <- shinyUI(fluidPage(
           place(); setTimeout(place, 120); setTimeout(place, 400);
           nx.focus();
           hideCursor();
+          setLock(!!st.demo);
+          if (st.demo) { var tkl = token; setTimeout(function() { if (tkl === token) setLock(false); }, 150000); }
           var tk = token;
-          if (st.demo) setTimeout(function() { if (tk === token) { window.__tourBusy = true; Promise.resolve(st.demo(tk)).then(function() { window.__tourBusy = false; }, function() { window.__tourBusy = false; }); } }, 600);
+          if (st.demo) setTimeout(function() { if (tk === token) { window.__tourBusy = true; Promise.resolve(st.demo(tk)).then(function() { window.__tourBusy = false; if (tk === token) setLock(false); }, function() { window.__tourBusy = false; if (tk === token) setLock(false); }); } }, 600);
           else if (first) setTimeout(function() { if (tk === token && !cursorHidden) moveTo(first); }, 500);
         }
         function start() {
@@ -6716,6 +6743,7 @@ ui <- shinyUI(fluidPage(
           var b = t.closest ? t.closest('#fairy-tour-card button') : null;
           if (b) {
             var k = b.getAttribute('data-k');
+            if ((k === 'next' || k === 'back') && locked) return;
             if (k === 'next') next();
             else if (k === 'back') show(tourStep - 1);
             else if (k === 'end') end();
@@ -6731,8 +6759,8 @@ ui <- shinyUI(fluidPage(
           if (tourStep === -1 && !picking) return;
           if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); end(); }
           else if (picking) { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); go('basic'); } }
-          else if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); next(); }
-          else if (e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); show(tourStep - 1); }
+          else if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); if (!locked) next(); }
+          else if (e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); if (!locked) show(tourStep - 1); }
         }, true);
         window.addEventListener('resize', place);
         window.addEventListener('scroll', place, true);
