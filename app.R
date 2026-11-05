@@ -10801,10 +10801,10 @@ server <- shinyServer(function(input, output, session) {
             var nProb = document.querySelectorAll('.fairy-items-row').length || 2;
             var vK = [], vS = [], vN = [], vM = [], vW = [];
             function nm(i) { return i >= nProb ? vN[i - nProb] : chipRowName(i); }
-            // a sum with a part from another list: with 'joint' / 'identical' in the list of the sum, the parts of that list stay matched item by item,
-            // so the sum has one square per item (the items of the other lists are added to each); otherwise it is one node
+            // a sum with a part from another list and a part in the list of the sum: one square per item of that list (the items of the other lists are
+            // added to each); the comparison with the next row then follows the type (joint: item with item, substitutable: every item with every item)
             function hubDiff(i, k) { return (vM[i - nProb] || []).some(function(pm) { return chipState.asg[pm] !== k; }); }
-            function hubMatch(i, k, ty) { return (ty === 'joint' || ty === 'identical') && (vM[i - nProb] || []).some(function(pm) { return chipState.asg[pm] === k; }); }
+            function hubMatch(i, k, ty) { return ty !== 'average' && (vM[i - nProb] || []).some(function(pm) { return chipState.asg[pm] === k; }); }
             function spec(i) {
               var si = i >= nProb ? vS[i - nProb] : i, vt = i >= nProb;
               if (two) { var k = chipState.asg[si], st = chipState.sets[k - 1]; return { name: nm(i), virt: vt, n: st.n, list: k, color: chipColor(k - 1), type: st.over || gType, tag: vt ? '' : ' - ' + listTitle(k - 1), hub: vt && hubDiff(i, k) && !hubMatch(i, k, st.over || gType), hubM: vt && hubDiff(i, k) && hubMatch(i, k, st.over || gType) }; }
