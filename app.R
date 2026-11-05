@@ -6719,7 +6719,7 @@ ui <- shinyUI(fluidPage(
         }
         // ---- try it yourself: the person types or clicks, the tour says whether it is right ----
         function normSpec(x) {
-          var out = Array.prototype.map.call(String(x || ''), function(ch) { var c = ch.charCodeAt(0); if (c === 8805) return '>'; if (c === 8804) return '<'; return ch; }).filter(function(ch) { return ch.charCodeAt(0) > 32; }).join('').toLowerCase();
+          var out = Array.prototype.map.call(String(x || ''), function(ch) { var c = ch.charCodeAt(0); if (c === 8805) return '>'; if (c === 8804) return '<'; return ch; }).filter(function(ch) { return ch.charCodeAt(0) > 32; }).join('');
           return out.split('>=').join('>').split('<=').join('<');
         }
         function fbSet(msg, cls) { var f = document.getElementById('fairy-tour-fb'); if (!f) return; f.textContent = msg; f.className = 'fairy-tour-fb ' + (cls || ''); f.style.display = msg ? '' : 'none'; }
