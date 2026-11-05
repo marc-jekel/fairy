@@ -6330,6 +6330,23 @@ ui <- shinyUI(fluidPage(
           try { localStorage.removeItem('fairy_autosave'); if (kind) sessionStorage.setItem('fairy_tour_resume', kind + ':' + idx); } catch (er) {}
           location.href = location.pathname + location.search;
         };
+        // reset without reloading: delete the models, back to three probabilities, empty fields (falls back to a reload if something is left)
+        async function resetInPlace() {
+          var oc = window.confirm; window.confirm = function() { return true; };
+          try {
+            var g = 0, b;
+            b = document.getElementById('delete_all_models_btn'); if (b) { b.click(); await waitFor(function() { return rowCount() === 1; }, 8000); }
+            while (rowCount() > 1 && g !== 20) { await addOne('rm_ie', rowCount, false); g++; }
+            g = 0; while (probCount() !== 3 && g !== 15) { await addOne(probCount() > 3 ? 'rm_prob' : 'add_prob', probCount, false); g++; }
+            var i, el;
+            for (i = 1; i !== 4; i++) { el = document.getElementById('textin_name_' + i); if (el && el.value !== 'p_{' + i + '}') { el.value = 'p_{' + i + '}'; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } }
+            var t1 = document.getElementById('textin_relations_1'); if (t1 && t1.value) { t1.value = ''; t1.dispatchEvent(new Event('input', { bubbles: true })); t1.dispatchEvent(new Event('change', { bubbles: true })); }
+            var nm = document.getElementById('textin_relations_name1'); if (nm && nm.value !== 'm1') { nm.value = 'm1'; nm.dispatchEvent(new Event('input', { bubbles: true })); nm.dispatchEvent(new Event('change', { bubbles: true })); }
+            var sh = document.getElementById('add_for_all_models'); if (sh && sh.value) { sh.value = ''; sh.dispatchEvent(new Event('input', { bubbles: true })); sh.dispatchEvent(new Event('change', { bubbles: true })); }
+            await sleep(900);
+          } finally { window.confirm = oc; }
+          return isPristine();
+        }
         function isPristine() {
           var t1 = document.getElementById('textin_relations_1'), i, ok = true;
           if (!t1 || t1.value.trim()) return false;
@@ -6620,7 +6637,7 @@ ui <- shinyUI(fluidPage(
             return S(title, text, function() { return [specTd(k)]; }, { pre: function() { return ensureRowsFast(k); }, wait: 200, demo: async function(tk) { await typeInto(document.getElementById('textin_relations_' + k), spec, tk); } });
           }
           var A = [
-            S('The cringe study', 'A fictitious joke study: children, teens and adults hear jokes, and we record who cringes. A theory predicts that children cringe most and adults least. This tutorial enters everything for you, so you see how it is done. The tutorial starts with a fresh app: your current input is cleared, so save it first if you want to keep it (Share or save).', function() { return []; }, { pre: function() { closeModal(); goTab('Input'); }, nextLabel: 'Start fresh', onNext: function() { if (isPristine()) show(tourStep + 1); else window.fairyStartOver('tutorial', 1, false); } }),
+            S('The cringe study', 'A fictitious joke study: children, teens and adults hear jokes, and we record who cringes. A theory predicts that children cringe most and adults least. This tutorial enters everything for you, so you see how it is done. The tutorial starts with a fresh app: your current input is cleared, so save it first if you want to keep it (Share or save).', function() { return []; }, { pre: function() { closeModal(); goTab('Input'); }, nextLabel: 'Start fresh', onNext: function() { var kk = tourStep; if (isPristine()) { show(kk + 1); return; } setLock(true); resetInPlace().then(function(ok) { if (ok) { setLock(false); show(kk + 1); } else window.fairyStartOver('tutorial', 1, false); }); } }),
             S('Three probabilities', 'p1 is the probability that a child cringes, p2 that a teen cringes, and p3 that an adult cringes. Here the names are typed in.', function() { return [q1('.def-col--pnames')]; }, { demo: async function(tk) { await ensureProbs(3, tk); var names = ['p_{C}', 'p_{T}', 'p_{A}'], i; for (i = 0; i !== 3; i++) { await typeInto(document.getElementById('textin_name_' + (i + 1)), names[i], tk); } } }),
             S('The theory', 'The theory says: children cringe at least as much as teens, who cringe at least as much as adults. In the app you type p1 > p2 > p3. The app takes > for easier input and means at least as much.', function() { return [specTd(1)]; }, { demo: async function(tk) { await typeInto(document.getElementById('textin_relations_1'), 'p1 > p2 > p3', tk); } }),
             S('Vertices on', 'The vertices of the model (V-representation) are optional because they can take long for large models. Here the switch is turned on.', function() { return [q1('#vrep_toggle_btn_1')]; }, { demo: async function(tk) { if (!tabShown('V-representation')) { await cclick(document.getElementById('vrep_toggle_btn_1')); vTutOn = true; } } }),
@@ -6631,6 +6648,7 @@ ui <- shinyUI(fluidPage(
             R2('Plot Edge Cases', 'The edge cases', 'Step through the four vertices: the plot shows the value of each probability at every vertex.', function() { return [inPane('#plot_example')]; }),
             R2('Model Properties', 'Parsimony: the volume', 'The smaller the polytope, the more parsimonious the model. Go computes its volume, the share of the cube that fits the model.', function() { return [inPane('#go_inline_pars')]; }, { demo: async function(tk) { await cclick(document.getElementById('go_inline_pars')); await waitFor(function() { return shown(document.getElementById('parsimony_bar_plot')); }, 60000); } }),
             S('1 / volume = the largest Bayes factor', 'The model fills 1/6 of the cube (about 17 percent). The reciprocal of the volume is the largest Bayes factor the model can reach against an unconstrained model: here 6. If this is too low for your purposes, look for stimuli where your theory predicts more.', function() { return [inPane('#parsimony_spinner_table')]; }),
+            S('Vertices off again', 'The vertices were only needed for the small example. For the nine theories of the next part the V switch of m1 is turned off again.', function() { return [q1('#vrep_toggle_btn_1')]; }, { pre: function() { closeModal(); return tabC('Input'); }, wait: 300, demo: async function(tk) { if (vTutOn) { await cclick(document.getElementById('vrep_toggle_btn_1')); vTutOn = false; } } }),
             S('Now the full study', 'The paper crosses three age groups with two joke types: illogical jokes (i) and puns (p). That makes a 2 x 3 design with six probabilities: p1 children, p2 teens and p3 adults for illogical jokes, and p4, p5 and p6 for puns. Nine cringe theories predict how they relate.', function() { return []; }, { pre: function() { closeModal(); return tabC('Input'); } }),
             S('Six probabilities', 'Three probabilities are added and all six are named: C, T and A for children, teens and adults, with i for illogical jokes and p for puns.', function() { return [q1('.def-col--pnames')]; }, { demo: async function(tk) { await ensureProbs(6, tk); var names = ['p_{C,i}', 'p_{T,i}', 'p_{A,i}', 'p_{C,p}', 'p_{T,p}', 'p_{A,p}'], i; for (i = 0; i !== 6; i++) { await typeInto(document.getElementById('textin_name_' + (i + 1)), names[i], tk); } } }),
             S('Nine models', 'One row per theory: eight more rows are added.', function() { return [q1('.def-col--models-card')]; }, { demo: async function(tk) { await ensureModelRows(9, tk); } }),
@@ -6681,6 +6699,9 @@ ui <- shinyUI(fluidPage(
           if (!placeTimer) placeTimer = setInterval(function() { place(); }, 600);
           if (document.getElementById('fairy-tour-block')) return;
           var b = document.createElement('div'); b.id = 'fairy-tour-block'; document.body.appendChild(b);
+          // the app cannot be used while the tour runs (no clicks, no keys, no scrolling): the tour scrolls for itself
+          b.addEventListener('wheel', function(e) { e.preventDefault(); }, { passive: false }); b.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
+          try { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } catch (er) {}
           var h = document.createElement('div'); h.id = 'fairy-tour-hole'; document.body.appendChild(h);
           var c = document.createElement('div'); c.id = 'fairy-tour-card'; c.setAttribute('role', 'dialog'); c.setAttribute('aria-label', 'Tour of the app'); document.body.appendChild(c);
         }
@@ -6843,6 +6864,7 @@ ui <- shinyUI(fluidPage(
         });
         document.addEventListener('keydown', function(e) {
           if (tourStep === -1 && !picking) return;
+          if (!(e.target && e.target.closest && e.target.closest('#fairy-tour-card')) && e.key !== 'Escape' && e.key !== 'ArrowRight' && e.key !== 'ArrowLeft' && e.key !== 'Enter') { e.preventDefault(); e.stopPropagation(); return; }
           if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); end(); }
           else if (picking) { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); go('basic'); } }
           else if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); if (!locked) next(); }
