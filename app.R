@@ -11017,8 +11017,9 @@ server <- shinyServer(function(input, output, session) {
                 // a part from another list is added to every square of the sum (every combination); the first is drawn stronger
                 var partM = r1.virt ? r0 : r1, cPm = r1.virt ? c0 : c1, cSm = r1.virt ? c1 : c0, yPm = r1.virt ? y0 : y1, ySm = r1.virt ? y1 : y0, sgm = ySm > yPm ? 1 : -1;
                 for (var jj = 0; jj < cPm; jj++) for (var kk = 0; kk < cSm; kk++) {
-                  // item j with square j only (lines between the columns made the squares look merged); items without a partner join the nearest square
-                  if (!(jj === kk || (jj >= cSm && kk === cSm - 1) || kk >= cPm)) continue;
+                  // equal numbers of items: item j with square j only (lines between the columns made the squares look merged); otherwise not every square has
+                  // a partner item, so every item is joined to every square (all combinations, as for substitutable)
+                  if (cPm === cSm && jj !== kk) continue;
                   el('path', { d: 'M' + X(jj) + ' ' + (yPm + sgm * 8) + ' C ' + X(jj) + ' ' + (yPm + sgm * 34) + ' ' + X(kk) + ' ' + (ySm - sgm * 34) + ' ' + X(kk) + ' ' + (ySm - sgm * 8), stroke: 'currentColor', opacity: (jj === 0 && kk === 0) ? '0.5' : '0.3', 'stroke-width': '1.3', 'stroke-dasharray': pp[2] === String.fromCharCode(8722) ? '4 3' : null, 'data-minus': pp[2] === String.fromCharCode(8722) ? '1' : null }, g);
                 }
                 return;
