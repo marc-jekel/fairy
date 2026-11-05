@@ -1723,6 +1723,20 @@ ui <- shinyUI(fluidPage(
       .fairy-tour-speed { margin-left: auto; display: flex; border: 1px solid var(--fairy-border, #cfd4e0); border-radius: 8px; overflow: hidden; }
       #fairy-tour-card button.fairy-tour-spd { border: 0; border-radius: 0; padding: 2px 8px; font-size: 11px; background: transparent; color: var(--fairy-text-muted, #667085); }
       #fairy-tour-card button.fairy-tour-spd.on { background: var(--fairy-primary, #593196); color: #fff; }
+      .fairy-tour-fun { margin: 0 0 8px; font-style: italic; color: var(--fairy-text-muted, #667085); }
+      .fairy-tour-prog { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 0 0 8px; font-size: 11px; color: var(--fairy-text-muted, #667085); }
+      .fairy-tour-prog span.now { color: var(--fairy-primary, #593196); font-weight: 700; }
+      .fairy-tour-prog span.done { color: #1e7a45; }
+      .fairy-tour-quiz { margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; background: rgba(89, 49, 150, .08); }
+      .fairy-tour-quiz-q { font-weight: 600; margin-bottom: 6px; }
+      .fairy-tour-quiz-o { display: flex; flex-wrap: wrap; gap: 6px; }
+      .fairy-tour-qopt { padding: 4px 12px; border-radius: 8px; border: 1px solid rgba(120, 120, 160, .4); background: transparent; color: inherit; cursor: pointer; font: inherit; }
+      .fairy-tour-qopt:disabled { cursor: default; }
+      .fairy-tour-qopt.right { background: rgba(46, 158, 91, .2); border-color: #2e9e5b; }
+      .fairy-tour-qopt.wrong { background: rgba(200, 60, 60, .16); border-color: #c83c3c; }
+      .fairy-tour-quiz-why { margin-top: 6px; font-size: 13px; }
+      .fairy-tour-deep { margin: 0 0 10px; font-size: 13px; }
+      .fairy-tour-deep summary { cursor: pointer; color: var(--fairy-primary, #593196); }
       .fairy-tour-task { margin: 0 0 8px; padding: 7px 10px; border-radius: 8px; font-size: 13px; font-weight: 600; background: rgba(89, 49, 150, .10); }
       @keyframes fairy-tour-pulse-hole { 0%, 100% { box-shadow: 0 0 0 9999px rgba(10, 14, 26, .38), 0 0 0 3px var(--fairy-primary, #593196); } 50% { box-shadow: 0 0 0 9999px rgba(10, 14, 26, .38), 0 0 0 9px rgba(160, 120, 240, .85); } }
       #fairy-tour-hole.fairy-tour-pulse { animation: fairy-tour-pulse-hole .8s ease-in-out 4; }
@@ -6323,7 +6337,7 @@ ui <- shinyUI(fluidPage(
 
       // ---- Guided tour: basic (the workflow) or full (every control of the Input tab) ----
       (function() {
-        var tourStep = -1, steps = null, picking = false, token = 0, locked = false, interactive = false, taskState = null;
+        var extras = false, tourStep = -1, steps = null, picking = false, token = 0, locked = false, interactive = false, taskState = null;
         function shown(e) { return !!e && e.getClientRects().length !== 0 && e.getBoundingClientRect().width !== 0; }
         function q1(sel) { var e = document.querySelector(sel); return shown(e) ? e : null; }
         function byText(sel, re) { var l = document.querySelectorAll(sel), i, r = null; for (i = 0; i !== l.length; i++) { if (!r && re.test(l[i].textContent) && shown(l[i])) r = l[i]; } return r; }
@@ -6374,6 +6388,8 @@ ui <- shinyUI(fluidPage(
         try { interactive = localStorage.getItem('fairy_tour_interactive') === '1'; } catch (er) {}
         var tourSpeed = 'normal';
         try { var sv0 = localStorage.getItem('fairy_tour_speed'); if (sv0 === 'slow' || sv0 === 'fast') tourSpeed = sv0; } catch (er) {}
+        try { extras = localStorage.getItem('fairy_tour_extras') === '1'; } catch (er) {}
+        function isLastStep(st) { return !!(st.last || (st.lastIfNoExtras && !extras)); }
         function spMul() { return tourSpeed === 'slow' ? 1.9 : (tourSpeed === 'fast' ? 0.45 : 1); }
         function sp(ms) { return Math.round(ms * spMul()); }
         function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
@@ -6729,6 +6745,24 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
             S('Volumes and nested models', 'The bars show each model share of the space. The intersection of m1 and m2 has the same volume as m2, so m2 is nested in m1: whenever data fit m2 they also fit m1. Because m2 is smaller, it is preferred by the Bayesian analysis, which rewards parsimony.', function() { return [inPane('#parsimony_plot_ui')]; }, { pre: function() { return tabC('Model Properties'); }, wait: 400 }),
             S('Maximum Bayes factors', 'Max BF is 1 divided by the volume. The tighter a model, the more evidence it can earn, and the more it risks. The tutorial for the analysis itself (frequentist and Bayesian tests) continues in QTEST.', function() { return [inPane('#parsimony_spinner_table')]; }, { last: true, noexample: true })
           ];
+          var chs = [['The cringe study', 'Small example'], ['Now the full study', 'Full study'], ['Intersections: what two models share', 'Intersections'], ['Go for all models', 'Results']], ci0 = -1;
+          A.chapters = chs.map(function(c) { return c[1]; });
+          A.forEach(function(x) { chs.forEach(function(c, ci) { if (x.title === c[0]) ci0 = ci; }); x.chIdx = ci0 < 0 ? 0 : ci0; });
+          function ext(title, o) { A.forEach(function(x) { if (x.title === title) { for (var k in o) { x[k] = o[k]; } } }); }
+          ext('The cringe study', { fun: 'The study is a joke, the mathematics is not.' });
+          ext('Parsimony: the volume', { quiz: { q: 'Your guess: which share of the cube fits p1 > p2 > p3?', opts: ['1/2', '1/3', '1/6', '1/8'], ok: 2, why: 'Three numbers can be ordered in 3! = 6 ways, all equally likely under a uniform prior, and only one of them is p1 > p2 > p3. Ties have no volume.' } });
+          ext('The polytope', { deep: 'Every constraint of the form a1*p1 + ... <= b cuts the cube with a flat plane, so the set of all probability vectors that satisfy all constraints is a convex polytope. Background: Heck and Davis-Stober (2019), Journal of Mathematical Psychology, on the multinomineq package.' });
+          ext('1 / volume = the largest Bayes factor', { deep: 'With a uniform prior over the cube (encompassing prior approach, Klugkist, Kato and Hoijtink, 2005), the prior probability of a model equals its volume. Even if all posterior mass lies inside the model, the Bayes factor against the unconstrained model cannot exceed 1 / volume.' });
+          ext('m3: opposite trends, puns cringier', { fun: 'Puns cringe more than illogical jokes. Plausible, if sad.' });
+          ext('m5: equally cringy', { fun: 'A bold claim: grown-ups cringe exactly as much as children, in every condition.' });
+          ext('m8: wiggle room for all pairs', { fun: 'Wiggle room is just a polite word for tolerance.' });
+          ext('m9: the opposite of m4', { fun: 'Every theory deserves a rival.' });
+          ext('Intersections: what two models share', { quiz: { q: 'A data pattern fits m2 (both chains increase with age). Does it also fit m1 (the averages over both joke types increase)?', opts: ['Always', 'Sometimes', 'Never'], ok: 0, why: 'If p1 < p2 < p3 and p4 < p5 < p6, then the averages of the pairs increase as well. Everything inside m2 lies inside m1, so m2 is nested in m1.' } });
+          ext('Go for all models', { fun: 'Time for a coffee: six probabilities take a moment.' });
+          ext('Volumes and nested models', { quiz: { q: 'm2 is nested in m1. Which of the two can earn the larger maximum Bayes factor?', opts: ['m1', 'm2', 'Both the same'], ok: 1, why: 'm2 fills less of the space, so 1 / volume is larger. The price: data outside m2 refute it.' } });
+          ext('Maximum Bayes factors', { fun: 'Risky theories can win big and lose big. Popper would approve.', lastIfNoExtras: true, last: false });
+          A.push(S('Your turn: three experiments', 'After Finish the app is yours. Try these, and guess the result first. 1) In m1 turn one > into <, for example p1 > p2 < p3, press Go and compare the volume under Model Properties. 2) Add p1 > 0.5 to m1: how does the maximum Bayes factor change? 3) Type a mistake on purpose, such as a capital P, and read the hint.', function() { return []; }, { extrasOnly: true, last: true, noexample: true, pre: function() { closeModal(); }, wait: 200 }));
+          A[A.length - 1].chIdx = chs.length - 1;
           return A;
         }
         function allSteps() {
@@ -6916,6 +6950,7 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           var my = ++token, dir = i >= tourStep ? 1 : -1, guard = 0;
           // steps whose part is not on the screen are skipped (steps with an action of their own are not checked)
           while (i >= 0 && i !== steps.length && guard !== 60) {
+            if (steps[i].extrasOnly && !extras) { i += dir; guard++; continue; }
             if (steps[i].pre) break;
             var els0 = steps[i].els();
             if (!els0.length || els0.some(function(e) { return !!e; })) break;
@@ -6945,30 +6980,59 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           var st = steps[i], card = document.getElementById('fairy-tour-card');
           if (!card) return;
           card.textContent = ''; card.classList.remove('fairy-tour-pick');
+          if (extras && steps.kind === 'tutorial' && steps.chapters) {
+            var pg = document.createElement('div'), cur = st.chIdx; pg.className = 'fairy-tour-prog';
+            steps.chapters.forEach(function(c, ci) { var cs = document.createElement('span'); cs.className = ci < cur ? 'done' : (ci === cur ? 'now' : ''); cs.textContent = (ci < cur ? '\\u2713 ' : '') + c; pg.appendChild(cs); });
+            card.appendChild(pg);
+          }
           var h = document.createElement('h4'); h.textContent = st.title; card.appendChild(h);
           var p = document.createElement('p'); p.textContent = st.text; card.appendChild(p);
+          var isLast = isLastStep(st);
+          if (extras && steps.kind === 'tutorial') {
+            if (st.fun) { var fu = document.createElement('p'); fu.className = 'fairy-tour-fun'; fu.textContent = st.fun; card.appendChild(fu); }
+            if (st.quiz) {
+              var qz = document.createElement('div'); qz.className = 'fairy-tour-quiz';
+              var qq = document.createElement('div'); qq.className = 'fairy-tour-quiz-q'; qq.textContent = st.quiz.q; qz.appendChild(qq);
+              var qw = document.createElement('div'); qw.className = 'fairy-tour-quiz-why'; qw.style.display = 'none';
+              var qo = document.createElement('div'); qo.className = 'fairy-tour-quiz-o';
+              st.quiz.opts.forEach(function(o, oi) {
+                var ob = document.createElement('button'); ob.type = 'button'; ob.textContent = o; ob.className = 'fairy-tour-qopt';
+                ob.addEventListener('click', function(ev) {
+                  ev.stopPropagation();
+                  [].forEach.call(qo.children, function(x, xi) { x.disabled = true; x.classList.toggle('right', xi === st.quiz.ok); if (xi === oi && oi !== st.quiz.ok) x.classList.add('wrong'); });
+                  qw.textContent = (oi === st.quiz.ok ? 'Right. ' : 'Not quite. ') + st.quiz.why; qw.style.display = 'block'; place();
+                });
+                qo.appendChild(ob);
+              });
+              qz.appendChild(qo); qz.appendChild(qw); card.appendChild(qz);
+            }
+            if (st.deep) { var dt = document.createElement('details'); dt.className = 'fairy-tour-deep'; var sm = document.createElement('summary'); sm.textContent = 'Why? (background)'; dt.appendChild(sm); var dp = document.createElement('div'); dp.textContent = st.deep; dt.appendChild(dp); dt.addEventListener('toggle', function() { place(); }); card.appendChild(dt); }
+          }
           var tryHere = interactive && (st.task || st.tasks);
           var tkl = document.createElement('div'); tkl.id = 'fairy-tour-task'; tkl.className = 'fairy-tour-task'; tkl.style.display = 'none'; if (tryHere) card.appendChild(tkl);
           var fb = document.createElement('div'); fb.id = 'fairy-tour-fb'; fb.className = 'fairy-tour-fb'; fb.style.display = 'none'; card.appendChild(fb);
           var foot = document.createElement('div'); foot.className = 'fairy-tour-foot';
           var dots = document.createElement('div'); dots.className = 'fairy-tour-dots';
           if (steps.length < 12) steps.forEach(function(x, k) { var d = document.createElement('i'); if (k === i) d.className = 'on'; dots.appendChild(d); });
-          else { var cnt = document.createElement('span'); cnt.style.cssText = 'font-size:12px; color:var(--fairy-text-muted, #667085);'; cnt.textContent = (i + 1) + ' of ' + steps.length; dots.appendChild(cnt); }
+          else { var cnt = document.createElement('span'); cnt.style.cssText = 'font-size:12px; color:var(--fairy-text-muted, #667085);'; var tot = 0, pos = 0; steps.forEach(function(x, k) { if (!(x.extrasOnly && !extras)) { tot++; if (k <= i) pos++; } }); cnt.textContent = pos + ' of ' + tot; dots.appendChild(cnt); }
           var spd = document.createElement('div'); spd.className = 'fairy-tour-speed'; spd.title = 'Speed of the pointer and the typing';
           [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']].forEach(function(o) { var sb = document.createElement('button'); sb.type = 'button'; sb.setAttribute('data-k', 'speed-' + o[0]); sb.textContent = o[1]; sb.className = 'fairy-tour-spd' + (tourSpeed === o[0] ? ' on' : ''); spd.appendChild(sb); });
           if (steps.kind === 'tutorial') {
             var md = document.createElement('div'); md.className = 'fairy-tour-speed fairy-tour-modesw'; md.title = 'Watch the pointer do it, or try it yourself';
             [['watch', 'Watch'], ['try', 'Try it yourself']].forEach(function(o) { var mb = document.createElement('button'); mb.type = 'button'; mb.setAttribute('data-k', 'mode-' + o[0]); mb.textContent = o[1]; mb.className = 'fairy-tour-spd' + ((o[0] === 'try') === interactive ? ' on' : ''); md.appendChild(mb); });
             dots.appendChild(md);
+            var exs = document.createElement('div'); exs.className = 'fairy-tour-speed fairy-tour-modesw'; exs.title = 'Extras: questions to predict, notes and background, a progress bar, and a closing step with experiments';
+            [['off', 'Extras off'], ['on', 'Extras on']].forEach(function(o) { var eb = document.createElement('button'); eb.type = 'button'; eb.setAttribute('data-k', 'extras-' + o[0]); eb.textContent = o[1]; eb.className = 'fairy-tour-spd' + ((o[0] === 'on') === extras ? ' on' : ''); exs.appendChild(eb); });
+            dots.appendChild(exs);
           }
           dots.appendChild(spd);
           foot.appendChild(dots);
-          if (!st.last) { var sk = btn('End tour', 'end'); sk.style.marginRight = 'auto'; foot.appendChild(sk); }
+          if (!isLast) { var sk = btn('End tour', 'end'); sk.style.marginRight = 'auto'; foot.appendChild(sk); }
           if (tryHere) { foot.appendChild(btn('Hint', 'hint')); foot.appendChild(btn('Show me', 'showme')); }
           foot.appendChild(btn(i === 0 ? 'All tours' : 'Back', 'back'));
-          if (st.last && !st.noexample && steps.kind !== 'unpack' && steps.kind !== 'combine' && steps.kind !== 'results' && steps.kind !== 'run' && steps.kind !== 'mn' && steps.kind !== 'tutorial') foot.appendChild(btn('Fill in example', 'example'));
+          if (isLast && !st.noexample && steps.kind !== 'unpack' && steps.kind !== 'combine' && steps.kind !== 'results' && steps.kind !== 'run' && steps.kind !== 'mn' && steps.kind !== 'tutorial') foot.appendChild(btn('Fill in example', 'example'));
           if (st.full) foot.appendChild(btn('Full tour', 'full'));
-          var nx = btn(st.last ? 'Finish' : (st.nextLabel || 'Next'), 'next', 'fairy-tour-primary'); foot.appendChild(nx);
+          var nx = btn(isLast ? 'Finish' : (st.nextLabel || 'Next'), 'next', 'fairy-tour-primary'); foot.appendChild(nx);
           card.appendChild(foot);
           var first = st.els().filter(function(e) { return !!e; })[0];
           if (first && first.scrollIntoView) first.scrollIntoView({ block: 'center', inline: 'nearest' });
@@ -6987,7 +7051,7 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           setTimeout(pick, 150);
         }
         function go(mode) { goAllDone = false; parsDone1 = false; parsDone2 = false; window.__tourFrom = window.__tourFrom || 0; steps = mode === 'full' ? allSteps() : (mode === 'input' ? fullSteps() : (mode === 'unpack' ? unpackSteps() : (mode === 'combine' ? combineSteps() : (mode === 'results' ? resultSteps() : (mode === 'run' ? runSteps() : (mode === 'mn' ? mnSteps() : (mode === 'tutorial' ? tutorialSteps() : basicSteps()))))))); steps.kind = mode; tourStep = -1; show(window.__tourFromTitle ? Math.max(0, steps.map(function(x) { return x.title; }).indexOf(window.__tourFromTitle)) : (window.__tourFrom || 0)); window.__tourFrom = 0; window.__tourFromTitle = null; }
-        function next() { var st0 = steps[tourStep]; if (st0.onNext) { st0.onNext(); return; } if (st0.last) end(); else show(tourStep + 1); }
+        function next() { var st0 = steps[tourStep]; if (st0.onNext) { st0.onNext(); return; } if (isLastStep(st0)) end(); else show(tourStep + 1); }
         document.addEventListener('click', function(e) {
           var t = e.target.closest ? e.target : e.target.parentNode;
           if (t.closest && (t.closest('#fairy-tour-open') || t.closest('#tour-btn'))) { e.preventDefault(); var pb = document.getElementById('tour-btn'); if (pb) pb.classList.remove('fairy-tour-pulse'); start(); return; }
@@ -6996,6 +7060,7 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
             var k = b.getAttribute('data-k');
             if (k && k.indexOf('speed-') === 0) { tourSpeed = k.slice(6); try { localStorage.setItem('fairy_tour_speed', tourSpeed); } catch (er) {} [].forEach.call(document.querySelectorAll('#fairy-tour-card .fairy-tour-spd'), function(x) { x.classList.toggle('on', x.getAttribute('data-k') === k); }); return; }
             if (k && k.indexOf('mode-') === 0) { if (locked && (!interactive || window.__tourBusy)) return; interactive = k === 'mode-try'; try { localStorage.setItem('fairy_tour_interactive', interactive ? '1' : '0'); } catch (er) {} stopTask(); render(tourStep); return; }
+            if (k && k.indexOf('extras-') === 0) { if (locked && window.__tourBusy) return; extras = k === 'extras-on'; try { localStorage.setItem('fairy_tour_extras', extras ? '1' : '0'); } catch (er) {} if (steps[tourStep].extrasOnly && !extras) { show(tourStep - 1); return; } render(tourStep); return; }
             if (k === 'showme') { showMe(steps[tourStep]); return; }
             if (k === 'hint') { taskHint(); return; }
             if ((k === 'next' || k === 'back') && locked) return;
