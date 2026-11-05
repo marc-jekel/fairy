@@ -6276,7 +6276,10 @@ ui <- shinyUI(fluidPage(
           var wrap = p.btn.closest('.fairy-share-wrap'); if (wrap) wrap.classList.toggle('fairy-share-open', v);
           var file = document.getElementById('fairy_share_file');
           if (v && file) {
-            file.classList.toggle('fairy-share-muted', !!(p.dl && p.dl.classList.contains('fairy-btn-muted')));
+            var mutedNow = !!(p.dl && p.dl.classList.contains('fairy-btn-muted'));
+            ['fairy_share_file', 'fairy_share_qr', 'fairy_share_rscript'].forEach(function(id) {
+              var el = document.getElementById(id); if (el) el.classList.toggle('fairy-share-muted', mutedNow);
+            });
             var first = document.getElementById('fairy_share_qr'); if (first) first.focus();
           }
         }
@@ -6290,9 +6293,9 @@ ui <- shinyUI(fluidPage(
               Shiny.setInputValue('share_request', Date.now(), { priority: 'event' });
             } else if (item.id === 'fairy_share_file' && !item.classList.contains('fairy-share-muted') && p.dl) {
               p.dl.click();
-            } else if (item.id === 'fairy_share_qr') {
+            } else if (item.id === 'fairy_share_qr' && !item.classList.contains('fairy-share-muted')) {
               Shiny.setInputValue('qr_request', Date.now(), { priority: 'event' });
-            } else if (item.id === 'fairy_share_rscript') {
+            } else if (item.id === 'fairy_share_rscript' && !item.classList.contains('fairy-share-muted')) {
               var rd = document.getElementById('download_rscript'); if (rd) rd.click();
             }
             setOpen(false); if (p.btn) p.btn.focus(); return;
