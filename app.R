@@ -430,6 +430,14 @@ ui <- shinyUI(fluidPage(
         width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;
         cursor: pointer; transition: background 0.2s; color: #d0d4e0; line-height: 1; padding: 0; }
       #tips-toggle:hover { background: rgba(255,255,255,0.22); }
+      #tour-btn { position: fixed; top: 13px; right: 138px; z-index: 1035; height: 28px; padding: 0 12px 0 10px; border: none; border-radius: 999px; display: flex; align-items: center; gap: 6px;
+        background: var(--fairy-primary, #593196); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; line-height: 1; box-shadow: 0 2px 8px rgba(0,0,0,.25); transition: filter .2s; }
+      #tour-btn:hover { filter: brightness(1.15); }
+      #tour-btn.fairy-tour-pulse { animation: fairy-tour-pulse 1.6s ease-in-out 4; }
+      @keyframes fairy-tour-pulse { 0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,.25), 0 0 0 0 rgba(89, 49, 150, .55); } 50% { box-shadow: 0 2px 8px rgba(0,0,0,.25), 0 0 0 8px rgba(89, 49, 150, 0); } }
+      body.fairy-hide-dm #tour-btn { right: 102px; }
+      body.fairy-fill-window #tour-btn { right: 282px; }
+      @media (max-width: 560px) { #tour-btn .tour-btn-label { display: none; } #tour-btn { width: 40px; height: 40px; padding: 0; justify-content: center; top: 9px; right: 158px; } }
       /* leave Fill window of the tutorial page: same round button as the two above, left of them, only while the page fills its window */
       #fill-exit, #fill-unload, #fill-switch, #fill-restart { display: none; position: fixed; top: 13px; right: 134px; z-index: 1035; background: rgba(255,255,255,0.10); border: none; border-radius: 999px;
         width: 28px; height: 28px; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;
@@ -6381,7 +6389,7 @@ ui <- shinyUI(fluidPage(
         }
         document.addEventListener('click', function(e) {
           var t = e.target.closest ? e.target : e.target.parentNode;
-          if (t.closest && t.closest('#fairy-tour-open')) { e.preventDefault(); start(); return; }
+          if (t.closest && (t.closest('#fairy-tour-open') || t.closest('#tour-btn'))) { e.preventDefault(); var pb = document.getElementById('tour-btn'); if (pb) pb.classList.remove('fairy-tour-pulse'); start(); return; }
           var b = t.closest ? t.closest('#fairy-tour-card button') : null;
           if (b) {
             var k = b.getAttribute('data-k');
@@ -6403,6 +6411,11 @@ ui <- shinyUI(fluidPage(
         }, true);
         window.addEventListener('resize', place);
         window.addEventListener('scroll', place, true);
+        // first visit: the button pulses a few times
+        setTimeout(function() {
+          var seen = false; try { seen = !!localStorage.getItem('fairy_tour_done'); } catch (er) {}
+          var pb = document.getElementById('tour-btn'); if (pb && !seen) pb.classList.add('fairy-tour-pulse');
+        }, 1500);
       })();
       // ---- Share / save menu in the floating panel ----
       (function() {
@@ -7288,6 +7301,9 @@ ui <- shinyUI(fluidPage(
   ),
   tags$button(id = "dm-toggle", `data-tip` = "Switch between light and dark mode", `aria-label` = "Toggle dark mode", "\U0001F319"),
   tags$button(id = "tips-toggle", `data-tip` = "Tooltips and hover hints: click to hide them", `aria-label` = "Show or hide tooltips", "?"),
+  tags$button(id = "tour-btn", `aria-label` = "Take a guided tour of the app",
+    HTML("<svg width='14' height='14' viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='8' cy='8' r='6.2'/><path d='M10.6 5.4 9.2 9.2 5.4 10.6 6.8 6.8z'/></svg>"),
+    tags$span(class = "tour-btn-label", "Take a tour")),
   # only shown when the tutorial page has enlarged the app to its whole window ("Fill window"); the click is passed to the page
   tags$button(id = "fill-exit", `data-tip` = "Leave Fill window (Esc)", `aria-label` = "Leave Fill window", "\u2715"),
   tags$button(id = "fill-switch", `data-tip` = "Show the app in full screen instead", `aria-label` = "Switch between Fill window and full screen",
