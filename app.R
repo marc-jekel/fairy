@@ -6301,8 +6301,14 @@ ui <- shinyUI(fluidPage(
         function clickEl(e) { if (e) e.click(); }
         function radioClick(v) { var r = document.querySelectorAll('.fairy-items-quick-type'), i; for (i = 0; i !== r.length; i++) { if (r[i].value === v) r[i].click(); } }
         function labelClick(re) { clickEl(byText('label', re)); }
-        function closeModal() { var m = modalOpen(); if (m) { var c = m.querySelector('[data-dismiss=modal]'); if (c) c.click(); } }
-        var addedModel = false, tabsTouched = false;
+        function closeModal() { if (demoOn) { demoOn = false; Shiny.setInputValue('fairy_run_demo_stop', Date.now(), { priority: 'event' }); } var m = modalOpen(); if (m) { var c = m.querySelector('[data-dismiss=modal]'); if (c) c.click(); } }
+        var addedModel = false, tabsTouched = false, demoOn = false;
+        function shRoot() { var h = document.getElementById('mn_results_host'); return h ? h.shadowRoot : null; }
+        function shQ(sel) { var r = shRoot(), e = r ? r.querySelector(sel) : null; return shown(e) ? e : null; }
+        function shLabel(re) { var r = shRoot(), l = r ? r.querySelectorAll('label') : [], i; for (i = 0; i !== l.length; i++) { if (re.test(l[i].textContent.trim()) && shown(l[i])) return l[i]; } return null; }
+        function modQ(sel) { var m = modalOpen(), e = m ? m.querySelector(sel) : null; return shown(e) ? e : null; }
+        function modText(sel, re) { var m = modalOpen(), l = m ? m.querySelectorAll(sel) : [], i, r = null; for (i = 0; i !== l.length; i++) { if (!r && re.test(l[i].textContent) && shown(l[i]) && l[i].children.length < 4) r = l[i]; } return r; }
+        function runGo() { closeModal(); goTab('Input'); ensureModel(); var vb = document.getElementById('vrep_toggle_btn_1'); if (vb && !tabShown('V-representation')) { vb.click(); } setTimeout(function() { clickEl(document.getElementById('go_inline')); }, 700); }
         function tabLink(name) { var l = document.querySelectorAll('a[data-value]'), i; for (i = 0; i !== l.length; i++) { if (l[i].getAttribute('data-value') === name) return l[i]; } return null; }
         function goTab(name) { var a = tabLink(name); if (a) { a.click(); tabsTouched = true; } }
         function pane() { return document.querySelector('.tab-pane.active'); }
@@ -6386,7 +6392,7 @@ ui <- shinyUI(fluidPage(
           function R(tab, title, text, f, extra) { var o = { pre: function() { goTab(tab); }, wait: 700 }; if (extra) { for (var k in extra) { o[k] = extra[k]; } } return S(title, text, f, o); }
           return [
             S('Results', 'This tour runs your model (an example if the first row is empty) and visits each result tab: H-representation, V-representation, the two plots and Parsimony.', function() { return []; }, {
-              pre: function() { closeModal(); if (addedModel) { addedModel = false; var rm0 = document.getElementById('rm_ie'); if (rm0) rm0.click(); } goTab('Input'); ensureModel(); var vb = document.getElementById('vrep_toggle_btn_1'); if (vb && !tabShown('V-representation')) { vb.click(); } setTimeout(function() { clickEl(document.getElementById('go_inline')); }, 700); },
+              pre: function() { if (addedModel) { addedModel = false; var rm0 = document.getElementById('rm_ie'); if (rm0) rm0.click(); } runGo(); },
               until: function() { return tabShown('V-representation') && tabShown('Plot Edge Cases'); }, wait: 2500, maxwait: 60000 }),
             R('H-representation', 'H-representation', 'One card per model with its inequalities. The badge counts equalities and inequalities without the automatic 0 to 1 bounds. Drag a card by its header, resize it in the corner, and enlarge it with the arrows.', function() { var p = pane(); var l = p ? p.querySelectorAll('.model-card') : []; return [].filter.call(l, shown); }),
             R('H-representation', 'Layout', 'Aligned: one column per probability. Compact: the terms are packed per row.', function() { return [inPane('#h_layout_toggle_group')]; }),
@@ -6418,9 +6424,43 @@ ui <- shinyUI(fluidPage(
             S('That is it', 'Every tab has the same pattern: controls on the left, the result in the middle, downloads for your own work.', function() { return []; }, { last: true, noexample: true, pre: function() { goTab('Input'); }, wait: 400 })
           ];
         }
+        function runSteps() {
+          function rw(sel) { return function() { var e = document.querySelector(sel); return [shown(e) ? e : null]; }; }
+          return [
+            S('The run window', 'This window opens when a calculation takes a moment: here the H-representations and vertices, and also Parsimony and the multinomineq analysis. It shows how many steps are done, how long the current step has been running, and its time limit. (The tour shows an example, nothing is calculated.)', function() { var c = document.getElementById('fairy-run-title'), d = document.getElementById('fairy-run-sub'); return [shown(c) ? c : null, shown(d) ? d : null]; }, { pre: function() { closeModal(); goTab('Input'); demoOn = true; Shiny.setInputValue('fairy_run_demo', Date.now(), { priority: 'event' }); }, until: function() { return !!document.querySelector('.fairy-run-stopready') && shown(document.getElementById('fairy-run-card')); }, wait: 1500, maxwait: 9000, quiet: true }),
+            S('One row per model', 'The columns are the steps. A cell shows whether a step is waiting, running, done, skipped or failed.', rw('.fairy-run-table')),
+            S('Skip one model', 'After a few seconds, Skip appears at the model that is running. Skip it and the others go on. A skipped model can be retried with Retry.', function() { var e = document.querySelector('.fairy-run-rowbtn:not(.fairy-run-rowundo)'); return [shown(e) ? e : null]; }),
+            S('Skip all', 'Skips everything that is still running. Skipping is optional: without it the calculation keeps going until it is finished or the time limit is reached.', rw('#fairy-run-cancel')),
+            S('When it is done', 'If everything went well the window closes by itself. If something needs your attention, for example a warning, it stays open until you close it.', function() { return []; }, { last: true, noexample: true })
+          ];
+        }
+        function mnSteps() {
+          function mf(sel) { return function() { var e = modQ(sel); return [e ? (e.closest('.form-group') || e) : null]; }; }
+          return [
+            S('Data for multinomineq', 'The multinomineq analysis needs your data: how many observations (n) and how often the outcome happened (frequency) for each probability.', function() { return [inPane('#mn_data_open')]; }, {
+              pre: function() { closeModal(); if (!tabShown('H-representation')) runGo(); },
+              until: function() { if (tabShown('H-representation')) { if (!shown(document.getElementById('mn_data_open'))) goTab('H-representation'); } return shown(document.getElementById('mn_data_open')); }, wait: 1500, maxwait: 60000 }),
+            S('n and frequency', 'One row per probability. The numbers are examples until you save your own. The badge shows which model they belong to.', function() { return [modQ('.modal-body')]; }, { pre: function() { closeModal(); setTimeout(function() { clickEl(document.getElementById('mn_data_open')); }, 300); }, wait: 1400 }),
+            S('Same n for every row', 'Optional: one n for all rows at once.', mf('#mn_nall_1')),
+            S('Reset or save', 'Reset puts the example numbers back. Save keeps your numbers for the next download and for Run analysis.', function() { var a = modQ('#mn_data_reset'), b2 = modQ('#mn_data_save'); return [a, b2]; }),
+            S('Samples', 'How many draws the analysis uses for the Bayes factors and the posterior. More draws are more precise and take longer.', function() { var l = modQ('#mn_samples-label'); return [l ? l.parentElement : null]; }, { pre: function() { closeModal(); setTimeout(function() { clickEl(document.getElementById('mn_run_open')); }, 300); }, wait: 1400 }),
+            S('Advanced', 'Burn-in is the number of draws thrown away at the start. The prior is a Beta(a, b) distribution on every probability, and Beta(1, 1) is flat. The random seed makes a run repeatable.', function() { return [modQ('details')]; }, { pre: function() { var d = modQ('details'); if (d) d.open = true; }, wait: 500 }),
+            S('Shared server', 'The analysis runs on a shared server, so keep it small. For larger analyses download the files and run the script on your own computer.', function() { var st = modText('strong', /Shared server/); return [st ? st.parentElement : null]; }),
+            S('Run analysis here', 'Starts the analysis with these settings. The next steps start it now to show the results window.', function() { return [modQ('#mn_run')]; }),
+            S('The results window', 'Computed with multinomineq on the shared server. The line below tells date, prior, number of samples and package version.', function() { var m = modalOpen(); var l = m ? [].filter.call(m.querySelectorAll('p'), shown) : []; return l.slice(0, 2); }, { pre: function() { clickEl(document.getElementById('mn_run')); }, until: function() { var h = document.getElementById('mn_results_host'); return shown(h); }, wait: 2500, maxwait: 120000 }),
+            S('Overview and models', 'The Overview tab compares all models. There is one tab for every model with its details.', function() { var a = shLabel(/^Overview$/), l = shRoot() ? [].filter.call(shRoot().querySelectorAll('label'), shown) : []; return l; }, { pre: function() { var o = shLabel(/^Overview$/); if (o) o.click(); }, wait: 500 }),
+            S('Bayes factors of all models', 'A value above 1 favours the model. Model vs. unconstrained: how much better the data fit the model than a model without restrictions. Model vs. complement: the model against everything it forbids. The colours show the strength of evidence.', function() { var h = shQ('h2'), t2 = shQ('table'); return [h, t2]; }),
+            S('Estimates of one model', 'The posterior of every probability: mean, SD and 95% interval. The dot is the mean and the bar the interval.', function() { var r = shRoot(), l = r ? [].filter.call(r.querySelectorAll('h3'), function(x) { return /Probabilities/.test(x.textContent) && shown(x); }) : []; var t2 = r ? [].filter.call(r.querySelectorAll('table'), shown)[1] : null; return [l[0], t2]; }, { pre: function() { var m1 = null, r = shRoot(), l = r ? r.querySelectorAll('label') : [], i; for (i = 0; i !== l.length; i++) { if (l[i].textContent.trim() !== 'Overview' && !m1) m1 = l[i]; } if (m1) m1.click(); }, wait: 800 }),
+            S('Is the sample reliable?', 'Diagnostics of the posterior sample: trace and density plots, effective sample size and Geweke z. Green means fine.', function() { var r = shRoot(), l = r ? [].filter.call(r.querySelectorAll('h3'), function(x) { return /Diagnostics/.test(x.textContent) && shown(x); }) : []; return [l[0]]; }),
+            S('Analyse again', 'Runs the analysis again, for example with more samples.', function() { return [modQ('#mn_results_again')]; }),
+            S('Download', 'The PDF report (with a link back to your input) or everything in one file: PDF, web page, tables, the files and the R script.', function() { var d = modQ('.dropdown-toggle'); return [d]; }),
+            S('That is it', 'Close the window with Close. Everything stays available under Download.', function() { return []; }, { last: true, noexample: true })
+          ];
+        }
         function allSteps() {
-          var parts = [fullSteps().filter(function(x) { return x.title !== 'Results tabs' && x.title !== 'That is it'; }), unpackSteps(), combineSteps(), resultSteps()], out = [];
+          var parts = [fullSteps().filter(function(x) { return x.title !== 'Results tabs' && x.title !== 'That is it'; }), unpackSteps(), combineSteps(), resultSteps(), runSteps(), mnSteps()], out = [];
           parts.forEach(function(pt) { pt.forEach(function(st) { st.last = false; out.push(st); }); });
+          out = out.filter(function(x, i) { return x.title !== 'That is it' || i === out.length - 1; });
           out[out.length - 1].last = true;
           return out;
         }
@@ -6441,6 +6481,7 @@ ui <- shinyUI(fluidPage(
           ['fairy-tour-block', 'fairy-tour-hole', 'fairy-tour-card'].forEach(function(id) { var e = document.getElementById(id); if (e) e.remove(); });
           tourStep = -1; picking = false; token++;
           closeModal();
+          if (demoOn) { demoOn = false; Shiny.setInputValue('fairy_run_demo_stop', Date.now(), { priority: 'event' }); }
           if (tabsTouched) { tabsTouched = false; var ti = tabLink('Input'); if (ti) ti.click(); }
           if (addedModel) { addedModel = false; var rm = document.getElementById('rm_ie'); if (rm) rm.click(); }
           try { localStorage.setItem('fairy_tour_done', '1'); } catch (er) {}
@@ -6478,7 +6519,7 @@ ui <- shinyUI(fluidPage(
           var l = document.createElement('p'); l.style.cssText = 'font-size:13px; color:var(--fairy-text-muted, #667085);';
           l.textContent = 'Start page: the first steps from input to results, about a minute. Full tour: every part of the app, one after the other. Or look at one part only: input controls, unpacking, combining models, or the results tabs.'; card.appendChild(l);
           var foot = document.createElement('div'); foot.className = 'fairy-tour-foot';
-          foot.appendChild(btn('Cancel', 'end', 'fairy-tour-skip')); foot.appendChild(btn('Input controls', 'input')); foot.appendChild(btn('Unpacking', 'unpack')); foot.appendChild(btn('Combining', 'combine')); foot.appendChild(btn('Results', 'results')); foot.appendChild(btn('Full tour', 'full')); foot.appendChild(btn('Start page', 'basic', 'fairy-tour-primary'));
+          foot.appendChild(btn('Cancel', 'end', 'fairy-tour-skip')); foot.appendChild(btn('Input controls', 'input')); foot.appendChild(btn('Unpacking', 'unpack')); foot.appendChild(btn('Combining', 'combine')); foot.appendChild(btn('Results', 'results')); foot.appendChild(btn('Run window', 'run')); foot.appendChild(btn('multinomineq', 'mn')); foot.appendChild(btn('Full tour', 'full')); foot.appendChild(btn('Start page', 'basic', 'fairy-tour-primary'));
           card.appendChild(foot); place(); setTimeout(place, 150);
           foot.lastChild.focus();
         }
@@ -6498,7 +6539,7 @@ ui <- shinyUI(fluidPage(
           var st = steps[i];
           if (st.pre) {
             st.pre();
-            if (st.until) { ensure(); var wc = document.getElementById('fairy-tour-card'); wc.textContent = ''; var wh = document.createElement('h4'); wh.textContent = 'One moment'; wc.appendChild(wh); var wp = document.createElement('p'); wp.textContent = 'Running your model ...'; wc.appendChild(wp); place(); }
+            if (st.until) { ensure(); var wc = document.getElementById('fairy-tour-card'); wc.textContent = ''; var wh = document.createElement('h4'); wh.textContent = 'One moment'; wc.appendChild(wh); var wp = document.createElement('p'); wp.textContent = st.quiet ? 'Opening the example ...' : 'Running ...'; wc.appendChild(wp); place(); }
             var t0 = Date.now();
             (function poll() {
               if (my !== token) return;
@@ -6522,7 +6563,7 @@ ui <- shinyUI(fluidPage(
           foot.appendChild(dots);
           if (!st.last) foot.appendChild(btn('Skip', 'end', 'fairy-tour-skip'));
           foot.appendChild(btn('Back', 'back'));
-          if (st.last && !st.noexample && steps.kind !== 'unpack' && steps.kind !== 'combine' && steps.kind !== 'results') foot.appendChild(btn('Fill in example', 'example'));
+          if (st.last && !st.noexample && steps.kind !== 'unpack' && steps.kind !== 'combine' && steps.kind !== 'results' && steps.kind !== 'run' && steps.kind !== 'mn') foot.appendChild(btn('Fill in example', 'example'));
           if (st.full) foot.appendChild(btn('Full tour', 'full'));
           var nx = btn(st.last ? 'Finish' : 'Next', 'next', 'fairy-tour-primary'); foot.appendChild(nx);
           card.appendChild(foot);
@@ -6535,7 +6576,7 @@ ui <- shinyUI(fluidPage(
           var tab = document.querySelector('a[data-value=Input]'); if (tab && !tab.parentElement.classList.contains('active')) tab.click();
           setTimeout(pick, 150);
         }
-        function go(mode) { steps = mode === 'full' ? allSteps() : (mode === 'input' ? fullSteps() : (mode === 'unpack' ? unpackSteps() : (mode === 'combine' ? combineSteps() : (mode === 'results' ? resultSteps() : basicSteps())))); steps.kind = mode; tourStep = -1; show(0); }
+        function go(mode) { steps = mode === 'full' ? allSteps() : (mode === 'input' ? fullSteps() : (mode === 'unpack' ? unpackSteps() : (mode === 'combine' ? combineSteps() : (mode === 'results' ? resultSteps() : (mode === 'run' ? runSteps() : (mode === 'mn' ? mnSteps() : basicSteps())))))); steps.kind = mode; tourStep = -1; show(0); }
         function next() { if (steps[tourStep].last) end(); else show(tourStep + 1); }
         document.addEventListener('click', function(e) {
           var t = e.target.closest ? e.target : e.target.parentNode;
@@ -6546,7 +6587,7 @@ ui <- shinyUI(fluidPage(
             if (k === 'next') next();
             else if (k === 'back') show(tourStep - 1);
             else if (k === 'end') end();
-            else if (k === 'basic' || k === 'full' || k === 'unpack' || k === 'combine' || k === 'results' || k === 'input') go(k);
+            else if (k === 'basic' || k === 'full' || k === 'unpack' || k === 'combine' || k === 'results' || k === 'input' || k === 'run' || k === 'mn') go(k);
             else if (k === 'example') {
               var ta = document.getElementById('textin_relations_1');
               end();
@@ -14727,6 +14768,15 @@ server <- shinyServer(function(input, output, session) {
       list(xy = U(rbind(c(50, 12), c(51.6, 15.4), c(55, 17), c(51.6, 18.6), c(50, 22), c(48.4, 18.6), c(45, 17), c(48.4, 15.4))), col = "#000000"))
   }
   qr_with_fairy <- function(qr) !is.null(attr(qr, "logo"))
+  # demo of the run window for the tour (no real calculation): the same messages as a real run sends, until the tour ends
+  observeEvent(input$fairy_run_demo, {
+    fairy_run_begin(title = "Calculating", skippable = TRUE)
+    fairy_run_row("m1", h = "done", v = "run")
+    fairy_run_row("m2", h = "wait", v = "wait")
+    session$sendCustomMessage("fairy_run_cancelable", list(on = TRUE, input = "tour_demo_cancel", label = "Skip all"))
+    session$sendCustomMessage("fairy_run_limit", list(seconds = V_REP_LIMIT, nolimit = FALSE, label = "each V-representation"))
+  })
+  observeEvent(input$fairy_run_demo_stop, { session$sendCustomMessage("fairy_run_hide", list()) })
   observeEvent(input$qr_request, {
     url <- tryCatch(app_share_url(), error = function(e) NULL)
     qr <- qr_matrix(url)
