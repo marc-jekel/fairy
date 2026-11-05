@@ -511,7 +511,8 @@ ui <- shinyUI(fluidPage(
       @media (max-height: 560px) { #sidebar-fab-panel { right: 10px !important; bottom: 10px !important; } }
       /* Until Go has been used once, it glows softly so a first-time visitor finds it */
       /* QTEST and multinomineq share the order of the probabilities: Order, QTEST and multinomineq sit in one frame */
-      .fairy-derived-note { position: absolute; right: 12px; bottom: 8px; max-width: 90%; font-size: 11px; line-height: 1.3; color: var(--fairy-text-muted, #667085); font-style: italic; pointer-events: none; z-index: 3; text-align: right; }
+      .fairy-derived-note { position: absolute; left: 1px; right: 1px; bottom: 1px; padding: 3px 12px 4px; font-size: 11px; line-height: 1.3; color: var(--fairy-text-muted, #667085); font-style: italic; pointer-events: none; z-index: 3; text-align: right; border-top: 1px solid rgba(128,128,128,.25); border-radius: 0 0 9px 9px; background: color-mix(in srgb, var(--fairy-panel, #fff) 88%, #8a8a8a); }
+      .fairy-model-row:has(.fairy-derived-note) textarea { padding-bottom: 26px !important; }
       .fairy-dl-group { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 8px 14px 12px; border: 1.5px solid var(--fairy-border); border-radius: 14px; }
       .fairy-dl-group > .shiny-html-output { display: block; }
       .fairy-dl-group[data-cap][data-sub]::before { content: attr(data-cap) '\\A' attr(data-sub); white-space: pre; text-align: center; line-height: 1.25; }
@@ -6650,7 +6651,14 @@ ui <- shinyUI(fluidPage(
         var vTutOn = false, goAllDone = false, parsDone1 = false, parsDone2 = false;
         function tutorialSteps() {
           function model(k, title, text, spec, extra) {
-            return S(title, text, function() { return [specTd(k)]; }, { pre: function() { return ensureRowsFast(k); }, wait: 200, task: { type: 'type', fields: function() { return [{ el: document.getElementById('textin_relations_' + k), text: spec, label: 'Unique Model Specification of m' + k }]; } }, demo: async function(tk) { await typeInto(document.getElementById('textin_relations_' + k), spec, tk); } });
+            return S(title, text, function() { return [specTd(k)]; }, { pre: function() { return ensureRowsFast(k); }, wait: 200, task: { type: 'type', fields: function() { return [{ el: document.getElementById('textin_relations_' + k), text: spec, label: 'Unique Model Specification of m' + k }]; } }, demo: async function(tk) {
+            await typeInto(document.getElementById('textin_relations_' + k), spec, tk);
+            if (k === 1 && tk === token) {
+              var xs = document.querySelectorAll('.fairy-expand-btn'), xb = null, i;
+              for (i = 0; i !== xs.length; i++) { if (xs[i].getAttribute('data-target') === 'textin_relations_1' && shown(xs[i])) xb = xs[i]; }
+              if (xb) { await sleep(500); await cclick(xb); await sleep(2500 * spMul()); place(); var bd = document.querySelector('.fairy-expand-backdrop'); if (bd) bd.click(); await sleep(500); place(); }
+            }
+          } });
           }
           var A = [
             S('The cringe study', 'A fictitious joke study: children, teens and adults hear jokes, and we record who cringes. A theory predicts that children cringe most and adults least. This tutorial enters everything for you, so you see how it is done. The tutorial starts with a fresh app: your current input is cleared, so save it first if you want to keep it (Share or save).', function() { return []; }, { pre: function() { closeModal(); goTab('Input'); }, nextLabel: 'Start fresh', onNext: function() { var kk = tourStep; if (isPristine()) { show(kk + 1); return; } setLock(true); resetInPlace().then(function(ok) { if (ok) { setLock(false); show(kk + 1); } else window.fairyStartOver('tutorial', 1, false); }); } }),
@@ -6668,7 +6676,7 @@ ui <- shinyUI(fluidPage(
             S('Now the full study', 'The paper crosses three age groups with two joke types: illogical jokes (i) and puns (p). That makes a 2 x 3 design with six probabilities: p1 children, p2 teens and p3 adults for illogical jokes, and p4, p5 and p6 for puns. Nine cringe theories predict how they relate.', function() { return []; }, { pre: function() { closeModal(); return tabC('Input'); } }),
             S('Six probabilities', 'Three probabilities are added and all six are named: C, T and A for children, teens and adults, with i for illogical jokes and p for puns.', function() { return [q1('.def-col--pnames')]; }, { demo: async function(tk) { await ensureProbs(6, tk); var names = ['p_{C,i}', 'p_{T,i}', 'p_{A,i}', 'p_{C,p}', 'p_{T,p}', 'p_{A,p}'], i; for (i = 0; i !== 6; i++) { await typeInto(document.getElementById('textin_name_' + (i + 1)), names[i], tk); } } }),
             S('Nine models', 'One row per theory: eight more rows are added.', function() { return [q1('.def-col--models-card')]; }, { demo: async function(tk) { await ensureModelRows(9, tk); } }),
-            model(1, 'm1: cringyness increases with age', 'The first theory: cringyness increases with age, averaged over both joke types.', '1/2 * p1 + 1/2 * p4 < 1/2 * p2 + 1/2 * p5 < 1/2 * p3 + 1/2 * p6'),
+            model(1, 'm1: cringyness increases with age', 'The first theory: cringyness increases with age, averaged over both joke types. Long input can be enlarged with the arrows in the corner of the field.', '1/2 * p1 + 1/2 * p4 < 1/2 * p2 + 1/2 * p5 < 1/2 * p3 + 1/2 * p6'),
             model(2, 'm2: ... irrespective of the joke type', 'Cringyness increases with age for both joke types separately. Two chains, separated by a semicolon.', 'p1 < p2 < p3; p4 < p5 < p6'),
             model(3, 'm3: opposite trends, puns cringier', 'Illogical jokes decrease with age, puns increase, and on average illogical jokes are less cringy than puns. Sums with weights are typed as 1/3 * p1.', 'p1 > p2 > p3; p4 < p5 < p6; 1/3 * p1 + 1/3 * p2 + 1/3 * p3 < 1/3 * p4 + 1/3 * p5 + 1/3 * p6'),
             model(4, 'm4: ... in every age group', 'Like m3, but puns are cringier than illogical jokes in every single age group.', 'p1 > p2 > p3; p4 < p5 < p6; p1 < p4; p2 < p5; p3 < p6'),
@@ -6694,7 +6702,29 @@ ui <- shinyUI(fluidPage(
 S('Intersections: what two models share', 'Models can make similar predictions: their polytopes overlap. The intersection of two models is the space they share. The Intersection model button adds a model with all constraints of the models you pick. Here m1 and m2.', function() { return [modQ('.modal-content') || q1('#add_intersection_model')]; }, { pre: function() { closeModal(); return tabC('Input'); }, wait: 300, demo: async function(tk) { await interDemo([1, 2], tk); } }),
             S('Another intersection: m1 and m3', 'The same for m1 and m3. Each intersection is a new row of its own.', function() { return [modQ('.modal-content') || q1('#add_intersection_model')]; }, { pre: function() { closeModal(); }, wait: 300, demo: async function(tk) { await interDemo([1, 3], tk); } }),
             S('Go for all models', 'Go builds the H-representation of every model, the nine theories and the two intersections.', function() { return [q1('#go_inline')]; }, { pre: function() { closeModal(); return tabC('Input'); }, wait: 300, skipPreInTry: true, tasks: [tabTask('Input'), goTask('go_inline', async function() { await sleep(3000); await waitFor(function() { return calcIdle(); }, 900000); await sleep(1500); goAllDone = true; }, function() { return goAllDone; })], demo: async function(tk) { await cclick(document.getElementById('go_inline')); await sleep(3000); await waitFor(function() { return calcIdle(); }, 900000); await sleep(1500); goAllDone = true; } }),
-            R2('H-representation', 'One card per model', 'The H-representation of every model. Equalities are counted separately from inequalities in the badge, so m5 shows five equalities.', function() { var p = pane(); var l = p ? p.querySelectorAll('.model-card') : []; return [].filter.call(l, shown).slice(0, 2); }),
+            R2('H-representation', 'One card per model', 'The H-representation of every model, one card each. Equalities are counted separately from inequalities in the badge, so m5 shows five equalities. The page scrolls over the cards, one card is enlarged with the arrows, and the free layout lets you drag a card anywhere. Afterwards everything is put back.', function() { var p = pane(); var w = p ? p.querySelector('.fairy-h-cards-wrap') : null; return [shown(w) ? w : null]; }, { demo: async function(tk) {
+              var p = pane(), cards = p ? [].filter.call(p.querySelectorAll('.model-card'), shown) : [], r, y0, st, h2, ev;
+              async function slide(to) { y0 = window.scrollY; for (st = 1; st <= 14 && tk === token; st++) { window.scrollTo(0, y0 + (to - y0) * (st / 14)); place(); await sleep(30 * spMul()); } }
+              function revert() { var o = document.getElementById('fairy-card-overlay-close'); if (o && o.offsetParent) o.click(); var rb = byTip(/Reset order, positions/); if (rb) rb.click(); }
+              try {
+                for (r = 0; r < cards.length && tk === token; r++) { await slide(Math.max(0, window.scrollY + cards[r].getBoundingClientRect().top - 150)); await sleep(150 * spMul()); }
+                await slide(0); await sleep(300 * spMul());
+                var xb = cards[0] ? cards[0].querySelector('.fairy-card-expand') : null;
+                if (xb && tk === token) { await cclick(xb); await sleep(2200 * spMul()); place(); await cclick(document.getElementById('fairy-card-overlay-close')); await sleep(400 * spMul()); }
+                var fb = byTip(/Free layout/);
+                if (fb && tk === token) {
+                  await cclick(fb); await sleep(500 * spMul());
+                  h2 = cards[1] ? cards[1].querySelector('.fairy-handle') : null;
+                  if (h2 && tk === token) {
+                    await moveTo(h2); var rc = h2.getBoundingClientRect(), sx = rc.left + rc.width / 2, sy = rc.top + rc.height / 2;
+                    h2.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: sx, clientY: sy, button: 0 }));
+                    for (st = 1; st <= 20 && tk === token; st++) { document.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: sx + 9 * st, clientY: sy + 5 * st })); var cu = cursorEl(); cu.style.transitionDuration = '0s'; cu.style.left = Math.round(sx + 9 * st) + 'px'; cu.style.top = Math.round(sy + 5 * st) + 'px'; await sleep(40 * spMul()); }
+                    document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+                    await sleep(1500 * spMul());
+                  }
+                }
+              } finally { revert(); }
+              await sleep(600 * spMul()); place(); } }),
             R2('Model Properties', 'Parsimony of all models', 'Now the volumes of all models. The tournament of the paper compares the theories by how much of the space they occupy. This can take a moment for six probabilities.', function() { return [inPane('#go_inline_pars')]; }, { tasks: [tabTask('Model Properties'), goTask('go_inline_pars', async function() { await sleep(3000); await waitFor(function() { return calcIdle() && parsRows() > 0; }, 900000); await sleep(1500); parsDone2 = true; }, function() { return parsDone2; })], demo: async function(tk) { await cclick(document.getElementById('go_inline_pars')); await sleep(3000); await waitFor(function() { return calcIdle() && parsRows() > 0; }, 900000); await sleep(1500); parsDone2 = true; } }),
             S('Volumes and nested models', 'The bars show each model share of the space. The intersection of m1 and m2 has the same volume as m2, so m2 is nested in m1: whenever data fit m2 they also fit m1. Because m2 is smaller, it is preferred by the Bayesian analysis, which rewards parsimony.', function() { return [inPane('#parsimony_plot_ui')]; }, { pre: function() { return tabC('Model Properties'); }, wait: 400 }),
             S('Maximum Bayes factors', 'Max BF is 1 divided by the volume. The tighter a model, the more evidence it can earn, and the more it risks. The tutorial for the analysis itself (frequentist and Bayesian tests) continues in QTEST.', function() { return [inPane('#parsimony_spinner_table')]; }, { last: true, noexample: true })
