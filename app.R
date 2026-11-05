@@ -14237,30 +14237,15 @@ server <- shinyServer(function(input, output, session) {
   pdf_link_page <- function(w, h) {
     url <- tryCatch(isolate(app_share_url()), error = function(e) NULL)
     if (is.null(url) || !nzchar(url)) return(NULL)
-    graphics::par(mar = c(0, 0, 0, 0), mai = c(0, 0, 0, 0)); graphics::plot.new(); graphics::plot.window(c(0, w), c(0, h), xaxs = "i", yaxs = "i")
-    y <- h - 0.5
-    graphics::text(0.4, y, "Recreate this input", adj = c(0, 0.5), font = 2, cex = 1.2); y <- y - 0.3
-    intro <- paste(strwrap("This link opens the Fairy app with the probabilities, models and settings used here. Everything is stored in the link itself (nothing is saved on a server). Click the blue line, copy the link into a browser, or scan the QR code.", 100), collapse = "\n")
-    graphics::text(0.4, y, intro, adj = c(0, 1), cex = 0.7, col = "grey30"); y <- y - 0.55
-    lt <- "Open this input in the Fairy app"
-    graphics::text(0.4, y, lt, adj = c(0, 0.5), cex = 0.9, col = "#1a5fb4")
-    lw <- graphics::strwidth(lt, cex = 0.9)
-    graphics::segments(0.4, y - 0.07, 0.4 + lw, y - 0.07, col = "#1a5fb4")
-    rect_pt <- c(0.4, y - 0.1, 0.4 + lw, y + 0.1) * 72
-    y <- y - 0.35
-    chunks <- substring(url, seq(1, nchar(url), 95), pmin(seq(95, nchar(url) + 94, 95), nchar(url)))
-    for (ch in chunks) { graphics::text(0.4, y, ch, adj = c(0, 0.5), cex = 0.42); y <- y - 0.12 }
-    y <- y - 0.15
-    qr <- tryCatch(if (requireNamespace("qrcode", quietly = TRUE) && nchar(url) < 2300) as.matrix(qrcode::qr_code(url, ecl = "L")) else NULL, error = function(e) NULL)
-    if (!is.null(qr) && y > 1.2) {
-      n <- nrow(qr); sz <- min(3.6, y - 0.3); cw <- sz / n
-      for (i in seq_len(n)) for (j in seq_len(n)) if (isTRUE(qr[i, j]))
-        graphics::rect(0.4 + (j - 1) * cw, y - i * cw, 0.4 + j * cw, y - (i - 1) * cw, col = "black", border = NA)
-    }
-    list(rect = rect_pt, url = url)
+    graphics::par(fig = c(0, 1, 0, 1), mai = c(0, 0, 0, 0), new = TRUE); graphics::plot.new(); graphics::plot.window(c(0, w), c(0, h), xaxs = "i", yaxs = "i")
+    lt <- "Recreate this input in the Fairy app"
+    graphics::text(0.3, 0.2, lt, adj = c(0, 0.5), cex = 0.8, col = "#1a5fb4")
+    lw <- graphics::strwidth(lt, cex = 0.8)
+    graphics::segments(0.3, 0.12, 0.3 + lw, 0.12, col = "#1a5fb4")
+    list(rect = c(0.3, 0.1, 0.3 + lw, 0.3) * 72, url = url, page = 1)
   }
   # the PDF is finished (device closed): make the blue line clickable
-  pdf_finish_link <- function(file, lk) { if (!is.null(lk)) pdf_add_link(file, lk$rect, lk$url); invisible(file) }
+  pdf_finish_link <- function(file, lk) { if (!is.null(lk)) pdf_add_link(file, lk$rect, lk$url, page = lk$page); invisible(file) }
   parsimony_pdf <- function(df, file) {
     algo_colors <- c("Cooling Bodies" = "#7a4fc4", "Cooling Gaussian" = "#f0ad4e", "Sequence of Balls" = "#5cb85c", "Exact" = "#8b93a7")
     models <- unique(df$Model); algos <- unique(df$Algorithm)
@@ -14268,7 +14253,7 @@ server <- shinyServer(function(input, output, session) {
     use_log <- length(pos) > 0 && min(pos) < 0.01
     k <- length(algos); n <- length(models)
     ph <- max(2.8, 1.9 + n * (0.3 + 0.18 * k)); has_url <- !is.null(tryCatch(isolate(app_share_url()), error = function(e) NULL))
-    if (has_url) ph <- max(ph, 6.6)
+    if (has_url) ph <- ph + 0.4
     grDevices::pdf(file, width = 8, height = ph)
     on.exit(grDevices::dev.off())
     labs <- vapply(models, function(z) paste(strwrap(z, 38), collapse = "\n"), character(1))
@@ -20317,6 +20302,13 @@ server <- shinyServer(function(input, output, session) {
       '  }',
       '  # ---- overview ----',
       '  y <- new_page("Results: overview")',
+      '  link_rect <- NULL',
+      '  if (nzchar(fairy_app_url)) {',
+      '    lt <- "Recreate this input in the Fairy app"',
+      '    tx(0.06, 0.055, lt, cex = 0.65, col = "#1a5fb4"); w_lt <- strwidth(lt, cex = 0.65)',
+      '    segments(0.06, 0.047, 0.06 + w_lt, 0.047, col = "#1a5fb4")',
+      '    link_rect <- c(0.06, 0.045, 0.06 + w_lt, 0.066) * rep(c(8.27, 11.69), 2) * 72',
+      '  }',
       '  rect(0.06, y - 0.115, 0.94, y, col = soft, border = NA)',
       '  tx(0.08, y - 0.02, "Date", cex = 0.6, col = mut);              tx(0.24, y - 0.02, format(Sys.time(), "%Y-%m-%d %H:%M %Z"), cex = 0.7)',
       '  tx(0.08, y - 0.045, "Prior", cex = 0.6, col = mut);            tx(0.24, y - 0.045, paste0("Beta(", prior[1], ", ", prior[2], ") on every probability"), cex = 0.7)',
@@ -20430,26 +20422,8 @@ server <- shinyServer(function(input, output, session) {
       '      y <- y - 0.02',
       '    }',
       '  }',
-      '  link_rect <- NULL',
-      '  if (nzchar(fairy_app_url)) {',
-      '    y <- new_page("Recreate this input")',
-      '    y <- para(y, "This link opens the Fairy app with the probabilities, models and settings of this analysis. Everything is stored in the link itself (nothing is saved on a server). Click the blue line, copy the link into a browser, or scan the QR code.", w = 100, cex = 0.7)',
-      '    lt <- "Open this input in the Fairy app"',
-      '    tx(0.06, y, lt, cex = 0.8, col = "#1a5fb4"); w_lt <- strwidth(lt, cex = 0.8)',
-      '    segments(0.06, y - 0.008, 0.06 + w_lt, y - 0.008, col = "#1a5fb4")',
-      '    link_rect <- c(0.06, y - 0.012, 0.06 + w_lt, y + 0.012) * rep(c(8.27, 11.69), 2) * 72',
-      '    y <- y - 0.035',
-      '    chunks <- substring(fairy_app_url, seq(1, nchar(fairy_app_url), 95), pmin(seq(95, nchar(fairy_app_url) + 94, 95), nchar(fairy_app_url)))',
-      '    for (ch in chunks) { tx(0.06, y, ch, cex = 0.42, col = ink); y <- y - 0.013 }',
-      '    y <- y - 0.02',
-      '    qr <- tryCatch(if (requireNamespace("qrcode", quietly = TRUE) && nchar(fairy_app_url) < 2300) as.matrix(qrcode::qr_code(fairy_app_url, ecl = "L")) else NULL, error = function(e) NULL)',
-      '    if (!is.null(qr) && y > 0.5) {',
-      '      n <- nrow(qr); cw <- 0.5 / n; ch <- cw * 8.27 / 11.69',
-      '      for (i in seq_len(n)) for (j in seq_len(n)) if (isTRUE(qr[i, j])) rect(0.06 + (j - 1) * cw, y - i * ch, 0.06 + j * cw, y - (i - 1) * ch, col = "black", border = NA)',
-      '    }',
-      '  }',
       '  dev.off()',
-      '  if (!is.null(link_rect)) pdf_add_link("results.pdf", link_rect, fairy_app_url)',
+      '  if (!is.null(link_rect)) pdf_add_link("results.pdf", link_rect, fairy_app_url, page = 1)',
       '}, error = function(e) { try(dev.off(), silent = TRUE); cat("results.pdf could not be written:", conditionMessage(e), "\\n") })',
       'if (interactive()) browseURL("results.html")',
       'cat("\\nDone:", sum(is.finite(results$bf_0u)), "of", nrow(results),',
