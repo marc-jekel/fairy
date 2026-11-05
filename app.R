@@ -6340,10 +6340,10 @@ ui <- shinyUI(fluidPage(
           await moveTo(el); var c = cursorEl(); c.classList.remove('fairy-tour-click'); void c.offsetWidth; c.classList.add('fairy-tour-click'); await sleep(300);
           el.focus(); el.value = '';
           var i;
-          var dl = Math.max(12, Math.min(45, Math.round(2600 / Math.max(1, text.length))));
+          var dl = Math.max(32, Math.min(80, Math.round(5600 / Math.max(1, text.length))));
           for (i = 1; i !== text.length + 1; i++) { if (tk !== undefined && tk !== token) { el.value = text; break; } el.value = text.slice(0, i); showKey(text.charAt(i - 1)); await sleep(dl); }
           el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
-          await sleep(500); hideKeys();
+          await sleep(1800); hideKeys(); await sleep(300);
         }
         async function cclick(el) { await clickOn(el); }
         async function tabC(name) { var a = tabLink(name); if (a) { await clickOn(a); tabsTouched = true; } }
