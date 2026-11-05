@@ -6960,7 +6960,7 @@ ui <- shinyUI(fluidPage(
           if (b) {
             var k = b.getAttribute('data-k');
             if (k && k.indexOf('speed-') === 0) { tourSpeed = k.slice(6); try { localStorage.setItem('fairy_tour_speed', tourSpeed); } catch (er) {} [].forEach.call(document.querySelectorAll('#fairy-tour-card .fairy-tour-spd'), function(x) { x.classList.toggle('on', x.getAttribute('data-k') === k); }); return; }
-            if (k && k.indexOf('mode-') === 0) { if (locked) return; interactive = k === 'mode-try'; try { localStorage.setItem('fairy_tour_interactive', interactive ? '1' : '0'); } catch (er) {} stopTask(); render(tourStep); return; }
+            if (k && k.indexOf('mode-') === 0) { if (locked && (!interactive || window.__tourBusy)) return; interactive = k === 'mode-try'; try { localStorage.setItem('fairy_tour_interactive', interactive ? '1' : '0'); } catch (er) {} stopTask(); render(tourStep); return; }
             if (k === 'showme') { showMe(steps[tourStep]); return; }
             if (k === 'hint') { taskHint(); return; }
             if ((k === 'next' || k === 'back') && locked) return;
