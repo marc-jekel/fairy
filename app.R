@@ -1722,6 +1722,9 @@ ui <- shinyUI(fluidPage(
       .fairy-tour-speed { margin-left: auto; display: flex; border: 1px solid var(--fairy-border, #cfd4e0); border-radius: 8px; overflow: hidden; }
       #fairy-tour-card button.fairy-tour-spd { border: 0; border-radius: 0; padding: 2px 8px; font-size: 11px; background: transparent; color: var(--fairy-text-muted, #667085); }
       #fairy-tour-card button.fairy-tour-spd.on { background: var(--fairy-primary, #593196); color: #fff; }
+      .fairy-tour-task { margin: 0 0 8px; padding: 7px 10px; border-radius: 8px; font-size: 13px; font-weight: 600; background: rgba(89, 49, 150, .10); }
+      @keyframes fairy-tour-pulse-hole { 0%, 100% { box-shadow: 0 0 0 9999px rgba(10, 14, 26, .38), 0 0 0 3px var(--fairy-primary, #593196); } 50% { box-shadow: 0 0 0 9999px rgba(10, 14, 26, .38), 0 0 0 9px rgba(160, 120, 240, .85); } }
+      #fairy-tour-hole.fairy-tour-pulse { animation: fairy-tour-pulse-hole .8s ease-in-out 4; }
       .fairy-tour-fb { margin: -2px 0 10px; padding: 7px 10px; border-radius: 8px; font-size: 13px; background: rgba(120,120,160,.14); }
       .fairy-tour-fb.ok { background: rgba(46,158,91,.18); color: #1e7a45; font-weight: 600; }
       .fairy-tour-fb.bad { background: rgba(214,56,61,.14); color: #c0282d; }
@@ -6647,12 +6650,12 @@ ui <- shinyUI(fluidPage(
         var vTutOn = false, goAllDone = false, parsDone1 = false, parsDone2 = false;
         function tutorialSteps() {
           function model(k, title, text, spec, extra) {
-            return S(title, text, function() { return [specTd(k)]; }, { pre: function() { return ensureRowsFast(k); }, wait: 200, task: { type: 'type', fields: function() { return [{ el: document.getElementById('textin_relations_' + k), text: spec }]; } }, demo: async function(tk) { await typeInto(document.getElementById('textin_relations_' + k), spec, tk); } });
+            return S(title, text, function() { return [specTd(k)]; }, { pre: function() { return ensureRowsFast(k); }, wait: 200, task: { type: 'type', fields: function() { return [{ el: document.getElementById('textin_relations_' + k), text: spec, label: 'Unique Model Specification of m' + k }]; } }, demo: async function(tk) { await typeInto(document.getElementById('textin_relations_' + k), spec, tk); } });
           }
           var A = [
             S('The cringe study', 'A fictitious joke study: children, teens and adults hear jokes, and we record who cringes. A theory predicts that children cringe most and adults least. This tutorial enters everything for you, so you see how it is done. The tutorial starts with a fresh app: your current input is cleared, so save it first if you want to keep it (Share or save).', function() { return []; }, { pre: function() { closeModal(); goTab('Input'); }, nextLabel: 'Start fresh', onNext: function() { var kk = tourStep; if (isPristine()) { show(kk + 1); return; } setLock(true); resetInPlace().then(function(ok) { if (ok) { setLock(false); show(kk + 1); } else window.fairyStartOver('tutorial', 1, false); }); } }),
-            S('Three probabilities', 'p1 is the probability that a child cringes, p2 that a teen cringes, and p3 that an adult cringes. Here the names are typed in.', function() { return [q1('.def-col--pnames')]; }, { task: { type: 'type', fields: function() { return [1, 2, 3].map(function(n, k) { return { el: document.getElementById('textin_name_' + n), text: ['p_{C}', 'p_{T}', 'p_{A}'][k] }; }); } }, demo: async function(tk) { await ensureProbs(3, tk); var names = ['p_{C}', 'p_{T}', 'p_{A}'], i; for (i = 0; i !== 3; i++) { await typeInto(document.getElementById('textin_name_' + (i + 1)), names[i], tk); } } }),
-            S('The theory', 'The theory says: children cringe at least as much as teens, who cringe at least as much as adults. In the app you type p1 > p2 > p3. The app takes > for easier input and means at least as much.', function() { return [specTd(1)]; }, { task: { type: 'type', fields: function() { return [{ el: document.getElementById('textin_relations_1'), text: 'p1 > p2 > p3' }]; }, done: async function() { var g = 0; while (probCount() > 3 && g !== 6) { await addOne('rm_prob', probCount, false); g++; } } }, demo: async function(tk) { await typeInto(document.getElementById('textin_relations_1'), 'p1 > p2 > p3', tk); } }),
+            S('Three probabilities', 'p1 is the probability that a child cringes, p2 that a teen cringes, and p3 that an adult cringes. Here the names are typed in.', function() { return [q1('.def-col--pnames')]; }, { task: { type: 'type', fields: function() { return [1, 2, 3].map(function(n, k) { return { el: document.getElementById('textin_name_' + n), text: ['p_{C}', 'p_{T}', 'p_{A}'][k], label: 'Name of p' + n, hint: ['C for children', 'T for teens', 'A for adults'][k] + ', in curly braces after the underscore'  }; }); } }, demo: async function(tk) { await ensureProbs(3, tk); var names = ['p_{C}', 'p_{T}', 'p_{A}'], i; for (i = 0; i !== 3; i++) { await typeInto(document.getElementById('textin_name_' + (i + 1)), names[i], tk); } } }),
+            S('The theory', 'The theory says: children cringe at least as much as teens, who cringe at least as much as adults. In the app you type p1 > p2 > p3. The app takes > for easier input and means at least as much.', function() { return [specTd(1)]; }, { task: { type: 'type', fields: function() { return [{ el: document.getElementById('textin_relations_1'), text: 'p1 > p2 > p3', label: 'Unique Model Specification', hint: 'the three probabilities in a row, separated by > (children first)' }]; }, done: async function() { var g = 0; while (probCount() > 3 && g !== 6) { await addOne('rm_prob', probCount, false); g++; } } }, demo: async function(tk) { await typeInto(document.getElementById('textin_relations_1'), 'p1 > p2 > p3', tk); } }),
             S('Vertices on', 'The vertices of the model (V-representation) are optional because they can take long for large models. Here the switch is turned on.', function() { return [q1('#vrep_toggle_btn_1')]; }, { task: goTask('vrep_toggle_btn_1', function() { vTutOn = true; return Promise.resolve(); }, function() { return vTutOn || tabShown('V-representation'); }), demo: async function(tk) { if (!tabShown('V-representation')) { await cclick(document.getElementById('vrep_toggle_btn_1')); vTutOn = true; } } }),
             S('Go', 'Go builds the H-representation of the model, and the vertices.', function() { return [q1('#go_inline')]; }, { task: goTask('go_inline', async function() { await sleep(2500); await waitFor(function() { return tabShown('V-representation') && calcIdle(); }, 120000); await sleep(800); }, function() { return tabShown('V-representation') && tabShown('Plot Edge Cases'); }), demo: async function(tk) { await cclick(document.getElementById('go_inline')); await waitFor(function() { return tabShown('V-representation') && tabShown('Plot Edge Cases'); }, 60000); } }),
             R2('H-representation', 'The H-representation', 'The fairy describes the model with inequalities. Line 1: p_T is at most p_C. Line 2: p_A is at most p_T. Line 3: p_C is at most 1, and line 4: p_A is at least 0, because probabilities lie between 0 and 1. On the left you can download the files for QTEST and a LaTeX file.', function() { var p = pane(); var l = p ? p.querySelectorAll('.model-card') : []; return [].filter.call(l, shown); }),
@@ -6723,17 +6726,21 @@ ui <- shinyUI(fluidPage(
           var out = Array.prototype.map.call(String(x || ''), function(ch) { var c = ch.charCodeAt(0); if (c === 8805) return '>'; if (c === 8804) return '<'; return ch; }).filter(function(ch) { return ch.charCodeAt(0) > 32; }).join('');
           return out.split('>=').join('>').split('<=').join('<');
         }
+        function taskSet(msg) { var f = document.getElementById('fairy-tour-task'); if (f) { f.textContent = msg; f.style.display = msg ? '' : 'none'; } }
         function fbSet(msg, cls) { var f = document.getElementById('fairy-tour-fb'); if (!f) return; f.textContent = msg; f.className = 'fairy-tour-fb ' + (cls || ''); f.style.display = msg ? '' : 'none'; }
-        function stopTask() { if (taskState && taskState.cleanup) taskState.cleanup(); taskState = null; var bl = document.getElementById('fairy-tour-block'); if (bl) bl.style.clipPath = ''; }
+        function stopTask() { if (taskState && taskState.idle) clearTimeout(taskState.idle); if (taskState && taskState.cleanup) taskState.cleanup(); taskState = null; var bl = document.getElementById('fairy-tour-block'); if (bl) bl.style.clipPath = ''; }
         function taskHole() { if (!taskState || taskState.done) return null; var tt = taskState.t, l = tt.hole ? [tt.hole()] : (tt.type === 'type' ? tt.fields().map(function(f) { return f.el; }) : [tt.el()]); l = l.filter(function(e) { return !!e; }); return l.length ? l : null; }
         function runTask(tt, tk) {
           return new Promise(function(resolve) {
             if (tt.skipIf && tt.skipIf()) { resolve(); return; }
             var st0 = { t: tt, done: false, cleanup: null }; taskState = st0;
             var attempts = 0, timer = null;
-            function finish(msg) { if (st0.done) return; st0.done = true; if (timer) clearTimeout(timer); if (st0.cleanup) st0.cleanup(); fbSet(msg || 'Correct!', 'ok'); place(); Promise.resolve(tt.done ? tt.done() : null).then(function() { resolve(); }, function() { resolve(); }); }
-            var prompt = tt.prompt || (tt.type === 'type' ? 'Your turn: type ' + tt.fields().map(function(f) { return f.text; }).join('   ') : 'Your turn: click the highlighted button.');
-            fbSet(prompt, 'hint');
+            function finish(msg) { if (st0.done) return; st0.done = true; if (timer) clearTimeout(timer); if (st0.idle) clearTimeout(st0.idle); if (st0.cleanup) st0.cleanup(); fbSet(msg || 'Correct!', 'ok'); place(); Promise.resolve(tt.done ? tt.done() : null).then(function() { resolve(); }, function() { resolve(); }); }
+            var prompt = tt.prompt || (tt.type === 'type' ? 'Your turn: ' + tt.fields().map(function(f) { return (f.label ? f.label + ': ' : 'type ') + f.text; }).join('   ') : 'Your turn: click the highlighted button.');
+            taskSet(prompt); fbSet('', 'hint'); st0.level = 0;
+            // somebody who does not know what to do gets a nudge
+            var idle = setTimeout(function() { if (!st0.done) fbSet('Not sure? Press Hint.', 'hint'); }, 25000);
+            st0.idle = idle;
             if (tt.isDone && tt.isDone()) { setTimeout(function() { finish('Already done. You try the next step yourself.'); }, 50); return; }
             // already entered (for example by the pointer a moment ago): nothing to do again
             if (tt.type === 'type') { var fs0 = tt.fields(); if (fs0.length && fs0.every(function(f) { return f.el && normSpec(f.el.value) === normSpec(f.text); })) { setTimeout(function() { finish('Already entered. You try the next step yourself.'); }, 50); return; } }
@@ -6744,7 +6751,7 @@ ui <- shinyUI(fluidPage(
               if (bad) {
                 if (normSpec(bad.text).indexOf(normSpec(bad.el.value)) === 0) { fbSet('Keep going ...', 'hint'); return; }
                 if (normSpec(bad.text).toLowerCase() === normSpec(bad.el.value).toLowerCase()) { fbSet('Almost: upper and lower case matter. Write a small p, as in ' + bad.text + '.', 'bad'); return; }
-                attempts++; fbSet(attempts > 1 ? 'Not quite. Expected: ' + bad.text : 'Not quite yet. Look at what you typed once more.', 'bad');
+                attempts++; fbSet(attempts > 1 ? 'Not quite' + (bad.label ? ' in ' + bad.label : '') + '. Expected: ' + bad.text : 'Not quite yet' + (bad.label ? ' in ' + bad.label : '') + '. Check what you typed, or press Hint.', 'bad');
               }
             }
             function onInput(e) { if (tt.type !== 'type') return; clearTimeout(timer); var fs = tt.fields(), i, hit = false; for (i = 0; i !== fs.length; i++) { if (fs[i].el === e.target) hit = true; } if (!hit) return; var ok = fs.every(function(f) { return normSpec(f.el.value) === normSpec(f.text); }); if (ok) { finish('Correct!'); return; } timer = setTimeout(evaluate, 1100); }
@@ -6763,6 +6770,20 @@ ui <- shinyUI(fluidPage(
           var list = st.tasks || [st.task], i;
           for (i = 0; i !== list.length; i++) { if (tk !== token) return false; await runTask(list[i], tk); await sleep(500); }
           return tk === token;
+        }
+        function taskHint() {
+          if (!taskState || taskState.done) return;
+          var tt = taskState.t, hole = document.getElementById('fairy-tour-hole'); taskState.level = (taskState.level || 0) + 1;
+          if (hole) { hole.classList.remove('fairy-tour-pulse'); void hole.offsetWidth; hole.classList.add('fairy-tour-pulse'); setTimeout(function() { hole.classList.remove('fairy-tour-pulse'); }, 3200); }
+          if (tt.type === 'type') {
+            var fs = tt.fields(), i, f = null;
+            for (i = 0; i !== fs.length; i++) { if (!f && normSpec(fs[i].el.value) !== normSpec(fs[i].text)) f = fs[i]; }
+            if (!f) return;
+            if (taskState.level === 1) fbSet('Hint' + (f.label ? ' (' + f.label + ')' : '') + ': ' + (f.hint || ('type ' + String(f.text).length + ' characters, starting with ' + String(f.text).slice(0, 3))), 'hint');
+            else fbSet('Type exactly: ' + f.text, 'hint');
+          } else {
+            fbSet(taskState.level === 1 ? 'Hint: click the highlighted button' + (tt.label ? ' (' + tt.label + ')' : '') + '.' : 'Press Show me and the pointer does it.', 'hint');
+          }
         }
         async function showMe(st) {
           var tk = token; stopTask(); fbSet('Watch ...', 'hint'); setLock(true);
@@ -6892,6 +6913,7 @@ ui <- shinyUI(fluidPage(
           var h = document.createElement('h4'); h.textContent = st.title; card.appendChild(h);
           var p = document.createElement('p'); p.textContent = st.text; card.appendChild(p);
           var tryHere = interactive && (st.task || st.tasks);
+          var tkl = document.createElement('div'); tkl.id = 'fairy-tour-task'; tkl.className = 'fairy-tour-task'; tkl.style.display = 'none'; if (tryHere) card.appendChild(tkl);
           var fb = document.createElement('div'); fb.id = 'fairy-tour-fb'; fb.className = 'fairy-tour-fb'; fb.style.display = 'none'; card.appendChild(fb);
           var foot = document.createElement('div'); foot.className = 'fairy-tour-foot';
           var dots = document.createElement('div'); dots.className = 'fairy-tour-dots';
@@ -6907,7 +6929,7 @@ ui <- shinyUI(fluidPage(
           dots.appendChild(spd);
           foot.appendChild(dots);
           if (!st.last) { var sk = btn('End tour', 'end'); sk.style.marginRight = 'auto'; foot.appendChild(sk); }
-          if (tryHere) foot.appendChild(btn('Show me', 'showme'));
+          if (tryHere) { foot.appendChild(btn('Hint', 'hint')); foot.appendChild(btn('Show me', 'showme')); }
           foot.appendChild(btn(i === 0 ? 'All tours' : 'Back', 'back'));
           if (st.last && !st.noexample && steps.kind !== 'unpack' && steps.kind !== 'combine' && steps.kind !== 'results' && steps.kind !== 'run' && steps.kind !== 'mn' && steps.kind !== 'tutorial') foot.appendChild(btn('Fill in example', 'example'));
           if (st.full) foot.appendChild(btn('Full tour', 'full'));
@@ -6940,6 +6962,7 @@ ui <- shinyUI(fluidPage(
             if (k && k.indexOf('speed-') === 0) { tourSpeed = k.slice(6); try { localStorage.setItem('fairy_tour_speed', tourSpeed); } catch (er) {} [].forEach.call(document.querySelectorAll('#fairy-tour-card .fairy-tour-spd'), function(x) { x.classList.toggle('on', x.getAttribute('data-k') === k); }); return; }
             if (k && k.indexOf('mode-') === 0) { if (locked) return; interactive = k === 'mode-try'; try { localStorage.setItem('fairy_tour_interactive', interactive ? '1' : '0'); } catch (er) {} stopTask(); render(tourStep); return; }
             if (k === 'showme') { showMe(steps[tourStep]); return; }
+            if (k === 'hint') { taskHint(); return; }
             if ((k === 'next' || k === 'back') && locked) return;
             if (k === 'next') next();
             else if (k === 'back') show(tourStep - 1);
