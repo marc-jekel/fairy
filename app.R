@@ -14330,7 +14330,23 @@ server <- shinyServer(function(input, output, session) {
       m <- tryCatch(as.matrix(qrcode::qr_code(url, ecl = e)), error = function(err) NULL)
       if (!is.null(m)) {
         # H / Q: the modules in the middle are cleared for the fairy (the error correction restores them); no frame is drawn
-        if (e %in% c("H", "Q")) { n <- nrow(m); k <- ceiling(n * 0.03) + 1; a <- floor((n - k) / 2); m[a + seq_len(k), a + seq_len(k)] <- FALSE; attr(m, "logo") <- c(a, k) }
+        if (e %in% c("H", "Q")) {
+          n <- nrow(m); k <- ceiling(n * 0.025) + 1; v <- (n - 17) / 4
+          # somewhere in the data area (not at a corner, not on the timing lines, not on an alignment pattern): the fairy is a small easter egg
+          al <- numeric(0)
+          if (v >= 2) { num <- v %/% 7 + 2; lastp <- n - 7; st <- if (num > 2) ceiling((lastp - 6) / (num - 1) / 2) * 2 else 0
+                        al <- if (num > 2) c(6, lastp - st * ((num - 2):0)) else c(6, lastp) }
+          ok <- function(r, cc) {
+            if (r < 11 || cc < 11 || r + k > n - 10 || cc + k > n - 10) return(FALSE)
+            for (ar in al) for (ac in al) { if ((ar == 6 && ac == 6) || (ar == 6 && ac == max(al)) || (ac == 6 && ar == max(al))) next
+              if (r < ar + 5 && r + k + 1 > ar - 4 && cc < ac + 5 && cc + k + 1 > ac - 4) return(FALSE) }
+            TRUE
+          }
+          pos <- NULL
+          for (tr in 1:200) { r0 <- sample.int(max(1, n - k - 12), 1) + 10; c0 <- sample.int(max(1, n - k - 12), 1) + 10; if (ok(r0, c0)) { pos <- c(r0, c0); break } }
+          if (is.null(pos)) { attr(m, "ecl") <- "M"; return(m) }
+          m[pos[1] + seq_len(k) - 1, pos[2] + seq_len(k) - 1] <- FALSE; attr(m, "logo") <- c(pos, k)
+        }
         attr(m, "ecl") <- e; return(m)
       }
     }
@@ -14352,7 +14368,7 @@ server <- shinyServer(function(input, output, session) {
       seg(32, 25, 32, 44), seg(32, 30, 26, 38), seg(32, 30, 38, 38), seg(32, 44, 27, 52), seg(32, 44, 37, 52),
       list(xy = U(rbind(c(50, 12), c(51.6, 15.4), c(55, 17), c(51.6, 18.6), c(50, 22), c(48.4, 18.6), c(45, 17), c(48.4, 15.4))), col = "#000000"))
   }
-  qr_with_fairy <- function(qr) !is.null(attr(qr, "ecl")) && attr(qr, "ecl") %in% c("H", "Q")
+  qr_with_fairy <- function(qr) !is.null(attr(qr, "logo"))
   observeEvent(input$qr_request, {
     url <- tryCatch(app_share_url(), error = function(e) NULL)
     qr <- qr_matrix(url)
@@ -14362,7 +14378,7 @@ server <- shinyServer(function(input, output, session) {
     for (i in seq_len(n)) { r <- which(qr[i, ]); if (length(r)) cells <- c(cells, sprintf("M%d %dh1v1h-1z", r - 1 + q, i - 1 + q)) }
     logo <- ""
     if (qr_with_fairy(qr)) {
-      lg <- attr(qr, "logo"); ls <- n * 0.03; lx <- q + lg[1] + (lg[2] - ls) / 2; ly <- q + lg[1] + (lg[2] - ls) / 2
+      lg <- attr(qr, "logo"); ls <- n * 0.025; lx <- q + lg[2] - 1 + (lg[3] - ls) / 2; ly <- q + lg[1] - 1 + (lg[3] - ls) / 2
       pts <- vapply(fairy_polys(), function(z) {
         xy <- paste(sprintf("%.2f,%.2f", lx + z$xy[, 1] * ls, ly + (1 - z$xy[, 2]) * ls), collapse = " ")
         sw <- (z$bw %||% 0) * ls / 56
@@ -14381,7 +14397,7 @@ server <- shinyServer(function(input, output, session) {
     for (i in seq_len(n)) for (j in seq_len(n)) if (isTRUE(qr[i, j]))
       graphics::rect(0.3 + (j - 1) * cw, top - i * cw, 0.3 + j * cw, top - (i - 1) * cw, col = "black", border = NA)
     if (qr_with_fairy(qr)) {
-      lg <- attr(qr, "logo"); ls <- n * 0.03 * cw; lx <- 0.3 + (lg[1] + (lg[2] - n * 0.03) / 2) * cw; ly <- top - (lg[1] + (lg[2] + n * 0.03) / 2) * cw
+      lg <- attr(qr, "logo"); ls <- n * 0.025 * cw; lx <- 0.3 + (lg[2] - 1 + (lg[3] - n * 0.025) / 2) * cw; ly <- top - (lg[1] - 1 + (lg[3] + n * 0.025) / 2) * cw
       for (z in fairy_polys()) {
         lwd <- max(0.1, (z$bw %||% 0) * ls * 96 / 56)
         if (isTRUE(z$line)) graphics::lines(lx + z$xy[, 1] * ls, ly + z$xy[, 2] * ls, col = z$col, lwd = lwd, lend = 1)
