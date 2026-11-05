@@ -120,7 +120,17 @@ fairy_unpack <- function(h, items, lists = NULL, type = "joint", eps = 0,
         as.matrix(expand.grid(rep(list(seq_len(f_ns[f])), length(nz)), KEEP.OUT.ATTRS = FALSE))
       else matrix(rep(seq_len(f_ns[f]), each = length(nz)), ncol = length(nz), byrow = TRUE)
     })
-    combo <- as.matrix(expand.grid(lapply(grids, function(g) seq_len(nrow(g))), KEEP.OUT.ATTRS = FALSE))
+    # joint factors that occur in the same constraint share their item index (item k with item k of the other list);
+    # items that do not exist in all of them are left out
+    is_J <- vapply(grid_f, function(f) !identical(type[f], "substitutable"), logical(1))
+    dim_list <- list(); dim_of <- integer(length(grids)); jdim <- 0L
+    for (gi_ in seq_along(grids)) {
+      if (is_J[gi_] && sum(is_J) >= 2L) {
+        if (jdim == 0L) { dim_list[[length(dim_list) + 1L]] <- seq_len(min(f_ns[grid_f[is_J]])); jdim <- length(dim_list) }
+        dim_of[gi_] <- jdim
+      } else { dim_list[[length(dim_list) + 1L]] <- seq_len(nrow(grids[[gi_]])); dim_of[gi_] <- length(dim_list) }
+    }
+    combo <- as.matrix(expand.grid(dim_list, KEEP.OUT.ATTRS = FALSE))[, dim_of, drop = FALSE]
     for (ci in seq_len(nrow(combo))) {
       row <- base_row
       for (k in seq_along(grid_f)) {

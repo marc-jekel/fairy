@@ -9502,9 +9502,17 @@ server <- shinyServer(function(input, output, session) {
         }
       })
 
-      # Cartesian product across the remaining factors' grid rows
-      combo <- as.matrix(expand.grid(
-        lapply(grids, function(g) seq_len(nrow(g))), KEEP.OUT.ATTRS = FALSE))
+      # Cartesian product across the remaining factors' grid rows. Joint factors (item by item) that occur in the SAME constraint
+      # share their item index (item k with item k of the other list); items that do not exist in all of them are left out.
+      is_J <- vapply(grid_involved, function(f) !(if (!is.null(factor_types)) identical(factor_types[f], "substitutable") else substitutable), logical(1))
+      dim_list <- list(); dim_of <- integer(length(grids)); jdim <- 0L
+      for (gi_ in seq_along(grids)) {
+        if (is_J[gi_] && sum(is_J) >= 2L) {
+          if (jdim == 0L) { dim_list[[length(dim_list) + 1L]] <- seq_len(min(f_ns[grid_involved[is_J]])); jdim <- length(dim_list) }
+          dim_of[gi_] <- jdim
+        } else { dim_list[[length(dim_list) + 1L]] <- seq_len(nrow(grids[[gi_]])); dim_of[gi_] <- length(dim_list) }
+      }
+      combo <- as.matrix(expand.grid(dim_list, KEEP.OUT.ATTRS = FALSE))[, dim_of, drop = FALSE]
 
       for (ci in seq_len(nrow(combo))) {
         row <- base_row
@@ -10807,7 +10815,16 @@ server <- shinyServer(function(input, output, session) {
             function hubMatch(i, k, ty) { return ty !== 'average' && (vM[i - nProb] || []).some(function(pm) { return chipState.asg[pm] === k; }); }
             function spec(i) {
               var si = i >= nProb ? vS[i - nProb] : i, vt = i >= nProb;
-              if (two) { var k = chipState.asg[si], st = chipState.sets[k - 1]; return { name: nm(i), virt: vt, n: st.n, list: k, color: chipColor(k - 1), type: st.over || gType, tag: vt ? '' : ' - ' + listTitle(k - 1), hub: vt && hubDiff(i, k) && !hubMatch(i, k, st.over || gType), hubM: vt && hubDiff(i, k) && hubMatch(i, k, st.over || gType) }; }
+              if (two) {
+                var k = chipState.asg[si], st = chipState.sets[k - 1], tyk = st.over || gType, dm = vt && hubDiff(i, k), hm = dm && hubMatch(i, k, tyk), nn = st.n, jm = false;
+                // joint in all lists of the sum: item k with item k of the other lists; only items that exist in all of them are summed
+                if (hm && tyk === 'joint') {
+                  jm = true;
+                  (vM[i - nProb] || []).forEach(function(pm) { var l2 = chipState.asg[pm]; if (l2 !== k) { var t2 = chipState.sets[l2 - 1].over || gType; if (t2 !== 'joint') jm = false; } });
+                  if (jm) (vM[i - nProb] || []).forEach(function(pm) { var l2 = chipState.asg[pm]; if (l2 !== k) nn = Math.min(nn, chipState.sets[l2 - 1].n); });
+                }
+                return { name: nm(i), virt: vt, n: nn, list: k, color: chipColor(k - 1), type: tyk, tag: vt ? '' : ' - ' + listTitle(k - 1), hub: dm && !hm, hubM: hm, jm: jm };
+              }
               return { name: nm(i), virt: vt, n: n0, list: 1, color: null, type: gType, tag: '' };
             }
             var sumConstOf = {};
@@ -11015,10 +11032,10 @@ server <- shinyServer(function(input, output, session) {
               }
               if (pp[3] && anchor[q].grid && anchor[q2].grid && (r0.hubM || r1.hubM) && r0.list !== r1.list) {
                 // a part from another list is added to every square of the sum (every combination); the first is drawn stronger
-                var partM = r1.virt ? r0 : r1, cPm = r1.virt ? c0 : c1, cSm = r1.virt ? c1 : c0, yPm = r1.virt ? y0 : y1, ySm = r1.virt ? y1 : y0, sgm = ySm > yPm ? 1 : -1;
+                var sumM = r1.virt ? r1 : r0, partM = r1.virt ? r0 : r1, cPm = r1.virt ? c0 : c1, cSm = r1.virt ? c1 : c0, yPm = r1.virt ? y0 : y1, ySm = r1.virt ? y1 : y0, sgm = ySm > yPm ? 1 : -1;
                 for (var jj = 0; jj < cPm; jj++) for (var kk = 0; kk < cSm; kk++) {
                   // the lines go to the first square only; the same holds for the other squares and items (the legend states the numbers)
-                  if (kk > 0) continue;
+                  if (sumM.jm) { if (jj !== kk) continue; } else if (kk > 0) continue;
                   el('path', { d: 'M' + X(jj) + ' ' + (yPm + sgm * 8) + ' C ' + X(jj) + ' ' + (yPm + sgm * 34) + ' ' + X(kk) + ' ' + (ySm - sgm * 34) + ' ' + X(kk) + ' ' + (ySm - sgm * 8), stroke: 'currentColor', opacity: jj === 0 ? '0.55' : '0.3', 'stroke-width': '1.3', 'stroke-dasharray': pp[2] === String.fromCharCode(8722) ? '4 3' : null, 'data-minus': pp[2] === String.fromCharCode(8722) ? '1' : null }, g);
                 }
                 return;
@@ -11164,7 +11181,7 @@ server <- shinyServer(function(input, output, session) {
             var pair = realPairs ? (cmpTxt.length === 1 ? ('the two probabilities in ' + cmpTxt[0]) : ('two of its probabilities (here ' + cmpTxt.slice(0, 2).join(' and ') + ')')) : 'two probabilities (for example ' + a + ' > ' + b + ')';
             var allType = R.every(function(r) { return r.type === R[0].type; }), t0 = R[0].type, txt;
             var shortT = { joint: a + ' for item 1 is compared with ' + b + ' for item 1, ' + a + ' for item 2 with ' + b + ' for item 2, and so on.', substitutable: 'Each item of ' + a + ' is compared with each item of ' + b + ', and so on for every pair of probabilities (item 1 highlighted).', identical: 'All items of a probability are equal, so each probability counts as one value.', average: 'The average of ' + a + ' over its items is compared with the average of ' + b + ', and so on.' };
-            txt = (two || !allType) ? 'Different item lists: each item of one list is compared with each item of the other list.' : shortT[t0];
+            txt = (two || !allType) ? ((two && chipState.sets.every(function(x) { return (x.over || gType) === 'joint'; })) ? 'Different item lists: item k of one list is compared with item k of the other list (items without a partner are left out).' : 'Different item lists: each item of one list is compared with each item of the other list.') : shortT[t0];
             if (realPairs && nProb > nRows) {
               var hidden = []; for (var hz = 0; hz < nProb; hz++) if (idxs.indexOf(hz) < 0) hidden.push(chipRowName(hz));
               if (hidden.length) txt += ' Not shown: ' + hidden.join(', ') + ' (not compared).';
@@ -11185,9 +11202,13 @@ server <- shinyServer(function(input, output, session) {
                 if (terms.some(function(t) { return t.r >= nProb; })) return;
                 var perList = {}, nextL = 0, count = 1, vars = [];
                 terms.forEach(function(t) { t.s = spec(t.r); (perList[t.s.list] = perList[t.s.list] || []).push(t); });
+                // joint lists of the same constraint share one item index (item k with item k); items that are not in all of them are left out
+                var jKeys = Object.keys(perList).filter(function(lk) { return perList[lk][0].s.type === 'joint'; }), jShare = jKeys.length >= 2, jL = null;
+                var jN = Math.min.apply(null, jKeys.map(function(lk) { return perList[lk][0].s.n; }));
                 Object.keys(perList).forEach(function(lk) {
                   var sl = perList[lk], ty = sl[0].s.type, n = sl[0].s.n;
-                  if (ty === 'joint') { var l1 = LET[nextL++]; sl.forEach(function(t) { t.ix = l1; }); count *= n; vars.push({ l: l1, n: n }); }
+                  if (ty === 'joint' && jShare) { if (!jL) { jL = LET[nextL++]; count *= jN; vars.push({ l: jL, n: jN }); } sl.forEach(function(t) { t.ix = jL; }); }
+                  else if (ty === 'joint') { var l1 = LET[nextL++]; sl.forEach(function(t) { t.ix = l1; }); count *= n; vars.push({ l: l1, n: n }); }
                   else if (ty === 'substitutable') sl.forEach(function(t) { var l2 = LET[nextL++]; t.ix = l2; count *= n; vars.push({ l: l2, n: n }); });
                   else if (ty === 'average') sl.forEach(function(t) { t.avg = true; });
                 });
@@ -11254,7 +11275,8 @@ server <- shinyServer(function(input, output, session) {
                 (vM[vN.indexOf(r.name)] || []).forEach(function(pm) { var l2 = chipState.asg[pm]; if (l2 !== r.list) other[l2] = true; });
                 Object.keys(other).forEach(function(l2) {
                   var n2 = chipState.sets[l2 - 1].n;
-                  entries.push([null, 'each of the ' + r.n + ' items of ' + listTitle(r.list - 1) + ' is added to each of the ' + n2 + ' items of ' + listTitle(l2 - 1) + ': ' + (r.n * n2) + ' sums (one square per item of ' + listTitle(r.list - 1) + ', the first is drawn)', null]);
+                  if (r.jm) entries.push([null, 'item k of ' + listTitle(r.list - 1) + ' is added to item k of ' + listTitle(l2 - 1) + ' (k = 1' + ELL + r.n + '); items without a partner are left out', null]);
+                  else entries.push([null, 'each of the ' + chipState.sets[r.list - 1].n + ' items of ' + listTitle(r.list - 1) + ' is added to each of the ' + n2 + ' items of ' + listTitle(l2 - 1) + ': ' + (chipState.sets[r.list - 1].n * n2) + ' sums', null]);
                 });
               }); } catch (eH) { entries.push([null, 'ERR ' + eH.message, null]); }
               if (R.some(function(r) { return r.hub; })) entries.push([null, 'one square for a sum of parts from different lists: every item of one part is added to every item of the others', null]);
