@@ -1749,6 +1749,12 @@ ui <- shinyUI(fluidPage(
       .fairy-tour-dots { display: flex; gap: 5px; flex: 0 0 100%; margin-bottom: 4px; }
       #fairy-tour-card .fairy-tour-skip { margin-right: auto; }
       #fairy-tour-card button { white-space: nowrap; }
+      .fairy-tour-dots.tut { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+      .fairy-tour-dots.tut > span { order: 1; }
+      .fairy-tour-dots.tut > .fairy-tour-speed { margin-left: 0; justify-self: end; }
+      .fairy-tour-dots.tut > .fairy-tour-speed:not(.fairy-tour-modesw) { order: 2; }
+      .fairy-tour-dots.tut > .fairy-tour-modesw { order: 3; justify-self: start; }
+      .fairy-tour-dots.tut > .fairy-tour-modesw + .fairy-tour-modesw { order: 4; justify-self: end; }
       .fairy-tour-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--fairy-border, #cfd4e0); display: block; }
       .fairy-tour-dots i.on { background: var(--fairy-primary, #593196); }
       #fairy-tour-card button { font: inherit; font-size: 13px; padding: 5px 12px; border-radius: 8px; border: 1px solid var(--fairy-border, #cfd4e0); background: transparent; color: inherit; cursor: pointer; }
@@ -7018,6 +7024,7 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           var spd = document.createElement('div'); spd.className = 'fairy-tour-speed'; spd.title = 'Speed of the pointer and the typing';
           [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']].forEach(function(o) { var sb = document.createElement('button'); sb.type = 'button'; sb.setAttribute('data-k', 'speed-' + o[0]); sb.textContent = o[1]; sb.className = 'fairy-tour-spd' + (tourSpeed === o[0] ? ' on' : ''); spd.appendChild(sb); });
           if (steps.kind === 'tutorial') {
+            dots.classList.add('tut');
             var md = document.createElement('div'); md.className = 'fairy-tour-speed fairy-tour-modesw'; md.title = 'Watch the pointer do it, or try it yourself';
             [['watch', 'Watch'], ['try', 'Try it yourself']].forEach(function(o) { var mb = document.createElement('button'); mb.type = 'button'; mb.setAttribute('data-k', 'mode-' + o[0]); mb.textContent = o[1]; mb.className = 'fairy-tour-spd' + ((o[0] === 'try') === interactive ? ' on' : ''); md.appendChild(mb); });
             dots.appendChild(md);
