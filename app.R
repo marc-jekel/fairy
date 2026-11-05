@@ -11005,7 +11005,7 @@ server <- shinyServer(function(input, output, session) {
                 var xc = (X(0) + X(cols - 1)) / 2, partR = r1.virt ? r0 : r1, cP = r1.virt ? c0 : c1, yP = r1.virt ? y0 : y1, yS = r1.virt ? y1 : y0;
                 for (k = 0; k < cP; k++) {
                   var sgn = yS > yP ? 1 : -1;
-                  el('path', { d: 'M' + X(k) + ' ' + (yP + sgn * 8) + ' C ' + X(k) + ' ' + (yP + sgn * 38) + ' ' + xc + ' ' + (yS - sgn * 38) + ' ' + xc + ' ' + (yS - sgn * 8), stroke: 'currentColor', opacity: '0.35', 'stroke-width': '1.3', 'stroke-dasharray': pp[2] === String.fromCharCode(8722) ? '4 3' : null, 'data-minus': pp[2] === String.fromCharCode(8722) ? '1' : null }, g);
+                  el('path', { d: 'M' + X(k) + ' ' + (yP + sgn * 8) + ' C ' + X(k) + ' ' + (yP + sgn * 38) + ' ' + xc + ' ' + (yS - sgn * 38) + ' ' + xc + ' ' + (yS - sgn * 8), stroke: 'currentColor', opacity: k === 0 ? '0.5' : '0.15', 'stroke-width': '1.3', 'stroke-dasharray': pp[2] === String.fromCharCode(8722) ? '4 3' : null, 'data-minus': pp[2] === String.fromCharCode(8722) ? '1' : null }, g);
                 }
                 return;
               }
@@ -11053,10 +11053,10 @@ server <- shinyServer(function(input, output, session) {
                 } else if ((r0.virt && r0.type === 'substitutable') || (r1.virt && r1.type === 'substitutable')) {
                   // every item of the bar (any combination of its parts) is compared with every item of the other row;
                   // the first item is drawn in full, the others fade out (the same holds for them)
-                  for (k = 0; k < c0; k++) for (m = 0; m < c1; m++) el('line', { x1: r0.hub ? (X(0) + X(cols - 1)) / 2 : X(k), y1: y0 + 7, x2: r1.hub ? (X(0) + X(cols - 1)) / 2 : X(m), y2: y1 - 7, opacity: k === 0 ? '0.95' : '0.2', 'stroke-width': k === 0 ? '1.7' : '1' }, g);
+                  for (k = 0; k < c0; k++) for (m = 0; m < c1; m++) el('line', { x1: r0.hub ? (X(0) + X(cols - 1)) / 2 : X(k), y1: y0 + 7, x2: r1.hub ? (X(0) + X(cols - 1)) / 2 : X(m), y2: y1 - 7, opacity: ((r0.hub || r1.hub) ? (k === 0 && m === 0) : k === 0) ? '0.95' : '0.2', 'stroke-width': ((r0.hub || r1.hub) ? (k === 0 && m === 0) : k === 0) ? '1.7' : '1' }, g);
                 } else {
                   // item 1 is shown in full, the other items fade out (the same holds for them)
-                  for (k = 0; k < c0; k++) for (m = 0; m < c1; m++) el('line', { x1: r0.hub ? (X(0) + X(cols - 1)) / 2 : X(k), y1: y0 + 7, x2: r1.hub ? (X(0) + X(cols - 1)) / 2 : X(m), y2: y1 - 7, opacity: k === 0 ? '0.95' : '0.2', 'stroke-width': k === 0 ? '1.7' : '1' }, g);
+                  for (k = 0; k < c0; k++) for (m = 0; m < c1; m++) el('line', { x1: r0.hub ? (X(0) + X(cols - 1)) / 2 : X(k), y1: y0 + 7, x2: r1.hub ? (X(0) + X(cols - 1)) / 2 : X(m), y2: y1 - 7, opacity: ((r0.hub || r1.hub) ? (k === 0 && m === 0) : k === 0) ? '0.95' : '0.2', 'stroke-width': ((r0.hub || r1.hub) ? (k === 0 && m === 0) : k === 0) ? '1.7' : '1' }, g);
                   sign((X(0) + X(c0 - 1)) / 4 + (X(0) + X(c1 - 1)) / 4, (y0 + y1) / 2, ch);
                 }
               } else {
