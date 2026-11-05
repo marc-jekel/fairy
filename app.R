@@ -6024,6 +6024,7 @@ ui <- shinyUI(fluidPage(
           var m = [];
           if (/p_\\{?\\d+\\}?/i.test(txt)) m.push('Write p1, p2, ... (no underscore or braces), not p_{1}.');
           else if (/_/.test(txt) || (/[{}]/.test(txt) && !/\\{[^{}]*\\}/.test(txt))) m.push('The characters { } _ are not used here: write p1, p2, ... (braces only for a set such as {p1,p2} = {p1,p2})');
+          if (/(^|[^A-Za-z0-9_])P[0-9]/.test(txt)) m.push('Write a small p: p1, p2, ... (a capital P is not understood).');
           if (/(^|[^A-Za-z0-9])p(?![0-9A-Za-z_])/i.test(txt)) m.push('A p needs its number: p1, p2, ...');
           var open = (txt.match(/\\(/g) || []).length, close = (txt.match(/\\)/g) || []).length;
           if (open !== close) m.push('The brackets do not match.');
@@ -6739,6 +6740,7 @@ ui <- shinyUI(fluidPage(
               if (ok) { finish('Correct!'); return; }
               if (bad) {
                 if (normSpec(bad.text).indexOf(normSpec(bad.el.value)) === 0) { fbSet('Keep going ...', 'hint'); return; }
+                if (normSpec(bad.text).toLowerCase() === normSpec(bad.el.value).toLowerCase()) { fbSet('Almost: upper and lower case matter. Write a small p, as in ' + bad.text + '.', 'bad'); return; }
                 attempts++; fbSet(attempts > 1 ? 'Not quite. Expected: ' + bad.text : 'Not quite yet. Look at what you typed once more.', 'bad');
               }
             }
@@ -17626,6 +17628,14 @@ server <- shinyServer(function(input, output, session) {
         precheck_msgs <- c(precheck_msgs, paste0("<b>", htmltools::htmlEscape(label_chk), "</b>: a <u>p</u> without a number in <b>", paste(shown, collapse = "</b>, <b>"),
           "</b>. Write p1, p2, p3, \u2026 (for example 2*p1 or 2p1)."))
       }
+      # a capital P (P3 instead of p3) is not understood
+      cap_pat <- "(?<![A-Za-z_{\\\\])P(?=[0-9])"
+      cap_cl <- Filter(function(cl) grepl(cap_pat, gsub("\\s", "", cl), perl = TRUE), trimws(strsplit(spec_chk, "[;,\n]")[[1]]))
+      if (length(cap_cl) > 0) {
+        shown <- vapply(cap_cl, function(cl) gsub(cap_pat, "<u style='color:#c9353b'>P</u>", htmltools::htmlEscape(gsub("\\s", "", cl)), perl = TRUE), character(1))
+        precheck_msgs <- c(precheck_msgs, paste0("<b>", htmltools::htmlEscape(label_chk), "</b>: a capital <u>P</u> in <b>", paste(shown, collapse = "</b>, <b>"),
+          "</b>. Write a small p: p1, p2, p3, \u2026"))
+      }
       # a probability that does not exist (p20 with six probabilities) cannot be calculated: say which one
       # a model is a set of linear constraints: 1/p1, p1*p2, p1^2 or functions of probabilities cannot be calculated
       nonlinear_clause <- function(cl) {
@@ -17851,7 +17861,13 @@ server <- shinyServer(function(input, output, session) {
             pows <- regmatches(cl, gregexpr("[A-Za-z0-9_.)]+\\s*\\^\\s*[A-Za-z0-9_.(]+", cl))[[1]]
             length(c(dens[grepl("p[0-9]+", dens)], prods, pows[grepl("p[0-9]+", pows)])) > 0
           }
-          if (length(bare_pieces) > 0) {
+          cap_pat2 <- "(?<![A-Za-z_{\\\\])P(?=[0-9])"
+          cap_pieces <- pieces_all[grepl(cap_pat2, gsub("\\s", "", pieces_all), perl = TRUE)]
+          if (length(cap_pieces) > 0) {
+            shown <- vapply(cap_pieces, function(cl) gsub(cap_pat2, "<u style='color:#c9353b'>P</u>", htmltools::htmlEscape(gsub("\\s", "", cl)), perl = TRUE), character(1))
+            msg <- paste0("A capital <u>P</u>:<br><br><b>", paste(shown, collapse = "</b><br><b>"), "</b>",
+                          "<br><br>Write a small p: p1, p2, p3, \u2026")
+          } else if (length(bare_pieces) > 0) {
             shown <- vapply(bare_pieces, function(cl) gsub(bare_pat2, "<u style='color:#c9353b'>p</u>", htmltools::htmlEscape(gsub("\\s", "", cl)), perl = TRUE), character(1))
             msg <- paste0("A <u>p</u> without a number:<br><br><b>", paste(shown, collapse = "</b><br><b>"), "</b>",
                           "<br><br>Write p1, p2, p3, \u2026 (for example 2*p1 or 2p1).")
