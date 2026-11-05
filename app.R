@@ -6008,7 +6008,7 @@ ui <- shinyUI(fluidPage(
         function problems(txt) {
           var m = [];
           if (/p_\\{?\\d+\\}?/i.test(txt)) m.push('Write p1, p2, ... (no underscore or braces), not p_{1}.');
-          else if (/[{}_]/.test(txt)) m.push('The characters { } _ are not used here: write p1, p2, ...');
+          else if (/_/.test(txt) || (/[{}]/.test(txt) && !/\\{[^{}]*\\}/.test(txt))) m.push('The characters { } _ are not used here: write p1, p2, ... (braces only for a set such as {p1,p2} = {p1,p2})');
           if (/(^|[^A-Za-z0-9])p(?![0-9A-Za-z_])/i.test(txt)) m.push('A p needs its number: p1, p2, ...');
           var open = (txt.match(/\\(/g) || []).length, close = (txt.match(/\\)/g) || []).length;
           if (open !== close) m.push('The brackets do not match.');
@@ -6333,7 +6333,8 @@ ui <- shinyUI(fluidPage(
           await moveTo(el); var c = cursorEl(); c.classList.remove('fairy-tour-click'); void c.offsetWidth; c.classList.add('fairy-tour-click'); await sleep(300);
           el.focus(); el.value = '';
           var i;
-          for (i = 1; i !== text.length + 1; i++) { if (tk !== undefined && tk !== token) return; el.value = text.slice(0, i); await sleep(45); }
+          var dl = Math.max(12, Math.min(45, Math.round(2600 / Math.max(1, text.length))));
+          for (i = 1; i !== text.length + 1; i++) { if (tk !== undefined && tk !== token) { el.value = text; break; } el.value = text.slice(0, i); await sleep(dl); }
           el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
           await sleep(500);
         }
@@ -6504,6 +6505,69 @@ ui <- shinyUI(fluidPage(
             S('That is it', 'Close the window with Close. Everything stays available under Download.', function() { return []; }, { last: true, noexample: true })
           ];
         }
+        // ---- interactive tutorial: the cringe study of the paper (the pointer enters everything) ----
+        async function waitFor(cond, ms) { var t0 = Date.now(); while (!cond() && Date.now() - t0 < ms) { await sleep(300); } return cond(); }
+        function specTd(k) { var e = document.getElementById('textin_relations_' + k); var r = e ? (e.closest('.fairy-model-row') || e.closest('td')) : null; return shown(r) ? r : null; }
+        function probCount() { var e = document.getElementById('set_prob_count'); return e ? parseInt(e.value, 10) : 0; }
+        async function ensureProbs(n, tk) { var g = 0; while (probCount() !== n && g !== 12 && tk === token) { clickEl(null); await cclick(document.getElementById(probCount() > n ? 'rm_prob' : 'add_prob')); await sleep(500); g++; } }
+        async function ensureModelRows(n, tk) { var g = 0; while (!document.getElementById('textin_relations_' + n) && g !== 14 && tk === token) { await cclick(document.getElementById('add_ie')); await sleep(900); g++; } await sleep(500); }
+        function R2(tab, title, text, f, extra) { var o = { pre: function() { return tabC(tab); }, wait: 600 }; if (extra) { for (var k in extra) { o[k] = extra[k]; } } return S(title, text, f, o); }
+        async function interDemo(ids, tk) {
+          await sleep(300); var b0 = document.getElementById('add_intersection_model'); if (!b0) { await ensureRowsFast(2); await sleep(800); b0 = document.getElementById('add_intersection_model'); }
+          var rows0 = document.querySelectorAll('[id^=textin_relations_name]').length;
+          await cclick(document.getElementById('add_intersection_model')); await sleep(900); place();
+          var i, m = modalOpen();
+          for (i = 0; i !== ids.length; i++) { var cb = null, ins = m ? m.querySelectorAll('#intersection_model_picker input') : [], q; for (q = 0; q !== ins.length; q++) { if (ins[q].value === String(ids[i])) cb = ins[q]; } if (cb) { await cclick(cb.closest('label') || cb); } }
+          await sleep(500); await cclick(document.getElementById('submit_intersection_model')); await sleep(1200); place();
+        }
+        async function ensureRowsFast(n) { var g = 0; while (!document.getElementById('textin_relations_' + n) && g !== 20) { clickEl(document.getElementById('add_ie')); await sleep(800); g++; } await sleep(300); }
+        function tutorialSteps() {
+          function model(k, title, text, spec, extra) {
+            return S(title, text, function() { return [specTd(k)]; }, { pre: function() { return ensureRowsFast(k); }, wait: 200, demo: async function(tk) { await typeInto(document.getElementById('textin_relations_' + k), spec, tk); } });
+          }
+          var A = [
+            S('The cringe study', 'A fictitious joke study: children, teens and adults hear jokes, and we record who cringes. A theory predicts that children cringe most and adults least. This tutorial enters everything for you, so you see how it is done. It replaces your current input, so save it first if you want to keep it (Share or save).', function() { return []; }, { pre: function() { closeModal(); goTab('Input'); } }),
+            S('Three probabilities', 'p1 is the probability that a child cringes, p2 that a teen cringes, and p3 that an adult cringes. Here the names are typed in.', function() { return [q1('.def-col--pnames')]; }, { demo: async function(tk) { await ensureProbs(3, tk); var names = ['p_{C}', 'p_{T}', 'p_{A}'], i; for (i = 0; i !== 3; i++) { await typeInto(document.getElementById('textin_name_' + (i + 1)), names[i], tk); } } }),
+            S('The theory', 'The theory says: children cringe at least as much as teens, who cringe at least as much as adults. In the app you type p1 > p2 > p3. The app takes > for easier input and means at least as much.', function() { return [specTd(1)]; }, { demo: async function(tk) { await typeInto(document.getElementById('textin_relations_1'), 'p1 > p2 > p3', tk); } }),
+            S('Vertices on', 'The vertices of the model (V-representation) are optional because they can take long for large models. Here the switch is turned on.', function() { return [q1('#vrep_toggle_btn_1')]; }, { demo: async function(tk) { if (!tabShown('V-representation')) await cclick(document.getElementById('vrep_toggle_btn_1')); } }),
+            S('Go', 'Go builds the H-representation of the model, and the vertices.', function() { return [q1('#go_inline')]; }, { demo: async function(tk) { await cclick(document.getElementById('go_inline')); await waitFor(function() { return tabShown('V-representation') && tabShown('Plot Edge Cases'); }, 60000); } }),
+            R2('H-representation', 'The H-representation', 'The fairy describes the model with inequalities. Line 1: p2 is at most p1. Line 2: p3 is at most p2. Line 3: p1 is at most 1, and line 4: p3 is at least 0, because probabilities lie between 0 and 1. On the left you can download the files for QTEST and a LaTeX file.', function() { var p = pane(); var l = p ? p.querySelectorAll('.model-card') : []; return [].filter.call(l, shown); }),
+            R2('Plot Polytope(s)', 'The polytope', 'Each axis is one probability from 0 to 1, so the cube holds all possible triples. The coloured figure marks the triples that fit your model. This figure is a polytope. Drag to rotate it.', function() { return [inPane('#plot')]; }),
+            R2('V-representation', 'The vertices', 'The corner points of the polytope: (1, 1, 1), (1, 1, 0), (1, 0, 0) and (0, 0, 0). Each row is one vertex and each column one probability. Vertices are the edge cases of your model.', function() { var p = pane(); var e = p ? p.querySelector('.model-card') : null; return [shown(e) ? e : null]; }),
+            R2('Plot Edge Cases', 'The edge cases', 'Step through the four vertices: the plot shows the value of each probability at every vertex.', function() { return [inPane('#plot_example')]; }),
+            R2('Model Properties', 'Parsimony: the volume', 'The smaller the polytope, the more parsimonious the model. Go computes its volume, the share of the cube that fits the model.', function() { return [inPane('#go_inline_pars')]; }, { demo: async function(tk) { await cclick(document.getElementById('go_inline_pars')); await waitFor(function() { return shown(document.getElementById('parsimony_bar_plot')); }, 60000); } }),
+            S('1 / volume = the largest Bayes factor', 'The model fills 1/6 of the cube (about 17 percent). The reciprocal of the volume is the largest Bayes factor the model can reach against an unconstrained model: here 6. If this is too low for your purposes, look for stimuli where your theory predicts more.', function() { return [inPane('#parsimony_spinner_table')]; }),
+            S('Now the full study', 'The paper crosses three age groups with two joke types: illogical jokes (i) and puns (p). That makes a 2 x 3 design with six probabilities: p1 children, p2 teens and p3 adults for illogical jokes, and p4, p5 and p6 for puns. Nine cringe theories predict how they relate.', function() { return []; }, { pre: function() { closeModal(); return tabC('Input'); } }),
+            S('Six probabilities', 'Three probabilities are added and all six are named: C, T and A for children, teens and adults, with i for illogical jokes and p for puns.', function() { return [q1('.def-col--pnames')]; }, { demo: async function(tk) { await ensureProbs(6, tk); var names = ['p_{C,i}', 'p_{T,i}', 'p_{A,i}', 'p_{C,p}', 'p_{T,p}', 'p_{A,p}'], i; for (i = 0; i !== 6; i++) { await typeInto(document.getElementById('textin_name_' + (i + 1)), names[i], tk); } } }),
+            S('Nine models', 'One row per theory: eight more rows are added.', function() { return [q1('.def-col--models-card')]; }, { demo: async function(tk) { await ensureModelRows(9, tk); } }),
+            model(1, 'm1: cringyness increases with age', 'The first theory: cringyness increases with age, averaged over both joke types.', '1/2 * p1 + 1/2 * p4 < 1/2 * p2 + 1/2 * p5 < 1/2 * p3 + 1/2 * p6'),
+            model(2, 'm2: ... irrespective of the joke type', 'Cringyness increases with age for both joke types separately. Two chains, separated by a semicolon.', 'p1 < p2 < p3; p4 < p5 < p6'),
+            model(3, 'm3: opposite trends, puns cringier', 'Illogical jokes decrease with age, puns increase, and on average illogical jokes are less cringy than puns. Sums with weights are typed as 1/3 * p1.', 'p1 > p2 > p3; p4 < p5 < p6; 1/3 * p1 + 1/3 * p2 + 1/3 * p3 < 1/3 * p4 + 1/3 * p5 + 1/3 * p6'),
+            model(4, 'm4: ... in every age group', 'Like m3, but puns are cringier than illogical jokes in every single age group.', 'p1 > p2 > p3; p4 < p5 < p6; p1 < p4; p2 < p5; p3 < p6'),
+            model(5, 'm5: equally cringy', 'Both joke types are exactly equally cringe-worthy in all age groups: all six probabilities are equal.', 'p1 = p2 = p3 = p4 = p5 = p6'),
+            model(6, 'm6: the trends balance out', 'Like m3, but the average cringyness of both joke types is exactly equal.', 'p1 > p2 > p3; p4 < p5 < p6; 1/3 * p1 + 1/3 * p2 + 1/3 * p3 = 1/3 * p4 + 1/3 * p5 + 1/3 * p6'),
+            S('m7: about equally cringy', 'm7 reads about equally cringy differently: the two averages may differ by .05. The input is the same as for m6; then the equality is switched to approximate with a tolerance of .05.', function() { return [modQ('.modal-body') || specTd(7)]; }, { pre: function() { return ensureRowsFast(7); }, wait: 200, demo: async function(tk) {
+              await typeInto(document.getElementById('textin_relations_7'), 'p1 > p2 > p3; p4 < p5 < p6; 1/3 * p1 + 1/3 * p2 + 1/3 * p3 = 1/3 * p4 + 1/3 * p5 + 1/3 * p6', tk);
+              await sleep(1200); await cclick(document.getElementById('eq_tol_btn_7')); await sleep(1500); place();
+              var sw = modQ('label[for=eq_tol_switch_7_1]'); if (sw) await cclick(sw); await sleep(700);
+              await cclick(modQ('#submit_eq_tol_7')); await sleep(900); place(); } }),
+            S('m8: wiggle room for all pairs', 'm8 says that all six probabilities are about the same, within .05. The braces are a shortcut: every element on the left is set equal to every element on the right, so this stands for all pairs. The buttons for each term switch all its pairs to approximate at once.', function() { return [modQ('.modal-body') || specTd(8)]; }, { pre: function() { return ensureRowsFast(8); }, wait: 200, demo: async function(tk) {
+              await typeInto(document.getElementById('textin_relations_8'), '{p1,p2,p3,p4,p5,p6} = {p1,p2,p3,p4,p5,p6}', tk);
+              await sleep(1200); await cclick(document.getElementById('eq_tol_btn_8')); await sleep(1500); place();
+              var m = modalOpen(), bs = m ? m.querySelectorAll('#fairy-eq-tol-terms button') : [], i;
+              for (i = 0; i !== 5 && i !== bs.length; i++) { await cclick(bs[i]); }
+              await sleep(500); await cclick(modQ('#submit_eq_tol_8')); await sleep(900); place(); } }),
+            model(9, 'm9: the opposite of m4', 'Illogical jokes increase with age, puns decrease, and illogical jokes are cringier than puns in every age group.', 'p1 < p2 < p3; p4 > p5 > p6; p1 > p4; p2 > p5; p3 > p6'),
+            S('Intersections: what two models share', 'Models can make similar predictions: their polytopes overlap. The intersection of two models is the space they share. The Intersection model button adds a model with all constraints of the models you pick. Here m1 and m2.', function() { return [modQ('.modal-body') || q1('#add_intersection_model')]; }, { pre: function() { closeModal(); return tabC('Input'); }, wait: 300, demo: async function(tk) { await interDemo([1, 2], tk); } }),
+            S('Another intersection: m1 and m3', 'The same for m1 and m3. Each intersection is a new row of its own.', function() { return [modQ('.modal-body') || q1('#add_intersection_model')]; }, { pre: function() { closeModal(); }, wait: 300, demo: async function(tk) { await interDemo([1, 3], tk); } }),
+            S('Go for all models', 'Go builds the H-representation of every model, the nine theories and the two intersections.', function() { return [q1('#go_inline')]; }, { pre: function() { closeModal(); return tabC('Input'); }, wait: 300, demo: async function(tk) { await cclick(document.getElementById('go_inline')); await waitFor(function() { return tabShown('H-representation') && document.querySelectorAll('.tab-pane .model-card').length > 8; }, 90000); } }),
+            R2('H-representation', 'One card per model', 'The H-representation of every model. Equalities are counted separately from inequalities in the badge, so m5 shows five equalities.', function() { var p = pane(); var l = p ? p.querySelectorAll('.model-card') : []; return [].filter.call(l, shown).slice(0, 2); }),
+            R2('Model Properties', 'Parsimony of all models', 'Now the volumes of all models. The tournament of the paper compares the theories by how much of the space they occupy. This can take a moment for six probabilities.', function() { return [inPane('#go_inline_pars')]; }, { demo: async function(tk) { await cclick(document.getElementById('go_inline_pars')); await waitFor(function() { return shown(document.getElementById('parsimony_bar_plot')) || shown(document.getElementById('parsim_table')); }, 240000); } }),
+            S('Volumes and nested models', 'The bars show each model share of the space. The intersection of m1 and m2 has the same volume as m2, so m2 is nested in m1: whenever data fit m2 they also fit m1. Because m2 is smaller, it is preferred by the Bayesian analysis, which rewards parsimony.', function() { return [inPane('#parsimony_plot_ui')]; }, { pre: function() { return tabC('Model Properties'); }, wait: 400 }),
+            S('Maximum Bayes factors', 'Max BF is 1 divided by the volume. The tighter a model, the more evidence it can earn, and the more it risks. The tutorial for the analysis itself (frequentist and Bayesian tests) continues in QTEST.', function() { return [inPane('#parsimony_spinner_table')]; }, { last: true, noexample: true })
+          ];
+          return A;
+        }
         function allSteps() {
           var parts = [fullSteps().filter(function(x) { return x.title !== 'Results tabs' && x.title !== 'That is it'; }), unpackSteps(), combineSteps(), resultSteps(), runSteps(), mnSteps()], out = [];
           parts.forEach(function(pt) { pt.forEach(function(st) { st.last = false; out.push(st); }); });
@@ -6571,6 +6635,8 @@ ui <- shinyUI(fluidPage(
             var c = document.createElement('span'); c.className = 'fairy-tour-opt-n'; c.textContent = n + ' steps'; b2.appendChild(c);
             card.appendChild(b2); return b2;
           }
+          group('Tutorial');
+          opt('The cringe study', 'The example of the paper, entered for you', tutorialSteps().length, 'tutorial');
           group('Overview');
           var first = opt('Quick tour', 'A first look, from input to results', basicSteps().length, 'basic', true);
           opt('Full tour', 'Every part of the app, one after the other', allSteps().length, 'full');
@@ -6625,7 +6691,7 @@ ui <- shinyUI(fluidPage(
           foot.appendChild(dots);
           if (!st.last) foot.appendChild(btn('Skip', 'end', 'fairy-tour-skip'));
           foot.appendChild(btn('Back', 'back'));
-          if (st.last && !st.noexample && steps.kind !== 'unpack' && steps.kind !== 'combine' && steps.kind !== 'results' && steps.kind !== 'run' && steps.kind !== 'mn') foot.appendChild(btn('Fill in example', 'example'));
+          if (st.last && !st.noexample && steps.kind !== 'unpack' && steps.kind !== 'combine' && steps.kind !== 'results' && steps.kind !== 'run' && steps.kind !== 'mn' && steps.kind !== 'tutorial') foot.appendChild(btn('Fill in example', 'example'));
           if (st.full) foot.appendChild(btn('Full tour', 'full'));
           var nx = btn(st.last ? 'Finish' : 'Next', 'next', 'fairy-tour-primary'); foot.appendChild(nx);
           card.appendChild(foot);
@@ -6635,14 +6701,14 @@ ui <- shinyUI(fluidPage(
           nx.focus();
           hideCursor();
           var tk = token;
-          if (st.demo) setTimeout(function() { if (tk === token) st.demo(tk); }, 600);
+          if (st.demo) setTimeout(function() { if (tk === token) { window.__tourBusy = true; Promise.resolve(st.demo(tk)).then(function() { window.__tourBusy = false; }, function() { window.__tourBusy = false; }); } }, 600);
           else if (first) setTimeout(function() { if (tk === token && !cursorHidden) moveTo(first); }, 500);
         }
         function start() {
           var tab = document.querySelector('a[data-value=Input]'); if (tab && !tab.parentElement.classList.contains('active')) tab.click();
           setTimeout(pick, 150);
         }
-        function go(mode) { steps = mode === 'full' ? allSteps() : (mode === 'input' ? fullSteps() : (mode === 'unpack' ? unpackSteps() : (mode === 'combine' ? combineSteps() : (mode === 'results' ? resultSteps() : (mode === 'run' ? runSteps() : (mode === 'mn' ? mnSteps() : basicSteps())))))); steps.kind = mode; tourStep = -1; show(0); }
+        function go(mode) { window.__tourFrom = window.__tourFrom || 0; steps = mode === 'full' ? allSteps() : (mode === 'input' ? fullSteps() : (mode === 'unpack' ? unpackSteps() : (mode === 'combine' ? combineSteps() : (mode === 'results' ? resultSteps() : (mode === 'run' ? runSteps() : (mode === 'mn' ? mnSteps() : (mode === 'tutorial' ? tutorialSteps() : basicSteps()))))))); steps.kind = mode; tourStep = -1; show(window.__tourFromTitle ? Math.max(0, steps.map(function(x) { return x.title; }).indexOf(window.__tourFromTitle)) : (window.__tourFrom || 0)); window.__tourFrom = 0; window.__tourFromTitle = null; }
         function next() { if (steps[tourStep].last) end(); else show(tourStep + 1); }
         document.addEventListener('click', function(e) {
           var t = e.target.closest ? e.target : e.target.parentNode;
@@ -6653,7 +6719,7 @@ ui <- shinyUI(fluidPage(
             if (k === 'next') next();
             else if (k === 'back') show(tourStep - 1);
             else if (k === 'end') end();
-            else if (k === 'basic' || k === 'full' || k === 'unpack' || k === 'combine' || k === 'results' || k === 'input' || k === 'run' || k === 'mn') go(k);
+            else if (k === 'basic' || k === 'full' || k === 'unpack' || k === 'combine' || k === 'results' || k === 'input' || k === 'run' || k === 'mn' || k === 'tutorial') go(k);
             else if (k === 'example') {
               var ta = document.getElementById('textin_relations_1');
               end();
