@@ -6531,7 +6531,7 @@ ui <- shinyUI(fluidPage(
             card.appendChild(b2); return b2;
           }
           group('Overview');
-          var first = opt('Start page', 'A first look, from input to results', basicSteps().length, 'basic', true);
+          var first = opt('Quick tour', 'A first look, from input to results', basicSteps().length, 'basic', true);
           opt('Full tour', 'Every part of the app, one after the other', allSteps().length, 'full');
           group('One part only');
           opt('Input controls', 'Every control of the Input tab', fullSteps().length, 'input');
