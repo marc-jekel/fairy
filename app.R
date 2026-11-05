@@ -10812,7 +10812,7 @@ server <- shinyServer(function(input, output, session) {
             // a sum with a part from another list and a part in the list of the sum: one square per item of that list (the items of the other lists are
             // added to each); the comparison with the next row then follows the type (joint: item with item, substitutable: every item with every item)
             function hubDiff(i, k) { return (vM[i - nProb] || []).some(function(pm) { return chipState.asg[pm] !== k; }); }
-            function hubMatch(i, k, ty) { return ty !== 'average' && (vM[i - nProb] || []).some(function(pm) { return chipState.asg[pm] === k; }); }
+            function hubMatch(i, k, ty) { return (ty === 'joint' || ty === 'substitutable') && (vM[i - nProb] || []).some(function(pm) { return chipState.asg[pm] === k; }); }
             function spec(i) {
               var si = i >= nProb ? vS[i - nProb] : i, vt = i >= nProb;
               if (two) {
