@@ -7294,7 +7294,7 @@ ui <- shinyUI(fluidPage(
             div(id = "fairy-share-pop", class = "fairy-share-pop", role = "menu", hidden = NA,
               tags$button(id = "fairy_share_qr", type = "button", role = "menuitem", class = "fairy-share-item",
                 title = "Shows the link to this input as a QR code in the middle of the screen: scan it, copy the link or download the code as PDF or PNG",
-                icon("qrcode"), "Link and QR code"),
+                icon("qrcode"), "Share link or QR code of this input"),
               tags$button(id = "fairy_share_file", type = "button", role = "menuitem", class = "fairy-share-item",
                 title = "Saves everything you entered (probabilities, models, unpacking, settings) as an Excel file; upload it later with the arrow button to continue where you stopped",
                 icon("download"), "Save app input (.xlsx)"),
