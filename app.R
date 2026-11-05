@@ -14239,10 +14239,10 @@ server <- shinyServer(function(input, output, session) {
     if (is.null(url) || !nzchar(url)) return(NULL)
     graphics::par(fig = c(0, 1, 0, 1), mai = c(0, 0, 0, 0), new = TRUE); graphics::plot.new(); graphics::plot.window(c(0, w), c(0, h), xaxs = "i", yaxs = "i")
     lt <- "Recreate this input in the Fairy app"
-    graphics::text(0.3, 0.2, lt, adj = c(0, 0.5), cex = 0.8, col = "#1a5fb4")
-    lw <- graphics::strwidth(lt, cex = 0.8)
-    graphics::segments(0.3, 0.12, 0.3 + lw, 0.12, col = "#1a5fb4")
-    list(rect = c(0.3, 0.1, 0.3 + lw, 0.3) * 72, url = url, page = 1)
+    graphics::text(0.3, 0.14, lt, adj = c(0, 0.5), cex = 0.6, col = "#1a5fb4")
+    lw <- graphics::strwidth(lt, cex = 0.6)
+    graphics::segments(0.3, 0.095, 0.3 + lw, 0.095, col = "#1a5fb4")
+    list(rect = c(0.3, 0.07, 0.3 + lw, 0.22) * 72, url = url, page = 1)
   }
   # the PDF is finished (device closed): make the blue line clickable
   pdf_finish_link <- function(file, lk) { if (!is.null(lk)) pdf_add_link(file, lk$rect, lk$url, page = lk$page); invisible(file) }
@@ -14259,7 +14259,7 @@ server <- shinyServer(function(input, output, session) {
     labs <- vapply(models, function(z) paste(strwrap(z, 38), collapse = "\n"), character(1))
     graphics::par(mai = c(0.9, 0.5, 0.6, 0.2))
     lw <- max(graphics::strwidth(labs, units = "inches", cex = 0.8)) + 0.25
-    graphics::par(mai = c(0.9, lw, 0.6, 0.2))
+    graphics::par(mai = c(0.9 + if (has_url) 0.4 else 0, lw, 0.6, 0.2))
     xlim <- if (use_log) c(min(pos) / 3, 1) else c(0, 1)
     graphics::plot(NA, xlim = xlim, ylim = c(0.5, n + 0.5), log = if (use_log) "x" else "", xaxt = "n", yaxt = "n",
                    xlab = if (use_log) "Volume (log scale)" else "Volume", ylab = "", bty = "n")
@@ -14745,9 +14745,10 @@ server <- shinyServer(function(input, output, session) {
     }
     # the drawing area: everything that is drawn, plus room for the axis labels
     xr <- range(proj(corners)[, 1]); yr <- range(proj(corners)[, 2]); pad <- 0.12 * max(diff(xr), diff(yr))
-    grDevices::pdf(file, width = 8, height = 7.2)
+    has_url <- !is.null(tryCatch(isolate(app_share_url()), error = function(e) NULL))
+    grDevices::pdf(file, width = 8, height = if (has_url) 7.6 else 7.2)
     on.exit(grDevices::dev.off(), add = TRUE)
-    graphics::par(mar = c(0, 0, 0, 0), family = "sans")
+    graphics::par(mai = c(if (has_url) 0.4 else 0, 0, 0, 0), family = "sans")
     graphics::plot.new()
     cx <- mean(xr); cy <- mean(yr); half <- max(diff(xr), diff(yr)) / 2 + pad
     graphics::plot.window(xlim = c(cx - half * 1.25, cx + half * 1.25), ylim = c(cy - half, cy + half), asp = 1)
@@ -14805,7 +14806,7 @@ server <- shinyServer(function(input, output, session) {
     # legend
     if (length(legend_rows) > 0)
       graphics::legend("topright", inset = c(0.01, 0.01), legend = names(legend_rows), pch = 21, pt.bg = unlist(legend_rows), col = "white", pt.cex = 1.1, bty = "n", cex = 0.85)
-    lk <- pdf_link_page(8, 7.2)
+    lk <- pdf_link_page(8, 7.6)
     invisible(structure(file, link = lk))
   }
   add_model_trace <- function(p, matrix_pl, model_col, name_model,
@@ -20305,7 +20306,7 @@ server <- shinyServer(function(input, output, session) {
       '  link_rect <- NULL',
       '  if (nzchar(fairy_app_url)) {',
       '    lt <- "Recreate this input in the Fairy app"',
-      '    tx(0.06, 0.055, lt, cex = 0.65, col = "#1a5fb4"); w_lt <- strwidth(lt, cex = 0.65)',
+      '    tx(0.06, 0.055, lt, cex = 0.5, col = "#1a5fb4"); w_lt <- strwidth(lt, cex = 0.5)',
       '    segments(0.06, 0.047, 0.06 + w_lt, 0.047, col = "#1a5fb4")',
       '    link_rect <- c(0.06, 0.045, 0.06 + w_lt, 0.066) * rep(c(8.27, 11.69), 2) * 72',
       '  }',
