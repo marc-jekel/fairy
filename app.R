@@ -11017,8 +11017,9 @@ server <- shinyServer(function(input, output, session) {
                 // a part from another list is added to every square of the sum (every combination); the first is drawn stronger
                 var partM = r1.virt ? r0 : r1, cPm = r1.virt ? c0 : c1, cSm = r1.virt ? c1 : c0, yPm = r1.virt ? y0 : y1, ySm = r1.virt ? y1 : y0, sgm = ySm > yPm ? 1 : -1;
                 for (var jj = 0; jj < cPm; jj++) for (var kk = 0; kk < cSm; kk++) {
-                  // every item of the part is added to every square (all combinations); the first one is drawn stronger, the others faded
-                  el('path', { d: 'M' + X(jj) + ' ' + (yPm + sgm * 8) + ' C ' + X(jj) + ' ' + (yPm + sgm * 34) + ' ' + X(kk) + ' ' + (ySm - sgm * 34) + ' ' + X(kk) + ' ' + (ySm - sgm * 8), stroke: 'currentColor', opacity: (jj === 0 && kk === 0) ? '0.55' : '0.16', 'stroke-width': '1.3', 'stroke-dasharray': pp[2] === String.fromCharCode(8722) ? '4 3' : null, 'data-minus': pp[2] === String.fromCharCode(8722) ? '1' : null }, g);
+                  // the lines go to the first square only; the same holds for the other squares and items (the legend states the numbers)
+                  if (kk > 0) continue;
+                  el('path', { d: 'M' + X(jj) + ' ' + (yPm + sgm * 8) + ' C ' + X(jj) + ' ' + (yPm + sgm * 34) + ' ' + X(kk) + ' ' + (ySm - sgm * 34) + ' ' + X(kk) + ' ' + (ySm - sgm * 8), stroke: 'currentColor', opacity: jj === 0 ? '0.55' : '0.3', 'stroke-width': '1.3', 'stroke-dasharray': pp[2] === String.fromCharCode(8722) ? '4 3' : null, 'data-minus': pp[2] === String.fromCharCode(8722) ? '1' : null }, g);
                 }
                 return;
               }
@@ -11247,7 +11248,15 @@ server <- shinyServer(function(input, output, session) {
               var entries = [[C9, 'one item', null], [String.fromCharCode(8594), 'points to the smaller one', BL]];
               if (vN.length) entries.push([SQ, 'sum (grey lines: its parts)', null]);
               if (svg.querySelector('[data-minus]')) entries.push([null, 'dashed grey line: this part is subtracted', null]);
-              if (R.some(function(r) { return r.hubM; })) entries.push([null, 'one square per item; the items of the part from another list are combined with each', null]);
+              try { R.forEach(function(r, i) {
+                if (!r.hubM) return;
+                var other = {};
+                (vM[vN.indexOf(r.name)] || []).forEach(function(pm) { var l2 = chipState.asg[pm]; if (l2 !== r.list) other[l2] = true; });
+                Object.keys(other).forEach(function(l2) {
+                  var n2 = chipState.sets[l2 - 1].n;
+                  entries.push([null, 'each of the ' + r.n + ' items of ' + listTitle(r.list - 1) + ' is added to each of the ' + n2 + ' items of ' + listTitle(l2 - 1) + ': ' + (r.n * n2) + ' sums (one square per item of ' + listTitle(r.list - 1) + ', the first is drawn)', null]);
+                });
+              }); } catch (eH) { entries.push([null, 'ERR ' + eH.message, null]); }
               if (R.some(function(r) { return r.hub; })) entries.push([null, 'one square for a sum of parts from different lists: every item of one part is added to every item of the others', null]);
               if (hasAvg) entries.push([String.fromCharCode(9675), 'average over the items', BL]);
               if (hasTol) entries.push(['=', 'items equal (' + AP + ': roughly)', null]);
