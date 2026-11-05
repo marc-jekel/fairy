@@ -6152,13 +6152,14 @@ ui <- shinyUI(fluidPage(
           var lk = document.createElement('a'); lk.className = 'fairy-qr-link'; lk.target = '_blank'; lk.rel = 'noopener'; lk.href = m.url;
           lk.textContent = 'Recreate this input in the Fairy app'; card.appendChild(lk);
           var bt = document.createElement('div'); bt.className = 'fairy-qr-btns';
-          [['pdf', 'Download PDF'], ['png', 'Download PNG'], ['close', 'Close']].forEach(function(x) {
+          [['copy', 'Copy link'], ['pdf', 'Download PDF'], ['png', 'Download PNG'], ['close', 'Close']].forEach(function(x) {
             var b = document.createElement('button'); b.type = 'button'; b.setAttribute('data-k', x[0]); b.textContent = x[1]; bt.appendChild(b);
           });
           card.appendChild(bt); o.appendChild(card);
           o.addEventListener('click', function(e) {
             var t = e.target, k = t.getAttribute ? t.getAttribute('data-k') : null;
-            if (k === 'pdf') { var a1 = document.getElementById('qr_pdf'); if (a1) a1.click(); }
+            if (k === 'copy') { Shiny.setInputValue('share_request', Date.now(), { priority: 'event' }); }
+            else if (k === 'pdf') { var a1 = document.getElementById('qr_pdf'); if (a1) a1.click(); }
             else if (k === 'png') { var a2 = document.getElementById('qr_png'); if (a2) a2.click(); }
             else if (k === 'close' || t === o) o.remove();
           });
@@ -6276,7 +6277,7 @@ ui <- shinyUI(fluidPage(
           var file = document.getElementById('fairy_share_file');
           if (v && file) {
             file.classList.toggle('fairy-share-muted', !!(p.dl && p.dl.classList.contains('fairy-btn-muted')));
-            var first = document.getElementById('fairy_share_link'); if (first) first.focus();
+            var first = document.getElementById('fairy_share_qr'); if (first) first.focus();
           }
         }
         document.addEventListener('click', function(e) {
@@ -7291,12 +7292,9 @@ ui <- shinyUI(fluidPage(
                 `aria-label` = "Share or save this input", icon("share-nodes"))
             ),
             div(id = "fairy-share-pop", class = "fairy-share-pop", role = "menu", hidden = NA,
-              tags$button(id = "fairy_share_link", type = "button", role = "menuitem", class = "fairy-share-item",
-                title = "Copies a link that opens the app with exactly this input; send it to others to share your models",
-                icon("link"), "Copy link to this input"),
               tags$button(id = "fairy_share_qr", type = "button", role = "menuitem", class = "fairy-share-item",
-                title = "Shows a QR code of the link to this input in the middle of the screen, for showing it to others quickly; it can be downloaded",
-                icon("qrcode"), "Show QR code"),
+                title = "Shows the link to this input as a QR code in the middle of the screen: scan it, copy the link or download the code as PDF or PNG",
+                icon("qrcode"), "Link and QR code"),
               tags$button(id = "fairy_share_file", type = "button", role = "menuitem", class = "fairy-share-item",
                 title = "Saves everything you entered (probabilities, models, unpacking, settings) as an Excel file; upload it later with the arrow button to continue where you stopped",
                 icon("download"), "Save app input (.xlsx)"),
