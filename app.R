@@ -14328,7 +14328,11 @@ server <- shinyServer(function(input, output, session) {
     if (is.null(url) || !nzchar(url) || nchar(url) >= 2300 || !requireNamespace("qrcode", quietly = TRUE)) return(NULL)
     for (e in c("H", "Q", "M", "L")) {
       m <- tryCatch(as.matrix(qrcode::qr_code(url, ecl = e)), error = function(err) NULL)
-      if (!is.null(m)) { attr(m, "ecl") <- e; return(m) }
+      if (!is.null(m)) {
+        # H / Q: the modules in the middle are cleared for the fairy (the error correction restores them); no frame is drawn
+        if (e %in% c("H", "Q")) { n <- nrow(m); k <- ceiling(n * 0.03) + 1; a <- floor((n - k) / 2); m[a + seq_len(k), a + seq_len(k)] <- FALSE; attr(m, "logo") <- c(a, k) }
+        attr(m, "ecl") <- e; return(m)
+      }
     }
     NULL
   }
@@ -14358,14 +14362,14 @@ server <- shinyServer(function(input, output, session) {
     for (i in seq_len(n)) { r <- which(qr[i, ]); if (length(r)) cells <- c(cells, sprintf("M%d %dh1v1h-1z", r - 1 + q, i - 1 + q)) }
     logo <- ""
     if (qr_with_fairy(qr)) {
-      ls <- n * 0.03; lx <- q + (n - ls) / 2; ly <- q + (n - ls) / 2
+      lg <- attr(qr, "logo"); ls <- n * 0.03; lx <- q + lg[1] + (lg[2] - ls) / 2; ly <- q + lg[1] + (lg[2] - ls) / 2
       pts <- vapply(fairy_polys(), function(z) {
         xy <- paste(sprintf("%.2f,%.2f", lx + z$xy[, 1] * ls, ly + (1 - z$xy[, 2]) * ls), collapse = " ")
         sw <- (z$bw %||% 0) * ls / 56
         if (isTRUE(z$line)) sprintf('<polyline fill="none" stroke="%s" stroke-width="%.3f" stroke-linecap="round" points="%s"/>', z$col, sw, xy)
         else sprintf('<polygon fill="%s" %s opacity="%s" stroke-linejoin="round" points="%s"/>', z$col, if (is.null(z$border)) "" else sprintf('stroke="%s" stroke-width="%.3f"', z$border, sw), z$alpha %||% 1, xy)
       }, character(1))
-      logo <- paste0(sprintf('<rect x="%.2f" y="%.2f" width="%.2f" height="%.2f" rx="%.2f" fill="#fff"/>', lx - 0.6, ly - 0.6, ls + 1.2, ls + 1.2, ls * 0.15), paste(pts, collapse = ""))
+      logo <- paste(pts, collapse = "")
     }
     svg <- sprintf('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" shape-rendering="crispEdges"><rect width="100%%" height="100%%" fill="#fff"/><path fill="#000" d="%s"/>%s</svg>', n + 2 * q, n + 2 * q, paste(cells, collapse = ""), logo)
     session$sendCustomMessage("fairy_qr", list(svg = svg, url = url))
@@ -14377,8 +14381,7 @@ server <- shinyServer(function(input, output, session) {
     for (i in seq_len(n)) for (j in seq_len(n)) if (isTRUE(qr[i, j]))
       graphics::rect(0.3 + (j - 1) * cw, top - i * cw, 0.3 + j * cw, top - (i - 1) * cw, col = "black", border = NA)
     if (qr_with_fairy(qr)) {
-      ls <- sz * 0.03; lx <- 0.3 + (sz - ls) / 2; ly <- top - sz / 2 - ls / 2
-      graphics::rect(lx - 0.6 * cw, ly - 0.6 * cw, lx + ls + 0.6 * cw, ly + ls + 0.6 * cw, col = "white", border = NA)
+      lg <- attr(qr, "logo"); ls <- n * 0.03 * cw; lx <- 0.3 + (lg[1] + (lg[2] - n * 0.03) / 2) * cw; ly <- top - (lg[1] + (lg[2] + n * 0.03) / 2) * cw
       for (z in fairy_polys()) {
         lwd <- max(0.1, (z$bw %||% 0) * ls * 96 / 56)
         if (isTRUE(z$line)) graphics::lines(lx + z$xy[, 1] * ls, ly + z$xy[, 2] * ls, col = z$col, lwd = lwd, lend = 1)
