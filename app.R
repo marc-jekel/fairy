@@ -1701,12 +1701,15 @@ ui <- shinyUI(fluidPage(
       #fairy-tour-card { position: fixed; z-index: 10602; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; padding: 16px 18px 14px; border-radius: 14px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1f2430); border: 1px solid var(--fairy-border, #e5e5e5); box-shadow: 0 18px 50px rgba(0,0,0,.4); font-size: 14px; line-height: 1.45; }
       #fairy-tour-card h4 { margin: 0 0 6px; font-size: 16px; font-weight: 700; }
       #fairy-tour-card p { margin: 0 0 12px; }
-      #fairy-tour-keys { position: fixed; left: 50%; bottom: 48px; transform: translateX(-50%); z-index: 10612; display: flex; gap: 7px; align-items: flex-end; pointer-events: none; }
+      #fairy-tour-keys { position: fixed; left: 50%; bottom: 48px; transform: translateX(-50%); z-index: 10612; display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; align-items: flex-end; pointer-events: none; max-width: min(94vw, 1180px); }
+      #fairy-tour-keys.fairy-tour-keys-small { gap: 5px; }
+      #fairy-tour-keys.fairy-tour-keys-small .fairy-tour-key { min-width: 26px; height: 28px; padding: 0 7px; font-size: 13px; border-radius: 6px; }
+      #fairy-tour-keys.fairy-tour-keys-small .fairy-tour-key.fairy-tour-key-wide { min-width: 70px; font-size: 10px; }
       .fairy-tour-key { min-width: 36px; height: 36px; padding: 0 11px; box-sizing: border-box; border-radius: 8px; background: #fff; color: #1f2430; border: 1px solid #c9cedb; box-shadow: 0 4px 0 #aeb5c4, 0 8px 16px rgba(0,0,0,.28); font: 600 16px ui-monospace, Menlo, Consolas, monospace; display: flex; align-items: center; justify-content: center; transition: opacity .25s, transform .1s; }
       .fairy-tour-key.fairy-tour-key-wide { min-width: 120px; font-size: 12px; letter-spacing: .04em; color: #596073; }
       .fairy-tour-key.fairy-tour-key-mod { font-size: 12px; color: #596073; background: #eef0f6; }
       .fairy-tour-key.fresh { transform: translateY(3px); box-shadow: 0 1px 0 #aeb5c4, 0 4px 10px rgba(0,0,0,.25); }
-      .fairy-tour-key.old { opacity: .5; }
+      .fairy-tour-key.old { opacity: .72; }
       #fairy-tour-cursor { position: fixed; z-index: 10610; left: 50%; top: 60%; width: 22px; height: 22px; margin: -2px 0 0 -2px; pointer-events: none; transition: left .7s cubic-bezier(.4, 0, .2, 1), top .7s cubic-bezier(.4, 0, .2, 1); filter: drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
       #fairy-tour-cursor svg { display: block; width: 22px; height: 22px; }
       #fairy-tour-cursor::after { content: ''; position: absolute; left: -9px; top: -9px; width: 20px; height: 20px; border-radius: 50%; border: 3px solid var(--fairy-primary, #593196); opacity: 0; transform: scale(.3); }
@@ -6367,7 +6370,8 @@ ui <- shinyUI(fluidPage(
         function showKey(ch) {
           var k = keysEl(), needShift = ch.length === 1 && /[A-Z<>?:{}|~!@#$%^&*()_+]/.test(ch);
           [].forEach.call(k.querySelectorAll('.fairy-tour-key'), function(e) { e.classList.remove('fresh'); e.classList.add('old'); });
-          while (k.children.length > 7) { k.removeChild(k.firstChild); }
+          while (k.children.length > 110) { k.removeChild(k.firstChild); }
+          k.classList.toggle('fairy-tour-keys-small', k.children.length > 22);
           if (needShift) { var sh = document.createElement('div'); sh.className = 'fairy-tour-key fairy-tour-key-mod old'; sh.textContent = 'shift'; k.appendChild(sh); }
           var c = document.createElement('div'); c.className = 'fairy-tour-key fresh' + (ch === ' ' ? ' fairy-tour-key-wide' : ''); c.textContent = ch === ' ' ? 'space' : ch; k.appendChild(c);
         }
