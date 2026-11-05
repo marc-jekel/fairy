@@ -6731,9 +6731,11 @@ ui <- shinyUI(fluidPage(
             if (tt.skipIf && tt.skipIf()) { resolve(); return; }
             var st0 = { t: tt, done: false, cleanup: null }; taskState = st0;
             var attempts = 0, timer = null;
-            function finish(msg) { if (st0.done) return; st0.done = true; if (timer) clearTimeout(timer); st0.cleanup(); fbSet(msg || 'Correct!', 'ok'); place(); Promise.resolve(tt.done ? tt.done() : null).then(function() { resolve(); }, function() { resolve(); }); }
+            function finish(msg) { if (st0.done) return; st0.done = true; if (timer) clearTimeout(timer); if (st0.cleanup) st0.cleanup(); fbSet(msg || 'Correct!', 'ok'); place(); Promise.resolve(tt.done ? tt.done() : null).then(function() { resolve(); }, function() { resolve(); }); }
             var prompt = tt.prompt || (tt.type === 'type' ? 'Your turn: type ' + tt.fields().map(function(f) { return f.text; }).join('   ') : 'Your turn: click the highlighted button.');
             fbSet(prompt, 'hint');
+            // already entered (for example by the pointer a moment ago): nothing to do again
+            if (tt.type === 'type') { var fs0 = tt.fields(); if (fs0.length && fs0.every(function(f) { return f.el && normSpec(f.el.value) === normSpec(f.text); })) { setTimeout(function() { finish('Already entered. You try the next step yourself.'); }, 50); return; } }
             function evaluate() {
               var fs = tt.fields(), i, ok = true, bad = null;
               for (i = 0; i !== fs.length; i++) { if (normSpec(fs[i].el.value) !== normSpec(fs[i].text)) { ok = false; if (!bad && normSpec(fs[i].el.value)) bad = fs[i]; } }
