@@ -6337,17 +6337,22 @@ ui <- shinyUI(fluidPage(
         // reset without reloading: delete the models, back to three probabilities, empty fields (falls back to a reload if something is left)
         async function resetInPlace() {
           var oc = window.confirm; window.confirm = function() { return true; };
+          var t0 = Date.now(), over = function() { return Date.now() - t0 > 20000; };
           try {
-            var g = 0, b;
-            b = document.getElementById('delete_all_models_btn'); if (b) { b.click(); await waitFor(function() { return rowCount() === 1; }, 8000); }
-            while (rowCount() > 1 && g !== 20) { await addOne('rm_ie', rowCount, false); g++; }
-            g = 0; while (probCount() !== 3 && g !== 15) { await addOne(probCount() > 3 ? 'rm_prob' : 'add_prob', probCount, false); g++; }
-            var i, el;
-            for (i = 1; i !== 4; i++) { el = document.getElementById('textin_name_' + i); if (el && el.value !== 'p_{' + i + '}') { el.value = 'p_{' + i + '}'; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } }
+            closeModal();
+            var g = 0, b, i, el;
+            // 1. models: delete them, empty the first row (before the probabilities go: a probability used in a model cannot be removed)
+            b = document.getElementById('delete_all_models_btn'); if (b) { b.click(); await waitFor(function() { return rowCount() === 1; }, 6000); }
+            while (rowCount() > 1 && g !== 20 && !over()) { await addOne('rm_ie', rowCount, false); g++; }
             var t1 = document.getElementById('textin_relations_1'); if (t1 && t1.value) { t1.value = ''; t1.dispatchEvent(new Event('input', { bubbles: true })); t1.dispatchEvent(new Event('change', { bubbles: true })); }
             var nm = document.getElementById('textin_relations_name1'); if (nm && nm.value !== 'm1') { nm.value = 'm1'; nm.dispatchEvent(new Event('input', { bubbles: true })); nm.dispatchEvent(new Event('change', { bubbles: true })); }
             var sh = document.getElementById('add_for_all_models'); if (sh && sh.value) { sh.value = ''; sh.dispatchEvent(new Event('input', { bubbles: true })); sh.dispatchEvent(new Event('change', { bubbles: true })); }
-            await sleep(900);
+            await sleep(1200);
+            // 2. probabilities back to three (a dialog of the app is closed)
+            g = 0; while (probCount() !== 3 && g !== 15 && !over()) { closeModal(); var c0 = probCount(); var bb = document.getElementById(probCount() > 3 ? 'rm_prob' : 'add_prob'); if (!bb) break; bb.click(); await waitFor(function() { return probCount() !== c0; }, 2500); await sleep(250); g++; }
+            // 3. names
+            for (i = 1; i !== 4; i++) { el = document.getElementById('textin_name_' + i); if (el && el.value !== 'p_{' + i + '}') { el.value = 'p_{' + i + '}'; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } }
+            await sleep(700);
           } finally { window.confirm = oc; }
           return isPristine();
         }
@@ -6646,7 +6651,7 @@ ui <- shinyUI(fluidPage(
           var A = [
             S('The cringe study', 'A fictitious joke study: children, teens and adults hear jokes, and we record who cringes. A theory predicts that children cringe most and adults least. This tutorial enters everything for you, so you see how it is done. The tutorial starts with a fresh app: your current input is cleared, so save it first if you want to keep it (Share or save).', function() { return []; }, { pre: function() { closeModal(); goTab('Input'); }, nextLabel: 'Start fresh', onNext: function() { var kk = tourStep; if (isPristine()) { show(kk + 1); return; } setLock(true); resetInPlace().then(function(ok) { if (ok) { setLock(false); show(kk + 1); } else window.fairyStartOver('tutorial', 1, false); }); } }),
             S('Three probabilities', 'p1 is the probability that a child cringes, p2 that a teen cringes, and p3 that an adult cringes. Here the names are typed in.', function() { return [q1('.def-col--pnames')]; }, { task: { type: 'type', fields: function() { return [1, 2, 3].map(function(n, k) { return { el: document.getElementById('textin_name_' + n), text: ['p_{C}', 'p_{T}', 'p_{A}'][k] }; }); } }, demo: async function(tk) { await ensureProbs(3, tk); var names = ['p_{C}', 'p_{T}', 'p_{A}'], i; for (i = 0; i !== 3; i++) { await typeInto(document.getElementById('textin_name_' + (i + 1)), names[i], tk); } } }),
-            S('The theory', 'The theory says: children cringe at least as much as teens, who cringe at least as much as adults. In the app you type p1 > p2 > p3. The app takes > for easier input and means at least as much.', function() { return [specTd(1)]; }, { task: { type: 'type', fields: function() { return [{ el: document.getElementById('textin_relations_1'), text: 'p1 > p2 > p3' }]; } }, demo: async function(tk) { await typeInto(document.getElementById('textin_relations_1'), 'p1 > p2 > p3', tk); } }),
+            S('The theory', 'The theory says: children cringe at least as much as teens, who cringe at least as much as adults. In the app you type p1 > p2 > p3. The app takes > for easier input and means at least as much.', function() { return [specTd(1)]; }, { task: { type: 'type', fields: function() { return [{ el: document.getElementById('textin_relations_1'), text: 'p1 > p2 > p3' }]; }, done: async function() { var g = 0; while (probCount() > 3 && g !== 6) { await addOne('rm_prob', probCount, false); g++; } } }, demo: async function(tk) { await typeInto(document.getElementById('textin_relations_1'), 'p1 > p2 > p3', tk); } }),
             S('Vertices on', 'The vertices of the model (V-representation) are optional because they can take long for large models. Here the switch is turned on.', function() { return [q1('#vrep_toggle_btn_1')]; }, { task: goTask('vrep_toggle_btn_1', function() { vTutOn = true; return Promise.resolve(); }), demo: async function(tk) { if (!tabShown('V-representation')) { await cclick(document.getElementById('vrep_toggle_btn_1')); vTutOn = true; } } }),
             S('Go', 'Go builds the H-representation of the model, and the vertices.', function() { return [q1('#go_inline')]; }, { task: goTask('go_inline', async function() { await sleep(2500); await waitFor(function() { return tabShown('V-representation') && calcIdle(); }, 120000); await sleep(800); }), demo: async function(tk) { await cclick(document.getElementById('go_inline')); await waitFor(function() { return tabShown('V-representation') && tabShown('Plot Edge Cases'); }, 60000); } }),
             R2('H-representation', 'The H-representation', 'The fairy describes the model with inequalities. Line 1: p_T is at most p_C. Line 2: p_A is at most p_T. Line 3: p_C is at most 1, and line 4: p_A is at least 0, because probabilities lie between 0 and 1. On the left you can download the files for QTEST and a LaTeX file.', function() { var p = pane(); var l = p ? p.querySelectorAll('.model-card') : []; return [].filter.call(l, shown); }),
@@ -6725,7 +6730,7 @@ ui <- shinyUI(fluidPage(
             if (tt.skipIf && tt.skipIf()) { resolve(); return; }
             var st0 = { t: tt, done: false, cleanup: null }; taskState = st0;
             var attempts = 0, timer = null;
-            function finish(msg) { if (st0.done) return; st0.done = true; if (timer) clearTimeout(timer); st0.cleanup(); fbSet(msg || 'Correct!', 'ok'); place(); resolve(); }
+            function finish(msg) { if (st0.done) return; st0.done = true; if (timer) clearTimeout(timer); st0.cleanup(); fbSet(msg || 'Correct!', 'ok'); place(); Promise.resolve(tt.done ? tt.done() : null).then(function() { resolve(); }, function() { resolve(); }); }
             var prompt = tt.prompt || (tt.type === 'type' ? 'Your turn: type ' + tt.fields().map(function(f) { return f.text; }).join('   ') : 'Your turn: click the highlighted button.');
             fbSet(prompt, 'hint');
             function evaluate() {
@@ -6785,7 +6790,16 @@ ui <- shinyUI(fluidPage(
           var th = taskHole(); if (th) els = th;
           var r = union(els), pad = 8, vw = window.innerWidth, vh = window.innerHeight - reserve;
           var blk = document.getElementById('fairy-tour-block'), QQ2 = String.fromCharCode(34);
-          if (blk) { if (th && r) { var x1 = Math.round(r.l - pad), y1 = Math.round(r.t - pad), x2 = Math.round(r.r + pad), y2 = Math.round(r.b + pad); blk.style.clipPath = 'path(evenodd, ' + QQ2 + 'M0 0H' + window.innerWidth + 'V' + window.innerHeight + 'H0Z M' + x1 + ' ' + y1 + 'H' + x2 + 'V' + y2 + 'H' + x1 + 'Z' + QQ2 + ')'; } else blk.style.clipPath = ''; }
+          if (blk) {
+            if (th && r) {
+              var x1 = Math.round(r.l - pad), y1 = Math.round(r.t - pad), x2 = Math.round(r.r + pad), y2 = Math.round(r.b + pad);
+              var dpath = 'M0 0H' + window.innerWidth + 'V' + window.innerHeight + 'H0Z M' + x1 + ' ' + y1 + 'H' + x2 + 'V' + y2 + 'H' + x1 + 'Z';
+              // a dialog of the app (for example Add many probabilities?) must stay usable while the person tries something
+              var dm = document.querySelector('.modal.in .modal-content');
+              if (shown(dm)) { var mr = dm.getBoundingClientRect(); dpath += ' M' + Math.round(mr.left) + ' ' + Math.round(mr.top) + 'H' + Math.round(mr.right) + 'V' + Math.round(mr.bottom) + 'H' + Math.round(mr.left) + 'Z'; }
+              blk.style.clipPath = 'path(evenodd, ' + QQ2 + dpath + QQ2 + ')';
+            } else blk.style.clipPath = '';
+          }
           if (r) {
             hole.classList.remove('fairy-tour-nohole');
             hole.style.left = (r.l - pad) + 'px'; hole.style.top = (r.t - pad) + 'px';
