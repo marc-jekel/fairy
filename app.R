@@ -1749,6 +1749,10 @@ ui <- shinyUI(fluidPage(
       .fairy-tour-dots { display: flex; gap: 5px; flex: 0 0 100%; margin-bottom: 4px; }
       #fairy-tour-card .fairy-tour-skip { margin-right: auto; }
       #fairy-tour-card button { white-space: nowrap; }
+      .fairy-tour-opts { flex: 0 0 100%; flex-wrap: wrap; gap: 8px; margin: 2px 0 4px; }
+      .fairy-tour-opts .fairy-tour-speed { margin-left: 0; }
+      .fairy-tour-optsbtn { border: none; background: transparent; color: var(--fairy-text-muted, #667085); font: inherit; font-size: 12px; cursor: pointer; padding: 2px 4px; }
+      .fairy-tour-optsbtn:hover { color: var(--fairy-primary, #593196); }
       .fairy-tour-dots.tut { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
       .fairy-tour-dots.tut > span { order: 1; }
       .fairy-tour-dots.tut > .fairy-tour-speed { margin-left: 0; justify-self: end; }
@@ -6343,7 +6347,7 @@ ui <- shinyUI(fluidPage(
 
       // ---- Guided tour: basic (the workflow) or full (every control of the Input tab) ----
       (function() {
-        var extras = false, tourStep = -1, steps = null, picking = false, token = 0, locked = false, interactive = false, taskState = null;
+        var optsOpen = false, extras = false, tourStep = -1, steps = null, picking = false, token = 0, locked = false, interactive = false, taskState = null;
         function shown(e) { return !!e && e.getClientRects().length !== 0 && e.getBoundingClientRect().width !== 0; }
         function q1(sel) { var e = document.querySelector(sel); return shown(e) ? e : null; }
         function byText(sel, re) { var l = document.querySelectorAll(sel), i, r = null; for (i = 0; i !== l.length; i++) { if (!r && re.test(l[i].textContent) && shown(l[i])) r = l[i]; } return r; }
@@ -6724,34 +6728,43 @@ ui <- shinyUI(fluidPage(
 S('Intersections: what two models share', 'Models can make similar predictions: their polytopes overlap. The intersection of two models is the space they share. The Intersection model button adds a model with all constraints of the models you pick. Here m1 and m2.', function() { return [modQ('.modal-content') || q1('#add_intersection_model')]; }, { pre: function() { closeModal(); return tabC('Input'); }, wait: 300, demo: async function(tk) { await interDemo([1, 2], tk); } }),
             S('Another intersection: m1 and m3', 'The same for m1 and m3. Each intersection is a new row of its own.', function() { return [modQ('.modal-content') || q1('#add_intersection_model')]; }, { pre: function() { closeModal(); }, wait: 300, demo: async function(tk) { await interDemo([1, 3], tk); } }),
             S('Go for all models', 'Go builds the H-representation of every model, the nine theories and the two intersections.', function() { return [q1('#go_inline')]; }, { pre: function() { closeModal(); return tabC('Input'); }, wait: 300, skipPreInTry: true, tasks: [tabTask('Input'), goTask('go_inline', async function() { await sleep(3000); await waitFor(function() { return calcIdle(); }, 900000); await sleep(1500); goAllDone = true; }, function() { return goAllDone; })], demo: async function(tk) { await cclick(document.getElementById('go_inline')); await sleep(3000); await waitFor(function() { return calcIdle(); }, 900000); await sleep(1500); goAllDone = true; } }),
-            R2('H-representation', 'One card per model', 'The H-representation of every model, one card each. Equalities are counted separately from inequalities in the badge, so m5 shows five equalities. The page scrolls over the cards, one card is enlarged with the arrows, the view is made compact without the trivial bounds, and the free layout lets you drag a card anywhere. Afterwards everything is put back.', function() { var p = pane(); var w = p ? p.querySelector('.fairy-h-cards-wrap') : null; return [shown(w) ? w : null]; }, { demo: async function(tk) {
-              var p = pane(), cards = p ? [].filter.call(p.querySelectorAll('.model-card'), shown) : [], r, y0, st, h2, ev;
-              async function slide(to) { y0 = window.scrollY; for (st = 1; st <= 14 && tk === token; st++) { window.scrollTo(0, y0 + (to - y0) * (st / 14)); place(); await sleep(30 * spMul()); } }
+            R2('H-representation', 'One card per model', 'The H-representation of every model, one card each. Equalities are counted separately from inequalities in the badge, so m5 shows five equalities. A card can be enlarged with the arrows in its corner.', function() { var p = pane(); var w = p ? p.querySelector('.fairy-h-cards-wrap') : null; return [shown(w) ? w : null]; }, { demo: async function(tk) {
+              var p = pane(), cards = p ? [].filter.call(p.querySelectorAll('.model-card'), shown) : [], r, y0, st;
+              async function slide(to) { y0 = window.scrollY; for (st = 1; st <= 24 && tk === token; st++) { window.scrollTo(0, y0 + (to - y0) * (st / 24)); place(); await sleep(35 * spMul()); } }
+              try {
+                for (r = 0; r < cards.length && r < 4 && tk === token; r++) { await slide(Math.max(0, window.scrollY + cards[r].getBoundingClientRect().top - 150)); await sleep(700 * spMul()); }
+                await slide(0); await sleep(900 * spMul());
+                var xb = cards[0] ? cards[0].querySelector('.fairy-card-expand') : null;
+                if (xb && tk === token) { await cclick(xb); await sleep(3000 * spMul()); place(); await cclick(document.getElementById('fairy-card-overlay-close')); await sleep(800 * spMul()); }
+              } finally { var o = document.getElementById('fairy-card-overlay-close'); if (o && o.offsetParent) o.click(); }
+              place(); } }),
+            R2('H-representation', 'Compact view, without trivial bounds', 'Compact packs the terms of a row together, and hiding the trivial bounds leaves only what is specific to the model. Both are only a view: the model stays the same.', function() { return [inPane('#h_layout_toggle_group'), inPane('#trivial_ineq_toggle_group')]; }, { demo: async function(tk) {
               function sb(gid, state) { var g = inPane('#' + gid), l = g ? g.querySelectorAll('button') : [], q; for (q = 0; q !== l.length; q++) { if (l[q].getAttribute('data-state') === state) return l[q]; } return null; }
               function cur(gid) { var g = inPane('#' + gid), a = g ? g.querySelector('button.active') : null; return a ? a.getAttribute('data-state') : null; }
               var lay0 = cur('h_layout_toggle_group'), tri0 = cur('trivial_ineq_toggle_group');
-              function revert() { var o = document.getElementById('fairy-card-overlay-close'); if (o && o.offsetParent) o.click(); var rb = byTip(/Reset order, positions/); if (rb) rb.click(); var b1 = lay0 ? sb('h_layout_toggle_group', lay0) : null, b2 = tri0 ? sb('trivial_ineq_toggle_group', tri0) : null; if (b1) b1.click(); if (b2) b2.click(); }
               try {
-                for (r = 0; r < cards.length && tk === token; r++) { await slide(Math.max(0, window.scrollY + cards[r].getBoundingClientRect().top - 150)); await sleep(150 * spMul()); }
-                await slide(0); await sleep(300 * spMul());
-                var xb = cards[0] ? cards[0].querySelector('.fairy-card-expand') : null;
-                if (xb && tk === token) { await cclick(xb); await sleep(2200 * spMul()); place(); await cclick(document.getElementById('fairy-card-overlay-close')); await sleep(400 * spMul()); }
-                if (tk === token) { var cb = sb('h_layout_toggle_group', 'compact'); if (cb) { await cclick(cb); await sleep(900 * spMul()); } }
-                if (tk === token) { var hb = sb('trivial_ineq_toggle_group', 'hide'); if (hb) { await cclick(hb); await sleep(900 * spMul()); } }
+                var cb = sb('h_layout_toggle_group', 'compact'); if (cb && tk === token) { await cclick(cb); await sleep(2500 * spMul()); }
+                var hb = sb('trivial_ineq_toggle_group', 'hide'); if (hb && tk === token) { await cclick(hb); await sleep(3000 * spMul()); }
+              } finally { var b1 = lay0 ? sb('h_layout_toggle_group', lay0) : null, b2 = tri0 ? sb('trivial_ineq_toggle_group', tri0) : null; if (b1) b1.click(); if (b2) b2.click(); }
+              await sleep(800 * spMul()); place(); } }),
+            R2('H-representation', 'Free layout', 'Free layout lets you drag a card anywhere, by its header. The circle arrow puts order, positions and sizes back.', function() { var t = byTip(/Free layout/); return [t ? t.parentElement : null]; }, { demo: async function(tk) {
+              var p = pane(), cards = p ? [].filter.call(p.querySelectorAll('.model-card'), shown) : [], st, cu;
+              try {
                 var fb = byTip(/Free layout/);
                 if (fb && tk === token) {
-                  await cclick(fb); await sleep(500 * spMul());
-                  h2 = cards[1] ? cards[1].querySelector('.fairy-handle') : null;
+                  await cclick(fb); await sleep(1200 * spMul());
+                  var h2 = cards[1] ? cards[1].querySelector('.fairy-handle') : null;
                   if (h2 && tk === token) {
-                    await moveTo(h2); var rc = h2.getBoundingClientRect(), sx = rc.left + rc.width / 2, sy = rc.top + rc.height / 2;
+                    h2.scrollIntoView({ block: 'center' }); place(); await sleep(500 * spMul()); await moveTo(h2);
+                    var rc = h2.getBoundingClientRect(), sx = rc.left + rc.width / 2, sy = rc.top + rc.height / 2;
                     h2.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: sx, clientY: sy, button: 0 }));
-                    for (st = 1; st <= 20 && tk === token; st++) { document.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: sx + 9 * st, clientY: sy + 5 * st })); var cu = cursorEl(); cu.style.transitionDuration = '0s'; cu.style.left = Math.round(sx + 9 * st) + 'px'; cu.style.top = Math.round(sy + 5 * st) + 'px'; await sleep(40 * spMul()); }
+                    for (st = 1; st <= 30 && tk === token; st++) { document.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: sx + 6 * st, clientY: sy + 3 * st })); cu = cursorEl(); cu.style.transitionDuration = '0s'; cu.style.left = Math.round(sx + 6 * st) + 'px'; cu.style.top = Math.round(sy + 3 * st) + 'px'; await sleep(45 * spMul()); }
                     document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
-                    await sleep(1500 * spMul());
+                    await sleep(2500 * spMul());
                   }
                 }
-              } finally { revert(); }
-              await sleep(600 * spMul()); place(); } }),
+              } finally { var rb = byTip(/Reset order, positions/); if (rb) rb.click(); }
+              await sleep(800 * spMul()); place(); } }),
             R2('Model Properties', 'Parsimony of all models', 'Now the volumes of all models. The tournament of the paper compares the theories by how much of the space they occupy. This can take a moment for six probabilities.', function() { return [inPane('#go_inline_pars')]; }, { tasks: [tabTask('Model Properties'), goTask('go_inline_pars', async function() { await sleep(3000); await waitFor(function() { return calcIdle() && parsRows() > 0; }, 900000); await sleep(1500); parsDone2 = true; }, function() { return parsDone2; })], demo: async function(tk) { await cclick(document.getElementById('go_inline_pars')); await sleep(3000); await waitFor(function() { return calcIdle() && parsRows() > 0; }, 900000); await sleep(1500); parsDone2 = true; } }),
             S('Volumes and nested models', 'The bars show each model share of the space. The intersection of m1 and m2 has the same volume as m2, so m2 is nested in m1: whenever data fit m2 they also fit m1. Because m2 is smaller, it is preferred by the Bayesian analysis, which rewards parsimony.', function() { return [inPane('#parsimony_plot_ui')]; }, { pre: function() { return tabC('Model Properties'); }, wait: 400 }),
             S('Maximum Bayes factors', 'Max BF is 1 divided by the volume. The tighter a model, the more evidence it can earn, and the more it risks. The tutorial for the analysis itself (frequentist and Bayesian tests) continues in QTEST.', function() { return [inPane('#parsimony_spinner_table')]; }, { last: true, noexample: true })
@@ -7035,19 +7048,22 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           var dots = document.createElement('div'); dots.className = 'fairy-tour-dots';
           if (steps.length < 12) steps.forEach(function(x, k) { var d = document.createElement('i'); if (k === i) d.className = 'on'; dots.appendChild(d); });
           else { var cnt = document.createElement('span'); cnt.style.cssText = 'font-size:12px; color:var(--fairy-text-muted, #667085);'; var tot = 0, pos = 0; steps.forEach(function(x, k) { if (!(x.extrasOnly && !extras)) { tot++; if (k <= i) pos++; } }); cnt.textContent = pos + ' of ' + tot; dots.appendChild(cnt); }
+          var op = document.createElement('div'); op.className = 'fairy-tour-opts';
           var spd = document.createElement('div'); spd.className = 'fairy-tour-speed'; spd.title = 'Speed of the pointer and the typing';
           [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']].forEach(function(o) { var sb = document.createElement('button'); sb.type = 'button'; sb.setAttribute('data-k', 'speed-' + o[0]); sb.textContent = o[1]; sb.className = 'fairy-tour-spd' + (tourSpeed === o[0] ? ' on' : ''); spd.appendChild(sb); });
           if (steps.kind === 'tutorial') {
-            dots.classList.add('tut');
+            op.classList.add('tut');
             var md = document.createElement('div'); md.className = 'fairy-tour-speed fairy-tour-modesw'; md.title = 'Watch the pointer do it, or try it yourself';
             [['watch', 'Watch'], ['try', 'Try it yourself']].forEach(function(o) { var mb = document.createElement('button'); mb.type = 'button'; mb.setAttribute('data-k', 'mode-' + o[0]); mb.textContent = o[1]; mb.className = 'fairy-tour-spd' + ((o[0] === 'try') === interactive ? ' on' : ''); md.appendChild(mb); });
-            dots.appendChild(md);
+            op.appendChild(md);
             var exs = document.createElement('div'); exs.className = 'fairy-tour-speed fairy-tour-modesw'; exs.title = 'Extras: questions to predict, notes and background, a progress bar, and a closing step with experiments';
             [['off', 'Extras off'], ['on', 'Extras on']].forEach(function(o) { var eb = document.createElement('button'); eb.type = 'button'; eb.setAttribute('data-k', 'extras-' + o[0]); eb.textContent = o[1]; eb.className = 'fairy-tour-spd' + ((o[0] === 'on') === extras ? ' on' : ''); exs.appendChild(eb); });
-            dots.appendChild(exs);
+            op.appendChild(exs);
           }
-          dots.appendChild(spd);
-          foot.appendChild(dots);
+          op.appendChild(spd);
+          var ob = document.createElement('button'); ob.type = 'button'; ob.setAttribute('data-k', 'opts'); ob.className = 'fairy-tour-optsbtn'; ob.textContent = optsOpen ? 'Options \\u25B4' : 'Options \\u25BE'; ob.style.marginLeft = 'auto'; dots.appendChild(ob);
+          op.style.display = optsOpen ? 'flex' : 'none';
+          foot.appendChild(dots); foot.appendChild(op);
           if (!isLast) { var sk = btn('End tour', 'end'); sk.style.marginRight = 'auto'; foot.appendChild(sk); }
           if (tryHere) { foot.appendChild(btn('Hint', 'hint')); foot.appendChild(btn('Show me', 'showme')); }
           foot.appendChild(btn(i === 0 ? 'All tours' : 'Back', 'back'));
@@ -7081,6 +7097,7 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
             var k = b.getAttribute('data-k');
             if (k && k.indexOf('speed-') === 0) { tourSpeed = k.slice(6); try { localStorage.setItem('fairy_tour_speed', tourSpeed); } catch (er) {} [].forEach.call(document.querySelectorAll('#fairy-tour-card .fairy-tour-spd'), function(x) { x.classList.toggle('on', x.getAttribute('data-k') === k); }); return; }
             if (k && k.indexOf('mode-') === 0) { if (locked && (!interactive || window.__tourBusy)) return; interactive = k === 'mode-try'; try { localStorage.setItem('fairy_tour_interactive', interactive ? '1' : '0'); } catch (er) {} stopTask(); render(tourStep); return; }
+            if (k === 'opts') { optsOpen = !optsOpen; var opn = document.querySelector('#fairy-tour-card .fairy-tour-opts'); if (opn) opn.style.display = optsOpen ? 'flex' : 'none'; b.textContent = optsOpen ? 'Options \\u25B4' : 'Options \\u25BE'; place(); return; }
             if (k && k.indexOf('extras-') === 0) { if (locked && window.__tourBusy) return; extras = k === 'extras-on'; try { localStorage.setItem('fairy_tour_extras', extras ? '1' : '0'); } catch (er) {} if (steps[tourStep].extrasOnly && !extras) { show(tourStep - 1); return; } render(tourStep); return; }
             if (k === 'showme') { showMe(steps[tourStep]); return; }
             if (k === 'hint') { taskHint(); return; }
