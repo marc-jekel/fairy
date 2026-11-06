@@ -6525,12 +6525,25 @@ ui <- shinyUI(fluidPage(
         }
         function cardOf(re) { var p = pane(), l = p ? p.querySelectorAll('.model-card') : [], i; for (i = 0; i !== l.length; i++) { var t = l[i].querySelector('.model-card-title'); if (shown(l[i]) && t && re.test(t.textContent.trim())) return l[i]; } return null; }
         function badgeIn(card) { if (!card) return null; var l = card.querySelectorAll('*'), i; for (i = 0; i !== l.length; i++) { if (l[i].children.length === 0 && /\\d+\\s*eq/.test(l[i].textContent)) return l[i]; } return null; }
-        var markDone = -1;
+        var markDone = -1, relMark = [], relNote = '';
+        // shows which probability in a specification belongs to which name field: p1 = the field Name of p1, and so on
+        async function relateNames(n, tk) {
+          var k, el;
+          try {
+            for (k = 1; k <= n && tk === token; k++) {
+              el = document.getElementById('textin_name_' + k);
+              if (!el || !shown(el)) continue;
+              relMark = [el]; relNote = 'Framed in orange: p' + k + ' in the specification is the probability named ' + (el.value || ('p_{' + k + '}')) + ' (field Name of p' + k + ').';
+              place(); await moveTo(el); await sleep(1100);
+            }
+          } finally { relMark = []; relNote = ''; }
+          place();
+        }
         function drawMarks(f) {
           var host = document.getElementById('fairy-tour-marks'), els = [];
           try { els = f ? f() : []; } catch (er) { els = []; }
           els = (els || []).filter(function(e) { return e && shown(e); });
-          var mnote = document.getElementById('fairy-tour-marknote'); if (mnote) mnote.style.display = els.length ? 'block' : 'none';
+          var mnote = document.getElementById('fairy-tour-marknote'); if (mnote) { mnote.style.display = els.length ? 'block' : 'none'; var ns = steps && steps[tourStep] ? steps[tourStep].markNote : null; if (typeof ns === 'function' && mnote.lastChild) mnote.lastChild.textContent = ns(); }
           if (!els.length) { if (host) host.textContent = ''; return; }
           if (markDone !== token) { markDone = token; var me = els[Math.floor(els.length / 2)]; if (me && me.scrollIntoView) me.scrollIntoView({ block: 'center', inline: 'nearest' }); }
           if (!host) { host = document.createElement('div'); host.id = 'fairy-tour-marks'; document.body.appendChild(host); }
@@ -6748,19 +6761,20 @@ ui <- shinyUI(fluidPage(
         var hsmGoInt = false, hsmParsInt = false, hsmGoRep = false, hsmParsRep = false, hsmV1 = false, hsmV2 = false, hsmGo2 = false, anDone = false, vTutOn = false, goAllDone = false, parsDone1 = false, parsDone2 = false;
         function tutorialSteps() {
           function model(k, title, text, spec, extra) {
-            return S(title, text, function() { return [specTd(k)]; }, { pre: function() { return ensureRowsFast(k); }, wait: 200, task: { type: 'type', fields: function() { return [{ el: document.getElementById('textin_relations_' + k), text: spec, label: 'Unique Model Specification of m' + k }]; } }, demo: async function(tk) {
+            return S(title, text, function() { return [specTd(k)]; }, Object.assign(k === 1 ? { markNote: function() { return relNote; }, marks: function() { return relMark; } } : {}, { pre: function() { return ensureRowsFast(k); }, wait: 200, task: { type: 'type', fields: function() { return [{ el: document.getElementById('textin_relations_' + k), text: spec, label: 'Unique Model Specification of m' + k }]; } }, demo: async function(tk) {
             await typeInto(document.getElementById('textin_relations_' + k), spec, tk);
             if (k === 1 && tk === token) {
               var xs = document.querySelectorAll('.fairy-expand-btn'), xb = null, i;
               for (i = 0; i !== xs.length; i++) { if (xs[i].getAttribute('data-target') === 'textin_relations_1' && shown(xs[i])) xb = xs[i]; }
               if (xb) { await sleep(500); await cclick(xb); await sleep(2500); place(); var bd = document.querySelector('.fairy-expand-backdrop'); if (bd) bd.click(); await sleep(500); place(); }
+              await sleep(400); await relateNames(probCount(), tk);
             }
-          } });
+          } }));
           }
           var A = [
             S('The cringe study', 'A fictitious joke study: children, teens and adults hear jokes, and we record who cringes. A theory predicts that children cringe most and adults least. This tutorial enters everything for you, so you see how it is done. The tutorial starts with a fresh app: your current input is cleared, so save it first if you want to keep it (Share or save).', function() { return []; }, { pre: async function() { await closeModalPtr(); goTab('Input'); }, nextLabel: 'Start fresh', onNext: function() { var kk = tourStep; if (isPristine()) { show(kk + 1); return; } setLock(true); resetInPlace().then(function(ok) { if (ok) { setLock(false); show(kk + 1); } else window.fairyStartOver('tutorial', 1, false); }); } }),
             S('Three probabilities', 'p1 is the probability that a child cringes, p2 that a teen cringes, and p3 that an adult cringes. Here the names are typed in.', function() { return [q1('.def-col--pnames')]; }, { task: { type: 'type', fields: function() { return [1, 2, 3].map(function(n, k) { return { el: document.getElementById('textin_name_' + n), text: ['p_{C}', 'p_{T}', 'p_{A}'][k], label: 'Name of p' + n, hint: ['C for children', 'T for teens', 'A for adults'][k] + ', in curly braces after the underscore'  }; }); } }, demo: async function(tk) { await ensureProbs(3, tk); var names = ['p_{C}', 'p_{T}', 'p_{A}'], i; for (i = 0; i !== 3; i++) { await typeInto(document.getElementById('textin_name_' + (i + 1)), names[i], tk); } } }),
-            S('The theory', 'The theory says: children cringe at least as much as teens, who cringe at least as much as adults. In the app you type p1 > p2 > p3. The app takes > for easier input and means at least as much.', function() { return [specTd(1)]; }, { task: { type: 'type', fields: function() { return [{ el: document.getElementById('textin_relations_1'), text: 'p1 > p2 > p3', label: 'Unique Model Specification', hint: 'the three probabilities in a row, separated by > (children first)' }]; }, done: async function() { var g = 0; while (probCount() > 3 && g !== 6) { await addOne('rm_prob', probCount, false); g++; } } }, demo: async function(tk) { await typeInto(document.getElementById('textin_relations_1'), 'p1 > p2 > p3', tk); } }),
+            S('The theory', 'The theory says: children cringe at least as much as teens, who cringe at least as much as adults. In the app you type p1 > p2 > p3, where p1, p2 and p3 are the probabilities in the order of the name fields above. The app takes > for easier input and means at least as much.', function() { return [specTd(1)]; }, { task: { type: 'type', fields: function() { return [{ el: document.getElementById('textin_relations_1'), text: 'p1 > p2 > p3', label: 'Unique Model Specification', hint: 'the three probabilities in a row, separated by > (children first)' }]; }, done: async function() { var g = 0; while (probCount() > 3 && g !== 6) { await addOne('rm_prob', probCount, false); g++; } } }, demo: async function(tk) { await typeInto(document.getElementById('textin_relations_1'), 'p1 > p2 > p3', tk); await sleep(600); await relateNames(3, tk); }, markNote: function() { return relNote; }, marks: function() { return relMark; } }),
             S('Vertices on', 'The vertices of the model (V-representation) are optional because they can take long for large models. Here the switch is turned on.', function() { return [q1('#vrep_toggle_btn_1')]; }, { task: goTask('vrep_toggle_btn_1', function() { vTutOn = true; return Promise.resolve(); }, function() { return vTutOn || tabShown('V-representation'); }), demo: async function(tk) { if (!tabShown('V-representation')) { await cclick(document.getElementById('vrep_toggle_btn_1')); vTutOn = true; } } }),
             S('Go', 'Go builds the H-representation of the model, and the vertices.', function() { return [q1('#go_inline')]; }, { task: goTask('go_inline', async function() { await sleep(2500); await waitFor(function() { return tabShown('V-representation') && calcIdle(); }, 120000); await sleep(800); }, function() { return tabShown('V-representation') && tabShown('Plot Edge Cases'); }), demo: async function(tk) { await cclick(document.getElementById('go_inline')); await waitFor(function() { return tabShown('V-representation') && tabShown('Plot Edge Cases'); }, 60000); await runWinClose(); } }),
             R2('H-representation', 'The H-representation', 'The fairy describes the model with inequalities. Line 1: p_T is at most p_C. Line 2: p_A is at most p_T. Line 3: p_C is at most 1, and line 4: p_A is at least 0, because probabilities lie between 0 and 1. On the left you can download the files for QTEST and a LaTeX file.', function() { var p = pane(); var l = p ? p.querySelectorAll('.model-card') : []; return [].filter.call(l, shown); }),
@@ -6898,7 +6912,8 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
         
         function hsmSteps() {
           function hm(k, title, text, spec, extra) {
-            var o = { pre: function() { return ensureRowsFast(k); }, wait: 200, task: { type: 'type', fields: function() { return [{ el: document.getElementById('textin_relations_' + k), text: spec, label: 'Unique Model Specification of m' + k }]; } }, demo: async function(tk) { await typeInto(document.getElementById('textin_relations_' + k), spec, tk); } };
+            var o = { pre: function() { return ensureRowsFast(k); }, wait: 200, task: { type: 'type', fields: function() { return [{ el: document.getElementById('textin_relations_' + k), text: spec, label: 'Unique Model Specification of m' + k }]; } }, demo: async function(tk) { await typeInto(document.getElementById('textin_relations_' + k), spec, tk); if (k === 1) { await sleep(500); await relateNames(probCount(), tk); } } };
+            if (k === 1) { o.markNote = function() { return relNote; }; o.marks = function() { return relMark; }; }
             if (extra) { for (var q in extra) { o[q] = extra[q]; } }
             return S(title, text, function() { return [specTd(k)]; }, o);
           }
@@ -7242,7 +7257,7 @@ var ow = Math.max(0, Math.min(cx + cw, r.r + pad) - Math.max(cx, r.l - pad)), oh
           }
           var h = document.createElement('h4'); h.textContent = st.title; card.appendChild(h);
           var p = document.createElement('p'); p.textContent = st.text; card.appendChild(p);
-          if (st.marks && st.markNote) { var mnn = document.createElement('p'); mnn.id = 'fairy-tour-marknote'; mnn.className = 'fairy-tour-marknote'; mnn.style.display = 'none'; var msw = document.createElement('span'); msw.className = 'fairy-tour-marksw'; mnn.appendChild(msw); mnn.appendChild(document.createTextNode('Framed in orange: ' + st.markNote)); card.appendChild(mnn); }
+          if (st.marks && st.markNote) { var mnn = document.createElement('p'); mnn.id = 'fairy-tour-marknote'; mnn.className = 'fairy-tour-marknote'; mnn.style.display = 'none'; var msw = document.createElement('span'); msw.className = 'fairy-tour-marksw'; mnn.appendChild(msw); mnn.appendChild(document.createTextNode(typeof st.markNote === 'function' ? st.markNote() : 'Framed in orange: ' + st.markNote)); card.appendChild(mnn); }
           if (st.img) { var im = document.createElement('img'); im.src = st.img; im.className = 'fairy-tour-img'; im.alt = st.imgAlt || ''; im.title = 'Click to enlarge'; im.style.cursor = 'zoom-in'; im.addEventListener('click', function(ev) { ev.stopPropagation(); im.classList.toggle('zoom'); im.style.cursor = im.classList.contains('zoom') ? 'zoom-out' : 'zoom-in'; }); im.addEventListener('load', function() { place(); }); card.classList.add('fairy-tour-wide'); card.appendChild(im); }
           var isLast = isLastStep(st);
           if (extras && isTutKind()) {
