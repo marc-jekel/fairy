@@ -1697,7 +1697,7 @@ ui <- shinyUI(fluidPage(
       .fairy-share-pop[hidden] { display: none; }
       body:has(#fairy-qr-overlay) .fairy-tooltip::after, body:has(#fairy-qr-overlay) .fairy-tooltip::before { display: none !important; }
       #fairy-tour-block { position: fixed; inset: 0; z-index: 10600; background: transparent; }
-      #fairy-tour-marks { position: fixed; inset: 0; z-index: 10603; pointer-events: none; }
+      #fairy-tour-marks { position: fixed; inset: 0; z-index: 10601; pointer-events: none; }
       .fairy-tour-mark { position: absolute; border: 2px solid #f59e0b; border-radius: 6px; box-shadow: 0 0 0 3px rgba(245, 158, 11, .28); background: rgba(245, 158, 11, .10); animation: fairy-tour-mark-pulse 1.4s ease-in-out infinite; }
       @keyframes fairy-tour-mark-pulse { 0%, 100% { box-shadow: 0 0 0 3px rgba(245, 158, 11, .28); } 50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, .12); } }
       #fairy-tour-hole { position: fixed; z-index: 10601; pointer-events: none; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(10, 14, 26, .38), 0 0 0 3px var(--fairy-primary, #593196); }
@@ -6951,7 +6951,6 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           exh('How restrictive is it?', { marks: function() { return tcol(ptb(), /^\\s*Volume/).concat(tcol(ptb(), /Max BF/)); } });
           exh('Replication and parsimony', { marks: function() { return [tcell(ptb(), /joint/, /^\\s*Volume/), tcell(ptb(), /joint/, /Max BF/), tcell(ptb(), /substitutable/, /^\\s*Volume/), tcell(ptb(), /substitutable/, /Max BF/)]; } });
           exh('Volume zero, no limit', { marks: function() { return tcol(ptb(), /Max BF/); } });
-          exh('Nothing is redundant', { marks: function() { var p = pane(), l = p ? [].filter.call(p.querySelectorAll('.model-card'), shown) : []; return l.map(badgeIn); } });
           exh('Equalities in the H-representation', { marks: function() { var p = pane(), l = p ? [].filter.call(p.querySelectorAll('.model-card'), shown) : []; return [badgeIn(hsmFocus >= 0 ? l[hsmFocus] : l[0])]; } });
           H.forEach(function(x) { x.chIdx = 0; });
           return H;
