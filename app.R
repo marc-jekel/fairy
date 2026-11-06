@@ -6451,7 +6451,7 @@ ui <- shinyUI(fluidPage(
           var dl0 = Math.max(32, Math.min(80, Math.round(5600 / Math.max(1, text.length))));
           for (i = 1; i !== text.length + 1; i++) { if (tk !== undefined && tk !== token) { el.value = text; break; } el.value = text.slice(0, i); showKey(text.charAt(i - 1)); await sleep(Math.max(10, Math.round(dl0 * spMul()))); }
           el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
-          await ssleep(1800); hideKeys(); await ssleep(300);
+          await ssleep(500); hideKeys(); await ssleep(100);
         }
         async function cclick(el) { await clickOn(el); }
         async function tabC(name) { var a = tabLink(name); if (a) { await clickOn(a); tabsTouched = true; } }
