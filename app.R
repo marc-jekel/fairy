@@ -7073,6 +7073,11 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           // an enlarged input field or card is what matters while it is open: it is lit and the card steps aside
           var xbx = document.querySelector('.fairy-expand-on .fairy-expand-box'), xov = document.querySelector('#fairy-card-overlay.active #fairy-card-overlay-inner');
           if (!picking && !runOn) { if (shown(xbx)) els = [xbx]; else if (shown(xov)) els = [xov]; }
+          // values a step points at that lie outside its main target (for example the table below a Go button) are what is lit
+          if (!picking && !runOn && !shown(xbx) && !shown(xov) && steps[tourStep] && steps[tourStep].marks) {
+            var mks = []; try { mks = (steps[tourStep].marks() || []).filter(function(e) { return e && shown(e); }); } catch (er) { mks = []; }
+            if (mks.length && !mks.every(function(m) { return els.some(function(e) { return e && e.contains && e.contains(m); }); })) els = mks;
+          }
           if (!hole || !card) return;
           var kEl = document.getElementById('fairy-tour-keys'), reserve = kEl ? kEl.offsetHeight + 60 : 0;
           var th = taskHole(); if (th) els = th;
