@@ -6843,7 +6843,10 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
               try {
                 var cb = sb('h_layout_toggle_group', 'compact'); if (cb && tk === token) { await cclick(cb); await sleep(2500); }
                 var hb = sb('trivial_ineq_toggle_group', 'hide'); if (hb && tk === token) { await cclick(hb); await sleep(3000); }
-              } finally { var b1 = lay0 ? sb('h_layout_toggle_group', lay0) : null, b2 = tri0 ? sb('trivial_ineq_toggle_group', tri0) : null; if (b1) b1.click(); if (b2) b2.click(); }
+                var r1 = lay0 ? sb('h_layout_toggle_group', lay0) : null, r2 = tri0 ? sb('trivial_ineq_toggle_group', tri0) : null;
+                if (r2 && tk === token) { await cclick(r2); await sleep(1200); }
+                if (r1 && tk === token) { await cclick(r1); await sleep(1200); }
+              } finally { var b1 = lay0 && cur('h_layout_toggle_group') !== lay0 ? sb('h_layout_toggle_group', lay0) : null, b2 = tri0 && cur('trivial_ineq_toggle_group') !== tri0 ? sb('trivial_ineq_toggle_group', tri0) : null; if (b1) b1.click(); if (b2) b2.click(); }
               await sleep(800); place(); } }),
             R2('H-representation', 'Free layout', 'Free layout lets you drag a card anywhere, by its header. The circle arrow puts order, positions and sizes back.', function() { var t = byTip(/Free layout/); return [t ? t.parentElement : null]; }, { demo: async function(tk) {
               var p = pane(), cards = p ? [].filter.call(p.querySelectorAll('.model-card'), shown) : [], st, cu;
@@ -6860,8 +6863,9 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
                     document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
                     await sleep(2500);
                   }
+                  var rb0 = byTip(/Reset order, positions/); if (rb0 && tk === token) { await cclick(rb0); await sleep(1500); }
                 }
-              } finally { var rb = byTip(/Reset order, positions/); if (rb) rb.click(); }
+              } finally { var rb = byTip(/Reset order, positions/); if (rb && document.querySelector('.fairy-free')) rb.click(); }
               await sleep(800); place(); } }),
             R2('Model Properties', 'Parsimony of all models', 'Now the volumes of all models. The tournament of the paper compares the theories by how much of the space they occupy. This can take a moment for six probabilities.', function() { return [inPane('#go_inline_pars')]; }, { tasks: [tabTask('Model Properties'), goTask('go_inline_pars', async function() { await sleep(3000); await waitFor(function() { return calcIdle() && parsRows() > 0; }, 900000); await sleep(1500); parsDone2 = true; }, function() { return parsDone2; })], demo: async function(tk) { await cclick(document.getElementById('go_inline_pars')); await sleep(3000); await waitFor(function() { return calcIdle() && parsRows() > 0; }, 900000); await sleep(1500); parsDone2 = true; } }),
             S('Volumes and nested models', 'The bars show each model share of the space. The intersection of m1 and m2 has the same volume as m2, so m2 is nested in m1: whenever data fit m2 they also fit m1. Because m2 is smaller, it is preferred by the Bayesian analysis, which rewards parsimony.', function() { return [inPane('#parsimony_plot_ui')]; }, { pre: function() { return tabC('Model Properties'); }, wait: 400 }),
