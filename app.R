@@ -1704,7 +1704,7 @@ ui <- shinyUI(fluidPage(
       @keyframes fairy-tour-mark-pulse { 0%, 100% { box-shadow: 0 0 0 3px rgba(245, 158, 11, .28); } 50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, .12); } }
       #fairy-tour-hole { position: fixed; z-index: 10601; pointer-events: none; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(10, 14, 26, .38), 0 0 0 3px var(--fairy-primary, #593196); }
       #fairy-tour-hole.fairy-tour-nohole { box-shadow: 0 0 0 9999px rgba(10, 14, 26, .38); }
-      #fairy-tour-card { position: fixed; z-index: 10602; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; padding: 16px 18px 14px; border-radius: 14px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1f2430); border: 1px solid var(--fairy-border, #e5e5e5); box-shadow: 0 18px 50px rgba(0,0,0,.4); font-size: 14px; line-height: 1.45; }
+      #fairy-tour-card { transition: left .35s ease, top .35s ease; position: fixed; z-index: 10602; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; padding: 16px 18px 14px; border-radius: 14px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1f2430); border: 1px solid var(--fairy-border, #e5e5e5); box-shadow: 0 18px 50px rgba(0,0,0,.4); font-size: 14px; line-height: 1.45; }
       #fairy-tour-card h4 { margin: 0 0 6px; font-size: 16px; font-weight: 700; }
       #fairy-tour-card p { margin: 0 0 12px; }
       #fairy-tour-keys { position: fixed; left: 50%; bottom: 46px; transform: translateX(-50%); z-index: 10612; width: min(560px, 92vw); box-sizing: border-box; padding: 8px 9px 6px; border-radius: 12px; background: rgba(28, 32, 44, .93); box-shadow: 0 10px 30px rgba(0,0,0,.4); pointer-events: none; font-size: clamp(7px, 1.3vw, 11px); }
@@ -6979,7 +6979,7 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           l.forEach(function(e) { var b = e.getBoundingClientRect(); r = r ? { l: Math.min(r.l, b.left), t: Math.min(r.t, b.top), r: Math.max(r.r, b.right), b: Math.max(r.b, b.bottom) } : { l: b.left, t: b.top, r: b.right, b: b.bottom }; });
           return r;
         }
-        var placeTimer = null;
+        var placeTimer = null, lastPKey = '';
         function ensure() {
           if (!placeTimer) placeTimer = setInterval(function() { place(); }, 600);
           if (document.getElementById('fairy-tour-block')) return;
@@ -7138,7 +7138,9 @@ var ow = Math.max(0, Math.min(cx + cw, r.r + pad) - Math.max(cx, r.l - pad)), oh
               x = cands[bi][0]; y = cands[bi][1];
             }
           }
-          card.style.left = Math.max(12, x) + 'px'; card.style.top = Math.max(12, y) + 'px';
+          // the card stays where it is as long as the lit area does not change much: no hopping while values appear or the page is scrolled a little
+          var pkey = tourStep + '|' + (r ? [r.l, r.t, r.r, r.b].map(function(v) { return Math.round(v / 90); }).join(',') : 'n') + '|' + mkAll.length + '|' + Math.round(ch / 40) + '|' + Math.round(cw / 40) + '|' + Math.round(vw / 40) + ',' + Math.round(vh / 40) + '|' + (picking ? 1 : 0);
+          if (pkey !== lastPKey || !card.style.left) { card.style.left = Math.max(12, x) + 'px'; card.style.top = Math.max(12, y) + 'px'; lastPKey = pkey; }
         }
         function btn(label, k, cls) { var b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.setAttribute('data-k', k); if (cls) b.className = cls; return b; }
         function pick() {
@@ -7205,7 +7207,7 @@ var ow = Math.max(0, Math.min(cx + cw, r.r + pad) - Math.max(cx, r.l - pad)), oh
           ensure();
           var st = steps[i], card = document.getElementById('fairy-tour-card');
           if (!card) return;
-          card.textContent = ''; card.classList.remove('fairy-tour-pick'); card.classList.remove('fairy-tour-wide');
+          card.textContent = ''; card.classList.remove('fairy-tour-pick'); card.classList.remove('fairy-tour-wide'); lastPKey = '';
           if (extras && steps.kind === 'tutorial' && steps.chapters) {
             var pg = document.createElement('div'), cur = st.chIdx; pg.className = 'fairy-tour-prog';
             steps.chapters.forEach(function(c, ci) { var cs = document.createElement('span'); cs.className = ci < cur ? 'done' : (ci === cur ? 'now' : ''); cs.textContent = (ci < cur ? '\\u2713 ' : '') + c; pg.appendChild(cs); });
@@ -7290,7 +7292,7 @@ var ow = Math.max(0, Math.min(cx + cw, r.r + pad) - Math.max(cx, r.l - pad)), oh
           var b = t.closest ? t.closest('#fairy-tour-card button') : null;
           if (b) {
             var k = b.getAttribute('data-k');
-            if (k && k.indexOf('speed-') === 0) { tourSpeed = k.slice(6); try { localStorage.setItem('fairy_tour_speed', tourSpeed); } catch (er) {} [].forEach.call(document.querySelectorAll('#fairy-tour-card .fairy-tour-spd'), function(x) { x.classList.toggle('on', x.getAttribute('data-k') === k); }); return; }
+            if (k && k.indexOf('speed-') === 0) { tourSpeed = k.slice(6); try { localStorage.setItem('fairy_tour_speed', tourSpeed); } catch (er) {} [].forEach.call(b.parentElement.querySelectorAll('.fairy-tour-spd'), function(x) { x.classList.toggle('on', x.getAttribute('data-k') === k); }); return; }
             if (k && k.indexOf('mode-') === 0) { if (locked && (!interactive || window.__tourBusy)) return; interactive = k === 'mode-try'; try { localStorage.setItem('fairy_tour_interactive', interactive ? '1' : '0'); } catch (er) {} stopTask(); render(tourStep); return; }
             if (k === 'opts') { optsOpen = !optsOpen; var opn = document.querySelector('#fairy-tour-card .fairy-tour-opts'); if (opn) opn.style.display = optsOpen ? 'flex' : 'none'; b.textContent = optsOpen ? 'Options \\u25B4' : 'Options \\u25BE'; place(); return; }
             if (k && k.indexOf('extras-') === 0) { if (locked && window.__tourBusy) return; extras = k === 'extras-on'; try { localStorage.setItem('fairy_tour_extras', extras ? '1' : '0'); } catch (er) {} if (steps[tourStep].extrasOnly && !extras) { show(tourStep - 1); return; } render(tourStep); return; }
