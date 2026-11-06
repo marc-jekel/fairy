@@ -6833,7 +6833,7 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
                 for (r = 0; r < cards.length && r < 4 && tk === token; r++) { await slide(Math.max(0, window.scrollY + cards[r].getBoundingClientRect().top - 150)); await sleep(700); }
                 await slide(0); await sleep(900);
                 var xb = cards[0] ? cards[0].querySelector('.fairy-card-expand') : null;
-                if (xb && tk === token) { await cclick(xb); await sleep(7000); place(); await cclick(document.getElementById('fairy-card-overlay-close')); await sleep(800); }
+                if (xb && tk === token) { await cclick(xb); await sleep(3600); place(); await cclick(document.getElementById('fairy-card-overlay-close')); await sleep(800); }
               } finally { var o = document.getElementById('fairy-card-overlay-close'); if (o && o.offsetParent) o.click(); }
               place(); } }),
             R2('H-representation', 'Compact view, without trivial bounds', 'Compact packs the terms of a row together, and hiding the trivial bounds leaves only what is specific to the model. Both are only a view: the model stays the same.', function() { return [inPane('#h_layout_toggle_group'), inPane('#trivial_ineq_toggle_group')]; }, { demo: async function(tk) {
