@@ -28,6 +28,7 @@ git push -q
 
 echo "5/5 upload and restart"
 scp -q app.R $SERVER:$DIR/app.R
+if [ -d www ]; then scp -qr www $SERVER:$DIR/; ssh $SERVER "chown -R shiny:shiny $DIR/www && chmod -R a+rX $DIR/www"; fi
 ssh $SERVER "cd $DIR && chown shiny:shiny app.R && chmod 644 app.R && touch restart.txt"
 LOCAL=$(md5 -q app.R 2>/dev/null || md5sum app.R | cut -d' ' -f1)
 REMOTE=$(ssh $SERVER "md5sum $DIR/app.R" | cut -d' ' -f1)

@@ -1723,6 +1723,9 @@ ui <- shinyUI(fluidPage(
       .fairy-tour-speed { margin-left: auto; display: flex; border: 1px solid var(--fairy-border, #cfd4e0); border-radius: 8px; overflow: hidden; }
       #fairy-tour-card button.fairy-tour-spd { border: 0; border-radius: 0; padding: 2px 8px; font-size: 11px; background: transparent; color: var(--fairy-text-muted, #667085); }
       #fairy-tour-card button.fairy-tour-spd.on { background: var(--fairy-primary, #593196); color: #fff; }
+      #fairy-tour-card.fairy-tour-wide { width: min(600px, calc(100vw - 24px)); }
+      .fairy-tour-img { display: block; max-width: 100%; max-height: 38vh; width: auto; height: auto; margin: 0 auto 10px; border-radius: 6px; background: #fff; }
+      .fairy-tour-img.zoom { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 94vw; max-height: 92vh; z-index: 10700; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .65); }
       .fairy-tour-fun { margin: 0 0 8px; font-style: italic; color: var(--fairy-text-muted, #667085); }
       .fairy-tour-prog { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 0 0 8px; font-size: 11px; color: var(--fairy-text-muted, #667085); }
       .fairy-tour-prog span.now { color: var(--fairy-primary, #593196); font-weight: 700; }
@@ -6414,6 +6417,7 @@ ui <- shinyUI(fluidPage(
         var tourSpeed = 'normal';
         try { var sv0 = localStorage.getItem('fairy_tour_speed'); if (sv0 === 'slow' || sv0 === 'fast') tourSpeed = sv0; } catch (er) {}
         try { extras = localStorage.getItem('fairy_tour_extras') === '1'; } catch (er) {}
+        function isTutKind() { return !!steps && (steps.kind === 'tutorial' || steps.kind === 'hsm'); }
         function isLastStep(st) { return !!(st.last || (st.lastIfNoExtras && !extras)); }
         function spMul() { return tourSpeed === 'slow' ? 1.9 : (tourSpeed === 'fast' ? 0.45 : 1); }
         function sp(ms) { return Math.round(ms * spMul()); }
@@ -6689,7 +6693,7 @@ ui <- shinyUI(fluidPage(
           c.style.transition = ''; c.classList.remove('fairy-tour-down'); await ssleep(400);
         }
         async function ensureRowsFast(n) { var g = 0; while (rowCount() < n && g !== 20) { await addOne('add_ie', rowCount, false); g++; } await sleep(300); }
-        var anDone = false, vTutOn = false, goAllDone = false, parsDone1 = false, parsDone2 = false;
+        var hsmV1 = false, hsmV2 = false, hsmGo2 = false, anDone = false, vTutOn = false, goAllDone = false, parsDone1 = false, parsDone2 = false;
         function tutorialSteps() {
           function model(k, title, text, spec, extra) {
             return S(title, text, function() { return [specTd(k)]; }, { pre: function() { return ensureRowsFast(k); }, wait: 200, task: { type: 'type', fields: function() { return [{ el: document.getElementById('textin_relations_' + k), text: spec, label: 'Unique Model Specification of m' + k }]; } }, demo: async function(tk) {
@@ -6815,6 +6819,63 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           A.push(S('Your turn: three experiments', 'After Finish the app is yours. Try these, and guess the result first. 1) In m1 turn one > into <, for example p1 > p2 < p3, press Go and compare the volume under Model Properties. 2) Add p1 > 0.5 to m1: how does the maximum Bayes factor change? 3) Type a mistake on purpose, such as a capital P, and read the hint.', function() { return []; }, { extrasOnly: true, last: true, noexample: true, pre: async function() { await closeModalPtr(); }, wait: 200 }));
           A[A.length - 1].chIdx = chs.length - 1;
           return A;
+        }
+        // ---- interactive tutorial 2: a real theory, the Heuristic-Systematic Model (online supplement of the paper) ----
+        
+        function hsmSteps() {
+          function hm(k, title, text, spec, extra) {
+            var o = { pre: function() { return ensureRowsFast(k); }, wait: 200, task: { type: 'type', fields: function() { return [{ el: document.getElementById('textin_relations_' + k), text: spec, label: 'Unique Model Specification of m' + k }]; } }, demo: async function(tk) { await typeInto(document.getElementById('textin_relations_' + k), spec, tk); } };
+            if (extra) { for (var q in extra) { o[q] = extra[q]; } }
+            return S(title, text, function() { return [specTd(k)]; }, o);
+          }
+          function names(list, hints) {
+            return { type: 'type', fields: function() { return list.map(function(nm, k) { return { el: document.getElementById('textin_name_' + (k + 1)), text: nm, label: 'Name of p' + (k + 1), hint: hints[k] + ', in curly braces after the underscore' }; }); } };
+          }
+          function typeNames(list) { return async function(tk) { await ensureProbs(list.length, tk); var i; for (i = 0; i !== list.length && tk === token; i++) { await typeInto(document.getElementById('textin_name_' + (i + 1)), list[i], tk); } }; }
+          function vOn(id, flagSet, flagGet) { return { task: goTask(id, function() { flagSet(); return Promise.resolve(); }, function() { return flagGet() || tabShown('V-representation'); }), demo: async function(tk) { if (!tabShown('V-representation')) { await cclick(document.getElementById(id)); flagSet(); } } }; }
+          async function mixDemo(ids, tk) {
+            await sleep(300); await cclick(document.getElementById('add_mixture_model')); await sleep(900); place();
+            var i, m = modalOpen();
+            for (i = 0; i !== ids.length; i++) { var cb = null, ins = m ? m.querySelectorAll('#mixture_model_picker input') : [], q; for (q = 0; q !== ins.length; q++) { if (ins[q].value === String(ids[i])) cb = ins[q]; } if (cb) { await cclick(cb.closest('label') || cb); await sleep(400); } }
+            await sleep(500); await cclick(document.getElementById('submit_mixture_model')); await sleep(1200); place();
+          }
+          var P1 = ['p_{bW}', 'p_{bS}', 'p_{sW}', 'p_{sS}'], P1h = ['big gap, weak arguments', 'big gap, strong arguments', 'small gap, weak arguments', 'small gap, strong arguments'];
+          var P2 = ['p_{iW}', 'p_{nW}', 'p_{cW}', 'p_{iS}', 'p_{nS}', 'p_{cS}'], P2h = ['incongruent cues, weak arguments', 'no cues, weak arguments', 'congruent cues, weak arguments', 'incongruent cues, strong arguments', 'no cues, strong arguments', 'congruent cues, strong arguments'];
+          function freshStep(title, text, nextTitle) {
+            return S(title, text, function() { return []; }, { pre: function() { closeModal(); goTab('Input'); }, nextLabel: 'Start fresh', onNext: function() { var kk = tourStep; if (isPristine()) { show(kk + 1); return; } setLock(true); resetInPlace().then(function(ok) { if (ok) { setLock(false); show(kk + 1); } else window.fairyStartOver('hsm', kk + 1, false); }); } });
+          }
+          var H = [
+            freshStep('A real theory: HSM', 'The online supplement of the paper formalizes a textbook theory in the same way as the cringe study: the Heuristic-Systematic Model of persuasion (Chaiken and Ledgerwood, 2012). The authors stress that their reading of HSM is superficial. The aim is to show the method, not to test HSM. The tour starts with a fresh app: your current input is cleared, so save it first if you want to keep it.'),
+            S('The theory in short', 'HSM is about someone deciding whether to draw a conclusion and act on it. Before looking at any information the person has an Actual Confidence and a Desired Confidence, the Sufficiency Threshold. The distance between them is the gap. Information is processed with as little effort as possible: first the cues (heuristic processing, for example who says it), and only if the gap is still open the arguments (systematic processing). Processing stops as soon as the threshold is reached, and the person acts. If it is never reached, the person does not act.', function() { return []; }, { pre: function() { closeModal(); goTab('Input'); } }),
+            S('Eight people', 'Figure A1 of the supplement. Each bar is one person. The solid line is the Actual Confidence, the dashed line the Desired Confidence, the arrow the gap. Blue is the effect of the cues, red of the arguments, hatched what is no longer processed. Bob stops after the cues. Anna, Dave, Eve, Greta and Hank stop during the arguments. Claude and Frank never reach their threshold, so they do not act. Greta ignores cues that disagree with the conclusion, and Hank has no cues. Click the figure to enlarge it.', function() { return []; }, { img: 'hsm_figure_a1.png', imgAlt: 'Figure A1 of the online supplement: eight people with actual and desired confidence, cues and arguments' }),
+            S('Where the predictions come from', 'Nobody can measure these bars. The theory allows everybody to differ in where they start, where they want to get, and how strongly cues and arguments move them. All that is observed is whether a person acts. Two things still hold for every single person. A stronger argument never shortens the red bar, so anyone who acts with a weak argument also acts with a strong one. And a smaller gap never makes anybody stop acting. So in any population the share who act cannot fall when the argument gets stronger or the gap smaller. These are the order constraints of the next steps.', function() { return []; }, { }),
+            S('Four probabilities', 'The first study has two gap sizes (big b or small s: how far a person is from the confidence they want) and two argument strengths (weak W or strong S). The four probabilities are the share of people who take the action in each of the four conditions.', function() { return [q1('.def-col--pnames')]; }, { pre: function() { return ensureProbs(4, token); }, task: names(P1, P1h), demo: typeNames(P1) }),
+            hm(1, 'Prediction 1: argument strength', 'Whatever the people are like, a stronger argument can only help: with the gap fixed, the share who act cannot fall. For a big gap p_bW is at most p_bS and for a small gap p_sW is at most p_sS. With the numbering p1 to p4 that is p1 < p2 and p3 < p4.', 'p1 < p2; p3 < p4'),
+            hm(2, 'Prediction 2: gap size', 'Likewise a smaller gap can only help: with weak arguments p_bW is at most p_sW and with strong arguments p_bS is at most p_sS, so p1 < p3 and p2 < p4.', 'p1 < p3; p2 < p4'),
+            hm(3, 'Prediction 3: both together', 'Both predictions hold at once, which is the intersection of the two models. As chains: p1 < p2 < p4 and p1 < p3 < p4.', 'p1 < p2 < p4; p1 < p3 < p4', { fun: 'Two modest predictions combine into one that is a lot less modest.' }),
+            S('Vertices of prediction 3', 'The vertices are the extreme cases. They are only switched on for m3 here.', function() { return [q1('#vrep_toggle_btn_3')]; }, Object.assign({ pre: function() { closeModal(); return tabC('Input'); }, wait: 300 }, vOn('vrep_toggle_btn_3', function() { hsmV1 = true; }, function() { return hsmV1; }))),
+            S('Go', 'Go builds the H-representation of the three models, and the vertices of m3.', function() { return [q1('#go_inline')]; }, { task: goTask('go_inline', async function() { await sleep(2500); await waitFor(function() { return tabShown('V-representation') && calcIdle(); }, 120000); await sleep(800); }, function() { return tabShown('V-representation') && tabShown('Plot Edge Cases'); }), demo: async function(tk) { await cclick(document.getElementById('go_inline')); await waitFor(function() { return tabShown('V-representation') && tabShown('Plot Edge Cases'); }, 60000); } }),
+            R2('H-representation', 'Nothing is redundant', 'The H-representation of each model lists its inequalities, plus the automatic bounds between 0 and 1. The supplement notes that the app confirms that none of the constraints of the predictions is redundant.', function() { var p = pane(); var l = p ? p.querySelectorAll('.model-card') : []; return [].filter.call(l, shown).slice(0, 3); }),
+            R2('V-representation', 'The six extreme cases', 'Each vertex is a pattern across the four conditions (p1 to p4): 1 means that everybody acts, 0 that nobody does. V5 is nobody, V6 is everybody. V1 is only a small gap with a strong argument. The supplement checks each of the six and finds that every one is achievable under HSM, so prediction 3 is a tight statement of what the theory implies.', function() { var p = pane(); var e = p ? p.querySelector('.model-card') : null; return [shown(e) ? e : null]; }, { fun: 'Marc checks all six patterns so that you do not have to.' }),
+            R2('Model Properties', 'How restrictive is it?', 'A quarter of all possible families of four probabilities satisfy prediction 1, and a quarter prediction 2. Only one in twelve satisfy prediction 3. So with only four conditions the largest possible Bayes factor is already 12 for prediction 3 against the unconstrained model.', function() { return [inPane('#go_inline_pars')]; }, { tasks: [tabTask('Model Properties'), goTask('go_inline_pars', async function() { await sleep(2500); await waitFor(function() { return calcIdle() && parsRows() > 0; }, 300000); await sleep(1000); parsDone1 = true; }, function() { return parsDone1; })], demo: async function(tk) { await cclick(document.getElementById('go_inline_pars')); await waitFor(function() { return shown(document.getElementById('parsimony_bar_plot')); }, 60000); parsDone1 = true; },
+              quiz: { q: 'Your guess: which share of all families of four probabilities satisfies prediction 3?', opts: ['1/4', '1/8', '1/12', '1/24'], ok: 2, why: 'Prediction 3 orders the four probabilities as p1 below p2 and p3, both below p4. Of the 24 orderings of four numbers, 2 fit: that is 1/12.' } }),
+            S('What about bigger designs?', 'Parsimony changes with the design. Prediction 3 holding jointly in two populations (replication as joint models) gives a largest Bayes factor of about 144, and with substitutable parameters about 420. A single study with three gap sizes and three argument strengths (nine probabilities, twelve inequalities) reaches about 8,600, almost 60 times more. The replication of the small design puts far less pressure on the theory than one richer design.', function() { return []; }, { pre: function() { closeModal(); }, fun: 'Replication crisis meets theory crisis.' }),
+            freshStep('A second question: cues', 'The second part asks what happens to the cues of a message: congruent with the conclusion (c), incongruent (i) or absent (n). Arguments are weak (W) or strong (S) as before. Gap size is dropped. The next step clears the app again for the six probabilities.'),
+            S('Six probabilities', 'The six probabilities are the shares who act with incongruent cues, no cues and congruent cues, each with weak and with strong arguments.', function() { return [q1('.def-col--pnames')]; }, { pre: function() { return ensureProbs(6, token); }, task: names(P2, P2h), demo: typeNames(P2) }),
+            hm(1, 'The Override model', 'The Override Hypothesis: people who think hard ignore cues that disagree with the conclusion. So incongruent cues behave exactly like no cues: p_iW = p_nW and p_iS = p_nS. Congruent cues and strong arguments can only help. In the app: p1 = p2 < p3 < p6 and p2 < p4 = p5 < p6.', 'p1 = p2 < p3 < p6; p2 < p4 = p5 < p6', { fun: 'Greta has seen it all and ignores the cue.' }),
+            hm(2, 'The Trade-off model', 'The softer version: incongruent cues take away some, not all, of the effect of an argument. Every equality of the Override model becomes an inequality, and a few more orderings have to be added so that nothing is left undecided: p1 < p2 < p3 < p6, p1 < p4 < p5 < p6 and p2 < p5.', 'p1 < p2 < p3 < p6; p1 < p4 < p5 < p6; p2 < p5'),
+            hm(3, 'Take-the-best', 'A competing theory with other building blocks: if the cues decide, take the action without reading the arguments. Incongruent cues mean no action, and with no cues or congruent cues everybody acts, whatever the arguments: p1 = p4 = 0 and p2 = p3 = p5 = p6 = 1.', 'p1 = p4 = 0; p2 = p3 = p5 = p6 = 1', { fun: 'A deterministic model: either everybody does it or nobody.' }),
+            S('Vertices of the Override model', 'The six extreme cases of the Override model are switched on for m1.', function() { return [q1('#vrep_toggle_btn_1')]; }, Object.assign({ pre: function() { closeModal(); return tabC('Input'); }, wait: 300 }, vOn('vrep_toggle_btn_1', function() { hsmV2 = true; }, function() { return hsmV2; }))),
+            S('Go', 'Go builds the models.', function() { return [q1('#go_inline')]; }, { task: goTask('go_inline', async function() { await sleep(2500); await waitFor(function() { return tabShown('V-representation') && calcIdle(); }, 120000); await sleep(800); }, function() { return tabShown('V-representation') && tabShown('Plot Edge Cases'); }), demo: async function(tk) { await cclick(document.getElementById('go_inline')); await waitFor(function() { return tabShown('V-representation') && tabShown('Plot Edge Cases'); }, 60000); } }),
+            R2('H-representation', 'Equalities in the H-representation', 'The Override model has two equalities, the Trade-off model none, and Take-the-best six: a model that fixes every probability.', function() { var p = pane(); var l = p ? p.querySelectorAll('.model-card') : []; return [].filter.call(l, shown).slice(0, 3); }),
+            R2('V-representation', 'Override: six extreme cases', 'Each row is a pattern for p1 to p6, all or nobody acting. The six patterns can all be produced by a suitable population, so the Override model is a tight statement of the verbal hypothesis. The Trade-off model has 10 vertices and Take-the-best exactly one, which is a single pattern.', function() { var p = pane(); var e = p ? p.querySelector('.model-card') : null; return [shown(e) ? e : null]; }),
+            R2('Model Properties', 'Volume zero, no limit', 'The Override model and Take-the-best contain equalities, so their volume is zero and there is no upper limit for the Bayes factor in their favour (and none against them). The Trade-off model has a volume and a largest Bayes factor of about 144. The Override model is nested in the Trade-off model.', function() { return [inPane('#go_inline_pars')]; }, { tasks: [tabTask('Model Properties'), goTask('go_inline_pars', async function() { await sleep(2500); await waitFor(function() { return calcIdle() && parsRows() > 0; }, 300000); await sleep(1000); parsDone2 = true; }, function() { return parsDone2; })], demo: async function(tk) { await cclick(document.getElementById('go_inline_pars')); await waitFor(function() { return shown(document.getElementById('parsimony_bar_plot')); }, 60000); parsDone2 = true; } }),
+            S('A mixture of both', 'Could a mixture of Override and Take-the-best, where some people follow one and the rest the other, protect HSM from falsification? Mathematically it adds the Take-the-best vertex to the Override model. The Mixture model button does this for m1 and m3.', function() { return [modQ('.modal-content') || q1('#add_mixture_model')]; }, { pre: function() { closeModal(); return tabC('Input'); }, wait: 300, demo: async function(tk) { await mixDemo([1, 3], tk); } }),
+            S('Go for the mixture', 'Go builds the mixture too.', function() { return [q1('#go_inline')]; }, { pre: function() { closeModal(); return tabC('Input'); }, wait: 300, skipPreInTry: true, task: goTask('go_inline', async function() { await sleep(2500); await waitFor(function() { return calcIdle(); }, 120000); await sleep(1500); hsmGo2 = true; }, function() { return hsmGo2; }), demo: async function(tk) { await cclick(document.getElementById('go_inline')); await sleep(2500); await waitFor(function() { return calcIdle(); }, 120000); await sleep(1500); hsmGo2 = true; } }),
+            R2('H-representation', 'The mixture model', 'The mixture still contains an equality (p_nW + p_iS = p_iW + p_nS), so its volume is zero too. Evidence in its favour has no theoretical limit with only six probabilities, and neither has evidence against it. Override and Take-the-best are nested in it. A mixture does not make a theory immune: it can still be refuted.', function() { var p = pane(); var l = p ? [].filter.call(p.querySelectorAll('.model-card'), shown) : []; return l.length ? [l[l.length - 1]] : []; }, { last: true, noexample: true, fun: 'Mixtures are sneaky, but equalities keep them honest.' })
+          ];
+          H.forEach(function(x) { x.chIdx = 0; });
+          return H;
         }
         function allSteps() {
           var parts = [fullSteps().filter(function(x) { return x.title !== 'Results tabs' && x.title !== 'That is it'; }), unpackSteps(), combineSteps(), resultSteps(), runSteps(), mnSteps()], out = [];
@@ -6994,6 +7055,7 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           }
           group('Tutorial');
           opt('The cringe study', 'The example of the paper, entered for you', tutorialSteps().length, 'tutorial');
+          opt('A real theory: HSM', 'The online supplement of the paper, entered for you', hsmSteps().length, 'hsm');
           group('Overview');
           var first = opt('Quick tour', 'A first look, from input to results', basicSteps().length, 'basic', true);
           opt('Full tour', 'Every part of the app, one after the other', allSteps().length, 'full');
@@ -7042,7 +7104,7 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           ensure();
           var st = steps[i], card = document.getElementById('fairy-tour-card');
           if (!card) return;
-          card.textContent = ''; card.classList.remove('fairy-tour-pick');
+          card.textContent = ''; card.classList.remove('fairy-tour-pick'); card.classList.remove('fairy-tour-wide');
           if (extras && steps.kind === 'tutorial' && steps.chapters) {
             var pg = document.createElement('div'), cur = st.chIdx; pg.className = 'fairy-tour-prog';
             steps.chapters.forEach(function(c, ci) { var cs = document.createElement('span'); cs.className = ci < cur ? 'done' : (ci === cur ? 'now' : ''); cs.textContent = (ci < cur ? '\\u2713 ' : '') + c; pg.appendChild(cs); });
@@ -7050,8 +7112,9 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           }
           var h = document.createElement('h4'); h.textContent = st.title; card.appendChild(h);
           var p = document.createElement('p'); p.textContent = st.text; card.appendChild(p);
+          if (st.img) { var im = document.createElement('img'); im.src = st.img; im.className = 'fairy-tour-img'; im.alt = st.imgAlt || ''; im.title = 'Click to enlarge'; im.style.cursor = 'zoom-in'; im.addEventListener('click', function(ev) { ev.stopPropagation(); im.classList.toggle('zoom'); im.style.cursor = im.classList.contains('zoom') ? 'zoom-out' : 'zoom-in'; }); im.addEventListener('load', function() { place(); }); card.classList.add('fairy-tour-wide'); card.appendChild(im); }
           var isLast = isLastStep(st);
-          if (extras && steps.kind === 'tutorial') {
+          if (extras && isTutKind()) {
             if (st.fun) { var fu = document.createElement('p'); fu.className = 'fairy-tour-fun'; fu.textContent = st.fun; card.appendChild(fu); }
             if (st.quiz) {
               var qz = document.createElement('div'); qz.className = 'fairy-tour-quiz';
@@ -7081,7 +7144,7 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           var op = document.createElement('div'); op.className = 'fairy-tour-opts';
           var spd = document.createElement('div'); spd.className = 'fairy-tour-speed'; spd.title = 'Speed of the pointer and the typing';
           [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']].forEach(function(o) { var sb = document.createElement('button'); sb.type = 'button'; sb.setAttribute('data-k', 'speed-' + o[0]); sb.textContent = o[1]; sb.className = 'fairy-tour-spd' + (tourSpeed === o[0] ? ' on' : ''); spd.appendChild(sb); });
-          if (steps.kind === 'tutorial') {
+          if (isTutKind()) {
             op.classList.add('tut');
             var md = document.createElement('div'); md.className = 'fairy-tour-speed fairy-tour-modesw'; md.title = 'Watch the pointer do it, or try it yourself';
             [['watch', 'Watch'], ['try', 'Try it yourself']].forEach(function(o) { var mb = document.createElement('button'); mb.type = 'button'; mb.setAttribute('data-k', 'mode-' + o[0]); mb.textContent = o[1]; mb.className = 'fairy-tour-spd' + ((o[0] === 'try') === interactive ? ' on' : ''); md.appendChild(mb); });
@@ -7097,7 +7160,7 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           if (!isLast) { var sk = btn('End tour', 'end'); sk.style.marginRight = 'auto'; foot.appendChild(sk); }
           if (tryHere) { foot.appendChild(btn('Hint', 'hint')); foot.appendChild(btn('Show me', 'showme')); }
           foot.appendChild(btn(i === 0 ? 'All tours' : 'Back', 'back'));
-          if (isLast && !st.noexample && steps.kind !== 'unpack' && steps.kind !== 'combine' && steps.kind !== 'results' && steps.kind !== 'run' && steps.kind !== 'mn' && steps.kind !== 'tutorial') foot.appendChild(btn('Fill in example', 'example'));
+          if (isLast && !st.noexample && steps.kind !== 'unpack' && steps.kind !== 'combine' && steps.kind !== 'results' && steps.kind !== 'run' && steps.kind !== 'mn' && !isTutKind()) foot.appendChild(btn('Fill in example', 'example'));
           if (st.full) foot.appendChild(btn('Full tour', 'full'));
           var nx = btn(isLast ? 'Finish' : (st.nextLabel || 'Next'), 'next', 'fairy-tour-primary'); foot.appendChild(nx);
           card.appendChild(foot);
@@ -7117,7 +7180,7 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           var tab = document.querySelector('a[data-value=Input]'); if (tab && !tab.parentElement.classList.contains('active')) tab.click();
           setTimeout(pick, 150);
         }
-        function go(mode) { anDone = false; goAllDone = false; parsDone1 = false; parsDone2 = false; window.__tourFrom = window.__tourFrom || 0; steps = mode === 'full' ? allSteps() : (mode === 'input' ? fullSteps() : (mode === 'unpack' ? unpackSteps() : (mode === 'combine' ? combineSteps() : (mode === 'results' ? resultSteps() : (mode === 'run' ? runSteps() : (mode === 'mn' ? mnSteps() : (mode === 'tutorial' ? tutorialSteps() : basicSteps()))))))); steps.kind = mode; tourStep = -1; show(window.__tourFromTitle ? Math.max(0, steps.map(function(x) { return x.title; }).indexOf(window.__tourFromTitle)) : (window.__tourFrom || 0)); window.__tourFrom = 0; window.__tourFromTitle = null; }
+        function go(mode) { hsmV1 = false; hsmV2 = false; hsmGo2 = false; anDone = false; goAllDone = false; parsDone1 = false; parsDone2 = false; window.__tourFrom = window.__tourFrom || 0; steps = mode === 'full' ? allSteps() : (mode === 'input' ? fullSteps() : (mode === 'unpack' ? unpackSteps() : (mode === 'combine' ? combineSteps() : (mode === 'results' ? resultSteps() : (mode === 'run' ? runSteps() : (mode === 'mn' ? mnSteps() : (mode === 'tutorial' ? tutorialSteps() : (mode === 'hsm' ? hsmSteps() : basicSteps())))))))); steps.kind = mode; tourStep = -1; show(window.__tourFromTitle ? Math.max(0, steps.map(function(x) { return x.title; }).indexOf(window.__tourFromTitle)) : (window.__tourFrom || 0)); window.__tourFrom = 0; window.__tourFromTitle = null; }
         function next() { var st0 = steps[tourStep]; if (st0.onNext) { st0.onNext(); return; } if (isLastStep(st0)) end(); else show(tourStep + 1); }
         document.addEventListener('click', function(e) {
           var t = e.target.closest ? e.target : e.target.parentNode;
@@ -7135,7 +7198,7 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
             if (k === 'next') next();
             else if (k === 'back') show(tourStep - 1);
             else if (k === 'end') end();
-            else if (k === 'basic' || k === 'full' || k === 'unpack' || k === 'combine' || k === 'results' || k === 'input' || k === 'run' || k === 'mn' || k === 'tutorial') go(k);
+            else if (k === 'basic' || k === 'full' || k === 'unpack' || k === 'combine' || k === 'results' || k === 'input' || k === 'run' || k === 'mn' || k === 'tutorial' || k === 'hsm') go(k);
             else if (k === 'example') {
               var ta = document.getElementById('textin_relations_1');
               end();
