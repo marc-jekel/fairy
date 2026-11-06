@@ -6424,7 +6424,8 @@ ui <- shinyUI(fluidPage(
         function isLastStep(st) { return !!(st.last || (st.lastIfNoExtras && !extras)); }
         function spMul() { return tourSpeed === 'slow' ? 1.9 : (tourSpeed === 'fast' ? 0.45 : 1); }
         function sp(ms) { return Math.round(ms * spMul()); }
-        function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+        // all pauses of the pointer demos are a little longer, so that what was opened or shown can be seen before the next click
+        function sleep(ms) { return new Promise(function(r) { setTimeout(r, Math.round(ms * (ms >= 250 ? 1.6 : 1))); }); }
         function ssleep(ms) { return sleep(sp(ms)); }
         function cursorEl() {
           var c = document.getElementById('fairy-tour-cursor');
@@ -6437,7 +6438,7 @@ ui <- shinyUI(fluidPage(
           c.style.transitionDuration = (0.7 * spMul()).toFixed(2) + 's'; c.style.left = Math.round(r.left + Math.min(r.width * 0.5, 60)) + 'px'; c.style.top = Math.round(r.top + r.height * 0.5) + 'px';
           await ssleep(800);
         }
-        async function clickOn(el, my) { if (!shown(el)) return; await moveTo(el); var c = cursorEl(); c.classList.remove('fairy-tour-click'); void c.offsetWidth; c.classList.add('fairy-tour-click'); await ssleep(250); if (el.click) el.click(); await ssleep(350); }
+        async function clickOn(el, my) { if (!shown(el)) return; await moveTo(el); var c = cursorEl(); c.classList.remove('fairy-tour-click'); void c.offsetWidth; c.classList.add('fairy-tour-click'); await ssleep(250); if (el.click) el.click(); await ssleep(500); }
         async function typeInto(el, text, tk) {
           if (!shown(el)) return;
           await moveTo(el); var c = cursorEl(); c.classList.remove('fairy-tour-click'); void c.offsetWidth; c.classList.add('fairy-tour-click'); await ssleep(300);
