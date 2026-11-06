@@ -1697,6 +1697,9 @@ ui <- shinyUI(fluidPage(
       .fairy-share-pop[hidden] { display: none; }
       body:has(#fairy-qr-overlay) .fairy-tooltip::after, body:has(#fairy-qr-overlay) .fairy-tooltip::before { display: none !important; }
       #fairy-tour-block { position: fixed; inset: 0; z-index: 10600; background: transparent; }
+      #fairy-tour-marks { position: fixed; inset: 0; z-index: 10603; pointer-events: none; }
+      .fairy-tour-mark { position: absolute; border: 2px solid #f59e0b; border-radius: 6px; box-shadow: 0 0 0 3px rgba(245, 158, 11, .28); background: rgba(245, 158, 11, .10); animation: fairy-tour-mark-pulse 1.4s ease-in-out infinite; }
+      @keyframes fairy-tour-mark-pulse { 0%, 100% { box-shadow: 0 0 0 3px rgba(245, 158, 11, .28); } 50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, .12); } }
       #fairy-tour-hole { position: fixed; z-index: 10601; pointer-events: none; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(10, 14, 26, .38), 0 0 0 3px var(--fairy-primary, #593196); }
       #fairy-tour-hole.fairy-tour-nohole { box-shadow: 0 0 0 9999px rgba(10, 14, 26, .38); }
       #fairy-tour-card { position: fixed; z-index: 10602; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; padding: 16px 18px 14px; border-radius: 14px; background: var(--fairy-panel, #fff); color: var(--fairy-text, #1f2430); border: 1px solid var(--fairy-border, #e5e5e5); box-shadow: 0 18px 50px rgba(0,0,0,.4); font-size: 14px; line-height: 1.45; }
@@ -6493,6 +6496,37 @@ ui <- shinyUI(fluidPage(
         function tabLink(name) { var l = document.querySelectorAll('a[data-value]'), i; for (i = 0; i !== l.length; i++) { if (l[i].getAttribute('data-value') === name) return l[i]; } return null; }
         function goTab(name) { var a = tabLink(name); if (a) { a.click(); tabsTouched = true; } }
         function pane() { return document.querySelector('.tab-pane.active'); }
+        // marks: small orange frames around the exact values a step talks about (a cell, a row, a badge)
+        function tcell(root, rowRe, colRe) {
+          if (!root) return null;
+          var ts = root.querySelectorAll('table'), i, j, k;
+          for (i = 0; i !== ts.length; i++) {
+            var c = -1;
+            if (colRe) { var ths = ts[i].querySelectorAll('thead th, tr:first-child th'); for (j = 0; j !== ths.length; j++) { if (colRe.test(ths[j].textContent)) { c = j; break; } } if (c < 0) continue; }
+            var rows = ts[i].querySelectorAll('tbody tr');
+            for (k = 0; k !== rows.length; k++) { var c0 = rows[k].cells[0] ? rows[k].cells[0].textContent.trim() : ''; if (rowRe.test(c0)) { var r = colRe ? rows[k].cells[c] : rows[k]; if (r) return r; } }
+          }
+          return null;
+        }
+        function tcol(root, colRe) {
+          var out = [], ts = root ? root.querySelectorAll('table') : [], i, j, k;
+          for (i = 0; i !== ts.length; i++) { var c = -1, ths = ts[i].querySelectorAll('thead th, tr:first-child th'); for (j = 0; j !== ths.length; j++) { if (colRe.test(ths[j].textContent)) { c = j; break; } } if (c < 0) continue; var rows = ts[i].querySelectorAll('tbody tr'); for (k = 0; k !== rows.length; k++) { if (rows[k].cells[c]) out.push(rows[k].cells[c]); } }
+          return out;
+        }
+        function cardOf(re) { var p = pane(), l = p ? p.querySelectorAll('.model-card') : [], i; for (i = 0; i !== l.length; i++) { var t = l[i].querySelector('.model-card-title'); if (shown(l[i]) && t && re.test(t.textContent.trim())) return l[i]; } return null; }
+        function badgeIn(card) { if (!card) return null; var l = card.querySelectorAll('*'), i; for (i = 0; i !== l.length; i++) { if (l[i].children.length === 0 && /\\d+\\s*eq/.test(l[i].textContent)) return l[i]; } return null; }
+        var markDone = -1;
+        function drawMarks(f) {
+          var host = document.getElementById('fairy-tour-marks'), els = [];
+          try { els = f ? f() : []; } catch (er) { els = []; }
+          els = (els || []).filter(function(e) { return e && shown(e); });
+          if (!els.length) { if (host) host.textContent = ''; return; }
+          if (markDone !== token) { markDone = token; var me = els[Math.floor(els.length / 2)]; if (me && me.scrollIntoView) me.scrollIntoView({ block: 'center', inline: 'nearest' }); }
+          if (!host) { host = document.createElement('div'); host.id = 'fairy-tour-marks'; document.body.appendChild(host); }
+          while (host.children.length > els.length) host.removeChild(host.lastChild);
+          while (host.children.length < els.length) { var d = document.createElement('div'); d.className = 'fairy-tour-mark'; host.appendChild(d); }
+          els.forEach(function(e, i) { var r = e.getBoundingClientRect(), d = host.children[i]; d.style.left = Math.round(r.left - 4) + 'px'; d.style.top = Math.round(r.top - 3) + 'px'; d.style.width = Math.round(r.width + 8) + 'px'; d.style.height = Math.round(r.height + 6) + 'px'; });
+        }
         function inPane(sel) { var p = pane(), e = p ? p.querySelector(sel) : null; return shown(e) ? e : null; }
         function byTip(re) { var p = pane(), l = p ? p.querySelectorAll('[data-tooltip]') : [], i; for (i = 0; i !== l.length; i++) { if (re.test(l[i].getAttribute('data-tooltip')) && shown(l[i])) return l[i]; } return null; }
         function paneLabel(re) { var p = pane(), l = p ? p.querySelectorAll('label') : [], i; for (i = 0; i !== l.length; i++) { if (re.test(l[i].textContent) && shown(l[i])) return l[i]; } return null; }
@@ -6716,7 +6750,7 @@ ui <- shinyUI(fluidPage(
             R2('V-representation', 'The vertices', 'The corner points of the polytope, written as (p_C, p_T, p_A): (1, 1, 1), (1, 1, 0), (1, 0, 0) and (0, 0, 0). Each row is one vertex and each column one probability. Vertices are the edge cases of your model.', function() { var p = pane(); var e = p ? p.querySelector('.model-card') : null; return [shown(e) ? e : null]; }),
             R2('Plot Edge Cases', 'The edge cases', 'Step through the four vertices: the plot shows the value of each probability at every vertex.', function() { return [inPane('#plot_example')]; }),
             R2('Model Properties', 'Parsimony: the volume', 'The smaller the polytope, the more parsimonious the model. Go computes its volume, the share of the cube that fits the model.', function() { return [inPane('#go_inline_pars')]; }, { tasks: [tabTask('Model Properties'), goTask('go_inline_pars', async function() { await sleep(2500); await waitFor(function() { return calcIdle() && parsRows() > 0; }, 300000); await sleep(1000); parsDone1 = true; }, function() { return parsDone1; })], demo: async function(tk) { await cclick(document.getElementById('go_inline_pars')); await waitFor(function() { return shown(document.getElementById('parsimony_bar_plot')); }, 60000); parsDone1 = true; } }),
-            S('1 / volume = the largest Bayes factor', 'The model fills 1/6 of the cube (about 17 percent). The reciprocal of the volume is the largest Bayes factor the model can reach against an unconstrained model: here 6. If this is too low for your purposes, look for stimuli where your theory predicts more.', function() { return [inPane('#parsimony_spinner_table')]; }),
+            S('1 / volume = the largest Bayes factor', 'The model fills 1/6 of the cube (about 17 percent). The reciprocal of the volume is the largest Bayes factor the model can reach against an unconstrained model: here 6 (volume and largest Bayes factor are marked in the table). If this is too low for your purposes, look for stimuli where your theory predicts more.', function() { return [inPane('#parsimony_spinner_table')]; }),
             S('Vertices off again', 'The vertices were only needed for the small example. For the nine theories of the next part the V switch of m1 is turned off again.', function() { return [q1('#vrep_toggle_btn_1')]; }, { pre: async function() { await closeModalPtr(); return tabC('Input'); }, wait: 300, demo: async function(tk) { if (vTutOn) { await cclick(document.getElementById('vrep_toggle_btn_1')); vTutOn = false; } } }),
             S('Now the full study', 'The paper crosses three age groups with two joke types: illogical jokes (i) and puns (p). That makes a 2 x 3 design with six probabilities: p1 children, p2 teens and p3 adults for illogical jokes, and p4, p5 and p6 for puns. Nine cringe theories predict how they relate.', function() { return []; }, { pre: async function() { await closeModalPtr(); return tabC('Input'); } }),
             S('Six probabilities', 'Three probabilities are added and all six are named: C, T and A for children, teens and adults, with i for illogical jokes and p for puns.', function() { return [q1('.def-col--pnames')]; }, { demo: async function(tk) { await ensureProbs(6, tk); var names = ['p_{C,i}', 'p_{T,i}', 'p_{A,i}', 'p_{C,p}', 'p_{T,p}', 'p_{A,p}'], i; for (i = 0; i !== 6; i++) { await typeInto(document.getElementById('textin_name_' + (i + 1)), names[i], tk); } } }),
@@ -6792,6 +6826,14 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           A.chapters = chs.map(function(c) { return c[1]; });
           A.forEach(function(x) { chs.forEach(function(c, ci) { if (x.title === c[0]) ci0 = ci; }); x.chIdx = ci0 < 0 ? 0 : ci0; });
           function ext(title, o) { A.forEach(function(x) { if (x.title === title) { for (var k in o) { x[k] = o[k]; } } }); }
+          function pt() { return document.getElementById('parsimony_spinner_table'); }
+          function firstCardRows() { var p = pane(), c = p ? p.querySelector('.model-card') : null; return c ? [].slice.call(c.querySelectorAll('tbody tr')) : []; }
+          ext('The H-representation', { marks: firstCardRows });
+          ext('The vertices', { marks: firstCardRows });
+          ext('1 / volume = the largest Bayes factor', { marks: function() { return [tcell(pt(), /^m1$/, /^\\s*Volume/), tcell(pt(), /^m1$/, /Max BF/)]; } });
+          ext('Volumes and nested models', { marks: function() { return [tcell(pt(), /^m2$/, /^\\s*Volume/), tcell(pt(), /m1.*m2|intersection/i, /^\\s*Volume/)]; } });
+          ext('Maximum Bayes factors', { marks: function() { return tcol(pt(), /Max BF/); } });
+          ext('One card per model', { marks: function() { return [badgeIn(cardOf(/^m5$/))]; } });
           ext('The cringe study', { fun: 'The study is a joke, the mathematics is not.' });
           ext('Parsimony: the volume', { quiz: { q: 'Your guess: which share of the cube fits p1 > p2 > p3?', opts: ['1/2', '1/3', '1/6', '1/8'], ok: 2, why: 'Three numbers can be ordered in 3! = 6 ways, all equally likely under a uniform prior, and only one of them is p1 > p2 > p3. Ties have no volume.' } });
           ext('The polytope', { deep: 'Every constraint of the form a1*p1 + ... <= b cuts the cube with a flat plane, so the set of all probability vectors that satisfy all constraints is a convex polytope. Background: Heck and Davis-Stober (2019), Journal of Mathematical Psychology, on the multinomineq package.' });
@@ -6812,7 +6854,7 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
             S('Save the data', 'Save keeps the numbers for the next download and for Run analysis.', function() { return [modQ('#mn_data_save')]; }, { pre: async function() { await openData(); }, wait: 300, task: goTask('mn_data_save', async function() { await sleep(800); }, function() { return !modalOpen(); }), demo: async function(tk) { await cclick(document.getElementById('mn_data_save')); await sleep(800); } }),
             S('Run analysis', 'Runs the Bayesian analysis of all models here, with the numbers just saved. For larger analyses the download gives an R script that runs on your own computer.', function() { return [inPane('#mn_run_open')]; }, { pre: async function() { await closeModalPtr(); return tabC('H-representation'); }, wait: 500, skipPreInTry: true, tasks: [tabTask('H-representation'), goTask('mn_run_open', async function() { await sleep(1200); }, function() { return !!modalOpen(); })], demo: async function(tk) { await cclick(document.getElementById('mn_run_open')); await sleep(1000); } }),
             S('Start the analysis', 'The standard settings are fine here: a flat prior and enough draws for a first look. The analysis runs on a shared server, so it takes a moment.', function() { return [modQ('#mn_run')]; }, { pre: async function() { if (!modalOpen()) { var rb = document.getElementById('mn_run_open'); if (rb) { await cclick(rb); await sleep(1000); } } }, wait: 400, task: goTask('mn_run', async function() { await sleep(2500); await waitFor(function() { return shown(document.getElementById('mn_results_host')); }, 180000); await sleep(1000); anDone = true; }, function() { return anDone; }), demo: async function(tk) { await cclick(document.getElementById('mn_run')); await waitFor(function() { return shown(document.getElementById('mn_results_host')); }, 180000); await sleep(1000); anDone = true; } }),
-            S('Bayes factors of the theories', 'A value above 1 favours the model over a model without restrictions, a value below 1 speaks against it. For m1 it is about 0.1 (it varies a little from run to run, and QTEST in the website tutorial gives the same picture): substantial evidence against m1. The reason is in the data: for puns the numbers fall with age, but m1 says the average over both joke types rises.', function() { var h = shQ('h2'), t2 = shQ('table'); return [h, t2]; }, { pre: async function() { var o = shLabel(/^Overview$/); if (o) o.click(); }, wait: 600 }),
+            S('Bayes factors of the theories', 'A value above 1 favours the model over a model without restrictions, a value below 1 speaks against it. For m1 (marked) it is about 0.1 (it varies a little from run to run, and QTEST in the website tutorial gives the same picture): substantial evidence against m1. The reason is in the data: for puns the numbers fall with age, but m1 says the average over both joke types rises.', function() { var h = shQ('h2'), t2 = shQ('table'); return [h, t2]; }, { pre: async function() { var o = shLabel(/^Overview$/); if (o) o.click(); }, wait: 600, marks: function() { return [tcell(shRoot(), /^m1$/, /unconstrained/)]; } }),
             S('That is it', 'The window closes with Close. The frequentist tests of the website tutorial still need QTEST. The Bayes factors, the posterior and the diagnostics are available here.', function() { return []; }, { pre: async function() { await sleep(600); await closeModalPtr(); }, wait: 300, lastIfNoExtras: true, noexample: true })
           ];
           AN.forEach(function(x) { x.chIdx = chs.length - 1; A.push(x); });
@@ -6900,6 +6942,15 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
             S('Go for the mixture', 'Go builds the mixture too.', function() { return [q1('#go_inline')]; }, { pre: function() { closeModal(); return tabC('Input'); }, wait: 300, skipPreInTry: true, task: goTask('go_inline', async function() { await sleep(2500); await waitFor(function() { return calcIdle(); }, 120000); await sleep(1500); hsmGo2 = true; }, function() { return hsmGo2; }), demo: async function(tk) { await cclick(document.getElementById('go_inline')); await sleep(2500); await waitFor(function() { return calcIdle(); }, 120000); await sleep(1500); hsmGo2 = true; } }),
             R2('H-representation', 'The mixture model', 'The mixture still contains an equality (p_nW + p_iS = p_iW + p_nS), so its volume is zero too. Evidence in its favour has no theoretical limit with only six probabilities, and neither has evidence against it. Override and Take-the-best are nested in it. A mixture does not make a theory immune: it can still be refuted.', function() { var p = pane(); var l = p ? [].filter.call(p.querySelectorAll('.model-card'), shown) : []; return l.length ? [l[l.length - 1]] : []; }, { last: true, noexample: true, fun: 'Mixtures are sneaky, but equalities keep them honest.' })
           ];
+          function exh(title, o) { H.forEach(function(x) { if (x.title === title) { for (var k in o) { x[k] = o[k]; } } }); }
+          function ptb() { return document.getElementById('parsimony_spinner_table'); }
+          function vcard() { var p = pane(); return p ? p.querySelector('.model-card') : null; }
+          exh('The six extreme cases', { marks: function() { return [tcell(vcard(), /^V1$/), tcell(vcard(), /^V5$/), tcell(vcard(), /^V6$/)]; } });
+          exh('How restrictive is it?', { marks: function() { return tcol(ptb(), /^\\s*Volume/).concat(tcol(ptb(), /Max BF/)); } });
+          exh('Replication and parsimony', { marks: function() { return [tcell(ptb(), /joint/, /^\\s*Volume/), tcell(ptb(), /joint/, /Max BF/), tcell(ptb(), /substitutable/, /^\\s*Volume/), tcell(ptb(), /substitutable/, /Max BF/)]; } });
+          exh('Volume zero, no limit', { marks: function() { return tcol(ptb(), /Max BF/); } });
+          exh('Nothing is redundant', { marks: function() { var p = pane(), l = p ? [].filter.call(p.querySelectorAll('.model-card'), shown) : []; return l.map(badgeIn); } });
+          exh('Equalities in the H-representation', { marks: function() { var p = pane(), l = p ? [].filter.call(p.querySelectorAll('.model-card'), shown) : []; return [badgeIn(hsmFocus >= 0 ? l[hsmFocus] : l[0])]; } });
           H.forEach(function(x) { x.chIdx = 0; });
           return H;
         }
@@ -6922,8 +6973,7 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           if (!placeTimer) placeTimer = setInterval(function() { place(); }, 600);
           if (document.getElementById('fairy-tour-block')) return;
           var b = document.createElement('div'); b.id = 'fairy-tour-block'; document.body.appendChild(b);
-          // the app cannot be used while the tour runs (no clicks, no keys, no scrolling): the tour scrolls for itself
-          b.addEventListener('wheel', function(e) { e.preventDefault(); }, { passive: false }); b.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
+          // the app cannot be clicked while the tour runs, but the page can be scrolled to look around
           try { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } catch (er) {}
           var h = document.createElement('div'); h.id = 'fairy-tour-hole'; document.body.appendChild(h);
           var c = document.createElement('div'); c.id = 'fairy-tour-card'; c.setAttribute('role', 'dialog'); c.setAttribute('aria-label', 'Tour of the app'); document.body.appendChild(c);
@@ -7004,6 +7054,7 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           if (c) { [].forEach.call(c.querySelectorAll('[data-k=next],[data-k=back]'), function(bt) { bt.disabled = on; bt.classList.toggle('fairy-tour-disabled', on); }); }
         }
         function end() {
+          var mkh = document.getElementById('fairy-tour-marks'); if (mkh) mkh.remove();
           ['fairy-tour-block', 'fairy-tour-hole', 'fairy-tour-card', 'fairy-tour-cursor', 'fairy-tour-keys'].forEach(function(id) { var e = document.getElementById(id); if (e) e.remove(); });
           tourStep = -1; picking = false; token++; locked = false; stopTask(); if (placeTimer) { clearInterval(placeTimer); placeTimer = null; }
           closeModal();
@@ -7044,6 +7095,7 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
             hole.classList.add('fairy-tour-nohole');
             hole.style.left = (vw / 2) + 'px'; hole.style.top = (vh / 2) + 'px'; hole.style.width = '0px'; hole.style.height = '0px';
           }
+          drawMarks(picking || !steps[tourStep] ? null : steps[tourStep].marks);
           var cw = card.offsetWidth, ch = card.offsetHeight, x, y;
           if (!r) { x = (vw - cw) / 2; y = (vh - ch) / 2; }
           else {
