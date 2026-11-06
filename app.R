@@ -1710,6 +1710,8 @@ ui <- shinyUI(fluidPage(
       #fairy-tour-keys { position: fixed; left: 50%; bottom: 46px; transform: translateX(-50%); z-index: 10612; width: min(560px, 92vw); box-sizing: border-box; padding: 8px 9px 6px; border-radius: 12px; background: rgba(28, 32, 44, .93); box-shadow: 0 10px 30px rgba(0,0,0,.4); pointer-events: none; font-size: clamp(7px, 1.3vw, 11px); }
       .fairy-kb-row { display: flex; gap: 4px; margin-bottom: 4px; }
       .fairy-kb-key { height: 2.6em; min-width: 0; display: flex; align-items: center; justify-content: center; box-sizing: border-box; border-radius: .5em; background: #3b4256; color: #8d96ad; font: 600 1em ui-monospace, Menlo, Consolas, monospace; transition: background .12s, color .12s, transform .08s, box-shadow .12s; }
+      .fairy-kb-fairy { display: inline-flex; margin-right: .3em; opacity: .75; }
+      .fairy-kb-fairy svg { width: 1.5em; height: 1.5em; display: block; }
       .fairy-kb-key.hit { background: var(--fairy-primary, #7a4fc4); color: #fff; transform: translateY(2px); box-shadow: 0 0 0 2px rgba(255,255,255,.55), 0 0 14px rgba(160, 120, 240, .9); }
       #fairy-tour-cursor { position: fixed; z-index: 10610; left: 50%; top: 60%; width: 22px; height: 22px; margin: -2px 0 0 -2px; pointer-events: none; transition: left .7s cubic-bezier(.4, 0, .2, 1), top .7s cubic-bezier(.4, 0, .2, 1); filter: drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
       #fairy-tour-cursor svg { display: block; width: 22px; height: 22px; }
@@ -6454,6 +6456,8 @@ ui <- shinyUI(fluidPage(
         async function cclick(el) { await clickOn(el); }
         async function tabC(name) { var a = tabLink(name); if (a) { await clickOn(a); tabsTouched = true; } }
         // a drawn keyboard: the key that is hit lights up (shift too for capitals and symbols)
+        // a tiny fairy engraved on the enter key (the fairy of the app, outline only)
+        var FAIRY_KEY_SVG = `<svg viewBox='0 0 64 64' width='22' height='22' aria-hidden='true'><g fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M31 34C16 20 6 24 10 34C6 44 18 44 31 34Z'/><path d='M33 34C48 20 58 24 54 34C58 44 46 44 33 34Z'/><circle cx='32' cy='20' r='5'/><path d='M32 25V44M32 30L26 38M32 30L38 38M32 44L27 52M32 44L37 52'/></g><path d='M50 12L51.6 15.4L55 17L51.6 18.6L50 22L48.4 18.6L45 17L48.4 15.4Z' fill='currentColor'/></svg>`;
         var KB_ROWS = [
           [['`', 1], ['1', 1], ['2', 1], ['3', 1], ['4', 1], ['5', 1], ['6', 1], ['7', 1], ['8', 1], ['9', 1], ['0', 1], ['-', 1], ['=', 1], ['del', 1.6]],
           [['tab', 1.5], ['q', 1], ['w', 1], ['e', 1], ['r', 1], ['t', 1], ['y', 1], ['u', 1], ['i', 1], ['o', 1], ['p', 1], ['[', 1], [']', 1], ['\\\\', 1.1]],
@@ -6469,7 +6473,7 @@ ui <- shinyUI(fluidPage(
             k = document.createElement('div'); k.id = 'fairy-tour-keys';
             KB_ROWS.forEach(function(row) {
               var r = document.createElement('div'); r.className = 'fairy-kb-row';
-              row.forEach(function(kk) { var e = document.createElement('div'); e.className = 'fairy-kb-key'; e.setAttribute('data-kb', kk[0]); e.style.flex = kk[1] + ' 1 0'; e.textContent = kk[0].length === 1 || kk[0] === 'del' || kk[0] === 'tab' || kk[0] === 'caps' || kk[0] === 'enter' || kk[0] === 'shift' ? kk[0] : ''; r.appendChild(e); });
+              row.forEach(function(kk) { var e = document.createElement('div'); e.className = 'fairy-kb-key'; e.setAttribute('data-kb', kk[0]); e.style.flex = kk[1] + ' 1 0'; e.textContent = kk[0].length === 1 || kk[0] === 'del' || kk[0] === 'tab' || kk[0] === 'caps' || kk[0] === 'enter' || kk[0] === 'shift' ? kk[0] : ''; if (kk[0] === 'enter') { var fsv = document.createElement('span'); fsv.className = 'fairy-kb-fairy'; fsv.innerHTML = FAIRY_KEY_SVG; e.insertBefore(fsv, e.firstChild); } r.appendChild(e); });
               k.appendChild(r);
             });
             document.body.appendChild(k);
