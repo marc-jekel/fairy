@@ -6951,7 +6951,9 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
           exh('How restrictive is it?', { marks: function() { return tcol(ptb(), /^\\s*Volume/).concat(tcol(ptb(), /Max BF/)); } });
           exh('Replication and parsimony', { marks: function() { return [tcell(ptb(), /joint/, /^\\s*Volume/), tcell(ptb(), /joint/, /Max BF/), tcell(ptb(), /substitutable/, /^\\s*Volume/), tcell(ptb(), /substitutable/, /Max BF/)]; } });
           exh('Volume zero, no limit', { marks: function() { return tcol(ptb(), /Max BF/); } });
-          exh('Equalities in the H-representation', { marks: function() { var p = pane(), l = p ? [].filter.call(p.querySelectorAll('.model-card'), shown) : []; return [badgeIn(hsmFocus >= 0 ? l[hsmFocus] : l[0])]; } });
+          function eqRows(card) { return card ? [].filter.call(card.querySelectorAll('tbody tr'), function(r) { return shown(r) && /=/.test(r.textContent) && !/\\u2264|\\u2265|<|>/.test(r.textContent); }) : []; }
+          exh('Equalities in the H-representation', { marks: function() { var p = pane(), l = p ? [].filter.call(p.querySelectorAll('.model-card'), shown) : [], c = hsmFocus >= 0 ? l[hsmFocus] : l[0]; return [badgeIn(c)].concat(eqRows(c)); } });
+          exh('The mixture model', { marks: function() { var p = pane(), l = p ? [].filter.call(p.querySelectorAll('.model-card'), shown) : []; var c = l.length ? l[l.length - 1] : null; return eqRows(c); } });
           H.forEach(function(x) { x.chIdx = 0; });
           return H;
         }
