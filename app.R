@@ -6854,7 +6854,8 @@ S('Intersections: what two models share', 'Models can make similar predictions: 
             S('Save the data', 'Save keeps the numbers for the next download and for Run analysis.', function() { return [modQ('#mn_data_save')]; }, { pre: async function() { await openData(); }, wait: 300, task: goTask('mn_data_save', async function() { await sleep(800); }, function() { return !modalOpen(); }), demo: async function(tk) { await cclick(document.getElementById('mn_data_save')); await sleep(800); } }),
             S('Run analysis', 'Runs the Bayesian analysis of all models here, with the numbers just saved. For larger analyses the download gives an R script that runs on your own computer.', function() { return [inPane('#mn_run_open')]; }, { pre: async function() { await closeModalPtr(); return tabC('H-representation'); }, wait: 500, skipPreInTry: true, tasks: [tabTask('H-representation'), goTask('mn_run_open', async function() { await sleep(1200); }, function() { return !!modalOpen(); })], demo: async function(tk) { await cclick(document.getElementById('mn_run_open')); await sleep(1000); } }),
             S('Start the analysis', 'The standard settings are fine here: a flat prior and enough draws for a first look. The analysis runs on a shared server, so it takes a moment.', function() { return [modQ('#mn_run')]; }, { pre: async function() { if (!modalOpen()) { var rb = document.getElementById('mn_run_open'); if (rb) { await cclick(rb); await sleep(1000); } } }, wait: 400, task: goTask('mn_run', async function() { await sleep(2500); await waitFor(function() { return shown(document.getElementById('mn_results_host')); }, 180000); await sleep(1000); anDone = true; }, function() { return anDone; }), demo: async function(tk) { await cclick(document.getElementById('mn_run')); await waitFor(function() { return shown(document.getElementById('mn_results_host')); }, 180000); await sleep(1000); anDone = true; } }),
-            S('Bayes factors of the theories', 'A value above 1 favours the model over a model without restrictions, a value below 1 speaks against it. For m1 (marked) it is about 0.1 (it varies a little from run to run, and QTEST in the website tutorial gives the same picture): substantial evidence against m1. The reason is in the data: for puns the numbers fall with age, but m1 says the average over both joke types rises.', function() { var h = shQ('h2'), t2 = shQ('table'); return [h, t2]; }, { pre: async function() { var o = shLabel(/^Overview$/); if (o) o.click(); }, wait: 600, marks: function() { return [tcell(shRoot(), /^m1$/, /unconstrained/)]; } }),
+            S('Bayes factors of the theories', 'Each row is one theory. The first column is the Bayes factor against the unconstrained model, in which all six probabilities are free: how many times more probable the data are under the theory than under that free model. Above 1 favours the theory, below 1 speaks against it. The second column compares the theory with everything it forbids. The se is the Monte-Carlo error of the estimate, which shrinks with more draws. For m1 (marked) the value is about 0.1: substantial evidence against m1, in line with QTEST in the website tutorial. The reason is in the data: for puns the numbers fall with age, but m1 says the average over both joke types rises.', function() { var h = shQ('h2'), t2 = shQ('table'); return [h, t2]; }, { pre: async function() { var o = shLabel(/^Overview$/); if (o) o.click(); }, wait: 600, marks: function() { return [tcell(shRoot(), /^m1$/, /unconstrained/)]; } }),
+            S('How strong is the evidence?', 'The colours follow a common scale (Jeffreys; Lee and Wagenmakers): between 1/10 and 1/3 is moderate evidence against a theory, between 1/30 and 1/10 strong, and below 1/100 extreme. Above 1 it works the same way in favour. m1 with about 0.1 sits at the border between moderate and strong evidence against it. How high a value can get in favour is limited by the maximum Bayes factor from the parsimony table: a roomy theory can never be strongly supported.', function() { var r = shRoot(), e = r ? r.querySelector('.scale') : null; return [shown(e) ? e : null]; }, { wait: 300, marks: function() { var r = shRoot(), e = r ? r.querySelector('.scale') : null; return [e]; } }),
             S('That is it', 'The window closes with Close. The frequentist tests of the website tutorial still need QTEST. The Bayes factors, the posterior and the diagnostics are available here.', function() { return []; }, { pre: async function() { await sleep(600); await closeModalPtr(); }, wait: 300, lastIfNoExtras: true, noexample: true })
           ];
           AN.forEach(function(x) { x.chIdx = chs.length - 1; A.push(x); });
@@ -20778,7 +20779,7 @@ server <- shinyServer(function(input, output, session) {
         nn <- vapply(seq_len(g$k), function(i) { v <- u[[g$labels[i]]]; if (is.null(v)) 25L else as.integer(v$n) }, integer(1))
         ff <- vapply(seq_len(g$k), function(i) { v <- u[[g$labels[i]]]; if (is.null(v)) as.integer(ex[i]) else as.integer(v$f) }, integer(1))
       }
-      utils::write.csv(data.frame(probability = g$labels, n = nn, frequency = ff), f, row.names = FALSE, quote = FALSE)
+      utils::write.csv(data.frame(probability = g$labels, n = nn, frequency = ff), f, row.names = FALSE, quote = TRUE)
       out <- c(out, f)
     }
     out
@@ -22804,10 +22805,11 @@ server <- shinyServer(function(input, output, session) {
         fileName <-
           paste("A_", export_files[loop_qtest_h], ".csv", sep = "")
 
+        # names like p_{C,i} contain a comma: the header has to be quoted, otherwise the columns shift when the script reads the file
         write.table(
           A,
           fileName,
-          quote = FALSE,
+          quote = TRUE,
           col.names = TRUE,
           row.names = FALSE,
           sep = ","
