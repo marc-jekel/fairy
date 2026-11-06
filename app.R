@@ -6796,11 +6796,12 @@ ui <- shinyUI(fluidPage(
               await sleep(1200); await cclick(document.getElementById('eq_tol_btn_7')); await sleep(1500); place();
               var sw = modQ('label[for=eq_tol_switch_7_1]'); if (sw) await cclick(sw); await sleep(700);
               await cclick(modQ('#submit_eq_tol_7')); await sleep(900); place(); } }),
-            S('m8: wiggle room for all pairs', 'm8 says that all six probabilities are about the same, within .05. The braces are a shortcut: every element on the left is set equal to every element on the right, so this stands for all pairs. The buttons for each term switch all its pairs to approximate at once.', function() { return [modQ('.modal-content') || specTd(8)]; }, { pre: function() { return ensureRowsFast(8); }, wait: 200, demo: async function(tk) {
+            S('m8: wiggle room for all pairs', 'm8 says that all six probabilities are about the same, within .05. The braces are a shortcut: every element on the left is set equal to every element on the right, so this stands for all pairs. The buttons for each term switch all its pairs to approximate at once. The last term needs no click: all of its pairs are already covered by the five before, so it is selected by itself.', function() { return [modQ('.modal-content') || specTd(8)]; }, { pre: function() { return ensureRowsFast(8); }, wait: 200, demo: async function(tk) {
               await typeInto(document.getElementById('textin_relations_8'), '{p1,p2,p3,p4,p5,p6} = {p1,p2,p3,p4,p5,p6}', tk);
               await sleep(1200); await cclick(document.getElementById('eq_tol_btn_8')); await sleep(1500); place();
               var m = modalOpen(), bs = m ? m.querySelectorAll('#fairy-eq-tol-terms button') : [], i;
               for (i = 0; i !== 5 && i !== bs.length; i++) { await cclick(bs[i]); }
+              if (bs.length > 5 && tk === token) { await moveTo(bs[5]); await sleep(1500); }
               await sleep(500); await cclick(modQ('#submit_eq_tol_8')); await sleep(900); place(); } }),
             model(9, 'm9: the opposite of m4', 'Illogical jokes increase with age, puns decrease, and illogical jokes are cringier than puns in every age group.', 'p1 < p2 < p3; p4 > p5 > p6; p1 > p4; p2 > p5; p3 > p6'),
             S('All nine models', 'All nine theories are entered. The page scrolls over them once, down to the end.', function() { return [q1('.def-col--models-card')]; }, { pre: async function() { await closeModalPtr(); return tabC('Input').then(function() { return ensureRowsFast(9); }); }, wait: 300, demo: async function(tk) {
