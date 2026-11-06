@@ -6457,7 +6457,7 @@ ui <- shinyUI(fluidPage(
           await ssleep(500); hideKeys(); await ssleep(100);
         }
         async function cclick(el) { await clickOn(el); }
-        async function tabC(name) { var a = tabLink(name); if (a) { await clickOn(a); tabsTouched = true; } }
+        async function tabC(name) { var a = tabLink(name); if (a && !(a.parentElement && a.parentElement.classList.contains('active'))) { await clickOn(a); tabsTouched = true; } }
         // a drawn keyboard: the key that is hit lights up (shift too for capitals and symbols)
         // a tiny fairy engraved on the enter key (the fairy of the app, outline only)
         var FAIRY_KEY_SVG = `<svg viewBox='0 0 64 64' width='22' height='22' aria-hidden='true'><g fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M31 34C16 20 6 24 10 34C6 44 18 44 31 34Z'/><path d='M33 34C48 20 58 24 54 34C58 44 46 44 33 34Z'/><circle cx='32' cy='20' r='5'/><path d='M32 25V44M32 30L26 38M32 30L38 38M32 44L27 52M32 44L37 52'/></g><path d='M50 12L51.6 15.4L55 17L51.6 18.6L50 22L48.4 18.6L45 17L48.4 15.4Z' fill='currentColor'/></svg>`;
